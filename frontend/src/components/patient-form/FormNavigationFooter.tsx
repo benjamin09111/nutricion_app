@@ -17,21 +17,25 @@ export function FormNavigationFooter({
   nextDisabled = false,
   isFirstStep = false,
   nextLabel = "Continuar",
-  backLabel = "Volver",
+  backLabel = "Anterior",
   className,
 }: FormNavigationFooterProps) {
   return (
-    <div className={cn("flex justify-between mt-4 max-w-2xl", className)}>
-      {!isFirstStep ? (
+    <div className={cn("flex justify-end items-center gap-3 mt-4 max-w-2xl", className)}>
+      {onBack && (
         <button
           onClick={onBack}
+          disabled={isFirstStep}
           type="button"
-          className="border border-slate-300 rounded-lg px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 transition-colors"
+          className={cn(
+            "border rounded-lg px-4 py-2 text-sm transition-colors",
+            isFirstStep
+              ? "border-slate-200 bg-slate-50 text-slate-300 cursor-not-allowed"
+              : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+          )}
         >
           {backLabel}
         </button>
-      ) : (
-        <span />
       )}
       <button
         onClick={onNext}

@@ -12,6 +12,7 @@
     "db:cleanup:clinical-metrics": "tsx prisma/cleanup-clinical-metric-contamination.ts",
     "db:cleanup:ingredient-duplicates": "node scripts/cleanup-duplicate-ingredients.js",
     "db:resources:replace": "tsx prisma/seed-resources.ts",
+    "db:resources:restricciones": "tsx prisma/seed-restriction-resources.ts",
     "db:resources:wipe": "tsx prisma/wipe-all-resources.ts",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",

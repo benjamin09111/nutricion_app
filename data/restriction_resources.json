@@ -1,0 +1,47 @@
+[
+  {
+    "id": "sys-restricciones-diabetico-01",
+    "title": "Alimentación en diabetes",
+    "content": "<h2>Alimentación en diabetes</h2><p>El objetivo no es eliminar todos los carbohidratos, sino distribuirlos de forma regular y elegir preparaciones que ayuden a mantener una glicemia más estable.</p><h3>Prioriza</h3><ul><li>Verduras en almuerzo y cena.</li><li>Legumbres, avena, panes integrales y otros carbohidratos con fibra, según las porciones indicadas en tu pauta.</li><li>Proteínas como huevo, pescado, pollo, lácteos sin azúcar o legumbres.</li><li>Agua como bebida principal.</li></ul><h3>Reduce la frecuencia de</h3><ul><li>Bebidas, jugos, néctares y energéticas con azúcar.</li><li>Dulces, pastelería y porciones grandes de alimentos refinados.</li><li>Saltarte comidas si eso termina en hambre intensa o atracones.</li></ul><p>Controla tu glicemia según la indicación de tu equipo de salud y consulta antes de hacer cambios importantes en tu tratamiento.</p>",
+    "category": "restricciones",
+    "tags": ["Diabético", "Diabetes", "Glicemia", "Restricciones alimenticias"],
+    "sources": "American Diabetes Association. Standards of Care in Diabetes.",
+    "format": "HTML"
+  },
+  {
+    "id": "sys-restricciones-hipertension-01",
+    "title": "Alimentación para la hipertensión",
+    "content": "<h2>Alimentación para la hipertensión</h2><p>Pequeños cambios sostenidos ayudan a cuidar tu presión arterial. La idea es disminuir el exceso de sodio sin perder sabor ni disfrute al comer.</p><h3>Prefiere</h3><ul><li>Preparaciones caseras con verduras, frutas, legumbres y alimentos frescos.</li><li>Hierbas, limón, ajo, merkén suave y especias para condimentar.</li><li>Alimentos envasados con menor sodio al comparar etiquetas.</li></ul><h3>Limita</h3><ul><li>Embutidos, caldos concentrados, sopas instantáneas y cubos de caldo.</li><li>Snacks salados, comida rápida, conservas y salsas muy saladas.</li><li>Agregar sal a la mesa antes de probar la preparación.</li></ul><p>Si usas medicamentos para la presión, mantén sus indicaciones y consulta a tu profesional ante síntomas o dudas.</p>",
+    "category": "restricciones",
+    "tags": ["Hipertensión", "Sodio", "Presión arterial", "Restricciones alimenticias"],
+    "sources": "World Health Organization. Sodium intake guidance.",
+    "format": "HTML"
+  },
+  {
+    "id": "sys-restricciones-vegetariano-01",
+    "title": "Alimentación vegetariana equilibrada",
+    "content": "<h2>Alimentación vegetariana equilibrada</h2><p>Una alimentación vegetariana puede ser completa cuando se planifica con variedad. La clave es incluir fuentes de proteína, hierro, calcio y vitamina B12 de acuerdo con tu tipo de alimentación.</p><h3>Incluye regularmente</h3><ul><li>Legumbres, tofu, huevo y lácteos si forman parte de tu alimentación.</li><li>Frutos secos, semillas y cereales integrales.</li><li>Verduras y frutas variadas, especialmente las ricas en vitamina C para acompañar fuentes vegetales de hierro.</li></ul><h3>Ten presente</h3><ul><li>El hierro vegetal se aprovecha mejor al combinarlo con cítricos, tomate, pimentón o kiwi.</li><li>La vitamina B12 requiere especial atención en dietas veganas y puede necesitar suplementación indicada por un profesional.</li><li>Una pauta variada es más útil que basarse siempre en los mismos alimentos.</li></ul>",
+    "category": "restricciones",
+    "tags": ["Vegetariano", "Proteína vegetal", "Hierro", "Restricciones alimenticias"],
+    "sources": "Academy of Nutrition and Dietetics. Vegetarian diets position paper.",
+    "format": "HTML"
+  },
+  {
+    "id": "sys-restricciones-celiaco-01",
+    "title": "Alimentación sin gluten para celiaquía",
+    "content": "<h2>Alimentación sin gluten para celiaquía</h2><p>En celiaquía, el gluten debe excluirse de forma estricta y permanente. No basta con reducirlo: incluso pequeñas cantidades pueden ser relevantes.</p><h3>Evita</h3><ul><li>Trigo, cebada, centeno y sus derivados.</li><li>Productos sin rotulación clara o que indiquen posible presencia de gluten.</li><li>Contaminación cruzada en tostadores, tablas, utensilios, aceites o superficies compartidas.</li></ul><h3>Prefiere</h3><ul><li>Alimentos naturalmente libres de gluten como frutas, verduras, legumbres, carnes, huevos, arroz, papas y quinoa.</li><li>Productos envasados con certificación o declaración apta para personas con celiaquía.</li></ul><p>Revisa siempre las etiquetas, incluso en productos que hayas usado antes, porque sus ingredientes pueden cambiar.</p>",
+    "category": "restricciones",
+    "tags": ["Celiaco", "Celiaquía", "Sin gluten", "Contaminación cruzada", "Restricciones alimenticias"],
+    "sources": "Federación de Asociaciones de Celíacos de España. Recomendaciones para dieta sin gluten.",
+    "format": "HTML"
+  },
+  {
+    "id": "sys-restricciones-sin-gluten-01",
+    "title": "Guía práctica de alimentación sin gluten",
+    "content": "<h2>Guía práctica de alimentación sin gluten</h2><p>Una alimentación sin gluten puede organizarse con alimentos frescos y naturalmente libres de gluten, junto con productos certificados cuando sea necesario.</p><h3>Opciones naturalmente sin gluten</h3><ul><li>Arroz, papa, maíz, quinoa, legumbres, frutas y verduras.</li><li>Carnes, pescados, huevos y lácteos simples sin agregados.</li><li>Frutos secos y semillas sin saborizantes ni mezclas.</li></ul><h3>Antes de comprar</h3><ul><li>Lee ingredientes y advertencias de alérgenos o contaminación cruzada.</li><li>Revisa salsas, embutidos, caldos, aderezos y productos procesados.</li><li>Prefiere productos con declaración clara de libre de gluten si la restricción debe ser estricta.</li></ul><p>Tu nutricionista puede ayudarte a adaptar estas recomendaciones a tus necesidades y preferencias.</p>",
+    "category": "restricciones",
+    "tags": ["Sin Gluten", "Libre de gluten", "Etiquetado", "Restricciones alimenticias"],
+    "sources": "Food and Agriculture Organization. Gluten-free diet guidance.",
+    "format": "HTML"
+  }
+]

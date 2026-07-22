@@ -38,16 +38,15 @@ export function PlanWizardShell({
 }: PlanWizardShellProps) {
   return (
     <div className={cn("space-y-6 flex-1", className)}>
-      <WizardStepper
-        steps={steps}
-        currentStep={currentStep}
-        completedSteps={completedSteps}
-        onStepClick={onStepClick}
-      />
-
-      {children}
-
-      <div className="flex items-center justify-between max-w-2xl pt-2">
+      {/* Control Superior */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full pb-4 border-b border-slate-100">
+        <WizardStepper
+          steps={steps}
+          currentStep={currentStep}
+          completedSteps={completedSteps}
+          onStepClick={onStepClick}
+          className="mb-0 pb-0"
+        />
         <FormNavigationFooter
           onBack={onBack}
           onNext={onNext}
@@ -57,19 +56,25 @@ export function PlanWizardShell({
             nextLabel ||
             (isLastStep ? "Finalizar" : "Continuar")
           }
-          className="mt-0 flex-1 max-w-none"
+          className="mt-0 flex-1 max-w-none justify-end gap-3"
         />
-        {onReset && (
-          <Button
-            type="button"
-            onClick={onReset}
-            variant="ghost"
-            className="rounded-xl px-4 text-rose-500 font-bold hover:bg-rose-50 ml-3"
-          >
-            <RotateCcw className="w-4 h-4 mr-1.5" />
-            Reiniciar
-          </Button>
-        )}
+      </div>
+
+      {children}
+
+      {/* Control Inferior */}
+      <div className="flex justify-center pt-4 border-t border-slate-100 w-full">
+        <FormNavigationFooter
+          onBack={onBack}
+          onNext={onNext}
+          isFirstStep={currentStep === 0}
+          nextDisabled={nextDisabled}
+          nextLabel={
+            nextLabel ||
+            (isLastStep ? "Finalizar" : "Continuar")
+          }
+          className="mt-0 flex-1 max-w-none justify-center gap-3"
+        />
       </div>
     </div>
   );

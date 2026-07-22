@@ -15,6 +15,8 @@ import {
   User,
   RotateCcw,
   FileText,
+  Download,
+  Save,
 } from "lucide-react";
 import Cookies from "js-cookie";
 import { useSearchParams } from "next/navigation";
@@ -1599,13 +1601,10 @@ export default function QuickDeliverableClient() {
           : selectedPatient.fullName?.trim()
             ? selectedPatient.fullName
             : "Importar paciente",
+        description: selectedPatient.fullName?.trim() ? "Cambiar paciente" : "Importar paciente",
         variant: selectedPatient.fullName?.trim() ? "emerald" : "slate",
         disabled: isLoadingPatients,
         onClick: async () => {
-          if (selectedPatient.fullName?.trim()) {
-            clearSelectedPatient();
-            return;
-          }
           await openPatientImportModal();
         },
       },
@@ -1624,8 +1623,24 @@ export default function QuickDeliverableClient() {
         onClick: () => setIsCreatedRecipesModalOpen(true),
       },
       {
+        id: "pdf",
+        icon: isExportingPdf ? Loader2 : Download,
+        label: "Descargar PDF",
+        description: isExportingPdf
+          ? "Generando PDF..."
+          : missingRequirements.length > 0
+            ? "Completa los pendientes para descargar el PDF"
+            : "Descargar PDF",
+        variant: "indigo",
+        disabled: isExportingPdf || missingRequirements.length > 0,
+        onClick: async () => {
+          if (isExportingPdf || missingRequirements.length > 0) return;
+          await handleExportPdf();
+        },
+      },
+      {
         id: "save",
-        icon: CheckCircle2,
+        icon: Save,
         label: "Guardar",
         description: getSaveTooltipMessage() || "Guardar",
         variant: "slate",
@@ -1643,7 +1658,7 @@ export default function QuickDeliverableClient() {
         onClick: resetQuickDeliverable,
       },
     ],
-    [selectedPatient.fullName, isLoadingPatients, missingRequirements, hasChanges],
+    [selectedPatient.fullName, isLoadingPatients, missingRequirements, hasChanges, isExportingPdf],
   );
 
   return (
@@ -1784,6 +1799,18 @@ export default function QuickDeliverableClient() {
                         <Loader2 className="mr-2 h-4 w-4 animate-spin text-emerald-600" />
                       ) : null}
                       {isLoadingPatients ? "Cargando..." : "Cambiar"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        clearSelectedPatient();
+                      }}
+                      disabled={isLoadingPatients}
+                      className="h-9 rounded-xl border-rose-200 bg-white px-3 text-sm text-rose-700 font-semibold hover:bg-rose-50 hover:border-rose-300 transition-all"
+                    >
+                      Quitar
                     </Button>
                   </div>
                 </div>

@@ -26,6 +26,7 @@
 9. **No hardcoded URLs**: Never hardcode `localhost` or any domain-specific URLs in source code. Always use environment variables (`process.env.*`). URLs must be configurable per environment (dev, staging, production).
 10. **Border-radius consistency**: Use Tailwind standard radii matching the existing design system. Card containers use `rounded-2xl`, buttons/inputs use `rounded-xl`, and modals use `rounded-3xl`. Never use arbitrary `rounded-[2rem]` or other custom border-radius values that deviate from the project convention.
 11. **Dev environment resilience**: Next.js development must run with `next dev --webpack -H 0.0.0.0` (using `--webpack` on Windows to avoid OneDrive Turbopack file locks and `-H 0.0.0.0` for LAN access). Security headers like Content-Security-Policy MUST be disabled during `development` mode so browser HMR WebSockets are never blocked.
+12. **Módulo Rápido Lock & Reference**: No modificar nada en el módulo rápido (`/rapido`) a no ser que sea explícitamente solicitado. En su lugar, utilízalo como referencia obligatoria de diseño, funcionamiento, PDF generado, interfaz de usuario y menú lateral derecho para refactorizar los demás módulos.
 
 ## Linguistic Conventions
 - **UI text**: Professional, warm Spanish (español de Chile).

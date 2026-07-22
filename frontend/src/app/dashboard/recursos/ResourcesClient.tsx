@@ -12,6 +12,7 @@ import {
   Lock,
   Pencil,
   Plus,
+  ShieldCheck,
   Trash2,
   User as UserIcon,
 } from "lucide-react";
@@ -33,13 +34,14 @@ import { fetchApi } from "@/lib/api-base";
 import sectionCoverImages from "./section-cover-images.json";
 import systemResources from "./data/system-resources.json";
 
-type MainTab = "library" | "coverIntro" | "mine";
+type MainTab = "library" | "coverIntro" | "mine" | "restrictions";
 type LibrarySource = "system" | "community";
 
 const RESOURCE_TABS: NavbarSection[] = [
   { id: "library", label: "Biblioteca", icon: BookOpen },
   { id: "mine", label: "Mis recursos", icon: UserIcon },
   { id: "coverIntro", label: "Portada e introducción", icon: Lock },
+  { id: "restrictions", label: "Restricciones alimenticias", icon: ShieldCheck },
 ];
 
 interface Resource {
@@ -61,6 +63,7 @@ interface Resource {
 const CATEGORIES = [
   { id: "all", label: "Todas las secciones" },
   { id: "portada", label: "Portada e introducción" },
+  { id: "restricciones", label: "Restricciones alimenticias" },
   { id: "mitos", label: "Mitos vs realidad" },
   { id: "habitos", label: "Hábitos y rutinas" },
   { id: "salud-mental", label: "Salud mental" },
@@ -72,7 +75,9 @@ const CATEGORIES = [
   { id: "faq", label: "Preguntas frecuentes" },
   { id: "otro", label: "Otro" },
 ];
-const LIBRARY_CATEGORIES = CATEGORIES.filter((c) => c.id !== "portada");
+const LIBRARY_CATEGORIES = CATEGORIES.filter(
+  (c) => c.id !== "portada" && c.id !== "restricciones",
+);
 
 const DEFAULT_SYSTEM_RESOURCES: Resource[] = systemResources as Resource[];
 
@@ -109,6 +114,9 @@ export function ResourcesClient() {
   const [mineTags, setMineTags] = useState<string[]>([]);
   const [mineSection, setMineSection] = useState("all");
   const [mineFormat, setMineFormat] = useState("all");
+  const [restrictionSearch, setRestrictionSearch] = useState("");
+  const [restrictionTags, setRestrictionTags] = useState<string[]>([]);
+  const [restrictionSource, setRestrictionSource] = useState<"system" | "mine">("system");
   const [onlyMineCovers, setOnlyMineCovers] = useState(false);
   const [onlyMineIntros, setOnlyMineIntros] = useState(false);
   const [resourceToPreview, setResourceToPreview] = useState<Resource | null>(null);
@@ -122,7 +130,9 @@ export function ResourcesClient() {
   const myResources = useMemo(() => resources.filter((r) => r.isMine), [resources]);
   const systemResources = useMemo(() => resources.filter((r) => r.nutritionistId === null), [resources]);
   const communityResources = useMemo(() => resources.filter((r) => r.nutritionistId !== null && r.isPublic), [resources]);
-  const libraryBase = librarySource === "system" ? systemResources : communityResources;
+  const libraryBase = (librarySource === "system" ? systemResources : communityResources).filter(
+    (resource) => resource.category !== "restricciones",
+  );
 
   const filteredLibrary = useMemo(() => {
     const q = norm(librarySearch);
@@ -140,6 +150,22 @@ export function ResourcesClient() {
       return (!q || txt.includes(q)) && (mineSection === "all" || r.category === mineSection) && (mineFormat === "all" || (r.format || "HTML") === mineFormat) && (mineTags.length === 0 || mineTags.every((tag) => r.tags.some((x) => norm(x) === norm(tag))));
     });
   }, [mineFormat, mineSearch, mineSection, mineTags, myResources]);
+
+  const filteredRestrictionResources = useMemo(() => {
+    const query = norm(restrictionSearch);
+    const base = restrictionSource === "system" ? systemResources : myResources;
+    return base.filter((resource) => {
+      const text = norm(`${resource.title} ${plain(resource.content)} ${resource.tags.join(" ")}`);
+      return (
+        resource.category === "restricciones" &&
+        (!query || text.includes(query)) &&
+        (restrictionTags.length === 0 ||
+          restrictionTags.every((tag) =>
+            resource.tags.some((resourceTag) => norm(resourceTag) === norm(tag)),
+          ))
+      );
+    });
+  }, [resources, restrictionSearch, restrictionTags, restrictionSource, systemResources, myResources]);
 
   const coverResources = useMemo(() => resources.filter((r) => r.category === "portada" && introType(r) === "cover" && (!onlyMineCovers || r.isMine)), [resources, onlyMineCovers]);
   const introResources = useMemo(() => resources.filter((r) => r.category === "portada" && introType(r) !== "cover" && (!onlyMineIntros || r.isMine)), [resources, onlyMineIntros]);
@@ -186,9 +212,11 @@ export function ResourcesClient() {
     } catch { }
   }
 
-  function openCreate(kind: "general" | "cover" | "intro" = "general") {
+  function openCreate(kind: "general" | "cover" | "intro" | "restriction" = "general") {
     if (kind === "general") {
       router.push("/dashboard/recursos/nuevo");
+    } else if (kind === "restriction") {
+      router.push("/dashboard/recursos/nuevo?category=restricciones");
     } else {
       router.push(`/dashboard/recursos/nuevo?type=${kind}`);
     }
@@ -483,6 +511,94 @@ export function ResourcesClient() {
               </div>
             ))}
           </div>
+        )}
+
+        {mainTab === "restrictions" && (
+          <>
+            <Filtros_B
+              searchValue={restrictionSearch}
+              onSearchChange={setRestrictionSearch}
+              searchPlaceholder="Buscar por nombre, contenido o hashtag..."
+              leftContent={
+                <div className="inline-flex items-center rounded-xl bg-slate-100 p-1">
+                  <button
+                    type="button"
+                    onClick={() => setRestrictionSource("system")}
+                    className={cn(
+                      "rounded-lg px-4 py-1.5 text-xs font-semibold uppercase tracking-wider transition-all",
+                      restrictionSource === "system"
+                        ? "bg-white text-emerald-700 shadow-sm"
+                        : "text-slate-500 hover:text-slate-700",
+                    )}
+                  >
+                    Sistema
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRestrictionSource("mine")}
+                    className={cn(
+                      "rounded-lg px-4 py-1.5 text-xs font-semibold uppercase tracking-wider transition-all",
+                      restrictionSource === "mine"
+                        ? "bg-white text-emerald-700 shadow-sm"
+                        : "text-slate-500 hover:text-slate-700",
+                    )}
+                  >
+                    Mis recursos
+                  </button>
+                </div>
+              }
+              rightContent={
+                <>
+                  <div className="w-full sm:w-52">
+                    <TagInput
+                      value={restrictionTags}
+                      onChange={setRestrictionTags}
+                      suggestions={availableTags}
+                      placeholder="Hashtags"
+                      className="h-10"
+                    />
+                  </div>
+                  {restrictionSource === "mine" && (
+                    <Button className="h-10 rounded-xl px-4 font-semibold" onClick={() => openCreate("restriction")}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Nuevo recurso
+                    </Button>
+                  )}
+                </>
+              }
+            />
+
+            {isLoading ? (
+              <div className="flex min-h-[20rem] flex-col items-center justify-center rounded-2xl border border-slate-100 bg-white shadow-sm">
+                <Loader2 className="mb-4 h-10 w-10 animate-spin text-emerald-600" />
+                <p className="text-sm font-medium text-slate-400">Cargando restricciones alimenticias...</p>
+              </div>
+            ) : filteredRestrictionResources.length > 0 ? (
+              <section className="grid gap-4 lg:grid-cols-3 xl:grid-cols-4">
+                {filteredRestrictionResources.map((resource) => (
+                  <Card key={resource.id} resource={resource} />
+                ))}
+              </section>
+            ) : (
+              <div className="flex min-h-[20rem] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white px-6 text-center">
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-slate-100">
+                  <ShieldCheck className="h-7 w-7 text-slate-400" />
+                </div>
+                <p className="mt-4 text-base font-semibold text-slate-700">No hay recursos para estos filtros</p>
+                <p className="mt-1 max-w-sm text-sm text-slate-400">
+                  {restrictionSource === "system"
+                    ? "No hay recursos de sistema para esta búsqueda."
+                    : "Crea un recurso para una restricción alimenticia o ajusta la búsqueda."}
+                </p>
+                {restrictionSource === "mine" && (
+                  <Button className="mt-5 h-10 rounded-xl px-4 font-semibold" onClick={() => openCreate("restriction")}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Crear recurso
+                  </Button>
+                )}
+              </div>
+            )}
+          </>
         )}
 
         {mainTab === "mine" && (

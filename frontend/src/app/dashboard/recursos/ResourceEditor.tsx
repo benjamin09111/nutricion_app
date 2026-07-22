@@ -24,6 +24,7 @@ import { fetchApi } from "@/lib/api-base";
 
 const CATEGORIES = [
   { id: "portada", label: "Portada e introducción" },
+  { id: "restricciones", label: "Restricciones alimenticias" },
   { id: "mitos", label: "Mitos vs realidad" },
   { id: "habitos", label: "Hábitos y rutinas" },
   { id: "salud-mental", label: "Salud mental" },
@@ -63,6 +64,7 @@ export function ResourceEditor({ initialData, editingId }: ResourceEditorProps) 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isIntro = !editingId && searchParams.get("type") === "intro";
+  const isRestriction = !editingId && searchParams.get("category") === "restricciones";
 
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -73,8 +75,14 @@ export function ResourceEditor({ initialData, editingId }: ResourceEditorProps) 
   const [formData, setFormData] = useState({
     title: initialData?.title || "",
     content: initialData?.content || "",
-    category: initialData?.category || (isIntro ? "portada" : "consejos"),
-    tags: initialData?.tags?.length ? initialData.tags : (isIntro ? ["Introducción"] : []),
+    category: initialData?.category || (isIntro ? "portada" : isRestriction ? "restricciones" : "consejos"),
+    tags: initialData?.tags?.length
+      ? initialData.tags
+      : isIntro
+        ? ["Introducción"]
+        : isRestriction
+          ? ["Restricciones alimenticias"]
+          : [],
     fileUrl: initialData?.fileUrl || "",
   });
 
@@ -189,12 +197,22 @@ export function ResourceEditor({ initialData, editingId }: ResourceEditorProps) 
 
   return (
     <ModuleLayout
-      title={editingId ? "Editar Recurso" : isIntro ? "Nueva Introducción" : "Nuevo Recurso"}
+      title={
+        editingId
+          ? "Editar Recurso"
+          : isIntro
+            ? "Nueva Introducción"
+            : isRestriction
+              ? "Nueva Restricción Alimenticia"
+              : "Nuevo Recurso"
+      }
       description={
         editingId
           ? "Actualiza el contenido de tu recurso educativo."
           : isIntro
           ? "Crea un texto de introducción reutilizable para tus entregables nutricionales."
+          : isRestriction
+            ? "Crea contenido educativo para una restricción alimenticia o condición clínica."
           : "Crea una nueva pieza de contenido para tus pacientes. Todos los recursos son privados y solo tú podrás verlos."
       }
       rightContent={
@@ -232,6 +250,12 @@ export function ResourceEditor({ initialData, editingId }: ResourceEditorProps) 
               </div>
             )}
 
+            {isRestriction && (
+              <div className="inline-flex items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 px-3.5 py-2 text-xs font-semibold text-emerald-700">
+                <span>Este recurso se guardará en Restricciones alimenticias.</span>
+              </div>
+            )}
+
             <div className="space-y-4">
               <div className="space-y-2">
                 <label className="text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-500">
@@ -251,19 +275,25 @@ export function ResourceEditor({ initialData, editingId }: ResourceEditorProps) 
                 <label className="text-[10px] font-semibold uppercase tracking-[0.15em] text-slate-500">
                   Sección / Categoría <span className="text-rose-500">*</span>
                 </label>
-                <select
-                  value={formData.category}
-                  onChange={(e) =>
-                    setFormData((p) => ({ ...p, category: e.target.value }))
-                  }
-                  className="w-full h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none focus:border-indigo-500 transition-all cursor-pointer"
-                >
-                  {CATEGORIES.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.label}
-                    </option>
-                  ))}
-                </select>
+                {isRestriction ? (
+                  <div className="flex h-11 items-center rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium text-slate-700">
+                    Restricciones alimenticias
+                  </div>
+                ) : (
+                  <select
+                    value={formData.category}
+                    onChange={(e) =>
+                      setFormData((p) => ({ ...p, category: e.target.value }))
+                    }
+                    className="w-full h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none focus:border-indigo-500 transition-all cursor-pointer"
+                  >
+                    {CATEGORIES.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
 
               <div className="space-y-2">
