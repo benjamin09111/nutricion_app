@@ -1,22 +1,22 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
-  Download,
-  NotebookText,
   Plus,
-  ChefHat,
   Sparkles,
   Search,
   Filter,
-  RotateCcw,
-  Save,
   Trash2,
-  User,
   CheckCircle2,
   X,
   Loader2,
+  ChevronDown,
+  User,
+  RotateCcw,
+  FileText,
+  Download,
+  Save,
 } from "lucide-react";
 import Cookies from "js-cookie";
 import { useSearchParams } from "next/navigation";
@@ -28,16 +28,19 @@ import { SaveCreationModal } from "@/components/ui/SaveCreationModal";
 import { Textarea } from "@/components/ui/Textarea";
 import { ImportCreationModal } from "@/components/shared/ImportCreationModal";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
-import { ModuleFooter } from "@/components/shared/ModuleFooter";
-import { SectionProgressNav, type SectionProgressStatus } from "@/components/shared/SectionProgressNav";
 import { WorkflowContextBanner } from "@/components/shared/WorkflowContextBanner";
-import { type ActionDockItem } from "@/components/ui/ActionDock";
-import { fetchApi } from "@/lib/api-base";
+import { PlanWizardShell, NatyLoadingOverlay, NatyButton } from "@/components/plans";
+import { ActionDockItem } from "@/components/ui/ActionDock";
+import { CalculatedMetricsPanel } from "@/components/patient-form/CalculatedMetricsPanel";
+import { fetchApi, getApiUrl } from "@/lib/api-base";
+import { TagInput } from "@/components/ui/TagInput";
 import { buildExchangeGuideForPatient } from "@/lib/exchange-portions";
+import { calculateAge, calculateBMI, calculateGET, getIdealWeightRange, type ActivityLevel, type Gender } from "@/lib/nutrition-formulas";
 import { cn } from "@/lib/utils";
 import { fetchCreation, fetchProject, saveCreation } from "@/lib/workflow";
 import { downloadFastDeliverablePdf } from "@/features/pdf/fastDeliverablePdfExport";
 import { useDashboardShell } from "@/context/DashboardShellContext";
+import { getCurrentUser } from "@/lib/current-user";
 
 type QuickSection =
   | "Desayuno"
@@ -70,14 +73,6 @@ type QuickPlanMode = "single" | "weekly";
 
 type QuickAiMode = "ai" | "library";
 
-type QuickGuideSectionId =
-  | "general"
-  | "meals"
-  | "avoidFoods"
-  | "resources"
-  | "portions"
-  | "summary";
-
 type QuickAvoidFoodRow = {
   id: string;
   value: string;
@@ -108,12 +103,18 @@ type QuickPatient = {
   id?: string;
   fullName: string;
   email?: string | null;
+  phone?: string | null;
   ageYears?: number | null;
+  birthDate?: string | null;
   gender?: string | null;
+  weight?: number | null;
+  height?: number | null;
   nutritionalFocus?: string | null;
   fitnessGoals?: string | null;
   restrictions?: string[];
   likes?: string | null;
+  clinicalSummary?: string | null;
+  activityLevel?: ActivityLevel | null;
   source?: "manual" | "imported";
 };
 
@@ -185,6 +186,8 @@ const QUICK_PORTION_GUIDE = [
 
 const DEFAULT_TITLE = "Entregable rápido";
 
+const WIZARD_STEPS = ["Comidas", "Evitar", "Recursos", "Porciones", "Resumen"];
+
 const createMeal = (section: QuickSection | "" = ""): QuickMeal => ({
   id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
   section,
@@ -211,14 +214,78 @@ const createPortionGuideRow = (
 const createEmptyQuickPatient = (): QuickPatient => ({
   fullName: "",
   email: null,
+  phone: null,
   ageYears: null,
+  birthDate: null,
   gender: "",
+  weight: null,
+  height: null,
   nutritionalFocus: "",
   fitnessGoals: "",
   restrictions: [],
   likes: "",
+  clinicalSummary: "",
+  activityLevel: null,
   source: "manual",
 });
+
+const resolveQuickGender = (gender?: string | null): Gender | null => {
+  if (gender === "Masculino" || gender === "Femenino") return gender;
+  return null;
+};
+
+const resolveQuickAgeYears = (patient: QuickPatient): number | undefined => {
+  const fromBirthDate = patient.birthDate ? calculateAge(patient.birthDate) : undefined;
+  if (typeof fromBirthDate === "number") return fromBirthDate;
+  if (typeof patient.ageYears === "number") return patient.ageYears;
+  return undefined;
+};
+
+const resolveQuickPatientMetrics = (patient: QuickPatient) => {
+  const weight = Number(patient.weight) || 0;
+  const height = Number(patient.height) || 0;
+  const gender = resolveQuickGender(patient.gender);
+  const ageYears = resolveQuickAgeYears(patient);
+  const activityLevel: ActivityLevel = patient.activityLevel || "moderado";
+
+  const bmi = weight > 0 && height > 0
+    ? calculateBMI(weight, height, {
+      gender,
+      ageYears,
+      birthDate: patient.birthDate || null,
+    })
+    : null;
+
+  const idealWeight = height > 0
+    ? getIdealWeightRange(height, {
+      gender,
+      ageYears,
+      birthDate: patient.birthDate || null,
+    })
+    : null;
+
+  const get = weight > 0 && height > 0 && gender && typeof ageYears === "number"
+    ? calculateGET(
+      gender,
+      weight,
+      height,
+      ageYears,
+      activityLevel,
+      ageYears < 18 ? "oms-fao" : "mifflin-st-jeor",
+    )
+    : null;
+
+  return {
+    bmi: bmi ? { value: bmi.bmi, classification: bmi.classification, color: bmi.color } : undefined,
+    get: get ? { value: get.get } : undefined,
+    idealWeight: idealWeight ? { min: idealWeight.min, max: idealWeight.max, reference: idealWeight.reference } : undefined,
+    ageYears,
+    gender,
+    weight: weight > 0 ? weight : null,
+    height: height > 0 ? height : null,
+    activityLevel,
+  };
+};
 
 const normalizeQuickText = (value: string) =>
   value
@@ -260,12 +327,15 @@ function getResolvedResourceKey(resource: ResolvedResourcePage, index: number): 
 }
 
 export default function QuickDeliverableClient() {
-  const { setSidebarCollapsed, isSidebarCollapsed } = useDashboardShell();
+  const { setSidebarCollapsed } = useDashboardShell();
   const searchParams = useSearchParams();
   const creationId = searchParams.get("creationId");
   const projectId = searchParams.get("project");
 
-  const [title, setTitle] = useState(DEFAULT_TITLE);
+  const [title, setTitle] = useState("");
+  const [deliveryDate, setDeliveryDate] = useState(new Date().toISOString().slice(0, 10));
+  const [quickHashtags, setQuickHashtags] = useState("");
+  const [quickDescription, setQuickDescription] = useState("");
   const [planMode, setPlanMode] = useState<QuickPlanMode>("single");
   const [meals, setMeals] = useState<QuickMeal[]>([
     createMeal("Desayuno"),
@@ -296,6 +366,8 @@ export default function QuickDeliverableClient() {
   const [currentProjectName, setCurrentProjectName] = useState<string | null>(null);
   const [currentProjectMode, setCurrentProjectMode] = useState<string | null>(null);
   const [isPatientModalOpen, setIsPatientModalOpen] = useState(false);
+  const [isLoadingPatients, setIsLoadingPatients] = useState(false);
+  const [isLoadingResources, setIsLoadingResources] = useState(false);
   const [isResourceModalOpen, setIsResourceModalOpen] = useState(false);
   const [isCreatedRecipesModalOpen, setIsCreatedRecipesModalOpen] = useState(false);
   const [isLoadingCreatedRecipes, setIsLoadingCreatedRecipes] = useState(false);
@@ -309,17 +381,31 @@ export default function QuickDeliverableClient() {
   const [aiRestrictedFoods, setAiRestrictedFoods] = useState("");
   const [aiNotes, setAiNotes] = useState("");
   const [isSaveCreationModalOpen, setIsSaveCreationModalOpen] = useState(false);
+  const [lastSavedState, setLastSavedState] = useState<string | null>(null);
   const [isImportCreationModalOpen, setIsImportCreationModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [showValidationHighlights, setShowValidationHighlights] = useState(false);
-  const [activeGuideSection, setActiveGuideSection] = useState<QuickGuideSectionId>("general");
+  const [currentStep, setCurrentStep] = useState(0);
+  const completedSteps = useMemo(() => Array.from({ length: currentStep }, (_, i) => i), [currentStep]);
   const identitySectionRef = useRef<HTMLElement | null>(null);
   const mealsSectionRef = useRef<HTMLElement | null>(null);
   const avoidFoodsSectionRef = useRef<HTMLElement | null>(null);
   const resourcesSectionRef = useRef<HTMLElement | null>(null);
   const portionsSectionRef = useRef<HTMLElement | null>(null);
   const summarySectionRef = useRef<HTMLElement | null>(null);
+
+  const goToStep = useCallback((step: number) => {
+    setCurrentStep(Math.max(0, Math.min(step, WIZARD_STEPS.length - 1)));
+  }, []);
+
+  const goBack = useCallback(() => {
+    setCurrentStep((prev) => Math.max(0, prev - 1));
+  }, []);
+
+  const goNext = useCallback(() => {
+    setCurrentStep((prev) => Math.min(WIZARD_STEPS.length - 1, prev + 1));
+  }, []);
 
   useEffect(() => {
     setSidebarCollapsed(true);
@@ -330,7 +416,10 @@ export default function QuickDeliverableClient() {
     if (!draft) return;
     try {
       const parsed = JSON.parse(draft);
-      setTitle(parsed.title || DEFAULT_TITLE);
+      setTitle(parsed.title ?? "");
+      setDeliveryDate(parsed.deliveryDate || new Date().toISOString().slice(0, 10));
+      setQuickHashtags(parsed.quickHashtags || "");
+      setQuickDescription(parsed.quickDescription || "");
       setPlanMode(parsed.planMode === "weekly" ? "weekly" : "single");
       setMeals(Array.isArray(parsed.meals) && parsed.meals.length > 0 ? parsed.meals : [createMeal("Desayuno")]);
       setAvoidFoods(
@@ -372,6 +461,9 @@ export default function QuickDeliverableClient() {
       "nutri_quick_deliverable_draft",
       JSON.stringify({
         title,
+        deliveryDate,
+        quickHashtags,
+        quickDescription,
         planMode,
         meals,
         avoidFoods,
@@ -388,6 +480,9 @@ export default function QuickDeliverableClient() {
     );
   }, [
     title,
+    deliveryDate,
+    quickHashtags,
+    quickDescription,
     planMode,
     meals,
     avoidFoods,
@@ -409,7 +504,10 @@ export default function QuickDeliverableClient() {
         setSelectedPatient(createEmptyQuickPatient());
         const creation = await fetchCreation(creationId);
         const content = creation.content || {};
-        setTitle(content.title || creation.name || DEFAULT_TITLE);
+        setTitle(content.title ?? creation.name ?? "");
+        setDeliveryDate(content.deliveryDate || new Date().toISOString().slice(0, 10));
+        setQuickHashtags(content.quickHashtags || "");
+        setQuickDescription(content.quickDescription || "");
         setPlanMode(content.planMode === "weekly" ? "weekly" : "single");
         setMeals(Array.isArray(content.meals) && content.meals.length > 0 ? content.meals : [createMeal("Desayuno")]);
         setAvoidFoods(
@@ -439,13 +537,59 @@ export default function QuickDeliverableClient() {
             ? content.portionGuideRows
             : QUICK_PORTION_GUIDE.map((row) => createPortionGuideRow(row)),
         );
+        const patientData: QuickPatient = creation.metadata?.patientName
+          ? {
+              ...createEmptyQuickPatient(),
+              id: creation.metadata?.patientId || "",
+              fullName: creation.metadata.patientName || "",
+              source: (creation.metadata?.patientId ? "imported" : "manual") as "imported" | "manual",
+            }
+          : createEmptyQuickPatient();
         if (creation.metadata?.patientName) {
-          setSelectedPatient({
-            id: creation.metadata?.patientId,
-            fullName: creation.metadata.patientName,
-            source: creation.metadata?.patientId ? "imported" : "manual",
-          });
+          setSelectedPatient(patientData);
         }
+
+        const serialized = JSON.stringify({
+          title: content.title ?? creation.name ?? "",
+          deliveryDate: content.deliveryDate || new Date().toISOString().slice(0, 10),
+          quickHashtags: content.quickHashtags || "",
+          quickDescription: content.quickDescription || "",
+          planMode: content.planMode === "weekly" ? "weekly" : "single",
+          meals: (Array.isArray(content.meals) && content.meals.length > 0 ? content.meals : [createMeal("Desayuno")]).map((m: any) => ({
+            id: m.id,
+            section: m.section,
+            mealText: m.mealText,
+            weeklyMealTexts: m.weeklyMealTexts
+          })),
+          avoidFoods: (Array.isArray(content.avoidFoods) && content.avoidFoods.length > 0
+            ? content.avoidFoods.map((item: string | QuickAvoidFoodRow) =>
+                typeof item === "string" ? createAvoidFoodRow(item) : item,
+              )
+            : [createAvoidFoodRow()]).map((af: any) => ({
+            id: af.id,
+            value: af.value
+          })),
+          patientId: patientData.id || "",
+          patientName: patientData.fullName || "",
+          resolvedResourcePages: (Array.isArray(content.resources) ? content.resources : []).map((r: any) => ({
+            resourceId: r.resourceId,
+            title: r.title,
+            content: stripHtml(r.content || ""),
+            variables: r.variables || {}
+          })),
+          includeMeals: content.includeMeals !== false,
+          includeAvoidFoods: content.includeAvoidFoods !== false,
+          includeResources: content.includeResources !== false,
+          includePortionGuide: content.includePortionGuide !== false,
+          portionGuideRows: (Array.isArray(content.portionGuideRows) && content.portionGuideRows.length > 0
+            ? content.portionGuideRows
+            : QUICK_PORTION_GUIDE.map((row) => createPortionGuideRow(row))).map((p: any) => ({
+            id: p.id,
+            category: p.category,
+            portion: p.portion
+          }))
+        });
+        setLastSavedState(serialized);
         setIsManualPatientExpanded(false);
       } catch (error) {
         console.error(error);
@@ -530,6 +674,58 @@ export default function QuickDeliverableClient() {
     [resolvedResourcePages, selectedResourceKeys],
   );
 
+  const getCurrentStateString = useCallback(() => {
+    return JSON.stringify({
+      title,
+      deliveryDate,
+      quickHashtags,
+      quickDescription,
+      planMode,
+      meals: meals.map(m => ({
+        id: m.id,
+        section: m.section,
+        mealText: m.mealText,
+        weeklyMealTexts: m.weeklyMealTexts
+      })),
+      avoidFoods: avoidFoods.map(af => ({
+        id: af.id,
+        value: af.value
+      })),
+      patientId: selectedPatient.id || "",
+      patientName: selectedPatient.fullName || "",
+      resolvedResourcePages: resolvedResourcePages.map(r => ({
+        resourceId: r.resourceId,
+        title: r.title,
+        content: r.content,
+        variables: r.variables
+      })),
+      includeMeals,
+      includeAvoidFoods,
+      includeResources,
+      includePortionGuide,
+      portionGuideRows: portionGuideRows.map(p => ({
+        id: p.id,
+        category: p.category,
+        portion: p.portion
+      }))
+    });
+  }, [
+    title,
+    deliveryDate,
+    quickHashtags,
+    quickDescription,
+    planMode,
+    meals,
+    avoidFoods,
+    selectedPatient,
+    resolvedResourcePages,
+    includeMeals,
+    includeAvoidFoods,
+    includeResources,
+    includePortionGuide,
+    portionGuideRows
+  ]);
+
   const missingRequirements = useMemo(() => {
     const missing: Array<{ id: string; label: string; ref: React.RefObject<HTMLElement | null> }> = [];
     if (!includeMeals && !includeAvoidFoods) {
@@ -557,6 +753,18 @@ export default function QuickDeliverableClient() {
     }
     return missing;
   }, [includeMeals, meals, planMode, includeAvoidFoods, validAvoidFoods.length]);
+
+  const hasChanges = lastSavedState === null || lastSavedState !== getCurrentStateString();
+
+  const getSaveTooltipMessage = () => {
+    if (missingRequirements.length > 0) {
+      return "Completa los pendientes para guardar";
+    }
+    if (!hasChanges) {
+      return "No hay cambios pendientes por guardar";
+    }
+    return undefined;
+  };
 
   const scrollToRequirement = (requirementId?: string) => {
     const target =
@@ -598,114 +806,6 @@ export default function QuickDeliverableClient() {
     [portionGuideRows],
   );
 
-  const hasMealsContent = useMemo(
-    () =>
-      planMode === "single"
-        ? meals.some((meal) => meal.mealText.trim().length > 0)
-        : meals.some((meal) =>
-            QUICK_WEEK_DAYS.some(
-              (day) => (meal.weeklyMealTexts?.[day] || "").trim().length > 0,
-            ),
-          ),
-    [meals, planMode],
-  );
-
-  const getSectionStatus = (
-    isVisible: boolean,
-    isComplete: boolean,
-  ): SectionProgressStatus => {
-    if (!isVisible) return "hidden";
-    return isComplete ? "complete" : "pending";
-  };
-
-  const quickGuideSections = useMemo(
-    () => [
-      {
-        id: "general" as QuickGuideSectionId,
-        label: "Informacion general",
-        status: getSectionStatus(true, title.trim().length > 0),
-        ref: identitySectionRef,
-      },
-      {
-        id: "meals" as QuickGuideSectionId,
-        label: "Tabla de comidas",
-        status: getSectionStatus(includeMeals, hasMealsContent),
-        ref: mealsSectionRef,
-      },
-      {
-        id: "avoidFoods" as QuickGuideSectionId,
-        label: "Alimentos a evitar",
-        status: getSectionStatus(includeAvoidFoods, validAvoidFoods.length > 0),
-        ref: avoidFoodsSectionRef,
-      },
-      {
-        id: "resources" as QuickGuideSectionId,
-        label: "Recursos",
-        status: getSectionStatus(includeResources, selectedResolvedResources.length > 0),
-        ref: resourcesSectionRef,
-      },
-      {
-        id: "portions" as QuickGuideSectionId,
-        label: "Porciones",
-        status: getSectionStatus(includePortionGuide, portionGuideCount > 0),
-        ref: portionsSectionRef,
-      },
-      {
-        id: "summary" as QuickGuideSectionId,
-        label: "Resumen",
-        status: getSectionStatus(
-          true,
-          hasMealsContent ||
-            validAvoidFoods.length > 0 ||
-            selectedResolvedResources.length > 0 ||
-            (includePortionGuide && portionGuideCount > 0),
-        ),
-        ref: summarySectionRef,
-      },
-    ],
-    [
-      title,
-      includeMeals,
-      hasMealsContent,
-      includeAvoidFoods,
-      validAvoidFoods.length,
-      includeResources,
-      selectedResolvedResources.length,
-      includePortionGuide,
-      portionGuideCount,
-    ],
-  );
-
-  const scrollToGuideSection = (sectionId: QuickGuideSectionId) => {
-    const targetSection = quickGuideSections.find((section) => section.id === sectionId);
-    targetSection?.ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
-
-  useEffect(() => {
-    const updateActiveSection = () => {
-      const viewportOffset = 180;
-      let nextSection = quickGuideSections[0]?.id ?? "general";
-
-      quickGuideSections.forEach((section) => {
-        const top = section.ref.current?.getBoundingClientRect().top;
-        if (typeof top === "number" && top - viewportOffset <= 0) {
-          nextSection = section.id;
-        }
-      });
-
-      setActiveGuideSection(nextSection);
-    };
-
-    updateActiveSection();
-    window.addEventListener("scroll", updateActiveSection, { passive: true });
-    window.addEventListener("resize", updateActiveSection);
-
-    return () => {
-      window.removeEventListener("scroll", updateActiveSection);
-      window.removeEventListener("resize", updateActiveSection);
-    };
-  }, [quickGuideSections]);
-
   const quickAiMealTargets = useMemo(() => {
     const counts = new Map<string, number>();
     if (planMode === "single") {
@@ -732,6 +832,11 @@ export default function QuickDeliverableClient() {
       count,
     }));
   }, [meals, planMode]);
+
+  const quickPatientMetrics = useMemo(
+    () => resolveQuickPatientMetrics(selectedPatient),
+    [selectedPatient],
+  );
 
   const filteredCreatedRecipes = useMemo(() => {
     const search = createdRecipesSearch.trim().toLowerCase();
@@ -803,8 +908,15 @@ export default function QuickDeliverableClient() {
     setTitle(
       typeof content.title === "string" && content.title.trim()
         ? content.title
-        : creation.name || DEFAULT_TITLE,
+        : creation.name || "",
     );
+    setDeliveryDate(
+      typeof content.deliveryDate === "string" && content.deliveryDate.trim()
+        ? content.deliveryDate
+        : new Date().toISOString().slice(0, 10),
+    );
+    setQuickHashtags(typeof content.quickHashtags === "string" ? content.quickHashtags : "");
+    setQuickDescription(typeof content.quickDescription === "string" ? content.quickDescription : "");
     setPlanMode(content.planMode === "weekly" ? "weekly" : "single");
     setMeals(importedMeals.length > 0 ? importedMeals : [createMeal("Desayuno")]);
     setAvoidFoods(
@@ -1006,7 +1118,7 @@ export default function QuickDeliverableClient() {
 
     setIsCreatedRecipesModalOpen(false);
     setIsGeneratingQuickAi(true);
-    toast.info("La IA esta generando opciones. Puedes seguir editando mientras tanto.");
+    toast.info("Naty está preparando opciones. Puedes seguir editando mientras tanto.");
 
     try {
       const response = await fetchApi("/recipes/quick-ai-fill", {
@@ -1037,6 +1149,7 @@ export default function QuickDeliverableClient() {
               fitnessGoals: selectedPatient.fitnessGoals || "",
               clinicalSummary: selectedPatient.nutritionalFocus || "",
             },
+            patientId: selectedPatient.id || undefined,
             existingDishes: meals
               .flatMap((meal) => {
                 if (!meal.section.trim()) return [];
@@ -1113,30 +1226,13 @@ export default function QuickDeliverableClient() {
         });
       });
 
-      toast.success("La IA relleno los espacios vacios de alimentos.");
+      toast.success("Naty rellenó los espacios vacíos de alimentos.");
     } catch (error) {
       console.error("Error generating meals with AI", error);
       toast.error(error instanceof Error ? error.message : "No se pudo generar con IA.");
     } finally {
       setIsGeneratingQuickAi(false);
     }
-  };
-
-  const openPatientModal = async () => {
-    try {
-      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const response = await fetchApi(`/patients`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setPatients(data.data || []);
-      }
-    } catch (error) {
-      console.error("Error fetching patients", error);
-    }
-    setPatientSearch("");
-    setIsPatientModalOpen(true);
   };
 
   const startManualPatientEntry = () => {
@@ -1148,6 +1244,29 @@ export default function QuickDeliverableClient() {
     setSelectedPatient(createEmptyQuickPatient());
     setIsManualPatientExpanded(false);
     toast.info("Paciente quitado del entregable.");
+  };
+
+  const fetchPatients = async (): Promise<QuickPatient[]> => {
+    try {
+      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
+      const response = await fetchApi("/patients?status=Activos", { headers: { Authorization: `Bearer ${token}` } });
+      if (response.ok) { const data = await response.json(); return data.data || []; }
+      return [];
+    } catch { return []; }
+  };
+
+  const openPatientImportModal = async () => {
+    setIsLoadingPatients(true);
+    try {
+      const loaded = await fetchPatients();
+      setPatients(loaded);
+      setIsPatientModalOpen(true);
+    } catch (error) {
+      console.error(error);
+      toast.error("No se pudieron cargar los pacientes.");
+    } finally {
+      setIsLoadingPatients(false);
+    }
   };
 
   useEffect(() => {
@@ -1171,11 +1290,19 @@ export default function QuickDeliverableClient() {
   };
 
   const openResourceModal = async () => {
-    await fetchResources();
-    setSelectedResourceIds([]);
-    setResourceSearch("");
-    setResourceCategoryFilter("Todas");
-    setIsResourceModalOpen(true);
+    setIsLoadingResources(true);
+    try {
+      await fetchResources();
+      setSelectedResourceIds([]);
+      setResourceSearch("");
+      setResourceCategoryFilter("Todas");
+      setIsResourceModalOpen(true);
+    } catch (error) {
+      console.error(error);
+      toast.error("No se pudieron cargar los recursos.");
+    } finally {
+      setIsLoadingResources(false);
+    }
   };
 
   const addResolvedResourcePage = async () => {
@@ -1301,59 +1428,66 @@ export default function QuickDeliverableClient() {
     }
   };
 
-  const buildPdfPayload = () => ({
-    name: title.trim() || DEFAULT_TITLE,
-    patientName: selectedPatient?.fullName || null,
-    planMode,
-    meals: includeMeals
-      ? planMode === "single"
-        ? meals
-        : meals.flatMap((meal) =>
-            QUICK_WEEK_DAYS.map((day) => ({
-              ...meal,
-              section: `${day} - ${meal.section || "Sin categoria"}`,
-              mealText: meal.weeklyMealTexts?.[day] || "",
-            })),
-          )
-      : [],
-    avoidFoods: includeAvoidFoods ? validAvoidFoods : [],
-    resources: includeResources
-      ? selectedResolvedResources.map((resource) => ({
-          ...resource,
-          content: stripHtml(resource.content || ""),
-        }))
-      : [],
-    portionGuide: includePortionGuide
-      ? portionGuideRows
-          .map((row) => ({
-            category: row.category.trim(),
-            portion: row.portion.trim(),
+  const buildPdfPayload = () => {
+    const user = getCurrentUser();
+    const nutritionistName = user?.nutritionist?.fullName || user?.name || null;
+    const nutritionistEmail = user?.email || null;
+    const resolvedAge =
+      selectedPatient.ageYears ??
+      (selectedPatient.birthDate ? calculateAge(selectedPatient.birthDate) : null);
+
+    return {
+      name: title.trim() || DEFAULT_TITLE,
+      deliveryDate,
+      hashtags: quickHashtags.split(",").map((t) => t.trim()).filter(Boolean),
+      description: quickDescription.trim() || null,
+      patientName: selectedPatient?.fullName || null,
+      nutritionistName,
+      nutritionistEmail,
+      planMode,
+      meals: includeMeals
+        ? planMode === "single"
+          ? meals
+          : meals.flatMap((meal) =>
+              QUICK_WEEK_DAYS.map((day) => ({
+                ...meal,
+                section: `${day} - ${meal.section || "Sin categoria"}`,
+                mealText: meal.weeklyMealTexts?.[day] || "",
+              })),
+            )
+        : [],
+      avoidFoods: includeAvoidFoods ? validAvoidFoods : [],
+      resources: includeResources
+        ? selectedResolvedResources.map((resource) => ({
+            ...resource,
+            content: stripHtml(resource.content || ""),
           }))
-          .filter((row) => row.category || row.portion)
-      : [],
-    supplementNote: getProteinSupplementNote(),
-    generatedAt: new Date().toLocaleDateString("es-CL"),
-    ...(selectedPatient.fullName.trim() ||
-    selectedPatient.ageYears !== null ||
-    Boolean(selectedPatient.gender) ||
-    Boolean(selectedPatient.nutritionalFocus) ||
-    Boolean(selectedPatient.fitnessGoals) ||
-    (selectedPatient.restrictions || []).length > 0 ||
-    Boolean(selectedPatient.likes)
-      ? {
-          patient: {
-            name: selectedPatient.fullName || null,
-            ageYears: selectedPatient.ageYears ?? null,
-            gender: selectedPatient.gender || null,
-            nutritionalFocus: selectedPatient.nutritionalFocus || null,
-            fitnessGoals: selectedPatient.fitnessGoals || null,
-            restrictions: selectedPatient.restrictions || [],
-            likes: selectedPatient.likes || null,
-            source: selectedPatient.source || "manual",
-          },
-        }
-      : {}),
-  });
+        : [],
+      portionGuide: includePortionGuide
+        ? portionGuideRows
+            .map((row) => ({
+              category: row.category.trim(),
+              portion: row.portion.trim(),
+            }))
+            .filter((row) => row.category || row.portion)
+        : [],
+      supplementNote: getProteinSupplementNote(),
+      generatedAt: new Date().toLocaleDateString("es-CL"),
+      ...(selectedPatient.fullName.trim() ||
+      resolvedAge !== null ||
+      selectedPatient.weight !== null ||
+      selectedPatient.height !== null
+        ? {
+            patient: {
+              name: selectedPatient.fullName || null,
+              ageYears: resolvedAge,
+              weight: selectedPatient.weight ?? null,
+              height: selectedPatient.height ?? null,
+            },
+          }
+        : {}),
+    };
+  };
 
   const handleExportPdf = async () => {
     if (!validateRequiredSections()) {
@@ -1386,6 +1520,9 @@ export default function QuickDeliverableClient() {
         type: "FAST_DELIVERABLE",
         content: {
           title,
+          deliveryDate,
+          quickHashtags,
+          quickDescription,
           planMode,
           meals,
           avoidFoods: validAvoidFoods,
@@ -1419,6 +1556,7 @@ export default function QuickDeliverableClient() {
       toast.success("Entregable rápido guardado en creaciones.");
       setIsSaveCreationModalOpen(false);
       setCreationDescription("");
+      setLastSavedState(getCurrentStateString());
     } catch (error: unknown) {
       console.error(error);
       toast.error(
@@ -1432,10 +1570,14 @@ export default function QuickDeliverableClient() {
   };
 
   const resetQuickDeliverable = () => {
-    setTitle(DEFAULT_TITLE);
+    setTitle("");
+    setDeliveryDate(new Date().toISOString().slice(0, 10));
+    setQuickHashtags("");
+    setQuickDescription("");
     setPlanMode("single");
     setMeals([createMeal("Desayuno"), createMeal("Almuerzo"), createMeal("Cena")]);
     setAvoidFoods([createAvoidFoodRow()]);
+    setLastSavedState(null);
     setSelectedPatient(createEmptyQuickPatient());
     setIsManualPatientExpanded(false);
     setResolvedResourcePages([]);
@@ -1449,290 +1591,366 @@ export default function QuickDeliverableClient() {
     toast.success("Entregable rápido reiniciado.");
   };
 
-  const actionDockItems: ActionDockItem[] = [
-    {
-      id: "created-recipes",
-      icon: ChefHat,
-      label: "Platos creados",
-      variant: "emerald",
-      onClick: () => setIsCreatedRecipesModalOpen(true),
-    },
-    {
-      id: "save",
-      icon: Save,
-      label: "Guardar creación",
-      variant: "slate",
-      onClick: () => setIsSaveCreationModalOpen(true),
-    },
-    {
-      id: "reset",
-      icon: RotateCcw,
-      label: "Reiniciar",
-      variant: "rose",
-      onClick: resetQuickDeliverable,
-    },
-  ];
+  const actionItems: ActionDockItem[] = useMemo(
+    () => [
+      {
+        id: "patient",
+        icon: isLoadingPatients ? Loader2 : User,
+        label: isLoadingPatients
+          ? "Cargando..."
+          : selectedPatient.fullName?.trim()
+            ? selectedPatient.fullName
+            : "Importar paciente",
+        description: selectedPatient.fullName?.trim() ? "Cambiar paciente" : "Importar paciente",
+        variant: selectedPatient.fullName?.trim() ? "emerald" : "slate",
+        disabled: isLoadingPatients,
+        onClick: async () => {
+          await openPatientImportModal();
+        },
+      },
+      {
+        id: "import",
+        icon: Filter,
+        label: "Importar creación",
+        variant: "indigo",
+        onClick: () => setIsImportCreationModalOpen(true),
+      },
+      {
+        id: "ai-nutri",
+        icon: Sparkles,
+        label: "IA Nutri",
+        variant: "emerald",
+        onClick: () => setIsCreatedRecipesModalOpen(true),
+      },
+      {
+        id: "pdf",
+        icon: isExportingPdf ? Loader2 : Download,
+        label: "Descargar PDF",
+        description: isExportingPdf
+          ? "Generando PDF..."
+          : missingRequirements.length > 0
+            ? "Completa los pendientes para descargar el PDF"
+            : "Descargar PDF",
+        variant: "indigo",
+        disabled: isExportingPdf || missingRequirements.length > 0,
+        onClick: async () => {
+          if (isExportingPdf || missingRequirements.length > 0) return;
+          await handleExportPdf();
+        },
+      },
+      {
+        id: "save",
+        icon: Save,
+        label: "Guardar",
+        description: getSaveTooltipMessage() || "Guardar",
+        variant: "slate",
+        disabled: missingRequirements.length > 0 || !hasChanges,
+        onClick: () => {
+          if (missingRequirements.length > 0 || !hasChanges) return;
+          setIsSaveCreationModalOpen(true);
+        },
+      },
+      {
+        id: "reset",
+        icon: RotateCcw,
+        label: "Reiniciar",
+        variant: "rose",
+        onClick: resetQuickDeliverable,
+      },
+    ],
+    [selectedPatient.fullName, isLoadingPatients, missingRequirements, hasChanges, isExportingPdf],
+  );
 
   return (
     <>
+      {isGeneratingQuickAi && (
+        <NatyLoadingOverlay title="Naty está preparando..." subtitle="Generando opciones de comidas para tu entregable rápido" />
+      )}
       <ModuleLayout
         title="Entregable Rápido"
         description="Crea un entregable express de una sola hoja con horarios, indicaciones, alimentos a evitar, recursos y una guía breve de porciones."
-        step={{ number: "Express", label: "Entregable rápido", icon: NotebookText, color: "text-slate-600" }}
-        rightNavItems={actionDockItems}
         className="max-w-[68rem]"
-        footer={
-          <ModuleFooter>
-            <div className="text-xs font-bold uppercase tracking-widest text-slate-400">
-              Formato resumido para consulta única
-            </div>
-            <div className="flex flex-col sm:flex-row items-center gap-4">
-              <Button variant="outline" className="h-11 rounded-2xl border-slate-200" onClick={() => setIsSaveCreationModalOpen(true)}>
-                <Save className="mr-2 h-4 w-4" />
-                Guardar
-              </Button>
-              <Button className="h-11 rounded-2xl bg-slate-900 px-6 text-white hover:bg-slate-800" onClick={handleExportPdf} disabled={isExportingPdf}>
-                <Download className="mr-2 h-4 w-4" />
-                {isExportingPdf ? "Generando..." : "Descargar PDF"}
-              </Button>
-            </div>
-          </ModuleFooter>
-        }
+        rightNavItems={actionItems}
       >
         <WorkflowContextBanner
           projectName={currentProjectName}
-          patientName={selectedPatient?.fullName || null}
           mode={currentProjectMode}
           moduleLabel="Rápido"
         />
 
-        <div className="mt-10 space-y-8 xl:px-4">
-          <div className="rounded-3xl border border-amber-200 bg-amber-50/70 px-5 py-4 text-sm text-amber-900">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-              <p>
-                Este módulo está pensado para consultas express: se guarda como <strong>entregable rápido</strong> y el PDF sale en una sola hoja, sin portada.
-              </p>
-            </div>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4 text-xs font-medium text-slate-600 shadow-sm">
-            Los campos con <strong>*</strong> son obligatorios para generar el PDF. El paciente es opcional en este modo.
-          </div>
-
-          <div className="relative">
-            {isSidebarCollapsed && (
-              <div className="fixed left-[max(6rem,calc(50%-48rem))] top-28 z-20 hidden xl:block">
-                <div>
-                  <SectionProgressNav
-                    items={quickGuideSections.map((section) => ({
-                      id: section.id,
-                      label: section.label,
-                      status: section.status,
-                      active: activeGuideSection === section.id,
-                      onClick: () => scrollToGuideSection(section.id),
-                    }))}
+        <div className="mt-6 xl:px-4 space-y-6">
+          <details className="group rounded-2xl border border-slate-200 bg-white [&[open]]:pb-6" open>
+            <summary className="flex cursor-pointer items-center gap-3 px-6 py-4 select-none">
+              <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Información general</p>
+              <ChevronDown className="ml-auto h-4 w-4 text-slate-400 transition-transform group-open:rotate-180" />
+            </summary>
+            <div className="px-6 space-y-3">
+              <div className="flex flex-col gap-3 md:flex-row md:items-start">
+                <div className="flex-1 space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Título <span className="text-rose-500">*</span></p>
+                  <Input
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    className="h-11 rounded-xl border-slate-200 bg-slate-50 text-sm font-semibold"
+                    placeholder={DEFAULT_TITLE}
+                  />
+                </div>
+                <div className="w-36 space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Fecha</p>
+                  <Input
+                    type="date"
+                    value={deliveryDate}
+                    onChange={(e) => setDeliveryDate(e.target.value)}
+                    className="h-11 appearance-none rounded-xl border-slate-200 bg-slate-50 text-sm [&::-webkit-calendar-picker-indicator]:hidden"
+                  />
+                </div>
+                <div className="flex-1 space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Hashtags</p>
+                  <TagInput
+                    value={quickHashtags.split(",").map((t) => t.trim()).filter(Boolean)}
+                    onChange={(tags) => setQuickHashtags(tags.join(", "))}
+                    fetchSuggestionsUrl={`${getApiUrl()}/tags`}
+                    placeholder="Ej: keto, hipertrofia"
                   />
                 </div>
               </div>
-            )}
+            </div>
+            <div className="px-6 pt-3 space-y-1">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Descripción</p>
+              <Textarea
+                value={quickDescription}
+                onChange={(e) => setQuickDescription(e.target.value)}
+                className="min-h-[60px] rounded-xl border-slate-200 bg-slate-50 text-sm"
+                placeholder="Notas internas sobre este entregable..."
+              />
+            </div>
+          </details>
 
-          <div className="grid gap-7 xl:grid-cols-[1.35fr,0.8fr]">
-            <div className="space-y-8">
-              <section
-                ref={identitySectionRef}
-                className="rounded-3xl border border-slate-200 bg-white p-10 shadow-sm"
+          {/* Paciente */}
+          <details
+            className={cn(
+              "group rounded-2xl border border-slate-200 bg-white [&[open]]:pb-6"
+            )}
+            open={!selectedPatient.fullName?.trim() ? true : undefined}
+          >
+            {!selectedPatient.fullName?.trim() ? (
+              <summary
+                className="flex items-center justify-between gap-3 px-6 py-4 select-none pointer-events-none"
+                onClick={(e) => {
+                  e.preventDefault();
+                }}
               >
-                <div className="flex flex-col gap-6">
-                  <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-                  <div className="flex-1 space-y-2">
-                    <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">
-                      Identidad del entregable
-                    </p>
-                    <Input
-                      value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                      className="h-12 rounded-2xl border-slate-200 bg-slate-50 text-base font-semibold"
-                      placeholder={DEFAULT_TITLE}
-                    />
-                  </div>
-                  <div className="flex flex-col items-end gap-2">
+                <div
+                  className="flex flex-wrap items-center justify-between gap-3 w-full pointer-events-auto"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                  }}
+                >
+                  <p className="text-[11px] font-black uppercase tracking-[0.25em] text-slate-400">PACIENTE</p>
+                  <div className="flex flex-wrap items-center gap-3">
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={openPatientModal}
-                      className={cn(
-                        "rounded-2xl border font-bold",
-                        selectedPatient.fullName?.trim()
-                          ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                          : "border-slate-200 bg-white text-slate-700",
+                      onClick={() => void openPatientImportModal()}
+                      disabled={isLoadingPatients}
+                      className="h-9 rounded-xl border-emerald-200 bg-white px-4 text-sm text-emerald-700 font-semibold hover:bg-emerald-50 hover:border-emerald-300 transition-all"
+                    >
+                      {isLoadingPatients ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin text-emerald-600" />
+                      ) : (
+                        <User className="mr-2 h-4 w-4" />
                       )}
-                    >
-                      <User className="mr-2 h-4 w-4" />
-                      {selectedPatient.fullName?.trim()
-                        ? `Paciente: ${selectedPatient.fullName}`
-                        : "Sin paciente asignado"}
+                      {isLoadingPatients ? "Cargando..." : "Importar paciente"}
                     </Button>
-                    {selectedPatient.fullName?.trim() && (
-                      <button
-                        type="button"
-                        onClick={clearSelectedPatient}
-                        className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 text-rose-600 transition-colors hover:bg-rose-100"
-                        title="Quitar paciente"
-                        aria-label="Quitar paciente"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    )}
-                    <button
+                    <span className="text-xs font-semibold text-slate-400">o</span>
+                    <Button
                       type="button"
+                      variant="outline"
                       onClick={startManualPatientEntry}
-                      className="text-left text-xs font-semibold text-emerald-700 underline decoration-emerald-300 underline-offset-4 hover:text-emerald-800"
+                      disabled={isLoadingPatients}
+                      className="h-9 rounded-xl border-slate-200 bg-white px-4 text-sm text-slate-700 font-semibold hover:bg-slate-50 hover:border-slate-300 transition-all"
                     >
-                      O completa manualmente sin reutilizar uno existente.
-                    </button>
+                      <FileText className="mr-2 h-4 w-4" />
+                      Rellenar manualmente
+                    </Button>
                   </div>
                 </div>
+              </summary>
+            ) : (
+              <summary className="flex cursor-pointer items-center justify-between gap-3 px-6 py-4 select-none">
+                <div className="flex flex-wrap items-center justify-between gap-3 w-full mr-2">
+                  <p className="text-[11px] font-black uppercase tracking-[0.25em] text-slate-400">PACIENTE</p>
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5">
+                      <User className="h-4 w-4 text-emerald-600" />
+                      <span className="text-sm font-semibold text-emerald-900">{selectedPatient.fullName}</span>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void openPatientImportModal();
+                      }}
+                      disabled={isLoadingPatients}
+                      className="h-9 rounded-xl border-emerald-200 bg-white px-3 text-sm text-emerald-700 font-semibold hover:bg-emerald-50 hover:border-emerald-300 transition-all"
+                    >
+                      {isLoadingPatients ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin text-emerald-600" />
+                      ) : null}
+                      {isLoadingPatients ? "Cargando..." : "Cambiar"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        clearSelectedPatient();
+                      }}
+                      disabled={isLoadingPatients}
+                      className="h-9 rounded-xl border-rose-200 bg-white px-3 text-sm text-rose-700 font-semibold hover:bg-rose-50 hover:border-rose-300 transition-all"
+                    >
+                      Quitar
+                    </Button>
+                  </div>
+                </div>
+                <ChevronDown className="h-4 w-4 text-slate-400 transition-transform group-open:rotate-180 shrink-0" />
+              </summary>
+            )}
 
-                {isManualPatientExpanded && (
+            <div className="px-6 mt-4 space-y-4">
+              {selectedPatient.fullName?.trim() && (
+                <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4">
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                    <div className="rounded-lg border border-slate-100 bg-white px-3 py-2">
+                      <p className="text-[10px] font-black uppercase text-slate-400">Nombre</p>
+                      <p className="text-sm font-semibold text-slate-800">{selectedPatient.fullName}</p>
+                    </div>
+                    <div className="rounded-lg border border-slate-100 bg-white px-3 py-2">
+                      <p className="text-[10px] font-black uppercase text-slate-400">Edad</p>
+                      <p className="text-sm font-semibold text-slate-800">
+                        {quickPatientMetrics.ageYears ? `${quickPatientMetrics.ageYears} años` : "—"}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-slate-100 bg-white px-3 py-2">
+                      <p className="text-[10px] font-black uppercase text-slate-400">Sexo</p>
+                      <p className="text-sm font-semibold text-slate-800">{selectedPatient.gender || "—"}</p>
+                    </div>
+                    <div className="rounded-lg border border-slate-100 bg-white px-3 py-2">
+                      <p className="text-[10px] font-black uppercase text-slate-400">Peso</p>
+                      <p className="text-sm font-semibold text-slate-800">
+                        {quickPatientMetrics.weight ? `${quickPatientMetrics.weight} kg` : "—"}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-slate-100 bg-white px-3 py-2">
+                      <p className="text-[10px] font-black uppercase text-slate-400">Altura</p>
+                      <p className="text-sm font-semibold text-slate-800">
+                        {quickPatientMetrics.height ? `${quickPatientMetrics.height} cm` : "—"}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-slate-100 bg-white px-3 py-2">
+                      <p className="text-[10px] font-black uppercase text-slate-400">Actividad</p>
+                      <p className="text-sm font-semibold text-slate-800">{quickPatientMetrics.activityLevel}</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 grid gap-3 md:grid-cols-2">
+                    <div className="rounded-lg border border-slate-100 bg-white px-3 py-2">
+                      <p className="text-[10px] font-black uppercase text-slate-400">Restricciones dietéticas o de salud</p>
+                      <p className="text-sm font-semibold text-slate-800">
+                        {(selectedPatient.restrictions || []).length > 0
+                          ? selectedPatient.restrictions?.join(", ")
+                          : "Sin registro"}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-slate-100 bg-white px-3 py-2">
+                      <p className="text-[10px] font-black uppercase text-slate-400">Gustos</p>
+                      <p className="text-sm font-semibold text-slate-800">{selectedPatient.likes || "Sin registro"}</p>
+                    </div>
+                    <div className="rounded-lg border border-slate-100 bg-white px-3 py-2 md:col-span-2">
+                      <p className="text-[10px] font-black uppercase text-slate-400">Objetivo</p>
+                      <p className="text-sm font-semibold text-slate-800">
+                        {selectedPatient.nutritionalFocus || selectedPatient.fitnessGoals || "Sin registro"}
+                      </p>
+                    </div>
+                    {selectedPatient.clinicalSummary && (
+                      <div className="rounded-lg border border-slate-100 bg-white px-3 py-2 md:col-span-2">
+                        <p className="text-[10px] font-black uppercase text-slate-400">Resumen clínico</p>
+                        <p className="text-sm font-semibold text-slate-800">{selectedPatient.clinicalSummary}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mt-4">
+                    <CalculatedMetricsPanel
+                      imc={quickPatientMetrics.bmi}
+                      get={quickPatientMetrics.get}
+                      idealWeight={quickPatientMetrics.idealWeight}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {isManualPatientExpanded && (
                 <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-5">
                   <div className="grid gap-4 md:grid-cols-3">
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                      Nombre
-                    </p>
-                    <Input
-                      value={selectedPatient.fullName}
-                      onChange={(e) =>
-                        setSelectedPatient((current) => ({
-                          ...current,
-                          fullName: e.target.value,
-                          source: current.source || "manual",
-                        }))
-                      }
-                      placeholder="Nombre y apellido"
-                    />
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Nombre</p>
+                      <Input value={selectedPatient.fullName} onChange={(e) => setSelectedPatient((current) => ({ ...current, fullName: e.target.value, source: current.source || "manual" }))} placeholder="Nombre y apellido" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Edad</p>
+                      <Input type="number" min={0} value={selectedPatient.ageYears ?? ""} onChange={(e) => setSelectedPatient((current) => ({ ...current, ageYears: e.target.value === "" ? null : Math.max(0, Math.round(Number(e.target.value) || 0)), source: current.source || "manual" }))} placeholder="Ej: 42" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Sexo</p>
+                      <select value={selectedPatient.gender || ""} onChange={(e) => setSelectedPatient((current) => ({ ...current, gender: e.target.value, source: current.source || "manual" }))} className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900">
+                        <option value="">Seleccionar</option>
+                        <option value="Femenino">Femenino</option>
+                        <option value="Masculino">Masculino</option>
+                        <option value="Otro">Otro</option>
+                      </select>
+                    </div>
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                      Edad
-                    </p>
-                    <Input
-                      type="number"
-                      min={0}
-                      value={selectedPatient.ageYears ?? ""}
-                      onChange={(e) =>
-                        setSelectedPatient((current) => ({
-                          ...current,
-                          ageYears:
-                            e.target.value === ""
-                              ? null
-                              : Math.max(0, Math.round(Number(e.target.value) || 0)),
-                          source: current.source || "manual",
-                        }))
-                      }
-                      placeholder="Ej: 42"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                      Sexo
-                    </p>
-                    <select
-                      value={selectedPatient.gender || ""}
-                      onChange={(e) =>
-                        setSelectedPatient((current) => ({
-                          ...current,
-                          gender: e.target.value,
-                          source: current.source || "manual",
-                        }))
-                      }
-                      className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900"
-                    >
-                      <option value="">Seleccionar</option>
-                      <option value="Femenino">Femenino</option>
-                      <option value="Masculino">Masculino</option>
-                      <option value="Otro">Otro</option>
-                    </select>
-                  </div>
-                </div>
-
                   <div className="mt-4 grid gap-4 md:grid-cols-2">
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                      Objetivo / enfoque
-                    </p>
-                    <Input
-                      value={selectedPatient.nutritionalFocus || ""}
-                      onChange={(e) =>
-                        setSelectedPatient((current) => ({
-                          ...current,
-                          nutritionalFocus: e.target.value,
-                          source: current.source || "manual",
-                        }))
-                      }
-                      placeholder="Ej: mejorar energía, ordenar horarios..."
-                    />
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Objetivo / enfoque</p>
+                      <Input value={selectedPatient.nutritionalFocus || ""} onChange={(e) => setSelectedPatient((current) => ({ ...current, nutritionalFocus: e.target.value, source: current.source || "manual" }))} placeholder="Ej: mejorar energía, ordenar horarios..." />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Metas</p>
+                      <Input value={selectedPatient.fitnessGoals || ""} onChange={(e) => setSelectedPatient((current) => ({ ...current, fitnessGoals: e.target.value, source: current.source || "manual" }))} placeholder="Ej: bajar grasa, ganar masa muscular..." />
+                    </div>
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                      Metas
-                    </p>
-                    <Input
-                      value={selectedPatient.fitnessGoals || ""}
-                      onChange={(e) =>
-                        setSelectedPatient((current) => ({
-                          ...current,
-                          fitnessGoals: e.target.value,
-                          source: current.source || "manual",
-                        }))
-                      }
-                      placeholder="Ej: bajar grasa, ganar masa muscular..."
-                    />
-                  </div>
-                </div>
-
                   <div className="mt-4 grid gap-4 md:grid-cols-2">
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                      Restricciones
-                    </p>
-                    <Input
-                      value={(selectedPatient.restrictions || []).join(", ")}
-                      onChange={(e) =>
-                        setSelectedPatient((current) => ({
-                          ...current,
-                          restrictions: e.target.value
-                            .split(",")
-                            .map((item) => item.trim())
-                            .filter(Boolean),
-                          source: current.source || "manual",
-                        }))
-                      }
-                      placeholder="Ej: sin gluten, evitar lactosa"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                      Gustos
-                    </p>
-                    <Input
-                      value={selectedPatient.likes || ""}
-                      onChange={(e) =>
-                        setSelectedPatient((current) => ({
-                          ...current,
-                          likes: e.target.value,
-                          source: current.source || "manual",
-                        }))
-                      }
-                      placeholder="Ej: preparaciones saladas, frutas, yogurt..."
-                    />
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Restricciones</p>
+                      <Input value={(selectedPatient.restrictions || []).join(", ")} onChange={(e) => setSelectedPatient((current) => ({ ...current, restrictions: e.target.value.split(",").map((item) => item.trim()).filter(Boolean), source: current.source || "manual" }))} placeholder="Ej: sin gluten, evitar lactosa" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Gustos</p>
+                      <Input value={selectedPatient.likes || ""} onChange={(e) => setSelectedPatient((current) => ({ ...current, likes: e.target.value, source: current.source || "manual" }))} placeholder="Ej: preparaciones saladas, frutas, yogurt..." />
                     </div>
                   </div>
                 </div>
-                )}
-                </div>
-              </section>
+              )}
+            </div>
+          </details>
 
+        </div>
+
+        <div className="mt-10 space-y-8 xl:px-4">
+          <PlanWizardShell
+            steps={WIZARD_STEPS}
+            currentStep={currentStep}
+            completedSteps={completedSteps}
+            onStepClick={goToStep}
+            onBack={goBack}
+            onNext={goNext}
+            isLastStep={currentStep === WIZARD_STEPS.length - 1}
+            onReset={resetQuickDeliverable}
+          >
+              {currentStep === 0 && (
               <section
                 ref={mealsSectionRef}
                 className={cn(
@@ -1775,59 +1993,59 @@ export default function QuickDeliverableClient() {
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-11 rounded-2xl border-slate-200 px-4 text-slate-700 md:self-start"
+                    className="h-11 rounded-2xl border-purple-200 bg-purple-50 px-4 text-purple-700 hover:bg-purple-100 hover:border-purple-300 hover:text-purple-800 transition-all font-semibold shadow-sm md:self-start"
                     onClick={() => setIsCreatedRecipesModalOpen(true)}
                     title="Rellenar con platos creados"
                   >
-                                        {isGeneratingQuickAi ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin text-emerald-600" />
+                    {isGeneratingQuickAi ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin text-purple-600" />
                     ) : (
-                      <Sparkles className="mr-2 h-4 w-4 text-emerald-600" />
+                      <Sparkles className="mr-2 h-4 w-4 text-purple-600 fill-purple-600/10" />
                     )}
 
                     Rellenar con IA / platos creados
                   </Button>
                 </div>
 
-                <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
-                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                    <div className="hidden flex-wrap items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setIncludeMeals((current) => !current)}
-                        className={cn(
-                          "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-black uppercase tracking-widest transition-colors",
-                          includeMeals
-                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                            : "border-slate-200 bg-white text-slate-500",
-                        )}
-                      >
-                        <span className={cn(
-                          "h-2.5 w-2.5 rounded-full",
-                          includeMeals ? "bg-emerald-500" : "bg-slate-300",
-                        )} />
-                        {includeMeals ? "Seccion visible" : "Seccion oculta"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setPlanMode((current) => (current === "single" ? "weekly" : "single"))}
-                        className={cn(
-                          "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-black uppercase tracking-widest transition-colors",
-                          planMode === "weekly"
-                            ? "border-indigo-200 bg-indigo-50 text-indigo-700"
-                            : "border-slate-200 bg-white text-slate-600",
-                        )}
-                      >
-                        {planMode === "weekly" ? "Vista semanal activa" : "Cambiar a semanal"}
-                      </button>
+                {planMode === "weekly" && (
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                      <div className="hidden flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setIncludeMeals((current) => !current)}
+                          className={cn(
+                            "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-black uppercase tracking-widest transition-colors",
+                            includeMeals
+                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                              : "border-slate-200 bg-white text-slate-500",
+                          )}
+                        >
+                          <span className={cn(
+                            "h-2.5 w-2.5 rounded-full",
+                            includeMeals ? "bg-emerald-500" : "bg-slate-300",
+                          )} />
+                          {includeMeals ? "Seccion visible" : "Seccion oculta"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPlanMode((current) => (current === "single" ? "weekly" : "single"))}
+                          className={cn(
+                            "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-black uppercase tracking-widest transition-colors",
+                            planMode === "weekly"
+                              ? "border-indigo-200 bg-indigo-50 text-indigo-700"
+                              : "border-slate-200 bg-white text-slate-600",
+                          )}
+                        >
+                          {planMode === "weekly" ? "Vista semanal activa" : "Cambiar a semanal"}
+                        </button>
+                      </div>
+                      <p className="text-xs text-slate-500">
+                        Categoria, hora y porcion se editan una vez; alimentos cambian por dia.
+                      </p>
                     </div>
-                    <p className="text-xs text-slate-500">
-                      {planMode === "weekly"
-                        ? "Categoria, hora y porcion se editan una vez; alimentos cambian por dia."
-                        : "Agrega filas vacias y completa categoria, alimentos, hora y porciones."}
-                    </p>
                   </div>
-                </div>
+                )}
 
                 <div className={cn(
                   "overflow-x-auto rounded-3xl border border-slate-200",
@@ -1840,23 +2058,7 @@ export default function QuickDeliverableClient() {
                           Categoría
                         </th>
                         <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
-                          <div className="flex items-center gap-2">
-                            <span>Alimentos</span>
-                            <button
-                              type="button"
-                              onClick={() => setIsCreatedRecipesModalOpen(true)}
-                              className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 transition-colors hover:bg-emerald-100"
-                              title="Rellenar con IA / platos creados"
-                              aria-label="Rellenar con IA / platos creados"
-                            >
-                                                            {isGeneratingQuickAi ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <Sparkles className="h-3.5 w-3.5" />
-                              )}
-
-                            </button>
-                          </div>
+                          Alimentos
                         </th>
                         <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 w-36">
                           Hora
@@ -2044,7 +2246,9 @@ export default function QuickDeliverableClient() {
                 )}
                 </div>
               </section>
+              )}
 
+              {currentStep === 1 && (
               <section
                 ref={avoidFoodsSectionRef}
                 className={cn(
@@ -2144,9 +2348,9 @@ export default function QuickDeliverableClient() {
                   </table>
                 </div>
               </section>
-            </div>
+              )}
 
-            <div className="space-y-6">
+              {currentStep === 2 && (
               <section
                 ref={resourcesSectionRef}
                 className={cn(
@@ -2195,10 +2399,14 @@ export default function QuickDeliverableClient() {
                       variant="outline"
                       className="h-10 rounded-2xl border-slate-200"
                       onClick={openResourceModal}
-                      disabled={!includeResources}
+                      disabled={!includeResources || isLoadingResources}
                     >
-                      <Plus className="mr-2 h-4 w-4" />
-                      Agregar
+                      {isLoadingResources ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin text-slate-600" />
+                      ) : (
+                        <Plus className="mr-2 h-4 w-4" />
+                      )}
+                      {isLoadingResources ? "Cargando..." : "Agregar"}
                     </Button>
                   </div>
                 </div>
@@ -2331,7 +2539,9 @@ export default function QuickDeliverableClient() {
                   )}
                 </div>
               </section>
+              )}
 
+              {currentStep === 3 && (
               <section ref={portionsSectionRef} className="rounded-3xl border border-slate-200 bg-white p-10 shadow-sm">
                 <div className="flex items-center justify-between gap-3">
                   <div>
@@ -2447,47 +2657,101 @@ export default function QuickDeliverableClient() {
                   </table>
                 </div>
               </section>
+              )}
 
-              <section ref={summarySectionRef} className="rounded-3xl border border-slate-200 bg-slate-900 p-10 text-white shadow-sm">
-                <p className="text-[11px] font-black uppercase tracking-[0.25em] text-slate-400">
-                  Resumen express
-                </p>
-                <div className="mt-4 grid grid-cols-2 gap-3">
-                  <div className="rounded-2xl bg-white/8 p-4">
-                    <p className="text-2xl font-black">{meals.length}</p>
-                    <p className="text-xs uppercase tracking-widest text-slate-300">
-                      Bloques de comida
+              {currentStep === 4 && (
+              <section ref={summarySectionRef} className="rounded-3xl border border-slate-200 bg-white p-10 shadow-sm space-y-5">
+                <div>
+                  <h2 className="text-lg font-black text-slate-900">Resumen del entregable</h2>
+                  <p className="mt-1 text-sm text-slate-500">Revisa que todo esté listo antes de exportar.</p>
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-4">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-emerald-600">Paciente</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-800">
+                      {selectedPatient.fullName?.trim() || "Sin paciente asignado"}
+                    </p>
+                    {selectedPatient.fullName?.trim() && (
+                      <p className="mt-0.5 text-xs text-slate-500">
+                        {[
+                          selectedPatient.ageYears && `${selectedPatient.ageYears} a`,
+                          selectedPatient.gender,
+                        ].filter(Boolean).join(" · ") || "Sin datos adicionales"}
+                      </p>
+                    )}
+                  </div>
+                  <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-4">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-indigo-600">Comidas</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-800">
+                      {includeMeals ? `${meals.length} bloques` : "Sección oculta"}
+                    </p>
+                    {includeMeals && meals.some((m) => m.mealText.trim()) && (
+                      <p className="mt-0.5 text-xs text-slate-500">
+                        {meals.filter((m) => m.mealText.trim()).length} bloques completos
+                      </p>
+                    )}
+                  </div>
+                  <div className="rounded-xl border border-rose-100 bg-rose-50/60 p-4">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-rose-600">Alimentos a evitar</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-800">
+                      {includeAvoidFoods ? `${validAvoidFoods.length} registrados` : "Sección oculta"}
                     </p>
                   </div>
-                  <div className="rounded-2xl bg-white/8 p-4">
-                    <p className="text-2xl font-black">
-                      {validAvoidFoods.length}
-                    </p>
-                    <p className="text-xs uppercase tracking-widest text-slate-300">
-                      Alimentos a evitar
+                  <div className="rounded-xl border border-amber-100 bg-amber-50/60 p-4">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-amber-600">Recursos</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-800">
+                      {includeResources ? `${selectedResolvedResources.length} seleccionados` : "Sección oculta"}
                     </p>
                   </div>
-                  <div className="rounded-2xl bg-white/8 p-4">
-                    <p className="text-2xl font-black">
-                      {resolvedResourcePages.length}
-                    </p>
-                    <p className="text-xs uppercase tracking-widest text-slate-300">
-                      Recursos
+                  <div className="rounded-xl border border-purple-100 bg-purple-50/60 p-4">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-purple-600">Porciones</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-800">
+                      {includePortionGuide ? `${portionGuideCount} visibles` : "Sección oculta"}
                     </p>
                   </div>
-                  <div className="rounded-2xl bg-white/8 p-4">
-                    <p className="text-2xl font-black">
-                      {includePortionGuide ? portionGuideCount : 0}
-                    </p>
-                    <p className="text-xs uppercase tracking-widest text-slate-300">
-                      Porciones visibles
-                    </p>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Fecha</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-800">{deliveryDate}</p>
                   </div>
                 </div>
+
+                {missingRequirements.length > 0 && (
+                  <div className="flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-4">
+                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-600" />
+                    <div>
+                      <p className="text-xs font-black text-rose-700 uppercase">Pendiente</p>
+                      <ul className="mt-1 list-inside list-disc space-y-0.5 text-xs text-rose-600">
+                        {missingRequirements.map((m) => (
+                          <li key={m.id}>{m.label}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex flex-wrap gap-2 pt-2">
+                  <Button
+                    onClick={handleExportPdf}
+                    disabled={isExportingPdf || missingRequirements.length > 0}
+                    title={missingRequirements.length > 0 ? "Completa los pendientes para descargar el PDF" : undefined}
+                    className="h-11 rounded-2xl bg-emerald-600 px-6 text-white font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isExportingPdf ? "Generando..." : "Descargar PDF"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsSaveCreationModalOpen(true)}
+                    disabled={missingRequirements.length > 0 || !hasChanges}
+                    title={getSaveTooltipMessage()}
+                    className="h-11 rounded-2xl border-slate-200 font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Guardar
+                  </Button>
+                </div>
               </section>
-            </div>
-          </div>
-          </div>
+              )}
+        </PlanWizardShell>
         </div>
       </ModuleLayout>
 
@@ -2511,7 +2775,7 @@ export default function QuickDeliverableClient() {
                   key={patient.id}
                   type="button"
                   onClick={() => {
-                    setSelectedPatient(patient);
+                    setSelectedPatient({ ...patient, source: "imported" });
                     setIsManualPatientExpanded(false);
                     setIsPatientModalOpen(false);
                     toast.success(`Paciente ${patient.fullName} asignado.`);
@@ -2656,7 +2920,7 @@ export default function QuickDeliverableClient() {
                 quickAiMode === "ai" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500",
               )}
             >
-              Utilizar IA para generar
+              Pedirle a Naty que genere
             </button>
             <button
               type="button"
@@ -2674,7 +2938,7 @@ export default function QuickDeliverableClient() {
               <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-slate-700">
                 <p className="font-black text-slate-900">Generacion asistida</p>
                 <p className="mt-1 text-xs text-slate-600">
-                  La IA recibe categorias, espacios vacios y tus notas para completar solo la columna de alimentos.
+                  Naty recibe categorías, espacios vacíos y tus notas para completar solo la columna de alimentos.
                   Puedes seguir editando mientras trabaja.
                 </p>
               </div>
@@ -2726,19 +2990,7 @@ export default function QuickDeliverableClient() {
                   <X className="mr-2 h-4 w-4" />
                   Cerrar
                 </Button>
-                <Button
-                  className="rounded-2xl bg-emerald-600 text-white hover:bg-emerald-700"
-                  onClick={() => void generateMealsWithAi()}
-                  disabled={isGeneratingQuickAi || quickAiMealTargets.length === 0}
-                >
-                                    {isGeneratingQuickAi ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Sparkles className="mr-2 h-4 w-4" />
-                  )}
-                  {isGeneratingQuickAi ? "Generando..." : "Generar con IA"}
-
-                </Button>
+                <NatyButton onClick={() => void generateMealsWithAi()} isLoading={isGeneratingQuickAi} disabled={quickAiMealTargets.length === 0} label="Generar con Naty" />
               </div>
             </div>
           )}

@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreatePatientDto } from '../patients/dto/create-patient.dto';
 import { PatientsService } from '../patients/patients.service';
+import { UpdateClinicalRecordDto } from '../patients/dto/update-clinical-record.dto';
 import * as crypto from 'crypto';
 import { SubmitIntakeFormDto } from './dto/submit-intake-form.dto';
 
@@ -329,6 +330,49 @@ export class PatientIntakeService {
       throw new NotFoundException('Nutricionista no encontrado');
     }
 
+    const clinicalRecordDto: UpdateClinicalRecordDto = {
+      vitalHistory: {
+        occupation: payload.occupation || undefined,
+        workSchedule: payload.workSchedule || undefined,
+        medications: payload.medications || undefined,
+        supplementsOrDrugs: payload.drugsSupplements || undefined,
+        diagnosedPathologies: payload.diagnosedPathologies || undefined,
+      },
+      gynecoObstetric: {
+        isPregnant: payload.pregnant ?? undefined,
+        pregnancyWeeks: payload.pregnancyWeeks ?? undefined,
+        pregestationalWeight: payload.pregestationalWeight ?? undefined,
+      },
+      nutritionalAnamnesis: {
+        foodFrequency: payload.foodFrequency || undefined,
+        recall24h: payload.recall24h || undefined,
+        eatingPreferences:
+          payload.eatingPreferences || payload.likes || undefined,
+        clinicalObservations: payload.clinicalObservations || undefined,
+      },
+      anthropometry: {
+        skinfolds: {
+          tricipital: payload.pliegueTricipital ?? undefined,
+          bicipital: payload.pliegueBicipital ?? undefined,
+          subescapular: payload.pliegueSubescapular ?? undefined,
+          suprailiac: payload.pliegueSuprailiaco ?? undefined,
+        },
+        circumferences: {
+          kneeHeight: payload.kneeHeight ?? undefined,
+          calfCircumference: payload.calfCircumference ?? undefined,
+          armCircumference: payload.armCircumference ?? undefined,
+          waistCircumference: payload.waistCircumference ?? undefined,
+          hipCircumference: payload.hipCircumference ?? undefined,
+        },
+      },
+      dataSources: {
+        vitalHistory: 'patient',
+        gynecoObstetric: 'patient',
+        nutritionalAnamnesis: 'patient',
+        anthropometry: 'patient',
+      },
+    };
+
     const createPatientDto: CreatePatientDto = {
       fullName: payload.fullName,
       email: payload.email || undefined,
@@ -343,8 +387,9 @@ export class PatientIntakeService {
       fitnessGoals: payload.fitnessGoals || undefined,
       dietRestrictions: payload.dietRestrictions || [],
       likes: payload.likes || undefined,
+      clinicalRecord: clinicalRecordDto,
       recalculateNutrition: true,
-    };
+    } as any;
 
     const patient = await this.patientsService.create(
       nutritionist.accountId,

@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { AdminSidebar } from "@/components/layout/AdminSidebar";
 import { Navbar } from "@/components/layout/Navbar";
 import { NutriaChatWidget } from "@/components/layout/NutriaChatWidget";
+import { CopilotPanel } from "@/features/copilot/CopilotPanel";
+import { WelcomeOverlay } from "@/components/welcome/WelcomeOverlay";
 import { AdminProvider, useAdmin } from "@/context/AdminContext";
 import {
   DashboardShellProvider,
@@ -17,6 +19,7 @@ import { X } from "lucide-react";
 
 import { SubscriptionProvider } from "@/context/SubscriptionContext";
 import { MembershipGate } from "@/components/memberships/MembershipGate";
+import { FreemiumUpgradeModal } from "@/components/memberships/FreemiumUpgradeModal";
 
 function DashboardContent({ children }: { children: React.ReactNode }) {
   const { isAdminView, isLoading } = useAdmin();
@@ -25,7 +28,26 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
   const { isDarkMode } = useTheme();
   const pathname = usePathname();
   const isRecipesModule = pathname.startsWith("/dashboard/recetas");
-  const isWelcomeRoute = pathname.startsWith("/dashboard/bienvenida");
+
+  const [freemiumModalData, setFreemiumModalData] = useState<{
+    isOpen: boolean;
+    description: string;
+  }>({ isOpen: false, description: "" });
+
+  useEffect(() => {
+    const handleShowModal = (e: Event) => {
+      const customEvent = e as CustomEvent<{ description: string }>;
+      setFreemiumModalData({
+        isOpen: true,
+        description: customEvent.detail?.description || "",
+      });
+    };
+
+    window.addEventListener("show-freemium-upgrade", handleShowModal);
+    return () => {
+      window.removeEventListener("show-freemium-upgrade", handleShowModal);
+    };
+  }, []);
 
   if (isLoading) {
     return (
@@ -100,10 +122,20 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
       </div>
 
       <NutriaChatWidget />
+
+      <CopilotPanel />
+
+      <WelcomeOverlay />
+
+      <FreemiumUpgradeModal
+        isOpen={freemiumModalData.isOpen}
+        onClose={() => setFreemiumModalData({ isOpen: false, description: "" })}
+        description={freemiumModalData.description}
+      />
     </div>
   );
 
-  if (isAdminView || isWelcomeRoute) {
+  if (isAdminView) {
     return dashboardShell;
   }
 

@@ -1,12 +1,20 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useSubscription } from "@/context/SubscriptionContext";
-import { PlanSelector } from "./PlanSelector";
 
 export function MembershipGate({ children }: { children: React.ReactNode }) {
   const { requiresPlanSelection, isLoading } = useSubscription();
+  const router = useRouter();
 
-  if (isLoading) {
+  useEffect(() => {
+    if (!isLoading && requiresPlanSelection) {
+      router.replace("/plan");
+    }
+  }, [isLoading, requiresPlanSelection, router]);
+
+  if (isLoading || requiresPlanSelection) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="flex flex-col items-center gap-4">
@@ -17,10 +25,6 @@ export function MembershipGate({ children }: { children: React.ReactNode }) {
         </div>
       </div>
     );
-  }
-
-  if (requiresPlanSelection) {
-    return <PlanSelector />;
   }
 
   return <>{children}</>;

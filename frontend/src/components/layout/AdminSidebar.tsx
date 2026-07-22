@@ -28,7 +28,7 @@ interface SidebarItem {
   icon: React.ElementType;
   disabled?: boolean;
   locked?: boolean;
-  badge?: "inboxPending";
+  badge?: "inboxPending" | "deletionRequests";
 }
 
 interface SidebarGroup {
@@ -54,6 +54,7 @@ const groups: SidebarGroup[] = [
         name: "Clientes",
         href: "/dashboard/admin/nutricionistas",
         icon: Users,
+        badge: "deletionRequests",
       },
       {
         name: "Portal",
@@ -115,6 +116,7 @@ export function AdminSidebar() {
   const { isSidebarCollapsed } = useDashboardShell();
   const { isDarkMode } = useTheme();
   const [inboxPendingCount, setInboxPendingCount] = useState(0);
+  const [deletionRequestsCount, setDeletionRequestsCount] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
@@ -146,29 +148,60 @@ export function AdminSidebar() {
       }
     };
 
+    const fetchDeletionRequestsCount = async () => {
+      try {
+        const token = localStorage.getItem("auth_token");
+        if (!token) return;
+
+        const response = await fetchApi("/users/deletion-requests/count", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!response.ok) return;
+
+        const data = await response.json();
+        if (isMounted) {
+          setDeletionRequestsCount(data.count || 0);
+        }
+      } catch (error) {
+        console.error("Error fetching deletion requests count:", error);
+      }
+    };
+
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
         fetchInboxPendingCount();
+        fetchDeletionRequestsCount();
       }
     };
 
     fetchInboxPendingCount();
+    fetchDeletionRequestsCount();
     window.addEventListener("admin-inbox-updated", fetchInboxPendingCount);
+    window.addEventListener("admin-deletion-request-accepted", fetchDeletionRequestsCount);
     document.addEventListener("visibilitychange", handleVisibilityChange);
-    const interval = window.setInterval(fetchInboxPendingCount, 60000);
+    const interval = window.setInterval(() => {
+      fetchInboxPendingCount();
+      fetchDeletionRequestsCount();
+    }, 60000);
 
     return () => {
       isMounted = false;
       window.removeEventListener("admin-inbox-updated", fetchInboxPendingCount);
+      window.removeEventListener("admin-deletion-request-accepted", fetchDeletionRequestsCount);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.clearInterval(interval);
     };
   }, []);
 
   const getItemBadge = (item: SidebarItem) => {
-    if (item.badge !== "inboxPending" || inboxPendingCount <= 0) return null;
-
-    return inboxPendingCount > 99 ? "99+" : String(inboxPendingCount);
+    if (item.badge === "inboxPending" && inboxPendingCount > 0) {
+      return inboxPendingCount > 99 ? "99+" : String(inboxPendingCount);
+    }
+    if (item.badge === "deletionRequests" && deletionRequestsCount > 0) {
+      return deletionRequestsCount > 99 ? "99+" : String(deletionRequestsCount);
+    }
+    return null;
   };
   const { role } = useAdmin();
   const isWorker = role === "WORKER";
@@ -191,8 +224,8 @@ export function AdminSidebar() {
     >
       <div
         className={cn(
-          "flex h-16 shrink-0 items-center",
-          isSidebarCollapsed ? "justify-center" : "pl-2",
+          "flex h-16 shrink-0 items-center sticky top-0 z-10 dashboard-sidebar-bg",
+          isSidebarCollapsed ? "justify-center -mx-2 px-2" : "-mx-4 px-4 pl-6",
         )}
       >
         <div className="flex items-center space-x-2">
@@ -202,7 +235,7 @@ export function AdminSidebar() {
             width={isSidebarCollapsed ? 72 : 180}
             height={isSidebarCollapsed ? 23 : 57}
             className={cn("h-auto w-auto object-contain", isSidebarCollapsed ? "max-w-[72px]" : "max-w-[180px]")}
-            priority
+            style={{ width: "auto", height: "auto" }}
           />
         </div>
       </div>
@@ -220,7 +253,7 @@ export function AdminSidebar() {
                   {group.title}
                 </div>
               )}
-              <ul role="list" className="-mx-2 space-y-0.5">
+                <ul role="list" className="-mx-2 space-y-0.5">
                 {group.items.map((item) => {
                   const isActive =
                     pathname === item.href || pathname.startsWith(item.href);
@@ -240,7 +273,7 @@ export function AdminSidebar() {
                             : isDarkMode
                               ? "text-indigo-100/75 hover:bg-indigo-500/8 hover:text-indigo-50"
                               : "text-slate-600 hover:text-indigo-700 hover:bg-indigo-50",
-                          "group flex gap-x-2 rounded-md p-2 leading-5 font-medium transition-colors items-center cursor-pointer",
+                          "group flex min-w-0 gap-x-2 rounded-md p-2 leading-5 font-medium transition-colors items-center cursor-pointer",
                           "relative",
                           isSidebarCollapsed && "justify-center",
                         )}
@@ -259,7 +292,7 @@ export function AdminSidebar() {
                           )}
                           aria-hidden="true"
                         />
-                        {!isSidebarCollapsed && <span>{item.name}</span>}
+                        {!isSidebarCollapsed && <span className="min-w-0 flex-1 truncate">{item.name}</span>}
                         {itemBadge && (
                           <span
                             className={cn(

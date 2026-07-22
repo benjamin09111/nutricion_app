@@ -96,12 +96,12 @@ export const ACTIVITY_FACTORS: Record<
 };
 
 export const BMI_CLASSIFICATIONS = [
-  { min: 0, max: 18.5, label: "Bajo peso", color: "#3b82f6" },
-  { min: 18.5, max: 25, label: "Normopeso", color: "#22c55e" },
-  { min: 25, max: 30, label: "Sobrepeso", color: "#eab308" },
-  { min: 30, max: 35, label: "Obesidad I", color: "#f97316" },
-  { min: 35, max: 40, label: "Obesidad II", color: "#ef4444" },
-  { min: 40, max: 999, label: "Obesidad III", color: "#b91c1c" },
+  { min: 0, max: 18.5, label: "Bajo peso", color: "#8f70d8" },
+  { min: 18.5, max: 25, label: "Normopeso", color: "#8da84f" },
+  { min: 25, max: 30, label: "Sobrepeso", color: "#d97706" },
+  { min: 30, max: 35, label: "Obesidad I", color: "#ea580c" },
+  { min: 35, max: 40, label: "Obesidad II", color: "#e11d48" },
+  { min: 40, max: 999, label: "Obesidad III", color: "#be123c" },
 ];
 
 export const MACRO_RANGES = {
@@ -239,19 +239,19 @@ function getPediatricBmiAssessment(params: {
   const percentile = percentileFromZ(z);
 
   let classification = "Normopeso";
-  let color = "#22c55e";
+  let color = "#8da84f";
   if (percentile < 10) {
     classification = "Bajo peso";
-    color = "#3b82f6";
+    color = "#8f70d8";
   } else if (percentile < 85) {
     classification = "Normopeso";
-    color = "#22c55e";
+    color = "#8da84f";
   } else if (percentile < 95) {
     classification = "Sobrepeso";
-    color = "#eab308";
+    color = "#d97706";
   } else {
     classification = "Obesidad";
-    color = "#f97316";
+    color = "#ea580c";
   }
 
   return {
@@ -372,23 +372,23 @@ export function getIdealWeightRange(
     };
   }
 
-  if (typeof resolvedAge === "number" && resolvedAge > 65) {
+  if (typeof resolvedAge === "number" && resolvedAge >= 65) {
     return {
       min: Math.round(23 * heightMeters * heightMeters * 10) / 10,
       max: Math.round(28 * heightMeters * heightMeters * 10) / 10,
-      reference: "IMC objetivo 23-28",
-      note: "Adulto mayor (>65 años).",
+      reference: "IMC 23-28 (Lipschitz)",
+      note: `Peso óptimo central: ${Math.round(25.5 * heightMeters * heightMeters * 10) / 10} kg.`,
       supported: true,
     };
   }
 
-  const targetBmi = resolvedGender === "Masculino" ? 22.5 : 21.5;
-  const ideal = targetBmi * heightMeters * heightMeters;
+  const targetBmi = resolvedGender === "Masculino" ? 22.5 : resolvedGender === "Femenino" ? 21.5 : 22.0;
+  const idealWeight = targetBmi * heightMeters * heightMeters;
   return {
-    min: Math.round(ideal * 0.97 * 10) / 10,
-    max: Math.round(ideal * 1.03 * 10) / 10,
-    reference: resolvedGender === "Masculino" ? "IMC 22.5" : "IMC 21.5",
-    note: "Rango estimado para adulto.",
+    min: Math.round(18.5 * heightMeters * heightMeters * 10) / 10,
+    max: Math.round(24.9 * heightMeters * heightMeters * 10) / 10,
+    reference: `Objetivo IMC ${targetBmi} (${resolvedGender === "Masculino" ? "Hombres" : "Mujeres"})`,
+    note: `Peso óptimo central: ${Math.round(idealWeight * 10) / 10} kg.`,
     supported: true,
   };
 }

@@ -5,11 +5,13 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { resolveRequiredUrl } from '../../common/utils/runtime-url.util';
 import { JwtService } from '@nestjs/jwt';
 import { createHash, randomBytes } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AppointmentsService } from '../appointments/appointments.service';
 import { MailService } from '../mail/mail.service';
+import { PermissionsService } from '../permissions/permissions.service';
 import { CreatePatientPortalInvitationDto } from './dto/create-patient-portal-invitation.dto';
 import { CreatePatientPortalEntryDto } from './dto/create-patient-portal-entry.dto';
 import { CreatePatientPortalQuestionDto } from './dto/create-patient-portal-question.dto';
@@ -189,7 +191,58 @@ export class PatientPortalsService {
     private readonly configService: ConfigService,
     private readonly mailService: MailService,
     private readonly appointmentsService: AppointmentsService,
+    private readonly permissionsService: PermissionsService,
   ) {}
+
+  private async getNutritionistAccountId(nutritionistId: string) {
+    const nutritionist = await this.prisma.nutritionist.findUnique({
+      where: { id: nutritionistId },
+      select: { accountId: true },
+    });
+
+    return nutritionist?.accountId || null;
+  }
+
+  private async assertFollowUpLimit(params: {
+    nutritionistId: string;
+    accountId: string | null;
+    excludedPatientId?: string;
+    excludedInvitationId?: string;
+  }) {
+    const {
+      nutritionistId,
+      accountId,
+      excludedPatientId,
+      excludedInvitationId,
+    } = params;
+
+    if (!accountId) return;
+
+    const limit = await this.permissionsService.getFeatureLimit(
+      accountId,
+      'followups.private.active.limit',
+    );
+
+    if (limit === Infinity) return;
+
+    const activeCount = await this.prisma.patientPortalInvitation.count({
+      where: {
+        nutritionistId,
+        status: 'ACTIVE',
+        revokedAt: null,
+        blockedAt: null,
+        expiresAt: { gte: new Date() },
+        ...(excludedPatientId ? { patientId: { not: excludedPatientId } } : {}),
+        ...(excludedInvitationId ? { id: { not: excludedInvitationId } } : {}),
+      },
+    });
+
+    if (activeCount >= limit) {
+      throw new ForbiddenException(
+        'Tu plan actual alcanzó el límite de seguimientos privados activos',
+      );
+    }
+  }
 
   async createInvitation(
     nutritionistId: string,
@@ -205,6 +258,7 @@ export class PatientPortalsService {
         nutritionist: {
           select: {
             id: true,
+            accountId: true,
             fullName: true,
           },
         },
@@ -225,6 +279,13 @@ export class PatientPortalsService {
     const accessCode = this.formatAccessCodeForDisplay(
       this.getPortalAccessCode(patientId, nutritionistId),
     );
+    const nutritionistAccountId = patient.nutritionist.accountId;
+
+    await this.assertFollowUpLimit({
+      nutritionistId,
+      accountId: nutritionistAccountId,
+      excludedPatientId: patientId,
+    });
 
     const invitation = await this.prisma.$transaction(async (tx) => {
       await tx.patientPortalInvitation.updateMany({
@@ -267,7 +328,7 @@ export class PatientPortalsService {
     const shareUrl = this.buildPortalUrl(token);
     const recipientEmail = dto.email?.trim() || patient.email || '';
 
-    if (recipientEmail) {
+    if (dto.sendEmail && recipientEmail) {
       this.mailService
         .sendPatientPortalInvitationEmail({
           email: recipientEmail,
@@ -286,6 +347,64 @@ export class PatientPortalsService {
       expiresAt,
       accessCode,
     };
+  }
+
+  async sendInvitationEmail(
+    nutritionistId: string,
+    patientId: string,
+    email?: string,
+  ) {
+    const invitation = await this.prisma.patientPortalInvitation.findFirst({
+      where: { patientId, nutritionistId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        patient: {
+          select: { fullName: true, email: true },
+        },
+        nutritionist: {
+          select: { fullName: true },
+        },
+      },
+    });
+
+    if (!invitation) {
+      throw new NotFoundException('No se encontró invitación para este paciente');
+    }
+
+    const accessCode = this.formatAccessCodeForDisplay(
+      this.getPortalAccessCode(patientId, nutritionistId),
+    );
+
+    const recipientEmail = email?.trim() || invitation.email || invitation.patient.email;
+    if (!recipientEmail) {
+      throw new BadRequestException('No hay un correo disponible para enviar la invitación');
+    }
+
+    const { randomBytes } = await import('crypto');
+    const rawToken = randomBytes(32).toString('hex');
+    const tokenHash = this.hashToken(rawToken);
+    const shareUrl = this.buildPortalUrl(rawToken);
+
+    try {
+      await this.mailService.sendPatientPortalInvitationEmail({
+        email: recipientEmail,
+        patientName: invitation.patient.fullName,
+        nutritionistName: invitation.nutritionist.fullName,
+        shareUrl,
+        expiresAt: invitation.expiresAt,
+        accessCode,
+      });
+
+      await this.prisma.patientPortalInvitation.update({
+        where: { id: invitation.id },
+        data: { tokenHash, lastSentAt: new Date() },
+      });
+
+      return { success: true, sentTo: recipientEmail };
+    } catch (err) {
+      console.error('Error sending invitation email:', err);
+      throw new BadRequestException('No se pudo enviar el correo de invitación');
+    }
   }
 
   async previewInvitation(token: string) {
@@ -330,8 +449,7 @@ export class PatientPortalsService {
     if (
       invitation.status !== 'ACTIVE' ||
       invitation.revokedAt ||
-      invitation.blockedAt ||
-      invitation.expiresAt.getTime() < Date.now()
+      invitation.blockedAt
     ) {
       throw new ForbiddenException('La invitación expiró o ya no está activa');
     }
@@ -364,7 +482,7 @@ export class PatientPortalsService {
           this.configService.get<string>('PORTAL_JWT_SECRET') ||
           this.configService.get<string>('JWT_SECRET') ||
           'secret',
-        expiresIn: '30d',
+        expiresIn: '100y',
       },
     );
 
@@ -397,7 +515,6 @@ export class PatientPortalsService {
         status: { in: ['ACTIVE', 'PENDING'] },
         revokedAt: null,
         blockedAt: null,
-        expiresAt: { gt: new Date() },
       },
       orderBy: { createdAt: 'desc' },
       include: {
@@ -444,7 +561,7 @@ export class PatientPortalsService {
           this.configService.get<string>('PORTAL_JWT_SECRET') ||
           this.configService.get<string>('JWT_SECRET') ||
           'secret',
-        expiresIn: '30d',
+        expiresIn: '100y',
       },
     );
 
@@ -652,6 +769,16 @@ export class PatientPortalsService {
       throw new NotFoundException(
         'No encontramos un acceso para este paciente',
       );
+    }
+
+    if (status === 'ACTIVE' && invitation.status !== 'ACTIVE') {
+      const nutritionistAccountId =
+        await this.getNutritionistAccountId(nutritionistId);
+      await this.assertFollowUpLimit({
+        nutritionistId,
+        accountId: nutritionistAccountId,
+        excludedInvitationId: invitation.id,
+      });
     }
 
     const updated = await this.prisma.patientPortalInvitation.update({
@@ -1502,13 +1629,13 @@ export class PatientPortalsService {
   }
 
   private buildPortalUrl(token: string) {
-    const baseUrl =
-      this.configService.get<string>('PORTAL_BASE_URL') ||
-      this.configService.get<string>('FRONTEND_URL') ||
-      this.configService.get<string>('APP_URL') ||
-      'http://localhost:3000';
+    const baseUrl = resolveRequiredUrl(
+      this.configService.get<string>('PORTAL_BASE_URL'),
+      this.configService.get<string>('FRONTEND_URL'),
+      this.configService.get<string>('APP_URL'),
+    );
 
-    return `${baseUrl.replace(/\/$/, '')}/portal/${token}`;
+    return `${baseUrl}/portal/${token}`;
   }
 
   private hashToken(token: string) {

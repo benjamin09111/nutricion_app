@@ -18,10 +18,13 @@ import {
   Dumbbell,
   Lock,
   Hash,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { Navbar_B } from "@/components/ui/Navbar_B";
 import { Modal } from "@/components/ui/Modal";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { toast } from "sonner";
@@ -29,10 +32,12 @@ import Cookies from "js-cookie";
 import { cn } from "@/lib/utils";
 import { fetchApi } from "@/lib/api-base";
 import { getCurrentUser } from "@/lib/current-user";
+import { useSubscription } from "@/context/SubscriptionContext";
 
 import { DEFAULT_CONSTRAINTS, DEFAULT_METRICS } from "@/lib/constants";
 
 export default function DetailsClient() {
+  const { currentPlan } = useSubscription();
   const [tags, setTags] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -58,6 +63,23 @@ export default function DetailsClient() {
     useState(false);
   const [metricsSearchQuery, setMetricsSearchQuery] = useState("");
   const [serverTags, setServerTags] = useState<any[]>([]);
+
+  const ITEMS_PER_PAGE = 8;
+  const [healthPage, setHealthPage] = useState(1);
+  const [hashPage, setHashPage] = useState(1);
+  const [metricsPage, setMetricsPage] = useState(1);
+  const [onlyMineHealth, setOnlyMineHealth] = useState(false);
+  const [onlyMineHash, setOnlyMineHash] = useState(false);
+  const [onlyMineMetrics, setOnlyMineMetrics] = useState(false);
+
+  type DetailsTab = "restricciones" | "hashtags" | "metricas";
+  const [activeDetailsTab, setActiveDetailsTab] = useState<DetailsTab>("restricciones");
+
+  const DETAILS_TABS = [
+    { id: "restricciones" as const, label: "Restricciones", icon: Tag },
+    { id: "hashtags" as const, label: "Hashtags", icon: Hash },
+    { id: "metricas" as const, label: "Métricas", icon: Activity },
+  ];
 
   const fetchTags = async (retries = 3) => {
     setIsLoading(true);
@@ -135,6 +157,122 @@ export default function DetailsClient() {
 
   const filteredHashTags = hashTags.filter((tag) =>
     tag.toLowerCase().includes(searchQuery.toLowerCase()),
+  );
+
+  const myTagIds = new Set(
+    serverTags
+      .filter((t) => t.nutritionistId === currentUser?.nutritionist?.id)
+      .map((t) => t.name),
+  );
+
+  const displayHealthTags = onlyMineHealth
+    ? filteredHealthTags.filter((t) => myTagIds.has(t))
+    : filteredHealthTags;
+  const paginatedHealthTags = displayHealthTags.slice(
+    (healthPage - 1) * ITEMS_PER_PAGE,
+    healthPage * ITEMS_PER_PAGE,
+  );
+  const healthTotalPages = Math.max(1, Math.ceil(displayHealthTags.length / ITEMS_PER_PAGE));
+
+  const displayHashTags = onlyMineHash
+    ? filteredHashTags.filter((t) => myTagIds.has(t))
+    : filteredHashTags;
+  const paginatedHashTags = displayHashTags.slice(
+    (hashPage - 1) * ITEMS_PER_PAGE,
+    hashPage * ITEMS_PER_PAGE,
+  );
+  const hashTotalPages = Math.max(1, Math.ceil(displayHashTags.length / ITEMS_PER_PAGE));
+
+  const allMetrics: any[] = (() => {
+    const combined: any[] = [
+      ...DEFAULT_METRICS.map((m) => ({
+        ...m,
+        id: m.key,
+        isSystem: true,
+        nutritionistId: null,
+      })),
+    ];
+    metrics.forEach((sm: any) => {
+      if (!combined.find((am: any) => am.key === sm.key)) {
+        combined.push({ ...sm, isSystem: false });
+      }
+    });
+    return combined;
+  })();
+
+  const filteredMetrics = allMetrics.filter((m) =>
+    m.name.toLowerCase().includes(metricsSearchQuery.toLowerCase()),
+  );
+  const displayMetrics = onlyMineMetrics
+    ? filteredMetrics.filter((m) => !m.isSystem)
+    : filteredMetrics;
+  const paginatedMetrics = displayMetrics.slice(
+    (metricsPage - 1) * ITEMS_PER_PAGE,
+    metricsPage * ITEMS_PER_PAGE,
+  );
+  const metricsTotalPages = Math.max(1, Math.ceil(displayMetrics.length / ITEMS_PER_PAGE));
+
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+    setHealthPage(1);
+    setHashPage(1);
+  };
+  const handleMetricsSearchChange = (value: string) => {
+    setMetricsSearchQuery(value);
+    setMetricsPage(1);
+  };
+
+  const Pagination = ({
+    page,
+    totalPages,
+    onPageChange,
+    onlyMine,
+    onToggleMine,
+  }: {
+    page: number;
+    totalPages: number;
+    onPageChange: (p: number) => void;
+    onlyMine?: boolean;
+    onToggleMine?: () => void;
+  }) => (
+    <div className="flex items-center justify-between px-8 pb-4">
+      {onToggleMine ? (
+        <button
+          onClick={() => { onToggleMine(); onPageChange(1); }}
+          className={cn(
+            "text-xs font-semibold px-3 py-1.5 rounded-xl border transition-colors",
+            onlyMine
+              ? "bg-indigo-50 border-indigo-200 text-indigo-600"
+              : "border-slate-200 text-slate-500 hover:bg-slate-50",
+          )}
+        >
+          Creados por mí
+        </button>
+      ) : (
+        <div />
+      )}
+      {totalPages > 1 && (
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-slate-400">
+            {page} de {totalPages}
+          </span>
+          <button
+            onClick={() => onPageChange(page - 1)}
+            disabled={page <= 1}
+            className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => onPageChange(page + 1)}
+            disabled={page >= totalPages}
+            className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+    </div>
   );
 
   const handleAddTag = async () => {
@@ -295,7 +433,7 @@ export default function DetailsClient() {
   return (
     <ModuleLayout
       title="Configuración Clínica"
-      description="Administra preferencias, restricciones y configuraciones globales para tus pacientes y dietas."
+      description="Administra preferencias, restricciones y configuraciones globales para tus pacientes y dietas. Con estos datos ahorrarás tiempo y mantendrás la consistencia en tu información."
       className="pb-8"
     >
       <ConfirmationModal
@@ -310,171 +448,209 @@ export default function DetailsClient() {
       />
 
       <div className="space-y-6 mt-6">
-        <div className="bg-white shadow-xl shadow-slate-200/50 border border-slate-200/60 rounded-[2rem] overflow-hidden relative mb-8">
-          <div className="p-8 pb-4 flex items-center justify-between">
-            <div>
-              <h3 className="text-slate-800 font-semibold text-lg mb-2 flex items-center gap-2">
-                <Tag className="w-5 h-5 text-indigo-500" />
-                Restricciones Clínicas
-              </h3>
-              <p className="text-slate-500 text-sm font-medium">
-                Estas restricciones estarán disponibles globalmente en el
-                creador de dietas y recursos.
-              </p>
+        <Navbar_B
+          sections={DETAILS_TABS}
+          activeTab={activeDetailsTab}
+          onTabChange={(id) => setActiveDetailsTab(id as DetailsTab)}
+        />
+
+        {activeDetailsTab === "restricciones" && (
+          <div className="bg-white shadow-xl shadow-slate-200/50 border border-slate-200/60 rounded-[2rem] overflow-hidden relative mb-8">
+            <div className="p-8 pb-4 flex items-center justify-between">
+              <div>
+                <h3 className="text-slate-800 font-semibold text-lg mb-2 flex items-center gap-2">
+                  <Tag className="w-5 h-5 text-indigo-500" />
+                  Restricciones Clínicas
+                </h3>
+                <p className="text-slate-500 text-sm font-medium">
+                  Restricciones clínicas disponibles en Nutrinet. Si conoces y utilizas otra, no dudes en agregarla. Se utilizan en las dietas.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                className="rounded-2xl font-semibold border-slate-200 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200"
+                onClick={() => {
+                  if (currentPlan?.key === "free") {
+                    window.dispatchEvent(
+                      new CustomEvent("show-freemium-upgrade", {
+                        detail: {
+                          description:
+                            "Crear nuevos Detalles personalizados (restricciones, hashtags y métricas) es una característica exclusiva de los planes de pago. En el plan Freemium puedes usar todos los Detalles disponibles en la plataforma.",
+                        },
+                      })
+                    );
+                  } else {
+                    setIsAddModalOpen(true);
+                  }
+                }}
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Nueva Restricción
+              </Button>
             </div>
-            <Button
-              variant="outline"
-              className="rounded-2xl font-semibold border-slate-200 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200"
-              onClick={() => setIsAddModalOpen(true)}
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Nueva Restricción
-            </Button>
+
+            <div className="px-8 mb-4">
+              <div className="relative w-full max-w-xs group">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-hover:text-indigo-500 transition-colors" />
+                <Input
+                  placeholder="Buscar restricciones..."
+                  className="h-10 pl-10 rounded-2xl border-slate-200 bg-slate-50/50 focus:bg-white transition-all shadow-sm font-medium"
+                  value={searchQuery}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {isLoading ? (
+              <div className="p-8 flex items-center justify-center">
+                <div className="h-10 w-10 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin" />
+              </div>
+            ) : (
+              <>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-8 pt-4">
+                {paginatedHealthTags.map((tag) => {
+                  const isSystem = DEFAULT_CONSTRAINTS.some((c) => c.id === tag);
+                  const backendTag = serverTags.find((t) => t.name === tag);
+                  const isOwner = backendTag && !isSystem;
+                  const isAdmin = currentUser?.role?.startsWith("ADMIN");
+
+                  return (
+                    <div
+                      key={tag}
+                      className="flex items-center justify-between p-4 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-colors group"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={cn(
+                            "h-10 w-10 rounded-full flex items-center justify-center",
+                            isSystem ? "bg-rose-100/50" : "bg-slate-100/50",
+                          )}
+                        >
+                          {isSystem ? (
+                            <Globe className="w-4 h-4 text-rose-500" />
+                          ) : (
+                            <Activity className="w-4 h-4 text-slate-500" />
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-slate-700">{tag}</p>
+                          <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-400">
+                            {isSystem
+                              ? "Sistema / Global"
+                              : isOwner
+                                ? "Creada por ti"
+                                : "Creada por nutri"}
+                          </p>
+                        </div>
+                      </div>
+                      {(isOwner || isAdmin) && !isSystem && (
+                        <button
+                          onClick={() => openDeleteConfirm(tag)}
+                          className="p-2 hover:bg-rose-100 text-slate-400 hover:text-rose-500 rounded-lg transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <Pagination page={healthPage} totalPages={healthTotalPages} onPageChange={setHealthPage} onlyMine={onlyMineHealth} onToggleMine={() => setOnlyMineHealth(!onlyMineHealth)} />
+              </>
+            )}
           </div>
+        )}
 
-          <div className="px-8 mb-4">
-            <div className="relative w-full max-w-xs group">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-hover:text-indigo-500 transition-colors" />
-              <Input
-                placeholder="Buscar restricciones..."
-                className="h-10 pl-10 rounded-2xl border-slate-200 bg-slate-50/50 focus:bg-white transition-all shadow-sm font-medium"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-          </div>
+        {activeDetailsTab === "hashtags" && (
+          <>
+            {/* Classification Tags Section */}
+            <div className="bg-white shadow-xl shadow-slate-200/50 border border-slate-200/60 rounded-[2rem] overflow-hidden relative mb-8">
+              <div className="p-8 pb-4 flex items-center justify-between">
+                <div>
+                  <h3 className="text-slate-800 font-semibold text-lg mb-2 flex items-center gap-2">
+                    <Hash className="w-5 h-5 text-indigo-500" />
+                    Etiquetas de Clasificación
+                  </h3>
+                  <p className="text-slate-500 text-sm font-medium">
+                    Usa hashtags para organizar pacientes, alimentos o planes. Permite mejorar la búsqueda y clasificación de información.
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  className="rounded-2xl font-semibold border-indigo-100 text-indigo-600 hover:bg-indigo-50"
+                  onClick={() => {
+                    if (currentPlan?.key === "free") {
+                      window.dispatchEvent(
+                        new CustomEvent("show-freemium-upgrade", {
+                          detail: {
+                            description:
+                              "Crear nuevos Detalles personalizados (restricciones, hashtags y métricas) es una característica exclusiva de los planes de pago. En el plan Freemium puedes usar todos los Detalles disponibles en la plataforma.",
+                          },
+                        })
+                      );
+                    } else {
+                      setNewTag("#");
+                      setIsAddModalOpen(true);
+                    }
+                  }}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Nuevo Tag
+                </Button>
+              </div>
 
-          {isLoading ? (
-            <div className="p-8 flex items-center justify-center">
-              <div className="h-10 w-10 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin" />
-            </div>
-          ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-8 pt-4">
-              {filteredHealthTags.map((tag) => {
-                const isSystem = DEFAULT_CONSTRAINTS.some((c) => c.id === tag);
-                const backendTag = serverTags.find((t) => t.name === tag);
-                const isOwner =
-                  backendTag &&
-                  currentUser?.nutritionist?.id === backendTag.nutritionistId;
-                const isAdmin = currentUser?.role?.startsWith("ADMIN");
+              {!isLoading && hashTags.length === 0 && searchQuery === "" ? (
+                <div className="p-12 flex flex-col items-center justify-center text-slate-300 bg-slate-50/30 m-8 rounded-2xl border border-dashed border-slate-200">
+                  <Hash className="w-12 h-12 mb-4 opacity-20" />
+                  <p className="text-sm font-semibold uppercase tracking-widest">No hay etiquetas creadas</p>
+                  <p className="text-xs font-medium mt-1">Crea etiquetas con # para organizar tus pacientes</p>
+                </div>
+              ) : (
+                <>
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-8 pt-4">
+                  {paginatedHashTags.map((tag) => {
+                    const backendTag = serverTags.find((t) => t.name === tag);
+                    const isOwner = backendTag !== undefined;
+                    const isAdmin = currentUser?.role?.startsWith("ADMIN");
 
-                return (
-                  <div
-                    key={tag}
-                    className="flex items-center justify-between p-4 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-colors group"
-                  >
-                    <div className="flex items-center gap-3">
+                    return (
                       <div
-                        className={cn(
-                          "h-10 w-10 rounded-full flex items-center justify-center",
-                          isSystem ? "bg-rose-100/50" : "bg-slate-100/50",
+                        key={tag}
+                        className="flex items-center justify-between p-4 rounded-xl border border-emerald-50 bg-emerald-50/10 hover:bg-emerald-50/30 transition-colors group"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-full bg-indigo-100/50 flex items-center justify-center">
+                            <Hash className="w-4 h-4 text-indigo-600" />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-slate-700">{tag}</p>
+                            <p className="text-[10px] uppercase tracking-wider font-semibold text-indigo-400">
+                              {isOwner ? "Tu etiqueta" : "Compartida"}
+                            </p>
+                          </div>
+                        </div>
+                        {(isOwner || isAdmin) && (
+                          <button
+                            onClick={() => openDeleteConfirm(tag)}
+                            className="p-2 hover:bg-rose-100 text-slate-400 hover:text-rose-500 rounded-lg transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         )}
-                      >
-                        {isSystem ? (
-                          <Globe className="w-4 h-4 text-rose-500" />
-                        ) : (
-                          <Activity className="w-4 h-4 text-slate-500" />
-                        )}
                       </div>
-                      <div>
-                        <p className="font-semibold text-slate-700">{tag}</p>
-                        <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-400">
-                          {isSystem
-                            ? "Sistema / Global"
-                            : isOwner
-                              ? "Creada por ti"
-                              : "Creada por nutri"}
-                        </p>
-                      </div>
-                    </div>
-                    {(isOwner || isAdmin) && !isSystem && (
-                      <button
-                        onClick={() => openDeleteConfirm(tag)}
-                        className="p-2 hover:bg-rose-100 text-slate-300 hover:text-rose-500 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
+                    );
+                  })}
+                </div>
+                <Pagination page={hashPage} totalPages={hashTotalPages} onPageChange={setHashPage} onlyMine={onlyMineHash} onToggleMine={() => setOnlyMineHash(!onlyMineHash)} />
+                </>
+              )}
             </div>
-          )}
-        </div>
+          </>
+        )}
 
-        {/* Classification Tags Section */}
-        <div className="bg-white shadow-xl shadow-slate-200/50 border border-slate-200/60 rounded-[2rem] overflow-hidden relative mb-8">
-          <div className="p-8 pb-4 flex items-center justify-between">
-            <div>
-              <h3 className="text-slate-800 font-semibold text-lg mb-2 flex items-center gap-2">
-                <Hash className="w-5 h-5 text-indigo-500" />
-                Etiquetas de Clasificación
-              </h3>
-              <p className="text-slate-500 text-sm font-medium">
-                Usa hashtags para organizar a tus pacientes (#Proteína, #Ayuno, #Folleto).
-              </p>
-            </div>
-            <Button
-              variant="outline"
-              className="rounded-2xl font-semibold border-indigo-100 text-indigo-600 hover:bg-indigo-50"
-              onClick={() => {
-                setNewTag("#");
-                setIsAddModalOpen(true);
-              }}
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Nuevo Tag
-            </Button>
-          </div>
-
-          {!isLoading && filteredHashTags.length === 0 && searchQuery === "" ? (
-            <div className="p-12 flex flex-col items-center justify-center text-slate-300 bg-slate-50/30 m-8 rounded-2xl border border-dashed border-slate-200">
-              <Hash className="w-12 h-12 mb-4 opacity-20" />
-              <p className="text-sm font-semibold uppercase tracking-widest">No hay etiquetas creadas</p>
-              <p className="text-xs font-medium mt-1">Crea etiquetas con # para organizar tus pacientes</p>
-            </div>
-          ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-8 pt-4">
-              {filteredHashTags.map((tag) => {
-                const backendTag = serverTags.find((t) => t.name === tag);
-                const isOwner =
-                  backendTag &&
-                  currentUser?.nutritionist?.id === backendTag.nutritionistId;
-                const isAdmin = currentUser?.role?.startsWith("ADMIN");
-
-                return (
-                  <div
-                    key={tag}
-                    className="flex items-center justify-between p-4 rounded-xl border border-emerald-50 bg-emerald-50/10 hover:bg-emerald-50/30 transition-colors group"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-full bg-indigo-100/50 flex items-center justify-center">
-                        <Hash className="w-4 h-4 text-indigo-600" />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-slate-700">{tag}</p>
-                        <p className="text-[10px] uppercase tracking-wider font-semibold text-indigo-400">
-                          {isOwner ? "Tu etiqueta" : "Compartida"}
-                        </p>
-                      </div>
-                    </div>
-                    {(isOwner || isAdmin) && (
-                      <button
-                        onClick={() => openDeleteConfirm(tag)}
-                        className="p-2 hover:bg-rose-100 text-slate-300 hover:text-rose-500 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        <div className="bg-white shadow-xl shadow-slate-200/50 border border-slate-200/60 rounded-[2rem] overflow-hidden relative">
-          <div className="p-8 pb-4 flex items-center justify-between">
+        {activeDetailsTab === "metricas" && (
+          <div className="bg-white shadow-xl shadow-slate-200/50 border border-slate-200/60 rounded-[2rem] overflow-hidden relative">
+            <div className="p-8 pb-4 flex items-center justify-between">
             <div>
               <h3 className="text-slate-800 font-semibold text-lg mb-2 flex items-center gap-2">
                 <Activity className="w-5 h-5 text-indigo-500" />
@@ -488,7 +664,20 @@ export default function DetailsClient() {
             <Button
               variant="outline"
               className="rounded-2xl font-semibold border-slate-200 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200"
-              onClick={() => setIsAddMetricModalOpen(true)}
+              onClick={() => {
+                if (currentPlan?.key === "free") {
+                  window.dispatchEvent(
+                    new CustomEvent("show-freemium-upgrade", {
+                      detail: {
+                        description:
+                          "Crear nuevos Detalles personalizados (restricciones, hashtags y métricas) es una característica exclusiva de los planes de pago. En el plan Freemium puedes usar todos los Detalles disponibles en la plataforma.",
+                      },
+                    })
+                  );
+                } else {
+                  setIsAddMetricModalOpen(true);
+                }
+              }}
             >
               <Plus className="w-4 h-4 mr-2" />
               Nueva Métrica
@@ -502,7 +691,7 @@ export default function DetailsClient() {
                 placeholder="Buscar métricas..."
                 className="h-10 pl-10 rounded-2xl border-slate-200 bg-slate-50/50 focus:bg-white transition-all shadow-sm font-medium"
                 value={metricsSearchQuery}
-                onChange={(e) => setMetricsSearchQuery(e.target.value)}
+                onChange={(e) => handleMetricsSearchChange(e.target.value)}
               />
             </div>
           </div>
@@ -512,86 +701,64 @@ export default function DetailsClient() {
               <div className="h-10 w-10 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin" />
             </div>
           ) : (
+            <>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-8 pt-4">
-              {(() => {
-                // Combinar métricas por defecto con las del servidor
-                const allMetrics: any[] = [
-                  ...DEFAULT_METRICS.map((m) => ({
-                    ...m,
-                    id: m.key,
-                    isSystem: true,
-                    nutritionistId: null,
-                  })),
-                ];
+              {paginatedMetrics.map((metric) => {
+                const isSystem = metric.isSystem === true;
+                const isOwner = !isSystem;
+                const isAdmin = currentUser?.role?.startsWith("ADMIN");
 
-                metrics.forEach((sm) => {
-                  if (!allMetrics.find((am) => am.key === sm.key)) {
-                    allMetrics.push({ ...sm, isSystem: false });
-                  }
-                });
-
-                return allMetrics
-                  .filter((m) =>
-                    m.name
-                      .toLowerCase()
-                      .includes(metricsSearchQuery.toLowerCase()),
-                  )
-                  .map((metric) => {
-                    const isSystem = metric.isSystem === true;
-                    const isOwner = !isSystem;
-                    const isAdmin = currentUser?.role?.startsWith("ADMIN");
-                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                    const Icon = getMetricIcon(metric.icon);
-
-                    return (
+                return (
+                  <div
+                    key={metric.id || metric.key}
+                    className="flex items-center justify-between p-4 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-colors group"
+                  >
+                    <div className="flex items-center gap-3">
                       <div
-                        key={metric.id || metric.key}
-                        className="flex items-center justify-between p-4 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-colors group"
+                        className={cn(
+                          "h-10 w-10 rounded-full flex items-center justify-center",
+                          isSystem ? "bg-blue-100/50" : "bg-indigo-100/50",
+                        )}
                       >
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={cn(
-                              "h-10 w-10 rounded-full flex items-center justify-center",
-                              isSystem ? "bg-blue-100/50" : "bg-indigo-100/50",
-                            )}
-                          >
-                            {isSystem ? (
-                              <Globe className="w-4 h-4 text-blue-500" />
-                            ) : (
-                              <UserIcon className="w-4 h-4 text-indigo-500" />
-                            )}
-                          </div>
-                          <div>
-                            <p className="font-semibold text-slate-700">
-                              {metric.name}
-                            </p>
-                            <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-400">
-                              {isSystem
-                                ? "Sistema / Global"
-                                : isOwner
-                                  ? "Creada por ti"
-                                  : "Creada por nutri"}
-                            </p>
-                          </div>
-                        </div>
-                        {(isOwner || isAdmin) && !isSystem && (
-                          <button
-                            onClick={() => {
-                              setMetricToDelete(metric);
-                              setIsDeleteMetricConfirmOpen(true);
-                            }}
-                            className="p-2 hover:bg-rose-100 text-slate-300 hover:text-rose-500 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                        {isSystem ? (
+                          <Globe className="w-4 h-4 text-blue-500" />
+                        ) : (
+                          <UserIcon className="w-4 h-4 text-indigo-500" />
                         )}
                       </div>
-                    );
-                  });
-              })()}
+                      <div>
+                        <p className="font-semibold text-slate-700">
+                          {metric.name}
+                        </p>
+                        <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-400">
+                          {isSystem
+                            ? "Sistema / Global"
+                            : isOwner
+                              ? "Creada por ti"
+                              : "Creada por nutri"}
+                        </p>
+                      </div>
+                    </div>
+                    {(isOwner || isAdmin) && !isSystem && (
+                      <button
+                        onClick={() => {
+                          setMetricToDelete(metric);
+                          setIsDeleteMetricConfirmOpen(true);
+                        }}
+                        className="p-2 hover:bg-rose-100 text-slate-400 hover:text-rose-500 rounded-lg transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
+            <Pagination page={metricsPage} totalPages={metricsTotalPages} onPageChange={setMetricsPage} onlyMine={onlyMineMetrics} onToggleMine={() => setOnlyMineMetrics(!onlyMineMetrics)} />
+            </>
           )}
         </div>
+        )}
       </div>
 
       <Modal

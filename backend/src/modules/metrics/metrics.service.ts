@@ -1,4 +1,9 @@
-import { Injectable, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  ForbiddenException,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CacheService } from '../../common/services/cache.service';
 import {
@@ -91,24 +96,26 @@ export class MetricsService {
       select: this.metricDefinitionSelect,
     });
     if (!metric) {
-      throw new Error(
+      throw new NotFoundException(
         'La métrica que intentas eliminar no existe o ya fue borrada.',
       );
     }
 
     const isAdmin = role && role.startsWith('ADMIN');
 
+    if (!isAdmin && !metric.nutritionistId) {
+      throw new ForbiddenException(
+        'Las métricas globales del sistema no pueden ser eliminadas',
+      );
+    }
+
     if (
       !isAdmin &&
       metric.nutritionistId &&
       metric.nutritionistId !== nutritionistId
     ) {
-      throw new Error('No tienes permisos para eliminar esta métrica');
-    }
-
-    if (!isAdmin && !metric.nutritionistId) {
-      throw new Error(
-        'Las métricas globales del sistema no pueden ser eliminadas',
+      throw new ForbiddenException(
+        'No tienes permisos para eliminar esta métrica',
       );
     }
 

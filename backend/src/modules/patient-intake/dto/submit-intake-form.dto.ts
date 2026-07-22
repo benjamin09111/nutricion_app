@@ -6,6 +6,7 @@ import {
   IsNumber,
   IsDateString,
   IsArray,
+  IsBoolean,
   MinLength,
   MaxLength,
   Min,
@@ -87,6 +88,102 @@ export class SubmitIntakeFormDto {
     message: 'Las preferencias no pueden exceder 500 caracteres',
   })
   likes?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  occupation?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  workSchedule?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  medications?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  drugsSupplements?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  diagnosedPathologies?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  foodFrequency?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  recall24h?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  eatingPreferences?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  clinicalObservations?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  pregnant?: boolean;
+
+  @IsOptional()
+  @IsNumber({}, { message: 'Las semanas de gestación deben ser un número' })
+  pregnancyWeeks?: number;
+
+  @IsOptional()
+  @IsNumber({}, { message: 'El peso pre-gestacional debe ser un número' })
+  pregestationalWeight?: number;
+
+  @IsOptional()
+  @IsNumber({}, { message: 'La altura de rodilla debe ser un número' })
+  kneeHeight?: number;
+
+  @IsOptional()
+  @IsNumber(
+    {},
+    { message: 'La circunferencia de pantorrilla debe ser un número' },
+  )
+  calfCircumference?: number;
+
+  @IsOptional()
+  @IsNumber({}, { message: 'La circunferencia braquial debe ser un número' })
+  armCircumference?: number;
+
+  @IsOptional()
+  @IsNumber({}, { message: 'La circunferencia de cintura debe ser un número' })
+  waistCircumference?: number;
+
+  @IsOptional()
+  @IsNumber({}, { message: 'La circunferencia de cadera debe ser un número' })
+  hipCircumference?: number;
+
+  @IsOptional()
+  @IsNumber({}, { message: 'El pliegue tricipital debe ser un número' })
+  pliegueTricipital?: number;
+
+  @IsOptional()
+  @IsNumber({}, { message: 'El pliegue bicipital debe ser un número' })
+  pliegueBicipital?: number;
+
+  @IsOptional()
+  @IsNumber({}, { message: 'El pliegue subescapular debe ser un número' })
+  pliegueSubescapular?: number;
+
+  @IsOptional()
+  @IsNumber({}, { message: 'El pliegue suprailiaco debe ser un número' })
+  pliegueSuprailiaco?: number;
 
   @IsOptional()
   @IsString()

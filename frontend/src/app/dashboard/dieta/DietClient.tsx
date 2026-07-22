@@ -1,23 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
-import {
-  GraduationCap,
-  ArrowRight,
-  Brain,
-  Library,
-  User,
-  AlertCircle,
-  Download,
-  RotateCcw,
-} from "lucide-react";
-import { Button } from "@/components/ui/Button";
-import { ActionDockItem } from "@/components/ui/ActionDock";
+import { GraduationCap } from "lucide-react";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
-import { ModuleFooter } from "@/components/shared/ModuleFooter";
 import { WorkflowContextBanner } from "@/components/shared/WorkflowContextBanner";
 import { MarketPrice } from "@/features/foods";
-import { toast } from "sonner";
 
 import { useDietState } from "@/features/diet/hooks/useDietState";
 import { DietPatientSection } from "@/features/diet/components/DietPatientSection";
@@ -38,80 +24,6 @@ interface DietClientProps {
 
 export default function DietClient({ initialFoods }: DietClientProps) {
   const state = useDietState({ initialFoods });
-
-  const actionDockItems: ActionDockItem[] = useMemo(
-    () => [
-      {
-        id: "import-creation",
-        icon: Library,
-        label: "Importar Creación",
-        variant: "indigo",
-        onClick: () => {
-          state.setIsImportCreationModalOpen(true);
-        },
-      },
-      {
-        id: "link-patient",
-        icon: User,
-        label: state.selectedPatient ? "Cambiar Paciente" : "Importar Paciente",
-        variant: "emerald",
-        onClick: () => {
-          state.setIsImportPatientModalOpen(true);
-          state.setPatientsError(null);
-        },
-      },
-      {
-        id: "sep-1",
-        icon: Library,
-        label: "",
-        onClick: () => {},
-        isSeparator: true,
-      },
-      {
-        id: "verify-foods",
-        icon: AlertCircle,
-        label: "Validar Restricciones (Próximamente)",
-        variant: "slate",
-        onClick: state.handleVerifyRestrictions,
-        disabled: true,
-      },
-      {
-        id: "export-pdf",
-        icon: Download,
-        label: state.isExportingPdf ? "Generando PDF..." : "Exportar PDF",
-        variant: "slate",
-        onClick: state.handleExportPdf,
-      },
-      {
-        id: "reset",
-        icon: RotateCcw,
-        label: "Reiniciar Todo",
-        variant: "rose",
-        onClick: () => state.setIsResetConfirmOpen(true),
-      },
-      {
-        id: "sep-2",
-        icon: Library,
-        label: "",
-        onClick: () => {},
-        isSeparator: true,
-      },
-      {
-        id: "continue",
-        icon: ArrowRight,
-        label: "CONTINUAR",
-        variant: "emerald",
-        onClick: () => {
-          if (state.draftFoodsPendingCompletion.length > 0) {
-            state.setIsContinueDraftWarningOpen(true);
-          } else {
-            void state.continueToRecipes();
-          }
-        },
-      },
-    ],
-    [state],
-  );
 
   return (
     <>
@@ -136,42 +48,6 @@ export default function DietClient({ initialFoods }: DietClientProps) {
           icon: GraduationCap,
           color: "text-emerald-600",
         }}
-        rightNavItems={actionDockItems}
-        footer={
-          <ModuleFooter>
-            <Button
-              variant="outline"
-              className="h-12 border-indigo-200 text-indigo-600 hover:bg-indigo-50 font-black gap-2 transition-all active:scale-95 group"
-              onClick={state.openSmartModal}
-            >
-              <div className="bg-indigo-100 p-1.5 rounded-lg group-hover:scale-110 transition-transform">
-                <Brain className="h-5 w-5" />
-              </div>
-              Añadir alimentos inteligente
-            </Button>
-
-            <div className="flex gap-3">
-              <Button
-                className="h-12 px-8 bg-slate-900"
-                onClick={() => {
-                  if (!state.dietName.trim()) {
-                    toast.error("Por favor, asigna un nombre a la dieta.");
-                    return;
-                  }
-                  state.setIsSaveCreationModalOpen(true);
-                }}
-              >
-                Guardar Creación
-              </Button>
-              <Button
-                className="h-12 px-8 bg-emerald-600"
-                onClick={state.handleContinue}
-              >
-                SIGUIENTE <ArrowRight className="ml-2 h-5 w-5" />
-              </Button>
-            </div>
-          </ModuleFooter>
-        }
       >
         <WorkflowContextBanner
           projectName={state.currentProjectName}

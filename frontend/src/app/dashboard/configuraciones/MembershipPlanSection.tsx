@@ -1,46 +1,68 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Crown, ShieldCheck, Sparkles, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Crown, ShieldCheck, Sparkles, Check, Loader2, XCircle } from "lucide-react";
 import { toast } from "sonner";
-import { usePaymentMode } from "@/hooks/usePaymentMode";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
-import { membershipService, type MembershipPlan, type DiscountValidationResult } from "@/features/memberships/services/membership.service";
+import { Modal } from "@/components/ui/Modal";
+import { TransferPaymentModal } from "@/components/pagos/TransferPaymentModal";
+import { membershipService, type MembershipPlan } from "@/features/memberships/services/membership.service";
+import { getMembershipFeatureDisplay } from "@/features/memberships/utils/feature-format";
 import { syncMembershipToStoredUser } from "@/lib/membership-session";
-import { goToMembershipWelcome } from "@/lib/membership-navigation";
+import { goToDashboard } from "@/lib/membership-navigation";
+import { getCurrentUser } from "@/lib/current-user";
+import { cn } from "@/lib/utils";
 
-const FEATURE_LABELS: Record<string, string> = {
-  "patients.active.limit": "Pacientes activos",
-  "consultations.monthly.limit": "Consultas mensuales",
-  "pdf.monthly.limit": "PDFs mensuales",
-  "followups.private.active.limit": "Seguimientos privados",
-  "ingredients.base.read": "Base de ingredientes",
-  "clinical_calculator.access": "Calculadora clínica",
-  "food_groups.access": "Grupos de alimentos",
-  "ai.calls.limit": "Llamadas a IA",
-  "ai.autofill.access": "Relleno automático IA",
-  "appointments.access": "Gestión de citas",
-  "google_calendar.sync": "Google Calendar",
-  "nutritionist_portal.access": "Portal nutricionista",
-  "sii_invoices.access": "Boletas SII",
+type AttributeRow = {
+  key: string;
+  label: string;
+  value: boolean | number;
 };
 
-const FEATURE_ORDER = [
-  "patients.active.limit",
-  "consultations.monthly.limit",
-  "pdf.monthly.limit",
-  "followups.private.active.limit",
-  "ai.calls.limit",
-  "ingredients.base.read",
-  "clinical_calculator.access",
-  "food_groups.access",
-  "ai.autofill.access",
-  "appointments.access",
-  "google_calendar.sync",
-  "nutritionist_portal.access",
-  "sii_invoices.access",
-];
+const formatEntitlementValue = (value: boolean | number) => {
+  if (typeof value === "boolean") {
+    return value ? "Sí" : "—";
+  }
+
+  if (value < 0) {
+    return "Ilimitado";
+  }
+
+  return value > 0 ? "Sí" : "—";
+};
+
+const getPlanAttributeRows = (
+  plan?: Pick<MembershipPlan, "features" | "entitlements"> | null,
+): AttributeRow[] => {
+  const featureRows = (plan?.features ?? [])
+    .map((feature, index) => {
+      const display = getMembershipFeatureDisplay(feature);
+
+      return {
+        key: `feature-${index}-${display.label}`,
+        label: display.label,
+        value: display.isExcluded ? false : true,
+      };
+    })
+    .filter((row) => row.label.length > 0);
+
+  if (featureRows.length > 0) {
+    return featureRows;
+  }
+
+  return Object.entries(plan?.entitlements ?? {})
+    .map(([key, value]) => ({
+      key,
+      label: key
+        .split(/[._-]+/)
+        .filter(Boolean)
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(" "),
+      value,
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label, "es-CL"));
+};
 
 const money = (value: number) =>
   new Intl.NumberFormat("es-CL", {
@@ -60,7 +82,11 @@ const formatDate = (value?: string | null) => {
   });
 };
 
-export function MembershipPlanSection() {
+export function MembershipPlanSection({
+  autoOpenChangePlan = false,
+}: {
+  autoOpenChangePlan?: boolean;
+}) {
   const {
     currentPlan,
     subscriptionEndsAt,
@@ -71,19 +97,17 @@ export function MembershipPlanSection() {
     usage,
     billing,
   } = useSubscription();
-  const { mode, toggle: togglePaymentMode } = usePaymentMode();
   const [isCanceling, setIsCanceling] = useState(false);
   const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
-  const [isResuming, setIsResuming] = useState(false);
   const [isChangingPlan, setIsChangingPlan] = useState(false);
   const [availablePlans, setAvailablePlans] = useState<MembershipPlan[]>([]);
   const [isLoadingPlans, setIsLoadingPlans] = useState(false);
-  const [upgradingPlanId, setUpgradingPlanId] = useState<string | null>(null);
-  const [discountCode, setDiscountCode] = useState("");
-  const [discountResults, setDiscountResults] = useState<Map<string, DiscountValidationResult>>(new Map());
-  const [validatingPlanId, setValidatingPlanId] = useState<string | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<MembershipPlan | null>(null);
+  const [pendingPaidPlan, setPendingPaidPlan] = useState<MembershipPlan | null>(null);
+  const [hasAutoOpenedChangePlan, setHasAutoOpenedChangePlan] = useState(false);
 
   const currentPrice = Number(currentPlan?.price || 0);
+  const canChangePlan = currentPrice === 0;
   const nextPaymentLabel = useMemo(() => {
     if (currentPrice === 0) return "Sin cobro";
     return formatDate(billing?.nextPaymentAt || subscriptionEndsAt?.toISOString() || null);
@@ -97,18 +121,28 @@ export function MembershipPlanSection() {
         limit: currentPlan?.entitlements?.["patients.active.limit"],
       },
       {
-        label: "Consultas mensuales",
-        usage: usage?.consultationsMonthly ?? 0,
+        label: "Consultas consumidas",
+        usage: usage?.consultationsUsed ?? 0,
         limit: currentPlan?.entitlements?.["consultations.monthly.limit"],
       },
       {
-        label: "PDFs mensuales",
-        usage: usage?.pdfMonthly ?? 0,
+        label: "PDFs consumidos",
+        usage: usage?.pdfUsed ?? 0,
         limit: currentPlan?.entitlements?.["pdf.monthly.limit"],
       },
       {
-        label: "IA mensual",
-        usage: usage?.aiMonthly ?? 0,
+        label: "Seguimientos privados activos",
+        usage: usage?.followupsPrivateActive ?? 0,
+        limit: currentPlan?.entitlements?.["followups.private.active.limit"],
+      },
+      {
+        label: "Calculadora clínica",
+        usage: usage?.calculatorUsed ?? 0,
+        limit: currentPlan?.entitlements?.["clinical_calculator.limit"],
+      },
+      {
+        label: "IA consumida",
+        usage: usage?.aiUsed ?? 0,
         limit: currentPlan?.entitlements?.["ai.calls.limit"],
       },
     ],
@@ -116,14 +150,35 @@ export function MembershipPlanSection() {
   );
 
   const featureRows = useMemo(
-    () =>
-      FEATURE_ORDER.map((key) => ({
-        key,
-        label: FEATURE_LABELS[key] || key,
-        value: currentPlan?.entitlements?.[key],
-      })),
+    () => getPlanAttributeRows(currentPlan),
     [currentPlan],
   );
+
+  const loadAvailablePlans = async () => {
+    setIsChangingPlan(true);
+    setIsLoadingPlans(true);
+    try {
+      const plans = await membershipService.getActivePlans();
+      setAvailablePlans(
+        plans.filter((p) => {
+          if (p.id === currentPlan?.id) return false;
+          const planKey = String(p.slug || p.name || "").toLowerCase();
+          return planKey === "free" || planKey === "pro";
+        }),
+      );
+    } catch {
+      toast.error("No se pudieron cargar los planes");
+    } finally {
+      setIsLoadingPlans(false);
+    }
+  };
+
+  useEffect(() => {
+    if (autoOpenChangePlan && !hasAutoOpenedChangePlan) {
+      setHasAutoOpenedChangePlan(true);
+      void loadAvailablePlans();
+    }
+  }, [autoOpenChangePlan, hasAutoOpenedChangePlan]);
 
   if (!currentPlan) {
     return (
@@ -141,12 +196,12 @@ export function MembershipPlanSection() {
       ? billing?.nextPaymentAmount
         ? money(billing.nextPaymentAmount)
         : money(currentPrice)
-      : "Plan gratuito";
+      : "Prueba sin renovación";
 
   return (
     <div className="space-y-6">
       <div className="rounded-[2rem] border border-indigo-100 bg-linear-to-br from-white via-white to-indigo-50/40 p-6 lg:p-8 shadow-sm">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+        <div className="grid gap-6 lg:grid-cols-2">
           <div className="space-y-4">
             <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-indigo-700 shadow-sm">
               <Sparkles className="h-3.5 w-3.5" />
@@ -168,46 +223,26 @@ export function MembershipPlanSection() {
                   </span>
                 </div>
                 <p className="mt-1 text-sm text-slate-500">
-                  {money(currentPrice)} / mes · Próximo cobro {nextPaymentLabel}
+                  {currentPrice > 0
+                    ? `${money(currentPrice)} / mes · Próximo cobro ${nextPaymentLabel}`
+                    : "Prueba gratuita · Esto no se renueva automáticamente"}
                 </p>
-              </div>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Días restantes</p>
-                <p className="mt-2 text-2xl font-bold text-slate-900">{daysRemaining ?? "-"}</p>
-              </div>
-              <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Vence</p>
-                <p className="mt-2 text-sm font-semibold text-slate-900">{formatDate(subscriptionEndsAt?.toISOString() || null)}</p>
-              </div>
-              <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Monto próximo</p>
-                <p className="mt-2 text-sm font-semibold text-slate-900">{renewalText}</p>
               </div>
             </div>
           </div>
 
-          <div className="w-full max-w-sm rounded-[1.75rem] border border-slate-100 bg-white p-4 shadow-sm">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Modo de pago</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">{mode === "mock" ? "Prueba" : "Real"}</p>
-              </div>
-              <button
-                onClick={togglePaymentMode}
-                aria-label="Cambiar modo de pago"
-                className="rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100 cursor-pointer"
-              >
-                Cambiar
-              </button>
+          <div className="flex items-stretch gap-3">
+            <div className="flex-1 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Días restantes</p>
+              <p className="mt-2 text-2xl font-bold text-slate-900">{daysRemaining ?? "-"}</p>
             </div>
-
-            <div className="mt-4 rounded-2xl bg-slate-50 p-3 text-xs text-slate-500">
-              {mode === "mock"
-                ? "Los pagos se aprueban automáticamente en modo prueba."
-                : "Pagos procesados por Mercado Pago."}
+            <div className="flex-1 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Vence</p>
+              <p className="mt-2 text-sm font-semibold text-slate-900">{formatDate(subscriptionEndsAt?.toISOString() || null)}</p>
+            </div>
+            <div className="flex-1 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Monto próximo</p>
+              <p className="mt-2 text-sm font-semibold text-slate-900">{renewalText}</p>
             </div>
           </div>
         </div>
@@ -242,60 +277,27 @@ export function MembershipPlanSection() {
               );
             })}
           </div>
+          {currentPrice === 0 && (
+            <p className="mt-4 text-xs text-amber-700">
+              Tu plan gratis es una prueba sin renovación automática. Cada uso queda registrado hasta agotar el límite.
+            </p>
+          )}
         </div>
 
         <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Acciones</p>
-              <h3 className="mt-1 text-lg font-bold text-slate-900">Gestión de suscripción</h3>
-            </div>
-          </div>
-
-          <div className="mt-5 flex flex-wrap gap-3">
-            {!cancelAtPeriodEnd && currentPrice > 0 && (
-              <button onClick={() => setIsCancelConfirmOpen(true)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer">
-                Cancelar plan
-              </button>
-            )}
-            {cancelAtPeriodEnd && (
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Acciones</p>
+                <h3 className="mt-1 text-lg font-bold text-slate-900">Gestión de suscripción</h3>
+              </div>
               <button
-                onClick={async () => {
-                  setIsResuming(true);
-                  try {
-                    await membershipService.resumeSubscription();
-                    toast.success("Plan reanudado correctamente");
-                    await refreshSubscription();
-                  } catch (e: any) {
-                    toast.error(e?.message || "Error al reanudar plan");
-                  } finally {
-                    setIsResuming(false);
-                  }
-                }}
-                disabled={isResuming}
-                className="rounded-xl border border-emerald-200 px-4 py-2 text-sm font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors cursor-pointer disabled:opacity-50"
+              onClick={loadAvailablePlans}
+              disabled={!canChangePlan}
+              className="rounded-xl px-4 py-2 text-sm font-semibold transition-colors cursor-pointer disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none bg-indigo-600 hover:bg-indigo-700 text-white"
               >
-                {isResuming ? "Reanudando..." : "Reanudar plan"}
+              {canChangePlan ? "Cambiar mi plan" : "Plan ya activo"}
               </button>
-            )}
-            <button
-              onClick={async () => {
-                setIsChangingPlan(true);
-                setIsLoadingPlans(true);
-                try {
-                  const plans = await membershipService.getActivePlans();
-                  setAvailablePlans(plans.filter((p) => p.id !== currentPlan?.id));
-                } catch {
-                  toast.error("No se pudieron cargar los planes");
-                } finally {
-                  setIsLoadingPlans(false);
-                }
-              }}
-              className="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 text-sm font-semibold transition-colors cursor-pointer"
-            >
-              Cambiar plan
-            </button>
-          </div>
+            </div>
 
           <div className="mt-6 rounded-2xl border border-slate-100 bg-slate-50 p-4">
             <div className="flex items-center gap-2">
@@ -308,6 +310,32 @@ export function MembershipPlanSection() {
               <li className="flex items-start gap-2"><span className="mt-1 h-1.5 w-1.5 rounded-full bg-slate-300" />Cambio de plan con lectura clara de upgrade/downgrade.</li>
             </ul>
           </div>
+          {currentPlan?.key === "free" && (
+            <div className="mt-4 rounded-2xl border border-rose-100 bg-rose-50/50 p-4">
+              <div className="flex items-center gap-2">
+                <XCircle className="h-4 w-4 text-rose-600 shrink-0" />
+                <p className="text-sm font-bold text-rose-900">Restricciones Plan FREEMIUM</p>
+              </div>
+              <ul className="mt-3 space-y-2 text-xs font-semibold text-rose-700 leading-relaxed">
+                <li className="flex items-start gap-2">
+                  <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-rose-400" />
+                  No se permite editar la información de pacientes.
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-rose-400" />
+                  Límite máximo de 3 creaciones guardadas en total (deberás eliminar una para guardar otra).
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-rose-400" />
+                  No se permite editar creaciones ya guardadas.
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-rose-400" />
+                  Solo puedes usar Detalles globales (no crear nuevos).
+                </li>
+              </ul>
+            </div>
+          )}
         </div>
       </div>
 
@@ -315,200 +343,188 @@ export function MembershipPlanSection() {
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Características</p>
-            <h3 className="mt-1 text-lg font-bold text-slate-900">Restricciones incluidas</h3>
+            <h3 className="mt-1 text-lg font-bold text-slate-900">Atributos del plan</h3>
           </div>
         </div>
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {featureRows.map((feature) => (
-            <div key={feature.key} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">{feature.label}</p>
-              <p className="mt-2 text-sm font-semibold text-slate-900">
-                {typeof feature.value === "boolean"
-                  ? feature.value ? "Incluido" : "No incluido"
-                  : typeof feature.value === "number"
-                    ? feature.value < 0 ? "Ilimitado" : feature.value
-                    : "-"}
-              </p>
-            </div>
-          ))}
+        <div className="mt-5 grid gap-6 sm:grid-cols-2">
+          <div className="space-y-3">
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-emerald-600">Incluidas</p>
+            {featureRows
+              .filter((f) => {
+                if (typeof f.value === "boolean") return f.value === true;
+                if (typeof f.value === "number") return f.value > 0;
+                return false;
+              })
+              .map((feature) => (
+                <div key={feature.key} className="flex items-center justify-between rounded-xl border border-slate-100 bg-white px-4 py-2.5">
+                  <span className="text-sm font-medium text-slate-700">{feature.label}</span>
+                  <span className="text-sm font-semibold text-emerald-700">{formatEntitlementValue(feature.value)}</span>
+                </div>
+              ))}
+          </div>
+          <div className="space-y-3">
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">No incluidas</p>
+            {featureRows
+              .filter((f) => {
+                if (typeof f.value === "boolean") return f.value === false;
+                if (typeof f.value === "number") return f.value === 0;
+                return true;
+              })
+              .map((feature) => (
+                <div key={feature.key} className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/60 px-4 py-2.5">
+                  <span className="text-sm font-medium text-slate-500">{feature.label}</span>
+                  <span className="text-sm font-semibold text-slate-400">—</span>
+                </div>
+              ))}
+          </div>
         </div>
       </div>
 
-      {isChangingPlan && (
-        <div className="rounded-[2rem] border border-slate-200 bg-slate-50 p-6 shadow-sm">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Cambiar plan</p>
-              <h3 className="mt-1 text-lg font-bold text-slate-900">Comparar y elegir</h3>
-            </div>
-            <button
-              onClick={() => setIsChangingPlan(false)}
-              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100 cursor-pointer"
-            >
-              <X className="h-3.5 w-3.5" />
-              Cerrar
-            </button>
-          </div>
-
-          {currentPrice > 0 && daysRemaining && daysRemaining > 0 && (
-            <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-800">
-              Tienes {daysRemaining} días restantes de tu plan actual ({currentPlan.name}). Se aplicará el crédito proporcional al nuevo plan.
-            </div>
-          )}
-
-          <div className="mt-5">
-            {isLoadingPlans ? (
-              <p className="text-sm text-slate-500">Cargando planes...</p>
-            ) : availablePlans.length === 0 ? (
-              <p className="text-sm text-slate-500">No hay otros planes disponibles.</p>
-            ) : (
-              <div className="grid gap-4 xl:grid-cols-3">
-                {availablePlans.map((plan) => {
-                  const targetPrice = Number(plan.price || 0);
-                  const actionLabel =
-                    targetPrice === 0
-                      ? "Downgrade a Free"
-                      : targetPrice > currentPrice
-                        ? "Upgrade"
-                        : targetPrice < currentPrice
-                          ? "Down plan"
-                          : "Cambiar";
-
-return (
-                    <div key={plan.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-bold text-slate-900">{plan.name}</p>
-                          <p className="mt-1 text-xs text-slate-500">{money(targetPrice)} / mes</p>
-                        </div>
-                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-slate-600">
-                          {actionLabel}
-                        </span>
-                      </div>
-
-                      {targetPrice > 0 && (
-                        <div className="mt-3 space-y-2">
-                          <div className="flex gap-2">
-                            <input
-                              type="text"
-                              placeholder="Codigo de descuento"
-                              value={discountCode}
-                              onChange={(e) => {
-                                setDiscountCode(e.target.value);
-                                setDiscountResults((prev) => {
-                                  const next = new Map(prev);
-                                  next.delete(plan.id);
-                                  return next;
-                                });
-                              }}
-                              className="flex-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 placeholder-slate-400"
-                            />
-                            <button
-                              type="button"
-                              onClick={async () => {
-                                if (!discountCode.trim()) return;
-                                setValidatingPlanId(plan.id);
-                                try {
-                                  const result = await membershipService.validateDiscount(plan.id, discountCode.trim());
-                                  setDiscountResults((prev) => {
-                                    const next = new Map(prev);
-                                    next.set(plan.id, result);
-                                    return next;
-                                  });
-                                  toast.success(`Codigo aplicado: ${result.discountPercent}% descuento`);
-                                } catch (e: any) {
-                                  toast.error(e?.message || "Codigo invalido");
-                                } finally {
-                                  setValidatingPlanId(null);
-                                }
-                              }}
-                              disabled={validatingPlanId === plan.id || !discountCode.trim()}
-                              className="rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-[10px] font-bold text-indigo-600 transition-colors hover:bg-indigo-100 disabled:opacity-50 cursor-pointer"
-                            >
-                              {validatingPlanId === plan.id ? "..." : "Aplicar"}
-                            </button>
-                          </div>
-                          {discountResults.has(plan.id) && (
-                            <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-2 text-[10px] space-y-0.5">
-                              <div className="flex justify-between text-slate-500">
-                                <span>Original</span>
-                                <span>{money(discountResults.get(plan.id)!.originalPrice)}</span>
-                              </div>
-                              {discountResults.get(plan.id)!.proratedCredit > 0 && (
-                                <div className="flex justify-between text-slate-500">
-                                  <span>Credito</span>
-                                  <span>-{money(discountResults.get(plan.id)!.proratedCredit)}</span>
-                                </div>
-                              )}
-                              <div className="flex justify-between text-emerald-700 font-bold">
-                                <span>-{discountResults.get(plan.id)!.discountPercent}%</span>
-                                <span>-{money(discountResults.get(plan.id)!.basePrice - discountResults.get(plan.id)!.finalPrice)}</span>
-                              </div>
-                              <div className="flex justify-between text-slate-900 font-black pt-1 border-t border-emerald-200">
-                                <span>Total</span>
-                                <span>{money(discountResults.get(plan.id)!.finalPrice)}</span>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      <div className="mt-4 flex justify-end">
-                        <button
-                          onClick={async () => {
-                            setUpgradingPlanId(plan.id);
-                            const planDiscount = discountResults.get(plan.id);
-                            try {
-                              if (targetPrice === 0) {
-                                const result = await membershipService.selectFreePlan(plan.id);
-                                syncMembershipToStoredUser(result.membershipStatus, plan);
-                                toast.success(`Cambiado a ${plan.name}`);
-                                await refreshSubscription();
-                                setIsChangingPlan(false);
-                                goToMembershipWelcome({ planName: plan.name, planSlug: plan.slug });
-                                return;
-                              }
-
-                              if (mode === "real") {
-                                const result = planDiscount?.code
-                                  ? await membershipService.createFlowDiscountCheckout(plan.id, planDiscount.code)
-                                  : await membershipService.createFlowCheckout(plan.id);
-                                if (result.paymentUrl) {
-                                  window.location.href = result.paymentUrl;
-                                  return;
-                                }
-                                throw new Error("No se obtuvo link de pago");
-                              }
-
-                              const result = await membershipService.checkout(plan.id);
-                              if (result.proratedCredit && result.proratedCredit > 0) {
-                                toast.success(`Plan ${plan.name} activado. Se descontaron ${money(result.proratedCredit)} por los días no usados de tu plan anterior.`, { duration: 6000 });
-                              } else {
-                                toast.success(`Plan ${plan.name} activado`);
-                              }
-                              goToMembershipWelcome({ planName: plan.name, planSlug: plan.slug, payment: "success" });
-                              await refreshSubscription();
-                              setIsChangingPlan(false);
-                            } catch (e: any) {
-                              toast.error(e?.message || "Error al cambiar plan");
-                            } finally {
-                              setUpgradingPlanId(null);
-                            }
-                          }}
-                          disabled={upgradingPlanId === plan.id}
-                          className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-white transition-colors hover:bg-indigo-700 cursor-pointer disabled:opacity-50"
-                        >
-                          {upgradingPlanId === plan.id ? "..." : actionLabel}
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+      <Modal
+        isOpen={isChangingPlan}
+        onClose={() => { setIsChangingPlan(false); setSelectedPlan(null); }}
+        closeOnEscape
+        closeOnBackdropClick
+        className="max-w-4xl"
+      >
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h3 className="text-xl font-black tracking-tight text-slate-900">Cambiar de plan</h3>
+            <p className="text-sm text-slate-500 mt-1">Selecciona el plan que se ajuste a tus necesidades</p>
           </div>
         </div>
-      )}
+
+        {isLoadingPlans ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+          </div>
+        ) : availablePlans.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-slate-500">No hay otros planes disponibles.</p>
+          </div>
+        ) : (
+          <>
+            {currentPrice > 0 && daysRemaining && daysRemaining > 0 && (
+              <div className="mb-4 rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-800">
+                Tienes {daysRemaining} días restantes de tu plan actual ({currentPlan.name}). Se aplicará el crédito proporcional al nuevo plan.
+              </div>
+            )}
+
+            <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-2 text-xs font-bold text-white shadow-lg mb-6">
+              <Sparkles className="h-3.5 w-3.5" />
+              OFERTA DE LANZAMIENTO: $19.990/mes para las primeras 20 personas (Precio regular $25.000)
+            </div>
+
+            <div className="grid grid-cols-2 gap-6">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Mi plan actual</span>
+                </div>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-200 text-slate-600">
+                    <Crown className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-lg text-slate-900">{currentPlan.name}</p>
+                    <p className="text-sm text-slate-500">{currentPrice > 0 ? money(currentPrice) : "Gratuito"} /mes</p>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  {featureRows.slice(0, 5).map((feature) => (
+                    <div key={feature.key} className="flex items-center gap-2 text-sm">
+                      <Check className="h-4 w-4 text-emerald-500 shrink-0" />
+                      <span className="text-slate-600">{feature.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {availablePlans.map((plan) => {
+                const isPopular = plan.isPopular;
+                const planFeatureRows = getPlanAttributeRows(plan);
+
+                return (
+                  <div
+                    key={plan.id}
+                    className={cn(
+                      "rounded-2xl border-2 p-6 transition-all",
+                      isPopular
+                        ? "border-indigo-500 shadow-[0_10px_40px_rgba(99,102,241,0.15)] bg-white"
+                        : "border-indigo-200 bg-indigo-50/50"
+                    )}
+                  >
+                    {isPopular && (
+                      <div className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-[10px] font-bold px-3 py-1 mb-4">
+                        <Sparkles className="h-3 w-3" />
+                        Más Popular
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2 mb-4">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-indigo-600">Nuevo plan</span>
+                    </div>
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className={cn(
+                        "flex h-12 w-12 items-center justify-center rounded-xl",
+                        isPopular ? "bg-indigo-600 text-white" : "bg-indigo-100 text-indigo-600"
+                      )}>
+                        <Crown className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <p className={cn("font-bold text-lg", isPopular ? "text-indigo-700" : "text-slate-900")}>
+                          {plan.name}
+                        </p>
+                        <div className="flex items-baseline gap-2">
+                          {plan.slug === "pro" && (
+                            <p className="text-sm font-semibold text-slate-400 line-through">$25.000</p>
+                          )}
+                          <p className={cn("font-black text-xl", isPopular ? "text-indigo-600" : "text-slate-900")}>
+                            ${Number(plan.price).toLocaleString("es-CL")}
+                            <span className="text-sm font-normal text-slate-400">/mes</span>
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="space-y-2 mb-6">
+                      {planFeatureRows.slice(0, 5).map((feature) => (
+                        <div key={feature.key} className="flex items-center gap-2 text-sm">
+                          <Check className="h-4 w-4 text-indigo-500 shrink-0" />
+                          <span className="text-slate-600">{feature.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <button
+                      onClick={async () => {
+                        const targetPrice = Number(plan.price || 0);
+
+                        if (targetPrice === 0) {
+                          try {
+                            const result = await membershipService.selectFreePlan(plan.id);
+                            syncMembershipToStoredUser(result.membershipStatus, plan);
+                            toast.success(`Cambiado a ${plan.name}`);
+                            await refreshSubscription();
+                            setIsChangingPlan(false);
+                            setSelectedPlan(null);
+                            goToDashboard();
+                          } catch (e: any) {
+                            toast.error(e?.message || "Error al cambiar plan");
+                          }
+                          return;
+                        }
+
+                        setIsChangingPlan(false);
+                        setPendingPaidPlan(plan);
+                      }}
+                      className="w-full h-12 rounded-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-lg transition-all cursor-pointer"
+                    >
+                      Cambiar mi plan mensual
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </Modal>
 
       <ConfirmationModal
         isOpen={isCancelConfirmOpen}
@@ -532,6 +548,30 @@ return (
         cancelText="Volver"
         isLoading={isCanceling}
       />
+
+      {pendingPaidPlan && (
+        <TransferPaymentModal
+          isOpen={!!pendingPaidPlan}
+          onClose={() => {
+            setPendingPaidPlan(null);
+            setSelectedPlan(null);
+          }}
+          planId={pendingPaidPlan.id}
+          planName={pendingPaidPlan.name}
+          planPrice={Number(pendingPaidPlan.price)}
+          currentPlanName={currentPlan.name}
+          currentPlanPrice={currentPrice}
+          nutritionistEmail={getCurrentUser()?.email || ""}
+          nutritionistName={getCurrentUser()?.nutritionist?.fullName}
+          onSuccess={async () => {
+            setPendingPaidPlan(null);
+            setSelectedPlan(null);
+            await refreshSubscription();
+          }}
+        />
+      )}
     </div>
   );
 }
+
+

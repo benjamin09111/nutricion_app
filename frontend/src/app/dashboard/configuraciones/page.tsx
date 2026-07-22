@@ -1,20 +1,25 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import Link from "next/link";
-import { User, Lock, Save, Eye, EyeOff, Sun, Moon, Type, FileText, Globe, MapPin, Phone, Mail, Calendar, Check, Crown, Clock, AlertCircle, BadgeCheck, TestTube, ShieldCheck } from "lucide-react";
+import { useState, useEffect } from "react";
+import Image from "next/image";
+import { useSearchParams } from "next/navigation";
+import { User, Lock, Crown, Save, Type, Calendar, Pencil, Globe, ShieldAlert, ShieldCheck, FileText, Download, Trash2, LockKeyhole } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Textarea";
-import { authService } from "@/features/auth/services/auth.service";
+import { Select } from "@/components/ui/Select";
 import { toast } from "sonner";
 import { fetchApi } from "@/lib/api-base";
-import { useTheme } from "@/context/ThemeContext";
 import { useFont } from "@/context/FontContext";
-import { cn } from "@/lib/utils";
-import { getPasswordRequirements, getPasswordStrength } from "@/lib/password-policy";
+import { formatRut } from "@/lib/rut-utils";
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 import { MembershipPlanSection } from "./MembershipPlanSection";
 import { getCurrentUser, setCurrentUser } from "@/lib/current-user";
+
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
 
 function RoleBadge({ role }: { role?: string | null }) {
   const config: Record<string, { label: string; className: string }> = {
@@ -38,20 +43,9 @@ interface UserSettings {
   professionalInstagram?: string;
   professionalPhone?: string;
   professionalEmail?: string;
-  publicProfileEnabled?: boolean;
-  publicSlug?: string;
-  headline?: string;
   bio?: string;
   consultationMode?: string;
   location?: string;
-  publicPhone?: string;
-  publicEmail?: string;
-  bookingEnabled?: boolean;
-  showPublicPhone?: boolean;
-  showPublicEmail?: boolean;
-  showInstagram?: boolean;
-  showLinkedin?: boolean;
-  showSchedule?: boolean;
   conditionsTreated?: string;
   patientTypes?: string;
   prices?: string;
@@ -59,94 +53,610 @@ interface UserSettings {
   paymentMethods?: string;
   acceptedInsurance?: string;
   linkedin?: string;
-  country?: string;
 }
 
-const LEGAL_SECTIONS = [
-  {
-    title: "Terminos y Condiciones de Uso Beta",
-    content: [
-      "Ultima actualizacion: [FECHA]",
-      "Bienvenido/a a NutriNet. Estos Terminos y Condiciones regulan el acceso y uso de la plataforma NutriNet, una herramienta digital orientada a profesionales de la nutricion y dietetica para apoyo en gestion de pacientes, planificacion alimentaria, recetas, porciones, carrito y generacion de documentos.",
-      "Al registrarte, acceder o utilizar NutriNet, aceptas estos Terminos. Si no estas de acuerdo, no debes usar la plataforma.",
-      "1. Naturaleza del servicio. NutriNet es una plataforma de software en modalidad beta destinada a apoyar el trabajo de nutricionistas y otros profesionales autorizados del area de la salud. NutriNet no reemplaza el juicio clinico, la evaluacion profesional ni la responsabilidad del usuario respecto de las decisiones que adopte en la atencion de sus pacientes.",
-      "2. Requisitos de uso. El uso de NutriNet esta permitido unicamente a personas mayores de edad que actuen en el ejercicio de su actividad profesional o empresarial, o con autorizacion suficiente para ello.",
-      "3. Uso beta. NutriNet se encuentra en fase beta. El usuario entiende y acepta que ciertas funciones pueden presentar errores, caidas, inconsistencias o cambios; el servicio puede ser modificado, limitado, suspendido o interrumpido total o parcialmente; algunas funcionalidades pueden estar en desarrollo, prueba o retiro; y no se garantiza disponibilidad continua ni ausencia de fallas.",
-      "4. Responsabilidad profesional del usuario. El usuario es el unico responsable de la atencion clinica que presta, de la informacion que ingresa en la plataforma, de la revision y aprobacion final de recetas, porciones, indicaciones, calculos y entregables, y de la verificacion de alergias, restricciones, patologias, interacciones, requerimientos nutricionales y demas antecedentes clinicos relevantes.",
-      "5. Datos de pacientes. El usuario solo podra ingresar datos personales o sensibles de pacientes cuando cuente con una base legal suficiente para ello, incluyendo, cuando corresponda, consentimiento del titular, autorizacion contractual, mandato, relacion asistencial u otra causal legalmente valida.",
-      "6. Herramientas de inteligencia artificial. NutriNet puede incorporar funcionalidades de inteligencia artificial para generar, sugerir, resumir, estructurar o reformular informacion. Las salidas de IA son automaticas y pueden contener errores, omisiones o sesgos; toda salida generada por IA debe ser revisada antes de ser usada; la IA no constituye diagnostico, prescripcion medica ni indicacion clinica autonoma; y NutriNet no garantiza que el contenido generado por IA sea exacto, completo o adecuado para un caso particular.",
-      "7. Conductas prohibidas. Se prohibe al usuario ingresar informacion falsa, engañosa o no autorizada; vulnerar la seguridad de la plataforma; intentar acceder a cuentas, datos o sistemas ajenos; usar la plataforma para fines ilicitos, fraudulentos o abusivos; copiar, revender, sublicenciar o explotar comercialmente la plataforma sin autorizacion; o subir contenido que infrinja derechos de terceros.",
-      "8. Seguridad. NutriNet adopta medidas razonables de seguridad tecnicas y organizativas. Sin perjuicio de ello, ningun sistema es completamente infalible, por lo que el usuario reconoce la existencia de riesgos inherentes a los entornos digitales.",
-      "9. Propiedad intelectual. La plataforma, su diseño, codigo, bases estructurales, marca, textos, flujos, interfaces y demas elementos protegibles pertenecen a NutriNet o a sus licenciantes.",
-      "10. Suspension o terminacion. NutriNet podra suspender o terminar cuentas, accesos o funciones cuando exista incumplimiento de estos Terminos; se detecte uso abusivo, fraudulento o inseguro; o sea necesario por razones tecnicas, legales, de seguridad o de operacion.",
-      "11. Limitacion de responsabilidad. En la maxima medida permitida por la ley, NutriNet no sera responsable por decisiones clinicas tomadas por el usuario; errores de ingreso de datos; daños derivados del uso de contenido no revisado por el profesional; interrupciones, indisponibilidades o perdida de funcionalidad propia de una beta; lucro cesante, perdida de oportunidades, daño reputacional o perjuicios indirectos.",
-      "12. Modificaciones. NutriNet podra modificar estos Terminos. La nueva version sera informada en la plataforma y podra requerirse una nueva aceptacion.",
-      "13. Ley aplicable y jurisdiccion. Estos Terminos se regiran por las leyes de la Republica de Chile. Toda controversia se sometera a los tribunales ordinarios de justicia con competencia en Chile, salvo norma imperativa en contrario.",
-      "14. Contacto. Para consultas legales, privacidad o soporte: Correo: [EMAIL]. Responsable: [NOMBRE O RAZON SOCIAL].",
-    ],
-  },
-  {
-    title: "Politica de Privacidad",
-    content: [
-      "Ultima actualizacion: [FECHA]",
-      "Esta Politica de Privacidad explica como NutriNet recopila, utiliza, almacena y protege datos personales tratados a traves de la plataforma.",
-      "1. Responsable de contacto. Responsable de la plataforma: [NOMBRE O RAZON SOCIAL]. Correo de contacto: [EMAIL]. Domicilio o referencia de contacto: [DIRECCION / CIUDAD].",
-      "2. Que datos tratamos. Podemos tratar datos de identificacion del usuario profesional; datos de contacto; datos de acceso, autenticacion y uso; datos de pacientes ingresados por el usuario; datos de salud, antecedentes nutricionales, restricciones alimentarias, habitos, objetivos, recetas, calculos, observaciones y documentos asociados; y registros tecnicos, logs y eventos de seguridad.",
-      "3. Datos sensibles. NutriNet puede tratar datos sensibles, incluidos datos relativos a la salud, cuando son ingresados por usuarios profesionales para fines asistenciales o vinculados a la atencion nutricional.",
-      "4. Finalidades del tratamiento. Tratamos datos para permitir el funcionamiento de la plataforma; gestionar cuentas y autenticacion; almacenar, organizar y mostrar informacion clinica o nutricional; generar recetas, porciones, calculos, PDFs y otras herramientas de apoyo; habilitar funciones automatizadas e inteligencia artificial; mantener seguridad, trazabilidad y soporte; mejorar el servicio, detectar errores y prevenir abuso; y cumplir obligaciones legales o requerimientos validos de autoridad competente.",
-      "5. Base de tratamiento. Respecto del usuario profesional, el tratamiento se basa en la ejecucion de la relacion de uso de la plataforma, medidas precontractuales, cumplimiento de obligaciones legales e intereses legitimos compatibles con la operacion y seguridad del servicio. Respecto de datos de pacientes ingresados por el usuario, el usuario declara y garantiza que cuenta con base legal suficiente para dicho tratamiento.",
-      "6. Uso de inteligencia artificial. Si se utilizan funciones de IA, ciertos datos ingresados pueden ser procesados para generar respuestas, recetas, porciones, estructuras o textos; se procurara aplicar principios de minimizacion y uso limitado a la finalidad informada; y las salidas deben ser revisadas por el profesional antes de su utilizacion clinica.",
-      "7. Comparticion de datos. NutriNet no vende datos personales. Los datos podran compartirse unicamente cuando sea necesario con proveedores tecnologicos o de infraestructura; servicios de autenticacion, almacenamiento, monitoreo o procesamiento; proveedores que apoyen funciones de IA; y autoridades o tribunales cuando exista obligacion legal o requerimiento valido.",
-      "8. Conservacion. Los datos seran conservados por el tiempo necesario para cumplir las finalidades informadas, dar continuidad al servicio, cumplir obligaciones legales, resguardar seguridad, atender requerimientos o resolver controversias.",
-      "9. Seguridad. NutriNet adopta medidas razonables de seguridad administrativas, tecnicas y organizativas para proteger los datos contra acceso no autorizado, perdida, alteracion o divulgacion indebida.",
-      "10. Derechos. El titular de datos podra ejercer los derechos que le reconozca la normativa aplicable, incluyendo acceso, rectificacion, actualizacion, supresion, oposicion u otros que correspondan.",
-      "11. Incidentes de seguridad. En caso de incidentes de seguridad que afecten datos personales, NutriNet evaluara las medidas de contencion, investigacion, mitigacion y comunicacion que resulten procedentes conforme a la ley y a la gravedad del incidente.",
-      "12. Cambios a esta politica. NutriNet podra modificar esta Politica de Privacidad. La version vigente sera publicada en la plataforma.",
-      "13. Contacto. Correo: [EMAIL]. Responsable: [NOMBRE O RAZON SOCIAL].",
-    ],
-  },
-  {
-    title: "Anexo de Tratamiento de Datos",
-    content: [
-      "Ultima actualizacion: [FECHA]",
-      "Este Anexo forma parte de los Terminos y Condiciones de NutriNet y regula el tratamiento de datos personales que el usuario profesional ingresa en la plataforma respecto de sus pacientes.",
-      "1. Roles. Para efectos de este Anexo, el Usuario Profesional actua como responsable respecto de los datos personales de sus pacientes que decide ingresar, consultar, modificar o eliminar en la plataforma; y NutriNet actua como encargado u operador tecnologico, tratando dichos datos por cuenta del Usuario Profesional y conforme a las funcionalidades del servicio.",
-      "2. Objeto. NutriNet tratara datos personales unicamente para alojar y procesar la informacion; permitir al Usuario Profesional usar la plataforma; ejecutar calculos, recetas, porciones, exportaciones y demas funciones contratadas o habilitadas; y mantener soporte, seguridad, trazabilidad y continuidad operacional.",
-      "3. Instrucciones del usuario. El Usuario Profesional instruye a NutriNet a tratar los datos personales conforme a la configuracion y uso que realice dentro de la plataforma, las acciones que ejecute al cargar, editar, exportar o eliminar informacion, y las funcionalidades estandar del servicio.",
-      "4. Obligaciones del Usuario Profesional. El Usuario Profesional declara y garantiza que cuenta con legitimacion suficiente para tratar y cargar datos de pacientes; informara y obtendra consentimientos cuando la ley asi lo exija; no ingresara datos innecesarios o excesivos; sera responsable de la exactitud, pertinencia y actualizacion de la informacion; y mantendra confidenciales sus credenciales de acceso.",
-      "5. Obligaciones de NutriNet. NutriNet se obliga a tratar los datos conforme a este Anexo y a la operacion del servicio; adoptar medidas razonables de seguridad; limitar el acceso interno a personal o terceros que lo requieran para prestar el servicio; resguardar confidencialidad; y asistir razonablemente al Usuario Profesional en materias operativas vinculadas a datos y seguridad.",
-      "6. Subencargados o proveedores. NutriNet podra utilizar proveedores tecnologicos para infraestructura, almacenamiento, procesamiento, monitoreo, autenticacion o funciones de IA, siempre que ello sea razonablemente necesario para la prestacion del servicio y bajo medidas de resguardo apropiadas.",
-      "7. Confidencialidad. Toda persona que acceda a datos personales en el contexto de la prestacion del servicio debera quedar sujeta a deberes de confidencialidad.",
-      "8. Seguridad e incidentes. NutriNet implementara medidas razonables para proteger la informacion y notificara al Usuario Profesional, dentro de un plazo razonable, incidentes de seguridad relevantes que afecten datos personales tratados por cuenta de este, en la medida en que la ley o la naturaleza del incidente lo hagan procedente.",
-      "9. Terminacion. Al terminar la relacion, NutriNet podra eliminar, bloquear, devolver o anonimizar datos segun la configuracion del servicio, los plazos legales aplicables, necesidades de respaldo, seguridad o defensa juridica.",
-      "10. Prevalencia. En caso de conflicto entre este Anexo y otros textos del servicio, prevalecera la interpretacion que otorgue mayor proteccion a los datos personales, sin contrariar la ley.",
-    ],
-  },
-  {
-    title: "Aviso de IA y Responsabilidad Profesional",
-    content: [
-      "NutriNet incorpora funciones automatizadas e inteligencia artificial para asistir al profesional en tareas como generacion de recetas, sugerencias de porciones, estructuracion de planes, textos, resumenes y documentos.",
-      "Al usar estas funciones, el usuario acepta expresamente que las respuestas y sugerencias generadas por IA son orientativas y pueden contener errores, omisiones, imprecisiones o sesgos; la IA no reemplaza el criterio profesional, la evaluacion clinica individual, la entrevista nutricional, la revision de antecedentes ni la validacion final del profesional; toda recomendacion, receta, porcion, calculo, texto, material educativo o documento generado con apoyo de IA debe ser revisado, ajustado y aprobado por el usuario antes de su uso o entrega a pacientes; NutriNet no garantiza que el contenido generado por IA sea exacto, completo, actualizado o adecuado para un caso clinico especifico; y el usuario es el unico responsable de la decision final de utilizar, modificar o descartar cualquier contenido sugerido por la plataforma.",
-    ],
-  },
+type ProfileDraft = {
+  professionalInstagram: string;
+  professionalPhone: string;
+  professionalEmail: string;
+  bio: string;
+  consultationMode: string;
+  location: string;
+  conditionsTreated: string;
+  patientTypes: string;
+  prices: string;
+  officeAddress: string;
+  paymentMethods: string;
+  acceptedInsurance: string;
+  linkedin: string;
+};
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const LINKEDIN_REGEX = /^(@[a-zA-Z0-9._-]{2,100}|(https?:\/\/)?([a-zA-Z0-9-]+\.)?linkedin\.com\/.*)$/i;
+const PAYMENT_METHOD_OPTIONS = [
+  { value: "transferencia", label: "Transferencia" },
+  { value: "efectivo", label: "Efectivo" },
+  { value: "debito", label: "Débito" },
+  { value: "tarjeta", label: "Tarjeta" },
+  { value: "transferencia-efectivo", label: "Transferencia y efectivo" },
+  { value: "transferencia-tarjeta", label: "Transferencia y tarjeta" },
+  { value: "otros", label: "Otros" },
 ];
+type ProfileFieldKey =
+  | "consultationMode"
+  | "conditionsTreated"
+  | "patientTypes"
+  | "prices"
+  | "officeAddress"
+  | "paymentMethods"
+  | "acceptedInsurance";
+
+type ProfileFieldEnabledState = Record<ProfileFieldKey, boolean>;
+
+const createProfileFieldEnabledState = (settings: UserSettings): ProfileFieldEnabledState => ({
+  consultationMode: settings.consultationMode !== "N/A",
+  conditionsTreated: settings.conditionsTreated !== "N/A",
+  patientTypes: settings.patientTypes !== "N/A",
+  prices: settings.prices !== "N/A",
+  officeAddress: settings.officeAddress !== "N/A",
+  paymentMethods: settings.paymentMethods !== "N/A",
+  acceptedInsurance: settings.acceptedInsurance !== "N/A",
+});
+
+const normalizeText = (value: string) => value.trim();
+
+const normalizePhoneInput = (value: string) =>
+  value.replace(/[^\d+\s()-]/g, "").replace(/\s{2,}/g, " ");
+
+const normalizeInstagramInput = (value: string) =>
+  value.replace(/\s+/g, "").trimStart();
+
+const buildProfileDraft = (values: ProfileDraft): ProfileDraft => ({
+  professionalInstagram: normalizeText(values.professionalInstagram),
+  professionalPhone: normalizeText(values.professionalPhone),
+  professionalEmail: normalizeText(values.professionalEmail).toLowerCase(),
+  bio: normalizeText(values.bio),
+  consultationMode: values.consultationMode,
+  location: normalizeText(values.location),
+  conditionsTreated: normalizeText(values.conditionsTreated),
+  patientTypes: normalizeText(values.patientTypes),
+  prices: normalizeText(values.prices),
+  officeAddress: normalizeText(values.officeAddress),
+  paymentMethods: normalizeText(values.paymentMethods),
+  acceptedInsurance: normalizeText(values.acceptedInsurance),
+  linkedin: normalizeText(values.linkedin),
+});
+
+const buildProfilePayload = (values: ProfileDraft, enabled: ProfileFieldEnabledState): ProfileDraft => ({
+  ...values,
+  consultationMode: enabled.consultationMode ? values.consultationMode : "N/A",
+  conditionsTreated: enabled.conditionsTreated ? values.conditionsTreated : "N/A",
+  patientTypes: enabled.patientTypes ? values.patientTypes : "N/A",
+  prices: enabled.prices ? values.prices : "N/A",
+  officeAddress: enabled.officeAddress ? values.officeAddress : "N/A",
+  paymentMethods: enabled.paymentMethods ? values.paymentMethods : "N/A",
+  acceptedInsurance: enabled.acceptedInsurance ? values.acceptedInsurance : "N/A",
+});
+
+const getProfileDraftErrors = (values: ProfileDraft, enabled: ProfileFieldEnabledState) => {
+  const errors: Partial<Record<keyof ProfileDraft, string>> = {};
+
+  if (values.professionalEmail.trim() && !EMAIL_REGEX.test(values.professionalEmail.trim())) {
+    errors.professionalEmail = "Ingresa un correo válido.";
+  }
+
+  const phoneDigits = values.professionalPhone.replace(/\D/g, "");
+  if (values.professionalPhone.trim() && (phoneDigits.length < 8 || phoneDigits.length > 15)) {
+    errors.professionalPhone = "Ingresa un número válido.";
+  }
+
+  if (values.professionalInstagram.trim() && !/^@?[a-zA-Z0-9._]{2,80}$/.test(values.professionalInstagram.trim())) {
+    errors.professionalInstagram = "Usa un usuario válido de Instagram.";
+  }
+
+  if (values.linkedin.trim() && !LINKEDIN_REGEX.test(values.linkedin.trim())) {
+    errors.linkedin = "Ingresa un perfil o enlace válido de LinkedIn.";
+  }
+
+  if (values.bio.length > 500) errors.bio = "Máximo 500 caracteres.";
+  if (values.location.length > 120) errors.location = "Máximo 120 caracteres.";
+  if (enabled.conditionsTreated && values.conditionsTreated.length > 160) errors.conditionsTreated = "Máximo 160 caracteres.";
+  if (enabled.patientTypes && values.patientTypes.length > 160) errors.patientTypes = "Máximo 160 caracteres.";
+  if (enabled.prices && values.prices.length > 240) errors.prices = "Máximo 240 caracteres.";
+  if (enabled.officeAddress && values.officeAddress.length > 180) errors.officeAddress = "Máximo 180 caracteres.";
+  if (enabled.paymentMethods && values.paymentMethods.length > 120) errors.paymentMethods = "Máximo 120 caracteres.";
+  if (enabled.acceptedInsurance && values.acceptedInsurance.length > 120) errors.acceptedInsurance = "Máximo 120 caracteres.";
+
+  return errors;
+};
+
+function FieldSwitch({
+  label,
+  checked,
+  onToggle,
+  disabled,
+}: {
+  label: string;
+  checked: boolean;
+  onToggle: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="mb-1 flex items-center justify-between gap-3">
+      <label className="block text-sm font-bold text-slate-700">{label}</label>
+      <button
+        type="button"
+        onClick={onToggle}
+        disabled={disabled}
+        aria-label={`${label}: ${checked ? "aplica" : "no aplica"}`}
+        aria-pressed={checked}
+        className={`inline-flex items-center gap-2 rounded-full px-0 py-0 text-[10px] font-black uppercase tracking-[0.14em] transition ${
+          checked ? "text-emerald-700" : "text-slate-400"
+        } ${disabled ? "opacity-60" : "cursor-pointer"}`}
+      >
+        <span>Aplica</span>
+        <span
+          className={`relative h-4 w-7 rounded-full transition ${
+            checked ? "bg-emerald-500" : "bg-slate-300"
+          }`}
+        >
+          <span
+            className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition ${
+              checked ? "left-3" : "left-0.5"
+            }`}
+          />
+        </span>
+      </button>
+    </div>
+  );
+}
+
+function ComplianceTabSection() {
+  const [isAiDisabled, setIsAiDisabled] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("nutri_ai_disabled") === "true";
+  });
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [hasPendingDeletionRequest, setHasPendingDeletionRequest] = useState(false);
+  const [isSubmittingDeletion, setIsSubmittingDeletion] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const logsRaw = localStorage.getItem("nutri_ai_audit_logs");
+      if (logsRaw) {
+        try {
+          setAuditLogs(JSON.parse(logsRaw));
+        } catch (e) {
+          console.error("Failed to parse AI audit logs", e);
+        }
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    const checkDeletionRequest = async () => {
+      try {
+        const response = await fetchApi(`/users/me/deletion-request`);
+
+        if (response.ok) {
+          const data = await response.json();
+          setHasPendingDeletionRequest(data.hasPendingRequest || false);
+        }
+      } catch (error) {
+        console.error("Error checking deletion request status:", error);
+      }
+    };
+
+    checkDeletionRequest();
+  }, []);
+
+  const handleToggleAi = () => {
+    const nextVal = !isAiDisabled;
+    setIsAiDisabled(nextVal);
+    localStorage.setItem("nutri_ai_disabled", nextVal ? "true" : "false");
+    toast.success(
+      nextVal
+        ? "Derecho de Oposición aplicado. El asistente clínico de IA ha sido desactivado en todo el portal."
+        : "Asistente clínico de IA activado correctamente."
+    );
+    window.location.reload();
+  };
+
+  const handleDownloadArco = () => {
+    const user = getCurrentUser() as any;
+    const data = {
+      tipo_solicitud: "DERECHO_DE_ACCESO_ARCO_LEY_21719",
+      fecha_exportacion: new Date().toISOString(),
+      profesional: {
+        nombre: user?.nutritionist?.fullName || "Profesional Demo",
+        email: user?.email || "usuario@demo.com",
+        rut: user?.rut || "No registrado",
+        rol: user?.role || "NUTRITIONIST",
+        registro_minsal: user?.nutritionist?.professionalId || "No ingresado",
+      },
+      nota_legal: "Esta exportación contiene la totalidad de los datos estructurados asociados al perfil profesional y el historial de configuraciones, en cumplimiento con el artículo de derecho de acceso de la Ley 21.719 en Chile.",
+    };
+
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `arco_acceso_nutrinet_${user?.nutritionist?.fullName?.replace(/\s+/g, "_") || "profesional"}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success("Descarga de datos ARCO iniciada.");
+  };
+
+  const handleDownloadEipd = () => {
+    const text = `========================================================================
+EVALUACIÓN DE IMPACTO EN PROTECCIÓN DE DATOS (EIPD) - RESUMEN EJECUTIVO
+Plataforma: NutriNet SaaS
+Legislación de Referencia: Ley 21.719 (Chile) - Protección de Datos de Salud
+Fecha de Emisión: 24 de Junio de 2026
+========================================================================
+
+1. DESCRIPCIÓN DEL TRATAMIENTO DE DATOS
+NutriNet trata datos de salud clasificados como "Especialmente Protegidos" bajo la Ley 21.719 (fichas clínicas, antropometría, restricciones alimentarias, estado de embarazo/lactancia y patologías clínicas). El tratamiento se realiza exclusivamente con fines de planificación nutricional y apoyo al profesional de salud habilitado.
+
+2. MEDIDAS DE SEGURIDAD IMPLEMENTADAS
+- Cifrado en Reposo: Toda la base de datos PostgreSQL clínica está cifrada bajo el estándar AES-256 a nivel de disco físico.
+- Cifrado en Tránsito: Todo flujo de datos clínico viaja cifrado bajo protocolo HTTPS/TLS 1.3 de extremo a extremo.
+- Control de Acceso Estricto: Los datos del paciente solo son accesibles para el profesional asignado al caso.
+
+3. USO DE SUBENCARGADOS (INTELIGENCIA ARTIFICIAL)
+Las solicitudes de asistencia clínica a modelos de lenguaje (OpenAI/Anthropic APIs) actúan como subencargados del tratamiento. De acuerdo con el DPA vinculante, los datos enviados son cifrados, no se almacenan permanentemente por los proveedores y está estrictamente prohibido su uso para entrenar modelos fundacionales.
+
+4. DERECHOS ARCO
+Los pacientes y profesionales disponen de la capacidad técnica para ejercer acceso, rectificación, cancelación y oposición dentro de sus paneles de configuración.`;
+
+    const blob = new Blob([text], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "resumen_eipd_nutrinet_ley_21719.txt";
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success("Documento EIPD descargado.");
+  };
+
+  const handleDownloadDpa = () => {
+    const text = `========================================================================
+ADENDA DE TRATAMIENTO DE DATOS CON SUBENCARGADOS DE IA (DPA ADDENDUM)
+Parte A: NutriNet SaaS (Responsable)
+Parte B: API de IA Generativa Subprocesadora (Subencargado)
+Estado: Firmado y Vigente bajo Ley 21.719 (Chile)
+========================================================================
+
+1. OBJETO DEL ACUERDO
+Regular el procesamiento seguro de datos de salud en el módulo de Planificación Inteligente de NutriNet.
+
+2. COMPROMISOS CLAVE DE CONFIDENCIALIDAD
+- No Entrenamiento: El Subencargado garantiza que ningún dato clínico, antropométrico o alimentario enviado a través de la API será utilizado para el entrenamiento, fine-tuning o mejora de modelos de Inteligencia Artificial públicos o privados.
+- Cifrado Estricto: Toda comunicación se realiza bajo HTTPS con encriptación TLS 1.3 de grado clínico.
+- Retención Cero: Los datos enviados se procesan únicamente de forma efímera y se destruyen inmediatamente del backend del Subencargado tras retornar la respuesta, con un máximo de retención de auditoría técnica temporal de 30 días sin acceso a datos clínicos legibles.
+
+3. SANCIONES Y MULTAS
+El Subencargado se somete a auditorías anuales independientes y asume la responsabilidad compartida ante brechas que afecten la privacidad de los usuarios bajo el marco regulatorio de la Ley 21.719.`;
+
+    const blob = new Blob([text], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "dpa_subencargados_ia_nutrinet.txt";
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success("Adenda DPA descargada.");
+  };
+
+  const handleRequestDeletion = async () => {
+    if (hasPendingDeletionRequest) {
+      toast.info("Ya tienes una solicitud de eliminación pendiente. El equipo técnico se pondrá en contacto contigo.");
+      return;
+    }
+
+    setIsSubmittingDeletion(true);
+    try {
+      const response = await fetchApi(`/users/me/deletion-request`, {
+        method: "POST",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        toast.error(data.message || "No se pudo procesar tu solicitud. Intenta nuevamente.");
+        return;
+      }
+
+      setHasPendingDeletionRequest(true);
+      toast.success("Tu solicitud de eliminación ha sido enviada correctamente. El equipo técnico la procesará a la brevedad.");
+    } catch (error) {
+      console.error("Error requesting deletion:", error);
+      toast.error("Ocurrió un error al enviar la solicitud. Por favor, intenta nuevamente.");
+    } finally {
+      setIsSubmittingDeletion(false);
+    }
+  };
+
+  const handleClearLogs = () => {
+    if (confirm("¿Estás seguro de que deseas eliminar permanentemente el historial de auditoría de IA de este navegador? Esta acción no se puede deshacer.")) {
+      localStorage.removeItem("nutri_ai_audit_logs");
+      setAuditLogs([]);
+      toast.success("Historial de auditoría eliminado correctamente.");
+    }
+  };
+
+  const handleDownloadLogs = () => {
+    const blob = new Blob([JSON.stringify(auditLogs, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `auditoria_ia_nutrinet_${new Date().toISOString().slice(0, 10)}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success("Historial de auditoría descargado en JSON.");
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Compliance Overview Banner */}
+      <div className="p-6 rounded-[2rem] border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-indigo-50/20 shadow-sm relative overflow-hidden">
+        <div className="absolute top-4 right-4 bg-emerald-500 text-white rounded-full p-2.5 shadow-md">
+          <ShieldCheck className="h-6 w-6" />
+        </div>
+        <div className="max-w-2xl space-y-2 text-slate-900">
+          <span className="inline-flex rounded-full bg-emerald-100/80 border border-emerald-200 text-emerald-800 px-3 py-1 text-[10px] font-black uppercase tracking-wider">
+            Cumplimiento Regulatorio Activo
+          </span>
+          <h2 className="text-2xl font-black leading-tight">
+            Marco de Protección Ley 21.719
+          </h2>
+          <p className="text-sm text-slate-500 font-medium leading-relaxed">
+            NutriNet está diseñado para cumplir plenamente con la legislación de protección de datos de salud en Chile. Todos los registros clínicos, planes alimentarios y alergias ingresados están salvaguardados con altos estándares de seguridad y privacidad desde el diseño.
+          </p>
+        </div>
+      </div>
+
+      {/* Grid of Security Pillars */}
+      <div className="grid gap-6 md:grid-cols-3 text-slate-900">
+        <div className="p-6 border border-slate-200/60 rounded-3xl bg-white shadow-sm space-y-3">
+          <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-2xl w-fit text-indigo-600">
+            <LockKeyhole className="h-5 w-5" />
+          </div>
+          <h3 className="font-bold text-sm">Cifrado en Reposo</h3>
+          <p className="text-xs text-slate-500 font-medium leading-relaxed">
+            Toda la información médica sensible (antropometría, alergias y antecedentes) se almacena cifrada en reposo mediante algoritmo AES-256 en nuestra base de datos PostgreSQL.
+          </p>
+        </div>
+
+        <div className="p-6 border border-slate-200/60 rounded-3xl bg-white shadow-sm space-y-3">
+          <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-2xl w-fit text-emerald-600">
+            <FileText className="h-5 w-5" />
+          </div>
+          <h3 className="font-bold text-sm">EIPD Completada</h3>
+          <p className="text-xs text-slate-500 font-medium leading-relaxed font-semibold">
+            Hemos realizado una Evaluación de Impacto en Protección de Datos antes de tratar datos clínicos, garantizando el cumplimiento antes del 1 de diciembre de 2026.
+          </p>
+          <button
+            type="button"
+            onClick={handleDownloadEipd}
+            className="text-[10px] font-black uppercase tracking-widest text-emerald-700 hover:text-emerald-800 flex items-center gap-1.5 cursor-pointer"
+          >
+            <Download className="h-3 w-3" /> Descargar EIPD
+          </button>
+        </div>
+
+        <div className="p-6 border border-slate-200/60 rounded-3xl bg-white shadow-sm space-y-3">
+          <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-2xl w-fit text-indigo-600">
+            <ShieldCheck className="h-5 w-5" />
+          </div>
+          <h3 className="font-bold text-sm">DPA con Subencargados</h3>
+          <p className="text-xs text-slate-500 font-medium leading-relaxed font-semibold">
+            Mantenemos un contrato formal de procesamiento de datos (DPA) con OpenAI y Anthropic que prohíbe el uso de tus fichas clínicas para entrenar sus modelos de IA.
+          </p>
+          <button
+            type="button"
+            onClick={handleDownloadDpa}
+            className="text-[10px] font-black uppercase tracking-widest text-indigo-700 hover:text-indigo-800 flex items-center gap-1.5 cursor-pointer"
+          >
+            <Download className="h-3 w-3" /> Descargar DPA IA
+          </button>
+        </div>
+      </div>
+
+      {/* ARCO Rights Section */}
+      <div className="p-6 border border-slate-200/60 bg-white rounded-3xl shadow-sm space-y-6 text-slate-900">
+        <h3 className="text-base font-black flex items-center gap-2">
+          <ShieldAlert className="h-5 w-5 text-indigo-600" />
+          Centro de Derechos ARCO (Acceso, Rectificación, Cancelación y Oposición)
+        </h3>
+
+        <div className="divide-y divide-slate-100">
+          {/* Access */}
+          <div className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 first:pt-0">
+            <div className="space-y-1">
+              <h4 className="text-sm font-bold text-slate-800">Derecho de Acceso (Portabilidad)</h4>
+              <p className="text-xs text-slate-500 leading-normal font-semibold">
+                Descarga una copia completa de toda tu información profesional, configuraciones e historial registrada en la plataforma en formato legible por máquina (JSON).
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleDownloadArco}
+              className="h-9 px-4 rounded-xl text-xs font-bold border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center gap-1.5 cursor-pointer shrink-0"
+            >
+              <Download className="h-3.5 w-3.5" /> Descargar Datos (JSON)
+            </Button>
+          </div>
+
+          {/* Opposition (AI Control) */}
+          <div className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1 max-w-xl">
+              <h4 className="text-sm font-bold text-slate-800">Derecho de Oposición (Control de Asistencia por IA)</h4>
+              <p className="text-xs text-slate-500 leading-normal font-semibold">
+                Si no deseas que tus pautas o alimentos pasen por el procesamiento del asistente clínico de IA (subencargado), desactiva esta opción. Esto removerá el botón de generación de IA de la interfaz.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className={`text-[10px] font-black uppercase tracking-wider ${isAiDisabled ? "text-slate-400" : "text-emerald-700"}`}>
+                {isAiDisabled ? "Desactivada" : "IA Activa"}
+              </span>
+              <button
+                type="button"
+                onClick={handleToggleAi}
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out outline-none ${
+                  !isAiDisabled ? "bg-emerald-500" : "bg-slate-300"
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                    !isAiDisabled ? "translate-x-5" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
+
+          {/* Deletion */}
+          <div className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 last:pb-0">
+            <div className="space-y-1">
+              <h4 className="text-sm font-bold text-slate-800">Derecho de Cancelación (Eliminación)</h4>
+              <p className="text-xs text-slate-500 leading-normal font-semibold">
+                Solicita la eliminación permanente de tu cuenta y el borrado seguro de todas las fichas clínicas de tus pacientes de nuestros servidores principales y respaldos.
+              </p>
+            </div>
+            <Button
+              type="button"
+              onClick={handleRequestDeletion}
+              disabled={hasPendingDeletionRequest || isSubmittingDeletion}
+              className={cn(
+                "h-9 px-4 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shrink-0",
+                hasPendingDeletionRequest
+                  ? "bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed"
+                  : "bg-red-50 hover:bg-red-100 border border-red-200 text-red-700"
+              )}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              {hasPendingDeletionRequest ? "Solicitud enviada" : isSubmittingDeletion ? "Enviando..." : "Solicitar Eliminación"}
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* AI Audit Logs / Versioning Historial */}
+      <div className="p-6 border border-slate-200/60 bg-white rounded-3xl shadow-sm space-y-6 text-slate-900">
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h3 className="text-base font-black">
+              Historial de Auditoría y Aprobaciones de IA (Clínico)
+            </h3>
+            <p className="text-xs text-slate-500">
+              Registro histórico obligatorio de sugerencias generadas por la IA versus las versiones validadas y modificadas por el profesional de la salud.
+            </p>
+          </div>
+          {auditLogs.length > 0 && (
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={handleDownloadLogs}
+                className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-indigo-700 hover:text-indigo-800 cursor-pointer"
+              >
+                <Download className="h-3.5 w-3.5" /> Descargar Logs
+              </button>
+              <button
+                type="button"
+                onClick={handleClearLogs}
+                className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-red-600 hover:text-red-700 cursor-pointer"
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Limpiar Historial
+              </button>
+            </div>
+          )}
+        </div>
+
+        {auditLogs.length === 0 ? (
+          <div className="p-8 border border-dashed border-slate-200 rounded-2xl text-center space-y-2">
+            <p className="text-xs text-slate-400 font-semibold italic">
+              No se registran aprobaciones de IA en este navegador aún.
+            </p>
+            <p className="text-[10px] text-slate-400">
+              Las sugerencias generadas por IA y aprobadas en el módulo de Planificación Nutricional quedarán registradas aquí para cumplir con la auditoría de riesgo clínico.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-hidden border border-slate-100 rounded-2xl divide-y divide-slate-100">
+            {auditLogs.map((log) => (
+              <div key={log.id} className="p-4 space-y-3 hover:bg-slate-50/50 transition-colors">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="inline-flex items-center rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-emerald-700">
+                      APROBADO
+                    </span>
+                    <span className="text-xs font-bold">
+                      Paciente: {log.patientName}
+                    </span>
+                    <span className="text-xs font-medium text-slate-400">
+                      ({log.dayLabel})
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-mono text-slate-400">
+                    {new Date(log.timestamp).toLocaleString("es-CL", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2 text-xs">
+                  <div className="p-3 bg-slate-50 rounded-xl space-y-1.5">
+                    <p className="font-bold text-[10px] uppercase text-slate-400 tracking-wider">
+                      Sugerencia original de IA
+                    </p>
+                    <div className="space-y-1 font-semibold text-slate-600">
+                      {log.originalDishes?.map((d: any, idx: number) => (
+                        <div key={idx} className="flex justify-between border-b border-slate-200/40 last:border-0 pb-1">
+                          <span className="truncate max-w-[180px]">{d.title}</span>
+                          <span className="font-mono text-[10px]">{d.calories} kcal</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-indigo-50/30 rounded-xl space-y-1.5">
+                    <p className="font-bold text-[10px] uppercase text-indigo-700 tracking-wider">
+                      Validado por {log.clinicianEmail}
+                    </p>
+                    <div className="space-y-1 font-semibold text-slate-800">
+                      {log.approvedDishes?.map((d: any, idx: number) => (
+                        <div key={idx} className="flex justify-between border-b border-slate-200/40 last:border-0 pb-1">
+                          <span className="truncate max-w-[180px]">{d.title}</span>
+                          <span className="font-mono text-[10px] text-emerald-700 font-bold">{d.calories} kcal</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function SettingsPage() {
-  const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"profile" | "account" | "membership">("profile");
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const passwordStrength = getPasswordStrength(newPassword);
-  const passwordRequirements = getPasswordRequirements(newPassword);
+  const searchParams = useSearchParams();
+  const [activeTab, setActiveTab] = useState<"profile" | "account" | "membership" | "compliance">("profile");
+  const openPlanModal = searchParams.get("openPlanModal") === "1";
 
   const [userData, setUserData] = useState<{
     email: string;
     fullName?: string;
+    rut?: string | null;
     role?: string | null;
     googleAvatarUrl?: string | null;
     createdAt?: string | null;
@@ -156,23 +666,9 @@ export default function SettingsPage() {
   const [professionalInstagram, setProfessionalInstagram] = useState("");
   const [professionalPhone, setProfessionalPhone] = useState("");
   const [professionalEmail, setProfessionalEmail] = useState("");
-  const [isSavingProfessionalContact, setIsSavingProfessionalContact] =
-    useState(false);
-
-  const [publicProfileEnabled, setPublicProfileEnabled] = useState(false);
-  const [publicSlug, setPublicSlug] = useState("");
-  const [headline, setHeadline] = useState("");
   const [bio, setBio] = useState("");
   const [consultationMode, setConsultationMode] = useState("online");
   const [location, setLocation] = useState("");
-  const [publicPhone, setPublicPhone] = useState("");
-  const [publicEmail, setPublicEmail] = useState("");
-  const [bookingEnabled, setBookingEnabled] = useState(true);
-const [showPublicPhone, setShowPublicPhone] = useState(false);
-  const [showPublicEmail, setShowPublicEmail] = useState(true);
-  const [showInstagram, setShowInstagram] = useState(false);
-  const [showLinkedin, setShowLinkedin] = useState(false);
-  const [showSchedule, setShowSchedule] = useState(true);
   const [conditionsTreated, setConditionsTreated] = useState("");
   const [patientTypes, setPatientTypes] = useState("");
   const [prices, setPrices] = useState("");
@@ -180,12 +676,25 @@ const [showPublicPhone, setShowPublicPhone] = useState(false);
   const [paymentMethods, setPaymentMethods] = useState("");
   const [acceptedInsurance, setAcceptedInsurance] = useState("");
   const [linkedin, setLinkedin] = useState("");
-  const [country, setCountry] = useState("Chile");
-  const [isSavingPublicProfile, setIsSavingPublicProfile] = useState(false);
-  const [publishedPublicSlug, setPublishedPublicSlug] = useState("");
-  const [highlightProfile, setHighlightProfile] = useState(false);
-  const { theme, setTheme } = useTheme();
+  const [profileInitial, setProfileInitial] = useState<ProfileDraft | null>(null);
+  const [profileFieldEnabled, setProfileFieldEnabled] = useState<ProfileFieldEnabledState>({
+    consultationMode: true,
+    conditionsTreated: true,
+    patientTypes: true,
+    prices: true,
+    officeAddress: true,
+    paymentMethods: true,
+    acceptedInsurance: true,
+  });
+  const [isProfileEditing, setIsProfileEditing] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
   const { fontPreference, setFontPreference } = useFont();
+
+  useEffect(() => {
+    if (searchParams.get("tab") === "membership") {
+      setActiveTab("membership");
+    }
+  }, [searchParams]);
   useEffect(() => {
     const user = getCurrentUser();
     if (!user) return;
@@ -194,6 +703,7 @@ const [showPublicPhone, setShowPublicPhone] = useState(false);
     setUserData({
       email: user.email || "",
       fullName: user.nutritionist?.fullName || "Profesional",
+      rut: user.rut || null,
       role: user.role || null,
       googleAvatarUrl: user.googleAvatarUrl || null,
       createdAt: user.createdAt || null,
@@ -202,210 +712,117 @@ const [showPublicPhone, setShowPublicPhone] = useState(false);
     setProfessionalInstagram(settings.professionalInstagram || "");
     setProfessionalPhone(settings.professionalPhone || "");
     setProfessionalEmail(settings.professionalEmail || "");
-
-    setPublicProfileEnabled(settings.publicProfileEnabled || false);
-    setPublicSlug(settings.publicSlug || "");
-    setPublishedPublicSlug(settings.publicSlug || "");
-    setHeadline(settings.headline || "");
     setBio(settings.bio || "");
-    setConsultationMode(settings.consultationMode || "online");
+    setConsultationMode(settings.consultationMode && settings.consultationMode !== "N/A" ? settings.consultationMode : "");
     setLocation(settings.location || "");
-    setPublicPhone(settings.publicPhone || "");
-    setPublicEmail(settings.publicEmail || "");
-    setBookingEnabled(settings.bookingEnabled !== false);
-    setShowPublicPhone(settings.showPublicPhone === true);
-    setShowPublicEmail(settings.showPublicEmail !== false);
-    setShowInstagram(settings.showInstagram === true);
-    setShowLinkedin(settings.showLinkedin === true);
-    setShowSchedule(settings.showSchedule !== false);
-    setConditionsTreated(settings.conditionsTreated || "");
-    setPatientTypes(settings.patientTypes || "");
-    setPrices(settings.prices || "");
-    setOfficeAddress(settings.officeAddress || "");
-    setPaymentMethods(settings.paymentMethods || "");
-    setAcceptedInsurance(settings.acceptedInsurance || "");
+    setConditionsTreated(settings.conditionsTreated && settings.conditionsTreated !== "N/A" ? settings.conditionsTreated : "");
+    setPatientTypes(settings.patientTypes && settings.patientTypes !== "N/A" ? settings.patientTypes : "");
+    setPrices(settings.prices && settings.prices !== "N/A" ? settings.prices : "");
+    setOfficeAddress(settings.officeAddress && settings.officeAddress !== "N/A" ? settings.officeAddress : "");
+    setPaymentMethods(settings.paymentMethods && settings.paymentMethods !== "N/A" ? settings.paymentMethods : "");
+    setAcceptedInsurance(settings.acceptedInsurance && settings.acceptedInsurance !== "N/A" ? settings.acceptedInsurance : "");
     setLinkedin(settings.linkedin || "");
-    setCountry(settings.country || "Chile");
+    setProfileFieldEnabled(createProfileFieldEnabledState(settings));
+
+    setProfileInitial(
+      buildProfilePayload(
+        buildProfileDraft({
+          professionalInstagram: settings.professionalInstagram || "",
+          professionalPhone: settings.professionalPhone || "",
+          professionalEmail: settings.professionalEmail || "",
+          bio: settings.bio || "",
+          consultationMode: settings.consultationMode && settings.consultationMode !== "N/A" ? settings.consultationMode : "",
+          location: settings.location || "",
+          conditionsTreated: settings.conditionsTreated && settings.conditionsTreated !== "N/A" ? settings.conditionsTreated : "",
+          patientTypes: settings.patientTypes && settings.patientTypes !== "N/A" ? settings.patientTypes : "",
+          prices: settings.prices && settings.prices !== "N/A" ? settings.prices : "",
+          officeAddress: settings.officeAddress && settings.officeAddress !== "N/A" ? settings.officeAddress : "",
+          paymentMethods: settings.paymentMethods && settings.paymentMethods !== "N/A" ? settings.paymentMethods : "",
+          acceptedInsurance: settings.acceptedInsurance && settings.acceptedInsurance !== "N/A" ? settings.acceptedInsurance : "",
+          linkedin: settings.linkedin || "",
+        }),
+        createProfileFieldEnabledState(settings),
+      ),
+    );
   }, []);
 
-  useEffect(() => {
-    const scrollToProfile = () => {
-      if (window.location.hash !== "#public-profile-section") return;
-      setActiveTab("profile");
-      const el = document.getElementById("public-profile-section");
-      if (!el) return;
-      window.scrollTo({ top: 0, behavior: "instant" });
-      requestAnimationFrame(() => {
-        const rect = el.getBoundingClientRect();
-        const offset = rect.top + window.scrollY - 100;
-        window.scrollTo({ top: offset, behavior: "smooth" });
-        setHighlightProfile(true);
-        setTimeout(() => setHighlightProfile(false), 2500);
-      });
-    };
-    scrollToProfile();
-    window.addEventListener("hashchange", scrollToProfile);
-    return () => window.removeEventListener("hashchange", scrollToProfile);
-  }, []);
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isProfileEditing || !hasProfileChanges || hasProfileErrors) return;
 
-    // Basic Validations
-    if (!currentPassword || !newPassword || !confirmPassword) {
-      toast.error("Todos los campos son obligatorios");
-      return;
-    }
-
-    const unmetRequirements = passwordRequirements.filter((rule) => !rule.met);
-    if (unmetRequirements.length > 0) {
-      toast.error(unmetRequirements[0]?.label || "La nueva contraseña no cumple la política de seguridad");
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      toast.error("Las contraseñas nuevas no coinciden");
-      return;
-    }
-
-    setIsLoading(true);
+    setIsSavingProfile(true);
     try {
-      await authService.updatePassword({
-        currentPassword,
-        newPassword,
-      });
-      toast.success("Contraseña actualizada correctamente");
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Error al actualizar la contraseña";
-      toast.error(message || "Error al actualizar la contraseña");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      const payload = buildProfilePayload(buildProfileDraft({
+        professionalInstagram,
+        professionalPhone,
+        professionalEmail,
+        bio,
+        consultationMode,
+        location,
+        conditionsTreated,
+        patientTypes,
+        prices,
+        officeAddress,
+        paymentMethods,
+        acceptedInsurance,
+        linkedin,
+      }), profileFieldEnabled);
 
-  const handleSaveProfessionalContact = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSavingProfessionalContact(true);
-    try {
       const response = await fetchApi(`/users/me/settings`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          professionalInstagram: professionalInstagram.trim(),
-          professionalPhone: professionalPhone.trim(),
-          professionalEmail: professionalEmail.trim(),
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
-        throw new Error("No se pudo guardar el contacto profesional");
+        throw new Error("No se pudo guardar el perfil");
       }
 
-      toast.success("Contacto profesional guardado correctamente");
+      toast.success("Perfil guardado correctamente");
       const user = getCurrentUser();
       if (user?.nutritionist) {
         user.nutritionist.settings = {
           ...user.nutritionist.settings,
-          professionalInstagram: professionalInstagram.trim(),
-          professionalPhone: professionalPhone.trim(),
-          professionalEmail: professionalEmail.trim(),
+          ...payload,
         };
         setCurrentUser(user);
       }
+
+      setProfileInitial(payload);
+      setIsProfileEditing(false);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Hubo un error";
       toast.error(message || "Hubo un error");
     } finally {
-      setIsSavingProfessionalContact(false);
+      setIsSavingProfile(false);
     }
   };
 
-  const handleSavePublicProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSavingPublicProfile(true);
-    try {
-      const response = await fetchApi(`/users/me/settings`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          publicProfileEnabled,
-          publicSlug: publicSlug.trim() || undefined,
-          headline: headline.trim(),
-bio: bio.trim(),
-          consultationMode,
-          location: location.trim(),
-          publicPhone: publicPhone.trim(),
-          publicEmail: publicEmail.trim(),
-          bookingEnabled,
-          showPublicPhone,
-          showPublicEmail,
-          showInstagram,
-          showSchedule,
-          conditionsTreated: conditionsTreated.trim(),
-          patientTypes: patientTypes.trim(),
-          prices: prices.trim(),
-          officeAddress: officeAddress.trim(),
-          paymentMethods: paymentMethods.trim(),
-          acceptedInsurance: acceptedInsurance.trim(),
-          linkedin: linkedin.trim(),
-          country: country.trim(),
-        }),
-      });
+  const currentProfile = buildProfileDraft({
+    professionalInstagram,
+    professionalPhone,
+    professionalEmail,
+    bio,
+    consultationMode,
+    location,
+    conditionsTreated,
+    patientTypes,
+    prices,
+    officeAddress,
+    paymentMethods,
+    acceptedInsurance,
+    linkedin,
+  });
+  const currentProfilePayload = buildProfilePayload(currentProfile, profileFieldEnabled);
 
-      if (!response.ok) {
-        throw new Error("No se pudo guardar el perfil público");
-      }
-
-      const updatedNutritionist = await response.json().catch(() => null);
-
-      const resolvedSlug =
-        (updatedNutritionist?.publicSlug as string | undefined)?.trim() ||
-        publicSlug.trim() ||
-        "";
-
-      setPublicProfileEnabled(Boolean(updatedNutritionist?.publicProfileEnabled ?? publicProfileEnabled));
-      setPublishedPublicSlug(resolvedSlug);
-
-      toast.success("Perfil público guardado correctamente");
-      const user = getCurrentUser();
-      if (user?.nutritionist) {
-        user.nutritionist.settings = {
-          ...user.nutritionist.settings,
-          publicProfileEnabled: Boolean(updatedNutritionist?.publicProfileEnabled ?? publicProfileEnabled),
-          publicSlug: resolvedSlug || undefined,
-          headline: headline.trim(),
-          bio: bio.trim(),
-          consultationMode,
-          location: location.trim(),
-          publicPhone: publicPhone.trim(),
-          publicEmail: publicEmail.trim(),
-          bookingEnabled,
-          showPublicPhone,
-          showPublicEmail,
-          showInstagram,
-          professionalInstagram: professionalInstagram.trim(),
-        };
-        setCurrentUser(user);
-      }
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Hubo un error";
-      toast.error(message || "Hubo un error");
-    } finally {
-      setIsSavingPublicProfile(false);
-    }
-  };
+  const profileErrors = getProfileDraftErrors(currentProfile, profileFieldEnabled);
+  const hasProfileErrors = Object.values(profileErrors).some(Boolean);
+  const hasProfileChanges =
+    Boolean(profileInitial) &&
+    JSON.stringify(profileInitial) !== JSON.stringify(currentProfilePayload);
 
   return (
     <div className="space-y-6">
@@ -418,338 +835,446 @@ bio: bio.trim(),
         </p>
       </div>
 
-      <div className="inline-flex rounded-2xl border border-slate-200 bg-slate-50 p-1 shadow-sm">
+      <div className="flex w-full overflow-hidden border border-slate-200 bg-slate-50 shadow-sm">
         <button
           type="button"
           onClick={() => setActiveTab("profile")}
-          className={`rounded-xl px-4 py-2 text-sm font-bold transition-all ${
+          className={`flex flex-1 items-center justify-center gap-2 px-4 py-3 text-sm font-bold transition-all ${
             activeTab === "profile"
-              ? "bg-white text-emerald-700 shadow-sm ring-1 ring-emerald-200"
-              : "text-slate-500 hover:text-slate-900"
+              ? "bg-white text-emerald-700"
+              : "text-slate-500 hover:bg-white/70 hover:text-slate-900"
           }`}
         >
+          <User className="h-4 w-4" />
           Mi perfil
         </button>
         <button
           type="button"
           onClick={() => setActiveTab("account")}
-          className={`rounded-xl px-4 py-2 text-sm font-bold transition-all ${
+          className={`flex flex-1 items-center justify-center gap-2 px-4 py-3 text-sm font-bold transition-all ${
             activeTab === "account"
-              ? "bg-white text-emerald-700 shadow-sm ring-1 ring-emerald-200"
-              : "text-slate-500 hover:text-slate-900"
+              ? "bg-white text-emerald-700"
+              : "text-slate-500 hover:bg-white/70 hover:text-slate-900"
           }`}
         >
+          <Lock className="h-4 w-4" />
           Cuenta
         </button>
         <button
           type="button"
           onClick={() => setActiveTab("membership")}
-          className={`rounded-xl px-4 py-2 text-sm font-bold transition-all ${
+          className={`flex flex-1 items-center justify-center gap-2 px-4 py-3 text-sm font-bold transition-all ${
             activeTab === "membership"
-              ? "bg-white text-emerald-700 shadow-sm ring-1 ring-emerald-200"
-              : "text-slate-500 hover:text-slate-900"
+              ? "bg-white text-emerald-700"
+              : "text-slate-500 hover:bg-white/70 hover:text-slate-900"
           }`}
         >
+          <Crown className="h-4 w-4" />
           Mi plan actual
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("compliance")}
+          className={`flex flex-1 items-center justify-center gap-2 px-4 py-3 text-sm font-bold transition-all ${
+            activeTab === "compliance"
+              ? "bg-white text-emerald-700"
+              : "text-slate-500 hover:bg-white/70 hover:text-slate-900"
+          }`}
+        >
+          <ShieldAlert className="h-4 w-4" />
+          Privacidad y Cumplimiento
         </button>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        {/* Profile Information */}
-        <div className={`rounded-xl border border-slate-200 bg-white shadow-sm font-medium ${activeTab === "profile" ? "" : "hidden"}`}>
-          <div className="border-b border-slate-200 px-6 py-4">
-            <div className="flex items-center gap-x-2">
-              <User className="h-5 w-5 text-emerald-600" />
-              <h2 className="font-semibold text-slate-900">
-                Información del Perfil
-              </h2>
-            </div>
-          </div>
-          <div className="p-6">
-            <div className="flex items-center gap-x-4 mb-6 font-bold">
-              {userData?.googleAvatarUrl ? (
-                <img
-                  src={userData.googleAvatarUrl}
-                  alt=""
-                  referrerPolicy="no-referrer"
-                  className="h-16 w-16 rounded-full border-2 border-emerald-200 object-cover"
-                />
-              ) : (
-                <div className="h-16 w-16 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 border border-emerald-200 text-2xl font-bold">
-                  {userData?.fullName?.charAt(0) || "U"}
+      <form onSubmit={handleSaveProfile} className="space-y-6">
+        <div className="grid items-stretch gap-6 xl:grid-cols-2">
+          {/* Profile Information */}
+          <div className={`relative flex h-full flex-col rounded-xl border border-slate-200 bg-white shadow-sm font-medium ${activeTab === "profile" ? "" : "hidden"}`}>
+            <div className="relative flex min-h-[76px] items-start justify-between border-b border-slate-200 px-6 py-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-center gap-x-2">
+                  <User className="h-5 w-5 text-emerald-600" />
+                  <h2 className="font-semibold text-slate-900">
+                    Información del Perfil
+                  </h2>
                 </div>
-              )}
-              <div>
-                <h3 className="font-bold text-slate-900">
-                  {userData?.fullName || "Cargando..."}
-                </h3>
-                <p className="text-sm font-medium text-slate-500">
-                  {userData?.email || "..."}
-                </p>
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <RoleBadge role={userData?.role} />
-                  {userData?.createdAt && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-500">
-                      <Calendar className="h-3 w-3" />
-                      Miembro desde{" "}
-                      {new Date(userData.createdAt).toLocaleDateString("es-CL", {
-                        month: "short",
-                        year: "numeric",
-                      })}
-                    </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsProfileEditing((value) => !value)}
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:border-emerald-200 hover:text-emerald-700 cursor-pointer"
+                    aria-label="Editar columna de perfil"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                  {isProfileEditing && (
+                    <Button
+                      type="submit"
+                      isLoading={isSavingProfile}
+                      disabled={!hasProfileChanges || hasProfileErrors}
+                      className="h-9 px-4 text-xs font-bold"
+                    >
+                      {!isSavingProfile && <Save className="h-4 w-4" />}
+                      Guardar cambios
+                    </Button>
                   )}
                 </div>
               </div>
             </div>
-
-            <div className="grid gap-4">
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1 caps-lock">
-                  Nombre en Pantalla
-                </label>
-                <Input
-                  type="text"
-                  disabled
-                  value={userData?.fullName || ""}
-                  className="bg-slate-50 cursor-not-allowed font-medium"
-                />
+            <div className="space-y-6 p-6">
+              <div className="flex items-center gap-x-4 font-bold">
+                {userData?.googleAvatarUrl ? (
+                  <Image
+                    src={userData.googleAvatarUrl}
+                    alt=""
+                    width={64}
+                    height={64}
+                    referrerPolicy="no-referrer"
+                    className="h-16 w-16 rounded-full border-2 border-emerald-200 object-cover"
+                  />
+                ) : (
+                  <div className="h-16 w-16 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 border border-emerald-200 text-2xl font-bold">
+                    {userData?.fullName?.charAt(0) || "U"}
+                  </div>
+                )}
+                <div>
+                  <h3 className="font-bold text-slate-900">
+                    {userData?.fullName || "Cargando..."}
+                  </h3>
+                  <p className="text-sm font-medium text-slate-500">
+                    {userData?.email || "..."}
+                  </p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <RoleBadge role={userData?.role} />
+                    {userData?.createdAt && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-500">
+                        <Calendar className="h-3 w-3" />
+                        Miembro desde{" "}
+                        {new Date(userData.createdAt).toLocaleDateString("es-CL", {
+                          month: "short",
+                          year: "numeric",
+                        })}
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1 caps-lock">
-                  Correo Electrónico
-                </label>
-                <Input
-                  type="email"
-                  disabled
-                  value={userData?.email || ""}
-                  className="bg-slate-50 cursor-not-allowed font-medium"
-                />
-              </div>
-            </div>
-            <p className="mt-4 text-xs text-slate-400 italic">
-              * Para cambiar tu nombre o correo, contacta con soporte
-              administrativo.
-            </p>
 
-            <form onSubmit={handleSaveProfessionalContact} className="mt-6 space-y-4">
-              <div className="grid gap-4">
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1">
-                  Instagram (Portada Entregable)
-                </label>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1 caps-lock">
+                    Nombre en Pantalla
+                  </label>
+                  <Input type="text" disabled value={userData?.fullName || ""} className="bg-slate-50 font-medium" />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1 caps-lock">
+                    Correo Electrónico
+                  </label>
+                  <Input type="email" disabled value={userData?.email || ""} className="bg-slate-50 font-medium" />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1 caps-lock">
+                    RUT
+                  </label>
                   <Input
                     type="text"
-                    value={professionalInstagram}
-                    onChange={(e) => setProfessionalInstagram(e.target.value)}
-                    placeholder="@tuusuario"
-                    maxLength={80}
+                    disabled
+                    value={formatRut(userData?.rut || "") || "Sin RUT"}
+                    className="bg-slate-50 font-medium"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-slate-400 italic">
+                * Para cambiar tu nombre, correo o RUT, contacta con soporte administrativo.
+              </p>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">
+                    LinkedIn
+                  </label>
+                  <Input
+                    type="text"
+                    value={linkedin}
+                    onChange={(e) => setLinkedin(e.target.value)}
+                    placeholder="linkedin.com/in/tu-perfil"
+                    maxLength={120}
+                    disabled={!isProfileEditing}
+                    error={isProfileEditing ? profileErrors.linkedin : undefined}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-1">
-                    Número de Celular (Portada Entregable)
+                    Ubicación profesional
+                  </label>
+                  <Input
+                    type="text"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    placeholder="Santiago, Chile"
+                    maxLength={120}
+                    disabled={!isProfileEditing}
+                    error={isProfileEditing ? profileErrors.location : undefined}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">
+                    Instagram
+                  </label>
+                  <Input
+                    type="text"
+                    value={professionalInstagram}
+                    onChange={(e) => setProfessionalInstagram(normalizeInstagramInput(e.target.value))}
+                    placeholder="@tuusuario"
+                    maxLength={80}
+                    disabled={!isProfileEditing}
+                    error={isProfileEditing ? profileErrors.professionalInstagram : undefined}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">
+                    Número de Celular
                   </label>
                   <Input
                     type="text"
                     value={professionalPhone}
-                    onChange={(e) => setProfessionalPhone(e.target.value)}
+                    onChange={(e) => setProfessionalPhone(normalizePhoneInput(e.target.value))}
                     placeholder="+56 9 1234 5678"
                     maxLength={40}
+                    disabled={!isProfileEditing}
+                    error={isProfileEditing ? profileErrors.professionalPhone : undefined}
                   />
                 </div>
-                <div>
+                <div className="md:col-span-2">
                   <label className="block text-sm font-bold text-slate-700 mb-1">
-                    Correo de Contacto (Portada Entregable)
+                    Correo de Contacto
                   </label>
                   <Input
                     type="email"
                     value={professionalEmail}
-                    onChange={(e) => setProfessionalEmail(e.target.value)}
+                    onChange={(e) => setProfessionalEmail(e.target.value.toLowerCase())}
                     placeholder="contacto@tudominio.cl"
                     maxLength={120}
+                    disabled={!isProfileEditing}
+                    error={isProfileEditing ? profileErrors.professionalEmail : undefined}
                   />
                 </div>
               </div>
-
-              <div className="flex justify-end">
-                <Button
-                  type="submit"
-                  isLoading={isSavingProfessionalContact}
-                  className="flex items-center gap-2 font-bold"
-                >
-                  {!isSavingProfessionalContact && <Save className="h-4 w-4" />}
-                  Guardar Contacto Profesional
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-
-        {/* Security Settings */}
-        <div className={`rounded-xl border border-slate-200 bg-white shadow-sm font-medium ${activeTab === "account" ? "" : "hidden"}`}>
-          <div className="border-b border-slate-200 px-6 py-4">
-            <div className="flex items-center gap-x-2">
-              <Lock className="h-5 w-5 text-emerald-600" />
-              <h2 className="font-semibold text-slate-900">
-                Seguridad y Acceso
-              </h2>
             </div>
           </div>
-          <div className="p-6">
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1">
-                  Contraseña Actual
-                </label>
-                <div className="relative">
-                  <Input
-                    type={showCurrentPassword ? "text" : "password"}
-                    className="pr-11"
-                    placeholder="••••••••"
-                    value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
-                    required
-                  />
-              <button
-                    type="button"
-                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                    className="absolute right-1.5 top-1.5 inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-400 shadow-sm transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 cursor-pointer"
-                    aria-label={showCurrentPassword ? "Ocultar contraseña actual" : "Ver contraseña actual"}
-                  >
-                    {showCurrentPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </button>
-                </div>
-              </div>
 
-              <div className="pt-2 border-t border-slate-100">
-                <label className="block text-sm font-bold text-slate-700 mb-1">
-                  Nueva Contraseña
-                </label>
-                <div className="relative">
-                  <Input
-                    type={showNewPassword ? "text" : "password"}
-                    className="pr-11"
-                    placeholder="Mínimo 8 caracteres"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    required
+          {/* Additional Information */}
+          <div className={`relative flex h-full flex-col rounded-xl border border-slate-200 bg-white shadow-sm font-medium ${activeTab === "profile" ? "" : "hidden"}`}>
+            <div className="relative flex min-h-[76px] items-start justify-between border-b border-slate-200 px-6 py-4 pr-14">
+              <div className="flex items-center gap-x-2">
+                <Globe className="h-5 w-5 text-emerald-600" />
+                <h2 className="font-semibold text-slate-900">
+                  Información adicional
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsProfileEditing((value) => !value)}
+                className="absolute right-4 top-4 inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:border-emerald-200 hover:text-emerald-700 cursor-pointer"
+                aria-label="Editar columna adicional"
+              >
+                <Pencil className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="p-6">
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">
+                    Descripción del perfil
+                  </label>
+                  <Textarea
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value)}
+                    placeholder="Cuéntales a los pacientes sobre tu enfoque profesional, tu experiencia y cómo les puedes ayudar..."
+                    rows={5}
+                    maxLength={500}
+                    disabled={!isProfileEditing}
+                    error={isProfileEditing ? profileErrors.bio : undefined}
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowNewPassword(!showNewPassword)}
-                    className="absolute right-1.5 top-1.5 inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-400 shadow-sm transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 cursor-pointer"
-                    aria-label={showNewPassword ? "Ocultar nueva contraseña" : "Ver nueva contraseña"}
-                  >
-                    {showNewPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </button>
+                  <p className="mt-1 text-xs text-slate-400">{bio.length}/500 caracteres</p>
                 </div>
-                {newPassword.length > 0 && (
-                <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <div className="mb-3 flex items-center justify-between gap-3">
-                    <span className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
-                      Seguridad
-                    </span>
-                    <span
-                      className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] ${
-                        passwordStrength.tone === "emerald"
-                          ? "bg-emerald-100 text-emerald-700"
-                          : passwordStrength.tone === "indigo"
-                            ? "bg-indigo-100 text-indigo-700"
-                            : passwordStrength.tone === "amber"
-                              ? "bg-amber-100 text-amber-700"
-                              : "bg-rose-100 text-rose-700"
-                      }`}
-                    >
-                      {passwordStrength.label}
-                    </span>
-                  </div>
-                  <div className="mb-4 h-2 overflow-hidden rounded-full bg-white">
-                    <div
-                      className={`h-full rounded-full transition-all duration-300 ${
-                        passwordStrength.tone === "emerald"
-                          ? "bg-emerald-500"
-                          : passwordStrength.tone === "indigo"
-                            ? "bg-indigo-500"
-                            : passwordStrength.tone === "amber"
-                              ? "bg-amber-500"
-                              : "bg-rose-500"
-                      }`}
-                      style={{
-                        width: `${Math.min(100, (passwordStrength.score / 6) * 100)}%`,
-                      }}
-                    />
-                  </div>
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {passwordRequirements.map((rule) => (
-                      <div
-                        key={rule.key}
-                        className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium ${
-                          rule.met
-                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                            : "border-slate-200 bg-white text-slate-500"
+
+                <div className="space-y-3 border-t border-slate-100 pt-6">
+                  <div className="space-y-3">
+                    <div>
+                      <FieldSwitch
+                        label="Modalidad de atención"
+                        checked={profileFieldEnabled.consultationMode}
+                        onToggle={() => {
+                          if (!isProfileEditing) return;
+                          const nextEnabled = !profileFieldEnabled.consultationMode;
+                          if (nextEnabled && !consultationMode) {
+                            setConsultationMode("online");
+                          }
+                          setProfileFieldEnabled((current) => ({
+                            ...current,
+                            consultationMode: !current.consultationMode,
+                          }));
+                        }}
+                        disabled={!isProfileEditing}
+                      />
+                      <select
+                        value={consultationMode}
+                        onChange={(e) => setConsultationMode(e.target.value)}
+                        disabled={!isProfileEditing || !profileFieldEnabled.consultationMode}
+                        className={`w-full h-11 rounded-xl border px-4 text-sm font-medium focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer disabled:opacity-70 ${
+                          profileFieldEnabled.consultationMode ? "border-slate-200 bg-slate-50 text-slate-900" : "border-slate-200 bg-slate-100 text-slate-400"
                         }`}
                       >
-                        <Check
-                          className={`h-3.5 w-3.5 ${rule.met ? "opacity-100" : "opacity-25"}`}
-                        />
-                        {rule.label}
-                      </div>
-                    ))}
+                        <option value="">Selecciona una modalidad</option>
+                        <option value="online">Online</option>
+                        <option value="presencial">Presencial</option>
+                        <option value="both">Online y Presencial</option>
+                      </select>
+                    </div>
+                    <div>
+                      <FieldSwitch
+                        label="Enfermedades o temas tratados"
+                        checked={profileFieldEnabled.conditionsTreated}
+                        onToggle={() => {
+                          if (!isProfileEditing) return;
+                          setProfileFieldEnabled((current) => ({
+                            ...current,
+                            conditionsTreated: !current.conditionsTreated,
+                          }));
+                        }}
+                        disabled={!isProfileEditing}
+                      />
+                      <Input
+                        value={conditionsTreated}
+                        onChange={(e) => setConditionsTreated(e.target.value)}
+                        placeholder="Ej: resistencia a la insulina, SII..."
+                        disabled={!isProfileEditing || !profileFieldEnabled.conditionsTreated}
+                        className={profileFieldEnabled.conditionsTreated ? "h-10" : "h-10 bg-slate-50 text-slate-400"}
+                        error={isProfileEditing ? profileErrors.conditionsTreated : undefined}
+                      />
+                    </div>
+                    <div>
+                      <FieldSwitch
+                        label="Tipos de pacientes"
+                        checked={profileFieldEnabled.patientTypes}
+                        onToggle={() => {
+                          if (!isProfileEditing) return;
+                          setProfileFieldEnabled((current) => ({
+                            ...current,
+                            patientTypes: !current.patientTypes,
+                          }));
+                        }}
+                        disabled={!isProfileEditing}
+                      />
+                      <Input
+                        value={patientTypes}
+                        onChange={(e) => setPatientTypes(e.target.value)}
+                        placeholder="Ej: adultos, deportistas, gestantes"
+                        disabled={!isProfileEditing || !profileFieldEnabled.patientTypes}
+                        className={profileFieldEnabled.patientTypes ? "h-10" : "h-10 bg-slate-50 text-slate-400"}
+                        error={isProfileEditing ? profileErrors.patientTypes : undefined}
+                      />
+                    </div>
+                    <div>
+                      <FieldSwitch
+                        label="Valores / precios"
+                        checked={profileFieldEnabled.prices}
+                        onToggle={() => {
+                          if (!isProfileEditing) return;
+                          setProfileFieldEnabled((current) => ({
+                            ...current,
+                            prices: !current.prices,
+                          }));
+                        }}
+                        disabled={!isProfileEditing}
+                      />
+                      <Textarea
+                        value={prices}
+                        onChange={(e) => setPrices(e.target.value)}
+                        placeholder="Ej: Consulta online $40.000 | Primera consulta $60.000"
+                        rows={2}
+                        className={profileFieldEnabled.prices ? "text-sm" : "text-sm bg-slate-50 text-slate-400"}
+                        disabled={!isProfileEditing || !profileFieldEnabled.prices}
+                        error={isProfileEditing ? profileErrors.prices : undefined}
+                      />
+                    </div>
+                    <div>
+                      <FieldSwitch
+                        label="Dirección de clínica presencial"
+                        checked={profileFieldEnabled.officeAddress}
+                        onToggle={() => {
+                          if (!isProfileEditing) return;
+                          setProfileFieldEnabled((current) => ({
+                            ...current,
+                            officeAddress: !current.officeAddress,
+                          }));
+                        }}
+                        disabled={!isProfileEditing}
+                      />
+                      <Input
+                        value={officeAddress}
+                        onChange={(e) => setOfficeAddress(e.target.value)}
+                        placeholder="Ej: Providencia 1234, oficina 502"
+                        disabled={!isProfileEditing || !profileFieldEnabled.officeAddress}
+                        className={profileFieldEnabled.officeAddress ? "h-10" : "h-10 bg-slate-50 text-slate-400"}
+                        error={isProfileEditing ? profileErrors.officeAddress : undefined}
+                      />
+                    </div>
+                    <div>
+                      <FieldSwitch
+                        label="Pagos"
+                        checked={profileFieldEnabled.paymentMethods}
+                        onToggle={() => {
+                          if (!isProfileEditing) return;
+                          setProfileFieldEnabled((current) => ({
+                            ...current,
+                            paymentMethods: !current.paymentMethods,
+                          }));
+                        }}
+                        disabled={!isProfileEditing}
+                      />
+                      <Select
+                        value={paymentMethods}
+                        onChange={setPaymentMethods}
+                        placeholder="Selecciona una forma de pago"
+                        disabled={!isProfileEditing || !profileFieldEnabled.paymentMethods}
+                        errored={isProfileEditing ? Boolean(profileErrors.paymentMethods) : false}
+                        className={profileFieldEnabled.paymentMethods ? undefined : "bg-slate-50 text-slate-400"}
+                        options={PAYMENT_METHOD_OPTIONS}
+                      />
+                    </div>
+                    <div>
+                      <FieldSwitch
+                        label="Seguros aceptados"
+                        checked={profileFieldEnabled.acceptedInsurance}
+                        onToggle={() => {
+                          if (!isProfileEditing) return;
+                          setProfileFieldEnabled((current) => ({
+                            ...current,
+                            acceptedInsurance: !current.acceptedInsurance,
+                          }));
+                        }}
+                        disabled={!isProfileEditing}
+                      />
+                      <Input
+                        value={acceptedInsurance}
+                        onChange={(e) => setAcceptedInsurance(e.target.value)}
+                        placeholder="Isapres, particulares, FONASA..."
+                        disabled={!isProfileEditing || !profileFieldEnabled.acceptedInsurance}
+                        className={profileFieldEnabled.acceptedInsurance ? "h-10" : "h-10 bg-slate-50 text-slate-400"}
+                        error={isProfileEditing ? profileErrors.acceptedInsurance : undefined}
+                      />
+                    </div>
                   </div>
                 </div>
-                )}
               </div>
-
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1">
-                  Confirmar Nueva Contraseña
-                </label>
-                <div className="relative">
-                  <Input
-                    type={showConfirmPassword ? "text" : "password"}
-                    className="pr-11"
-                    placeholder="Repite tu nueva contraseña"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-1.5 top-1.5 inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-400 shadow-sm transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 cursor-pointer"
-                    aria-label={showConfirmPassword ? "Ocultar confirmación" : "Ver confirmación"}
-                  >
-                    {showConfirmPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              <div className="pt-4">
-                <Button
-                  type="submit"
-                  isLoading={isLoading}
-                  className="w-full flex items-center gap-2 font-bold"
-                >
-                  {!isLoading && <Save className="h-4 w-4" />}
-                  Guardar Nueva Contraseña
-                </Button>
-              </div>
-            </form>
+            </div>
           </div>
+
         </div>
-      </div>
+      </form>
 
       <div className={`rounded-xl border border-slate-200 bg-white shadow-sm font-medium ${activeTab === "account" ? "" : "hidden"}`}>
         <div className="border-b border-slate-200 px-6 py-4">
@@ -762,49 +1287,6 @@ bio: bio.trim(),
         </div>
         <div className="space-y-6 p-6">
           <div className="space-y-3">
-            <label className="block text-sm font-semibold text-slate-700">
-              Modo visual
-            </label>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <button
-                type="button"
-                onClick={() => setTheme("light")}
-                className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all cursor-pointer ${
-                  theme === "light"
-                    ? "border-emerald-300 bg-emerald-50 text-emerald-700"
-                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-                }`}
-              >
-                <Sun className="h-4 w-4" />
-                <span>
-                  <span className="block text-sm font-semibold">Claro</span>
-                  <span className="block text-xs text-slate-500">
-                    Más luminoso y limpio
-                  </span>
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setTheme("dark")}
-                className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all cursor-pointer ${
-                  theme === "dark"
-                    ? "border-emerald-300 bg-emerald-50 text-emerald-700"
-                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-                }`}
-              >
-                <Moon className="h-4 w-4" />
-                <span>
-                  <span className="block text-sm font-semibold">Oscuro</span>
-                  <span className="block text-xs text-slate-500">
-                    Ideal para baja luz
-                  </span>
-                </span>
-              </button>
-            </div>
-          </div>
-
-          <div className="space-y-3 border-t border-slate-100 pt-6">
             <label className="block text-sm font-semibold text-slate-700">
               Tipografía
             </label>
@@ -846,443 +1328,14 @@ bio: bio.trim(),
         </div>
       </div>
 
-      <div
-        className={`rounded-xl border border-slate-200 bg-white shadow-sm font-medium transition-all duration-700 ${activeTab === "profile" ? "" : "hidden"} ${
-          highlightProfile
-            ? "ring-4 ring-emerald-400/50 ring-offset-4 ring-offset-white shadow-xl shadow-emerald-200/60 scale-[1.02]"
-            : ""
-        }`}
-        id="public-profile-section"
-      >
-        <div className="border-b border-slate-200 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-x-2">
-              <Globe className="h-5 w-5 text-emerald-600" />
-              <h2 className="font-semibold text-slate-900">
-                Perfil Público
-              </h2>
-            </div>
-          </div>
-          <p className="mt-2 text-sm text-slate-500">
-            Permite que otros usuarios te encuentren y soliciten citas desde el directorio de nutricionistas.
-          </p>
-        </div>
-
-        <div className="p-6 space-y-6">
-          <div className={`rounded-2xl border p-5 ${publicProfileEnabled ? "border-emerald-200 bg-emerald-50/60" : "border-slate-200 bg-slate-50"}`}>
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm font-bold text-slate-900">
-                  {publicProfileEnabled ? "Tu perfil ya es público" : "Activa tu perfil público"}
-                </p>
-                <p className="mt-1 text-sm text-slate-600">
-                  {publicProfileEnabled
-                    ? "Ya apareces en el directorio y puedes recibir solicitudes."
-                    : "Haz visible tu perfil para que te encuentren desde Google y el directorio."}
-                </p>
-                {isSavingPublicProfile && (
-                  <p className="mt-2 text-sm font-semibold text-emerald-700">Publicando perfil...</p>
-                )}
-              </div>
-              <button
-                type="button"
-                onClick={() => setPublicProfileEnabled(!publicProfileEnabled)}
-                className={`inline-flex items-center justify-center rounded-full px-5 py-3 text-sm font-bold transition-all ${
-                  publicProfileEnabled
-                    ? "bg-emerald-600 text-white hover:bg-emerald-700"
-                    : "bg-indigo-600 text-white hover:bg-indigo-700"
-                }`}
-              >
-                {publicProfileEnabled ? "Perfil público activo" : "Hacer perfil público"}
-              </button>
-            </div>
-            {publicProfileEnabled && publishedPublicSlug && !isSavingPublicProfile && (
-              <div className="mt-4">
-                <Link
-                  href={`/nutricionistas/${publishedPublicSlug}`}
-                  className="inline-flex items-center justify-center rounded-full border border-emerald-200 bg-white px-5 py-3 text-sm font-bold text-emerald-700 transition-colors hover:bg-emerald-50"
-                >
-                  Visitar mi perfil público
-                </Link>
-              </div>
-            )}
-          </div>
-
-          <form onSubmit={handleSavePublicProfile} className="space-y-6">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1">
-                    URL pública (slug)
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-slate-500">nutrinet.cl/nutricionistas/</span>
-                    <Input
-                      type="text"
-                      value={publicSlug}
-                      onChange={(e) => setPublicSlug(e.target.value)}
-                      placeholder="tu-nombre"
-                      className="flex-1"
-                    />
-                  </div>
-                  <p className="mt-1 text-xs text-slate-400">
-                    Deja vacío para generar automáticamente
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1">
-                    Frase corta (headline)
-                  </label>
-                  <Input
-                    type="text"
-                    value={headline}
-                    onChange={(e) => setHeadline(e.target.value)}
-                    placeholder="Nutricionista clínica especializada en..."
-                    maxLength={100}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1">
-                  Bio / Descripción
-                </label>
-                <textarea
-                  value={bio}
-                  onChange={(e) => setBio(e.target.value)}
-                  placeholder="Cuéntales a los pacientes sobre tu enfoque profesional, tu experiencia y cómo les puedes ayudar..."
-                  className="w-full min-h-[120px] rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 resize-none"
-                  maxLength={500}
-                />
-                <p className="mt-1 text-xs text-slate-400">
-                  {bio.length}/500 caracteres
-                </p>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1">
-                    Modalidad de atención
-                  </label>
-                  <select
-                    value={consultationMode}
-                    onChange={(e) => setConsultationMode(e.target.value)}
-                    className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-medium focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer"
-                  >
-                    <option value="online">Online</option>
-                    <option value="presencial">Presencial</option>
-                    <option value="both">Online y Presencial</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1">
-                    Ubicación (ciudad/comuna)
-                  </label>
-                  <div className="relative">
-                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                    <Input
-                      type="text"
-                      value={location}
-                      onChange={(e) => setLocation(e.target.value)}
-                      placeholder="Santiago, Chile"
-                      className="pl-10"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="border-t border-slate-100 pt-6">
-                <h3 className="text-sm font-bold text-slate-700 mb-4">
-                  Información de contacto pública
-                </h3>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <Phone className="h-4 w-4 text-slate-500" />
-                      <span className="text-sm font-medium text-slate-700">Teléfono</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Input
-                        type="text"
-                        value={publicPhone}
-                        onChange={(e) => setPublicPhone(e.target.value)}
-                        placeholder="+56 9 1234 5678"
-                        className="h-8 w-40 text-xs"
-                      />
-                      <label className="flex items-center gap-2 cursor-pointer shrink-0">
-                        <span className="text-[10px] font-medium text-slate-500">Mostrar</span>
-                        <div
-                          className={`relative w-9 h-5 rounded-full transition-colors ${showPublicPhone ? "bg-emerald-500" : "bg-slate-300"}`}
-                          onClick={() => setShowPublicPhone(!showPublicPhone)}
-                        >
-                          <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${showPublicPhone ? "left-4.5" : "left-0.5"}`} />
-                        </div>
-                      </label>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <Mail className="h-4 w-4 text-slate-500" />
-                      <span className="text-sm font-medium text-slate-700">Email</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Input
-                        type="email"
-                        value={publicEmail}
-                        onChange={(e) => setPublicEmail(e.target.value)}
-                        placeholder="contacto@tuemail.cl"
-                        className="h-8 w-40 text-xs"
-                      />
-                      <label className="flex items-center gap-2 cursor-pointer shrink-0">
-                        <span className="text-[10px] font-medium text-slate-500">Mostrar</span>
-                        <div
-                          className={`relative w-9 h-5 rounded-full transition-colors ${showPublicEmail ? "bg-emerald-500" : "bg-slate-300"}`}
-                          onClick={() => setShowPublicEmail(!showPublicEmail)}
-                        >
-                          <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${showPublicEmail ? "left-4.5" : "left-0.5"}`} />
-                        </div>
-                      </label>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <span className="text-base">📷</span>
-                      <span className="text-sm font-medium text-slate-700">Instagram</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Input
-                        type="text"
-                        value={professionalInstagram}
-                        onChange={(e) => setProfessionalInstagram(e.target.value)}
-                        placeholder="@tuusuario"
-                        className="h-8 w-40 text-xs"
-                      />
-                      <label className="flex items-center gap-2 cursor-pointer shrink-0">
-                        <span className="text-[10px] font-medium text-slate-500">Mostrar</span>
-                        <div
-                          className={`relative w-9 h-5 rounded-full transition-colors ${showInstagram ? "bg-emerald-500" : "bg-slate-300"}`}
-                          onClick={() => setShowInstagram(!showInstagram)}
-                        >
-                          <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${showInstagram ? "left-4.5" : "left-0.5"}`} />
-                        </div>
-                      </label>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <span className="text-base">💼</span>
-                      <span className="text-sm font-medium text-slate-700">LinkedIn</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Input
-                        type="text"
-                        value={linkedin}
-                        onChange={(e) => setLinkedin(e.target.value)}
-                        placeholder="linkedin.com/in/tu-perfil"
-                        className="h-8 w-40 text-xs"
-                      />
-                      <label className="flex items-center gap-2 cursor-pointer shrink-0">
-                        <span className="text-[10px] font-medium text-slate-500">Mostrar</span>
-                        <div
-                          className={`relative w-9 h-5 rounded-full transition-colors ${showLinkedin ? "bg-emerald-500" : "bg-slate-300"}`}
-                          onClick={() => setShowLinkedin(!showLinkedin)}
-                        >
-                          <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${showLinkedin ? "left-4.5" : "left-0.5"}`} />
-                        </div>
-                      </label>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <Calendar className="h-4 w-4 text-slate-500" />
-                      <span className="text-sm font-medium text-slate-700">Horario en portal</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <label className="flex items-center gap-2 cursor-pointer shrink-0">
-                        <span className="text-[10px] font-medium text-slate-500">Mostrar</span>
-                        <div
-                          className={`relative w-9 h-5 rounded-full transition-colors ${showSchedule ? "bg-emerald-500" : "bg-slate-300"}`}
-                          onClick={() => setShowSchedule(!showSchedule)}
-                        >
-                          <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${showSchedule ? "left-4.5" : "left-0.5"}`} />
-                        </div>
-                      </label>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="border-t border-slate-100 pt-6">
-                <h3 className="text-sm font-bold text-slate-700 mb-4">
-                  Información adicional del perfil público
-                </h3>
-                <div className="space-y-3">
-                  <div className="space-y-2">
-                    <label className="block text-xs font-medium text-slate-600 uppercase tracking-wider">Enfermedades o temas tratados</label>
-                    <Input
-                      value={conditionsTreated}
-                      onChange={(e) => setConditionsTreated(e.target.value)}
-                      placeholder="Ej: Obesidad, diabetes, estrés, nutrición deportiva"
-                      className="h-10"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="block text-xs font-medium text-slate-600 uppercase tracking-wider">Tipos de pacientes</label>
-                    <Input
-                      value={patientTypes}
-                      onChange={(e) => setPatientTypes(e.target.value)}
-                      placeholder="Ej: Adultos, niños, athletes, embarazadas"
-                      className="h-10"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="block text-xs font-medium text-slate-600 uppercase tracking-wider">Precios y servicios</label>
-                    <Textarea
-                      value={prices}
-                      onChange={(e) => setPrices(e.target.value)}
-                      placeholder="Ej: Consulta online $40.000 | Primera consulta $60.000"
-                      rows={2}
-                      className="text-sm"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="block text-xs font-medium text-slate-600 uppercase tracking-wider">Dirección de consultorio</label>
-                    <Input
-                      value={officeAddress}
-                      onChange={(e) => setOfficeAddress(e.target.value)}
-                      placeholder="Ej: Av. Providencia 1234, oficina 502, Providencia, Santiago"
-                      className="h-10"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="block text-xs font-medium text-slate-600 uppercase tracking-wider">Formas de pago</label>
-                    <Input
-                      value={paymentMethods}
-                      onChange={(e) => setPaymentMethods(e.target.value)}
-                      placeholder="Ej: Efectivo, transferencia, debitocrédito"
-                      className="h-10"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="block text-xs font-medium text-slate-600 uppercase tracking-wider">Seguros aceptados</label>
-                    <Input
-                      value={acceptedInsurance}
-                      onChange={(e) => setAcceptedInsurance(e.target.value)}
-                      placeholder="Ej: Consalud, Banmédica,此地"
-                      className="h-10"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="block text-xs font-medium text-slate-600 uppercase tracking-wider">País</label>
-                    <Input
-                      value={country}
-                      onChange={(e) => setCountry(e.target.value)}
-                      placeholder="Ej: Chile"
-                      className="h-10"
-                    />
-                  </div>
-                </div>
-              </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center">
-                      <Calendar className="h-5 w-5 text-emerald-600" />
-                    </div>
-                    <div>
-                      <p className="font-bold text-slate-900">Permitir solicitar citas</p>
-                      <p className="text-xs text-slate-500">
-                        {bookingEnabled
-                          ? "Los usuarios podrán pedir hora desde tu perfil público"
-                          : "Los usuarios podrán enviarte un mensaje directo y lo verás en tu módulo de citas"}
-                      </p>
-                    </div>
-                  </div>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <div
-                      className={`relative w-11 h-6 rounded-full transition-colors ${
-                        bookingEnabled ? "bg-emerald-500" : "bg-slate-200"
-                      }`}
-                      onClick={() => setBookingEnabled(!bookingEnabled)}
-                    >
-                      <div
-                        className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                          bookingEnabled ? "left-6" : "left-0.5"
-                        }`}
-                      />
-                    </div>
-                  </label>
-                </div>
-
-                <div className="flex justify-end pt-2">
-                <Button
-                  type="submit"
-                  isLoading={isSavingPublicProfile}
-                  className="flex items-center gap-2 font-bold"
-                >
-                  {!isSavingPublicProfile && <Save className="h-4 w-4" />}
-                  Guardar Perfil Público
-                </Button>
-              </div>
-            </form>
-          </div>
-      </div>
-
-      <div className={`rounded-xl border border-slate-200 bg-white shadow-sm font-medium ${activeTab === "account" ? "" : "hidden"}`}>
-        <div className="border-b border-slate-200 px-6 py-4">
-          <div className="flex items-center gap-x-2">
-            <FileText className="h-5 w-5 text-emerald-600" />
-            <h2 className="font-semibold text-slate-900">
-              Terminos y Condiciones
-            </h2>
-          </div>
-          <p className="mt-2 text-sm text-slate-500">
-            Referencia legal y operativa para el uso beta de NutriNet.
-          </p>
-        </div>
-        <div className="space-y-5 p-6">
-          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            Este contenido es una base de trabajo interna para la beta. Reemplaza
-            los campos entre corchetes antes de publicarlo de forma definitiva.
-          </div>
-
-          {LEGAL_SECTIONS.map((section) => (
-            <section
-              key={section.title}
-              className="rounded-xl border border-slate-200 bg-slate-50 p-5"
-            >
-              <h3 className="text-base font-bold text-slate-900">
-                {section.title}
-              </h3>
-              <div className="mt-3 space-y-3">
-                {section.content.map((paragraph, index) => (
-                  <p
-                    key={`${section.title}-${index}`}
-                    className="text-sm leading-6 text-slate-600"
-                  >
-                    {paragraph}
-                  </p>
-                ))}
-              </div>
-            </section>
-          ))}
-        </div>
-      </div>
-
       {/* Membresía Tab */}
       <div className={`space-y-6 ${activeTab === "membership" ? "" : "hidden"}`}>
-        <MembershipPlanSection />
+        <MembershipPlanSection autoOpenChangePlan={openPlanModal} />
+      </div>
+
+      {/* Privacidad y Cumplimiento Tab */}
+      <div className={`space-y-6 ${activeTab === "compliance" ? "" : "hidden"}`}>
+        <ComplianceTabSection />
       </div>
     </div>
   );

@@ -9,15 +9,29 @@ async function readJsonResponse<T>(res: Response): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+export const normalizeMembershipPlansResponse = (value: unknown): MembershipPlan[] => {
+  if (Array.isArray(value)) return value as MembershipPlan[];
+  if (value && typeof value === "object") {
+    const payload = value as { data?: unknown; plans?: unknown; items?: unknown };
+    if (Array.isArray(payload.data)) return payload.data as MembershipPlan[];
+    if (Array.isArray(payload.plans)) return payload.plans as MembershipPlan[];
+    if (Array.isArray(payload.items)) return payload.items as MembershipPlan[];
+  }
+  return [];
+};
+
 export interface MembershipStatus {
   requiresPlanSelection: boolean;
   accountPlan: string;
+  hasPendingTransfer?: boolean;
   entitlements: Record<string, boolean | number>;
   usage?: {
     patientsActive: number;
-    consultationsMonthly: number;
-    pdfMonthly: number;
-    aiMonthly: number;
+    consultationsUsed: number;
+    followupsPrivateActive: number;
+    pdfUsed: number;
+    aiUsed: number;
+    calculatorUsed: number;
   };
   billing?: {
     nextPaymentAt: string | null;
@@ -108,6 +122,7 @@ export interface DiscountCodeAdmin {
   id: string;
   code: string;
   type: string;
+  status?: "ACTIVE" | "SHARED" | "EXPIRED";
   discountPercent: number;
   isUsed: boolean;
   usedByAccountId: string | null;
@@ -128,7 +143,8 @@ export const membershipService = {
 
   async getActivePlans(): Promise<MembershipPlan[]> {
     const res = await api.get("/memberships/active");
-    return res.json();
+    const data = await res.json();
+    return normalizeMembershipPlansResponse(data);
   },
 
   async selectFreePlan(planId: string): Promise<FreePlanSelectionResult> {
@@ -146,8 +162,8 @@ export const membershipService = {
     return res.json();
   },
 
-  async createFlowCheckout(planId: string): Promise<FlowCheckoutResult> {
-    const res = await api.post("/payments/flow/checkout", { planId });
+  async createFlowCheckout(planId: string, returnPath?: string): Promise<FlowCheckoutResult> {
+    const res = await api.post("/payments/flow/checkout", { planId, returnPath });
     return res.json();
   },
 
@@ -156,8 +172,8 @@ export const membershipService = {
     return res.json();
   },
 
-  async createFlowDiscountCheckout(planId: string, discountCode: string): Promise<FlowCheckoutResult> {
-    const res = await api.post("/payments/flow/discount-checkout", { planId, discountCode });
+  async createFlowDiscountCheckout(planId: string, discountCode: string, returnPath?: string): Promise<FlowCheckoutResult> {
+    const res = await api.post("/payments/flow/discount-checkout", { planId, discountCode, returnPath });
     return res.json();
   },
 
@@ -186,6 +202,7 @@ export const membershipService = {
   async listDiscountCodes(params?: {
     type?: string;
     isUsed?: boolean;
+    status?: string;
     start?: number;
     limit?: number;
     includeArchived?: boolean;
@@ -193,6 +210,7 @@ export const membershipService = {
     const query = new URLSearchParams();
     if (params?.type) query.set("type", params.type);
     if (params?.isUsed !== undefined) query.set("isUsed", String(params.isUsed));
+    if (params?.status) query.set("status", params.status);
     if (params?.start !== undefined) query.set("start", String(params.start));
     if (params?.limit !== undefined) query.set("limit", String(params.limit));
     if (params?.includeArchived !== undefined) query.set("includeArchived", String(params.includeArchived));
@@ -203,5 +221,10 @@ export const membershipService = {
   async archiveUsedDiscountCodes(): Promise<{ archivedCount: number; archivedAt: string }> {
     const res = await api.post("/discount-codes/archive-used");
     return readJsonResponse<{ archivedCount: number; archivedAt: string }>(res);
+  },
+
+  async setDiscountCodeStatus(codeId: string, status: "SHARED" | "EXPIRED"): Promise<DiscountCodeAdmin> {
+    const res = await api.post(`/discount-codes/${codeId}/status`, { status });
+    return readJsonResponse<DiscountCodeAdmin>(res);
   },
 };

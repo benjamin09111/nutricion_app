@@ -5,19 +5,22 @@ import {
   Download,
   Search,
   CheckCircle2,
+  BadgeCheck,
   XCircle,
+  CircleX,
   Clock,
   DollarSign,
   Filter,
   RefreshCw,
+  Trash2,
 } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import Cookies from "js-cookie";
 import { toast } from "sonner";
 import { Modal } from "@/components/ui/Modal";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { fetchApi } from "@/lib/api-base";
-import { cn } from "@/lib/utils";
 
 interface Transaction {
   id: string;
@@ -65,24 +68,19 @@ export default function AdminPaymentsPage() {
   const [methodFilter, setMethodFilter] = useState<string>("ALL");
   const [mockFilter, setMockFilter] = useState<string>("ALL");
 
-  const [isSimulateModalOpen, setIsSimulateModalOpen] = useState(false);
-  const [users, setUsers] = useState<any[]>([]);
-  const [plans, setPlans] = useState<any[]>([]);
-  const [selectedUserId, setSelectedUserId] = useState("");
-  const [selectedPlanId, setSelectedPlanId] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState("BANK_TRANSFER");
-  const [customAmount, setCustomAmount] = useState<number | "">("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [detailPayment, setDetailPayment] = useState<Transaction | null>(null);
+  const [paymentToDelete, setPaymentToDelete] = useState<Transaction | null>(null);
+  const [paymentToApprove, setPaymentToApprove] = useState<Transaction | null>(null);
+  const [paymentToReject, setPaymentToReject] = useState<Transaction | null>(null);
+  const [isDeletingPayment, setIsDeletingPayment] = useState(false);
+  const [isApprovingPayment, setIsApprovingPayment] = useState(false);
+  const [isRejectingPayment, setIsRejectingPayment] = useState(false);
 
   useEffect(() => {
     fetchData();
   }, []);
-
-  useEffect(() => {
-    if (isSimulateModalOpen) fetchAuxiliaryData();
-  }, [isSimulateModalOpen]);
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -99,21 +97,6 @@ export default function AdminPaymentsPage() {
       toast.error("Error al cargar datos de pagos");
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const fetchAuxiliaryData = async () => {
-    try {
-      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const headers = { Authorization: `Bearer ${token}` };
-      const [uRes, pRes] = await Promise.all([
-        fetchApi("/users?role=NUTRITIONIST,NUTRITIONIST_DEVELOPER", { headers }),
-        fetchApi("/memberships", { headers }),
-      ]);
-      if (uRes.ok) setUsers(await uRes.json());
-      if (pRes.ok) setPlans(await pRes.json());
-    } catch {
-      toast.error("No se pudieron cargar usuarios/planes");
     }
   };
 
@@ -137,69 +120,117 @@ export default function AdminPaymentsPage() {
       Number(amount),
     );
 
-  const handlePlanChange = (planId: string) => {
-    setSelectedPlanId(planId);
-    const plan = plans.find((p) => p.id === planId);
-    if (plan) setCustomAmount(plan.price);
-  };
+  const handleDeletePayment = async () => {
+    if (!paymentToDelete) return;
 
-  const handleSimulatePayment = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
+    setIsDeletingPayment(true);
     try {
       const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const res = await fetchApi("/payments/simulate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          userId: selectedUserId,
-          planId: selectedPlanId,
-          amount: Number(customAmount),
-          method: paymentMethod,
-        }),
+      const response = await fetchApi(`/payments/${paymentToDelete.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || "Error simulando pago");
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.message || "Error al eliminar pago");
       }
-      toast.success("Pago simulado correctamente");
-      setIsSimulateModalOpen(false);
-      setSelectedUserId("");
-      setSelectedPlanId("");
-      setCustomAmount("");
+
+      toast.success("Registro de pago eliminado");
+      setPaymentToDelete(null);
+      setDetailPayment(null);
       fetchData();
-    } catch (error: any) {
-      toast.error(error.message || "Error al simular pago");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Error al eliminar pago");
     } finally {
-      setIsSubmitting(false);
+      setIsDeletingPayment(false);
     }
   };
 
-  const exportCSV = () => {
-    const rows = filteredTransactions.map((trx) => ({
-      ID: trx.id,
-      Nutricionista: trx.account.nutritionist?.fullName || "N/A",
-      Email: trx.account.email,
-      Plan: trx.metadata?.planName || trx.account.subscription?.plan?.name || "N/A",
-      Metodo: trx.method,
-      Monto: Number(trx.amount),
-      Estado: trx.status,
-      Mock: trx.metadata?.mock || trx.metadata?.isSimulation ? "Si" : "No",
-      Fecha: new Date(trx.createdAt).toLocaleDateString("es-CL"),
-    }));
-    const header = Object.keys(rows[0] || {}).join(",");
-    const csv = [header, ...rows.map((r) => Object.values(r).join(","))].join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `pagos_${new Date().toISOString().split("T")[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success("Reporte descargado");
+  const handleApprovePayment = async () => {
+    if (!paymentToApprove) return;
+
+    setIsApprovingPayment(true);
+    try {
+      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
+      const response = await fetchApi(`/payments/${paymentToApprove.id}/approve`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.message || "Error al aprobar pago");
+      }
+
+      toast.success("Pago aprobado y activado correctamente");
+      setPaymentToApprove(null);
+      setDetailPayment(null);
+      fetchData();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Error al aprobar pago");
+    } finally {
+      setIsApprovingPayment(false);
+    }
+  };
+
+  const handleRejectPayment = async () => {
+    if (!paymentToReject) return;
+
+    setIsRejectingPayment(true);
+    try {
+      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
+      const response = await fetchApi(`/payments/${paymentToReject.id}/reject`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.message || "Error al rechazar pago");
+      }
+
+      toast.success("Pago rechazado y notificado al usuario");
+      setPaymentToReject(null);
+      setDetailPayment(null);
+      fetchData();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Error al rechazar pago");
+    } finally {
+      setIsRejectingPayment(false);
+    }
+  };
+
+  const exportAccounting = async () => {
+    try {
+      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
+      const response = await fetchApi("/payments/export-accounting", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) {
+        throw new Error("No se pudo generar el reporte");
+      }
+
+      const blob = await response.blob();
+      const disposition = response.headers.get("content-disposition") || "";
+      const filenameMatch = disposition.match(/filename=\"?([^\";]+)\"?/i);
+      const filename =
+        filenameMatch?.[1] ||
+        `nutrinet_contabilidad_${new Date().toISOString().split("T")[0]}.xlsx`;
+
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success("Reporte contable descargado");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Error al exportar contabilidad");
+    }
   };
 
   const statusBadge = (status: string) => {
@@ -251,19 +282,9 @@ export default function AdminPaymentsPage() {
           <Button onClick={fetchData} variant="outline" className="gap-2">
             <RefreshCw className="h-4 w-4" />
           </Button>
-          <Button
-            onClick={() => setIsSimulateModalOpen(true)}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2"
-          >
-            <DollarSign className="h-4 w-4" />
-            Simular Pago
-          </Button>
-          <Button
-            onClick={exportCSV}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2"
-          >
+          <Button onClick={exportAccounting} className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2">
             <Download className="h-4 w-4" />
-            Exportar CSV
+            Exportar Excel
           </Button>
         </div>
       </div>
@@ -326,7 +347,6 @@ export default function AdminPaymentsPage() {
           <table className="w-full text-sm text-left">
             <thead className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200 uppercase text-[10px] tracking-wider">
               <tr>
-                <th className="px-4 py-3">ID</th>
                 <th className="px-4 py-3">Nutricionista</th>
                 <th className="px-4 py-3">Plan</th>
                 <th className="px-4 py-3">Método</th>
@@ -334,6 +354,7 @@ export default function AdminPaymentsPage() {
                 <th className="px-4 py-3">Monto</th>
                 <th className="px-4 py-3">Fecha</th>
                 <th className="px-4 py-3">Estado</th>
+                <th className="px-4 py-3 text-center">Acción</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -354,9 +375,6 @@ export default function AdminPaymentsPage() {
                       className="hover:bg-indigo-50/30 transition-colors cursor-pointer"
                       onClick={() => setDetailPayment(trx)}
                     >
-                      <td className="px-4 py-3 font-mono text-slate-500 text-[11px]">
-                        {trx.id.substring(0, 8)}...
-                      </td>
                       <td className="px-4 py-3">
                         <div className="font-medium text-slate-900 text-xs">
                           {trx.account.nutritionist?.fullName || "N/A"}
@@ -396,6 +414,50 @@ export default function AdminPaymentsPage() {
                         })}
                       </td>
                       <td className="px-4 py-3">{statusBadge(trx.status)}</td>
+                      <td className="px-4 py-3 text-center">
+                        <div className="inline-flex items-center gap-1.5">
+                          {trx.status === "PENDING" && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setPaymentToApprove(trx);
+                                }}
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-emerald-600 transition-colors hover:bg-emerald-50 hover:text-emerald-700 cursor-pointer"
+                                aria-label="Aprobar pago"
+                                title="Aprobar pago"
+                              >
+                                <BadgeCheck className="h-4 w-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setPaymentToReject(trx);
+                                }}
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-rose-600 transition-colors hover:bg-rose-50 hover:text-rose-700 cursor-pointer"
+                                aria-label="Rechazar pago"
+                                title="Rechazar pago"
+                              >
+                                <CircleX className="h-4 w-4" />
+                              </button>
+                            </>
+                          )}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPaymentToDelete(trx);
+                            }}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-rose-600 transition-colors hover:bg-rose-50 hover:text-rose-700 cursor-pointer"
+                            aria-label="Eliminar registro"
+                            title="Eliminar pago"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   );
                 })
@@ -413,119 +475,127 @@ export default function AdminPaymentsPage() {
       >
         {detailPayment && (
           <div className="space-y-4 pt-2">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="p-3 bg-slate-50 rounded-xl">
-                <p className="text-[10px] font-black uppercase text-slate-400">Monto</p>
-                <p className="text-sm font-bold text-slate-900">{formatCurrency(detailPayment.amount)}</p>
-              </div>
-              <div className="p-3 bg-slate-50 rounded-xl">
-                <p className="text-[10px] font-black uppercase text-slate-400">Estado</p>
-                {statusBadge(detailPayment.status)}
-              </div>
-              <div className="p-3 bg-slate-50 rounded-xl">
-                <p className="text-[10px] font-black uppercase text-slate-400">Método</p>
-                <p className="text-xs font-bold text-slate-700">{detailPayment.method}</p>
-              </div>
-              <div className="p-3 bg-slate-50 rounded-xl">
-                <p className="text-[10px] font-black uppercase text-slate-400">Plan</p>
-                <p className="text-xs font-bold text-slate-700">
-                  {detailPayment.metadata?.planName || detailPayment.account.subscription?.plan?.name || "N/A"}
-                </p>
-              </div>
-            </div>
-            <div className="p-3 bg-slate-50 rounded-xl">
-              <p className="text-[10px] font-black uppercase text-slate-400 mb-2">Metadata</p>
-              <pre className="text-[10px] text-slate-600 font-mono whitespace-pre-wrap">
-                {JSON.stringify(detailPayment.metadata || {}, null, 2)}
-              </pre>
-            </div>
-            <div className="p-3 bg-slate-50 rounded-xl">
-              <p className="text-[10px] font-black uppercase text-slate-400">Usuario</p>
-              <p className="text-xs font-medium text-slate-900">{detailPayment.account.nutritionist?.fullName || "N/A"}</p>
-              <p className="text-[10px] text-slate-500">{detailPayment.account.email}</p>
-            </div>
+            {(() => {
+              const metadata = detailPayment.metadata || {};
+              const discountCode = metadata.discountCode || metadata.discount?.code;
+              const discountPercent = metadata.discountPercent || metadata.discount?.discountPercent;
+              const fullPrice = metadata.fullPrice ?? detailPayment.amount;
+              const proratedCredit = metadata.proratedCredit ?? 0;
+              const chargedAmount = metadata.chargedAmount ?? detailPayment.amount;
+              const source = metadata.source || metadata.provider || metadata.type || "N/A";
+
+              return (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 bg-slate-50 rounded-xl">
+                      <p className="text-[10px] font-black uppercase text-slate-400">Monto final</p>
+                      <p className="text-sm font-bold text-slate-900">{formatCurrency(chargedAmount)}</p>
+                    </div>
+                    <div className="p-3 bg-slate-50 rounded-xl">
+                      <p className="text-[10px] font-black uppercase text-slate-400">Estado</p>
+                      {statusBadge(detailPayment.status)}
+                    </div>
+                    <div className="p-3 bg-slate-50 rounded-xl">
+                      <p className="text-[10px] font-black uppercase text-slate-400">Plan</p>
+                      <p className="text-xs font-bold text-slate-700">
+                        {metadata.planName || detailPayment.account.subscription?.plan?.name || "N/A"}
+                      </p>
+                    </div>
+                    <div className="p-3 bg-slate-50 rounded-xl">
+                      <p className="text-[10px] font-black uppercase text-slate-400">Método</p>
+                      <p className="text-xs font-bold text-slate-700">{detailPayment.method}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 bg-slate-50 rounded-xl">
+                      <p className="text-[10px] font-black uppercase text-slate-400">Precio base</p>
+                      <p className="text-sm font-bold text-slate-900">{formatCurrency(fullPrice)}</p>
+                    </div>
+                    <div className="p-3 bg-slate-50 rounded-xl">
+                      <p className="text-[10px] font-black uppercase text-slate-400">Crédito proporcional</p>
+                      <p className="text-sm font-bold text-slate-900">{formatCurrency(proratedCredit)}</p>
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-slate-50 rounded-xl">
+                    <p className="text-[10px] font-black uppercase text-slate-400">Usuario</p>
+                    <p className="text-xs font-medium text-slate-900">{detailPayment.account.nutritionist?.fullName || "N/A"}</p>
+                    <p className="text-[10px] text-slate-500">{detailPayment.account.email}</p>
+                  </div>
+
+                  {discountCode && (
+                    <div className="rounded-xl border border-amber-100 bg-amber-50 p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-[10px] font-black uppercase text-amber-600">Cupón usado</p>
+                          <p className="text-base font-bold text-slate-900">{discountCode}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[10px] font-black uppercase text-amber-600">Descuento</p>
+                          <p className="text-base font-bold text-slate-900">{discountPercent ? `${discountPercent}%` : "—"}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="rounded-xl bg-slate-50 p-3 text-[11px] text-slate-500">
+                    <span className="font-bold text-slate-700">Origen: </span>
+                    {source}
+                    <span className="mx-2 text-slate-300">|</span>
+                    <span className="font-bold text-slate-700">Solicitado: </span>
+                    {new Date(detailPayment.createdAt).toLocaleString("es-CL", {
+                      day: "2-digit",
+                      month: "long",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </div>
+                </>
+              );
+            })()}
           </div>
         )}
       </Modal>
 
-      {/* Simulate Modal */}
-      <Modal
-        isOpen={isSimulateModalOpen}
-        onClose={() => setIsSimulateModalOpen(false)}
-        title="Simular Transacción"
-      >
-        <form onSubmit={handleSimulatePayment} className="space-y-4 pt-2">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Nutricionista</label>
-            <select
-              className="w-full text-sm rounded-md border border-slate-300 bg-white px-3 py-2.5 text-slate-900 shadow-sm"
-              value={selectedUserId}
-              onChange={(e) => setSelectedUserId(e.target.value)}
-              required
-            >
-              <option value="">Seleccionar Nutricionista...</option>
-              {users.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.nutritionist?.fullName || u.email} ({u.email})
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Plan</label>
-            <select
-              className="w-full text-sm rounded-md border border-slate-300 bg-white px-3 py-2.5 text-slate-900 shadow-sm"
-              value={selectedPlanId}
-              onChange={(e) => handlePlanChange(e.target.value)}
-              required
-            >
-              <option value="">Seleccionar Plan...</option>
-              {plans.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} — ${Number(p.price).toLocaleString("es-CL")}/mes
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Monto (CLP)</label>
-            <Input
-              type="number"
-              value={customAmount === "" ? "" : customAmount}
-              onChange={(e) =>
-                setCustomAmount(e.target.value === "" ? "" : Number(e.target.value))
-              }
-              placeholder="Monto en CLP"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Método de pago</label>
-            <select
-              className="w-full text-sm rounded-md border border-slate-300 bg-white px-3 py-2.5 text-slate-900 shadow-sm"
-              value={paymentMethod}
-              onChange={(e) => setPaymentMethod(e.target.value)}
-            >
-              <option value="BANK_TRANSFER">Transferencia Bancaria</option>
-              <option value="FLOW">Flow</option>
-              <option value="MANUAL">Manual</option>
-              <option value="WEBPAY">Webpay</option>
-            </select>
-          </div>
-          <div className="flex gap-3 pt-2">
-            <Button
-              variant="ghost"
-              className="flex-1 h-12 rounded-xl"
-              onClick={() => setIsSimulateModalOpen(false)}
-              type="button"
-            >
-              Cancelar
-            </Button>
-            <Button type="submit" isLoading={isSubmitting} className="flex-1 h-12 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold">
-              Simular Pago
-            </Button>
-          </div>
-        </form>
-      </Modal>
+      <ConfirmModal
+        isOpen={!!paymentToDelete}
+        onClose={() => setPaymentToDelete(null)}
+        onConfirm={handleDeletePayment}
+        title="Eliminar registro de pago"
+        message={`¿Deseas eliminar el pago de ${paymentToDelete?.account.nutritionist?.fullName || paymentToDelete?.account.email || "este registro"}? Esta acción no se puede deshacer.`}
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        variant="danger"
+        isLoading={isDeletingPayment}
+        size="lg"
+      />
+
+      <ConfirmModal
+        isOpen={!!paymentToApprove}
+        onClose={() => setPaymentToApprove(null)}
+        onConfirm={handleApprovePayment}
+        title="Aprobar pago"
+        message={`¿Deseas aprobar el pago de ${paymentToApprove?.account.nutritionist?.fullName || paymentToApprove?.account.email || "este registro"}? Se activará la suscripción y se marcará como completado.`}
+        confirmText="Aprobar"
+        cancelText="Cancelar"
+        variant="info"
+        isLoading={isApprovingPayment}
+      />
+
+      <ConfirmModal
+        isOpen={!!paymentToReject}
+        onClose={() => setPaymentToReject(null)}
+        onConfirm={handleRejectPayment}
+        title="Rechazar pago"
+        message={`¿Deseas rechazar el pago de ${paymentToReject?.account.nutritionist?.fullName || paymentToReject?.account.email || "este registro"}? Se notificará al usuario por correo.`}
+        confirmText="Rechazar"
+        cancelText="Cancelar"
+        variant="danger"
+        isLoading={isRejectingPayment}
+      />
+
     </div>
   );
 }

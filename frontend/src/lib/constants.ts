@@ -1,3 +1,5 @@
+import systemMetrics from "@/lib/metrics.json";
+
 export const DEFAULT_CONSTRAINTS = [
   { id: "Diabético", label: "Diabético" },
   { id: "Hipertensión", label: "Hipertensión" },
@@ -6,10 +8,19 @@ export const DEFAULT_CONSTRAINTS = [
   { id: "Sin Gluten", label: "Sin Gluten" },
 ];
 
-export const DEFAULT_METRICS = [
-  { key: "weight", name: "Peso", unit: "kg", icon: "Weight" },
-  { key: "body_fat", name: "Grasa Corporal", unit: "%", icon: "Activity" },
-  { key: "muscle_mass", name: "Masa Muscular", unit: "kg", icon: "Dumbbell" },
-  { key: "visceral_fat", name: "Grasa Visceral", unit: "lvl", icon: "Zap" },
-  { key: "waist", name: "Cintura", unit: "cm", icon: "Target" },
-];
+export const DEFAULT_METRICS = (systemMetrics as Array<{
+  key: string;
+  label: string;
+  unit: string;
+  icon: string;
+  color: string;
+  category: string;
+}>).map((m) => ({
+  key: m.key,
+  name: m.label,
+  unit: m.unit,
+  icon: m.icon,
+  color: m.color,
+}));
+
+export { systemMetrics };

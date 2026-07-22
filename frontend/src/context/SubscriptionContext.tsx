@@ -11,6 +11,7 @@ import React, {
 import { toast } from "sonner";
 import { membershipService } from "@/features/memberships/services/membership.service";
 import { fetchApi } from "@/lib/api-base";
+import { authService } from "@/features/auth/services/auth.service";
 import { getAuthToken } from "@/lib/auth-token";
 import { getCurrentUser, setCurrentUser } from "@/lib/current-user";
 
@@ -26,6 +27,7 @@ export interface MembershipState {
   cancelAtPeriodEnd: boolean;
   daysRemaining: number | null;
   requiresPlanSelection: boolean;
+  hasPendingTransfer: boolean;
   entitlements: Record<string, boolean | number>;
   currentPlan: {
     id: string;
@@ -38,9 +40,11 @@ export interface MembershipState {
   } | null;
   usage?: {
     patientsActive: number;
-    consultationsMonthly: number;
-    pdfMonthly: number;
-    aiMonthly: number;
+    consultationsUsed: number;
+    followupsPrivateActive: number;
+    pdfUsed: number;
+    aiUsed: number;
+    calculatorUsed: number;
   };
   billing?: {
     nextPaymentAt: string | null;
@@ -76,6 +80,7 @@ export function SubscriptionProvider({
   const [cancelAtPeriodEnd, setCancelAtPeriodEnd] = useState(false);
   const [daysRemaining, setDaysRemaining] = useState<number | null>(null);
   const [requiresPlanSelection, setRequiresPlanSelection] = useState(false);
+  const [hasPendingTransfer, setHasPendingTransfer] = useState(false);
   const [entitlements, setEntitlements] = useState<Record<string, boolean | number>>({});
   const [currentPlan, setCurrentPlan] = useState<MembershipState["currentPlan"]>(null);
   const [usage, setUsage] = useState<MembershipState["usage"]>(undefined);
@@ -154,11 +159,32 @@ export function SubscriptionProvider({
   );
 
   const refreshSubscription = useCallback(async () => {
+    const token = getAuthToken();
+    if (!token) {
+      setIsLoading(false);
+      return;
+    }
+
     let resolvedRole: string | null = null;
+    const previousUser = getCurrentUser();
 
     try {
       const data = await membershipService.getStatus();
       const key = computePlan(data.currentPlan, data.accountPlan);
+      const previousPlan = String(
+        previousUser?.plan || previousUser?.currentPlan?.key || previousUser?.currentPlan?.slug || "",
+      ).toLowerCase();
+      const nextPlan = String(data.accountPlan || key || "").toLowerCase();
+
+      if (previousUser && previousPlan && nextPlan && previousPlan !== nextPlan) {
+        const email = encodeURIComponent(previousUser.email || "");
+        await authService.signOut();
+        if (typeof window !== "undefined") {
+          window.location.assign(`/sesion-actualizada?email=${email}`);
+        }
+        return;
+      }
+
       setPlan(key as SubscriptionPlan);
       setPlanName(data.currentPlan?.name || "Plan Gratuito");
       setStatus(data.subscription?.status || null);
@@ -168,6 +194,7 @@ export function SubscriptionProvider({
       setCancelAtPeriodEnd(data.subscription?.cancelAtPeriodEnd || false);
       setDaysRemaining(data.subscription?.daysRemaining ?? null);
       setRequiresPlanSelection(data.requiresPlanSelection);
+      setHasPendingTransfer(data.hasPendingTransfer || false);
       setEntitlements(data.entitlements || {});
       setCurrentPlan(data.currentPlan);
       setUsage(data.usage);
@@ -234,7 +261,10 @@ export function SubscriptionProvider({
       }
 
       if (featureKey === "clinical_calculator.access") {
-        return currentPlan?.key !== "free";
+        if (currentPlan?.key) {
+          return currentPlan.key === "free" || currentPlan.key === "pro";
+        }
+        return Boolean(entitlements[featureKey]);
       }
 
       if (featureKey === "food_groups.access") {
@@ -250,7 +280,10 @@ export function SubscriptionProvider({
       }
 
       if (featureKey === "ai.autofill.access") {
-        return currentPlan?.key === "pro";
+        if (currentPlan?.key) {
+          return currentPlan.key === "free" || currentPlan.key === "pro";
+        }
+        return Boolean(entitlements[featureKey]);
       }
 
       if (featureKey === "nutritionist_portal.access") {
@@ -321,6 +354,7 @@ export function SubscriptionProvider({
     cancelAtPeriodEnd,
     daysRemaining,
     requiresPlanSelection,
+    hasPendingTransfer,
     entitlements,
     currentPlan,
     usage,

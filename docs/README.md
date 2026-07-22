@@ -16,6 +16,7 @@ Documentación útil para humanos y agentes.
 - `../.agents/context/architecture.md`
 - `../.agents/context/modules.md`
 - `../.agents/context/glossary.md`
+- `../nutrinet_business.md`: Propuesta de valor, mercado y visión de negocio de NutriNet.
 
 ## Notes
 

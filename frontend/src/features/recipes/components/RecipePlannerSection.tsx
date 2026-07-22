@@ -427,7 +427,7 @@ export const RecipePlannerSection: React.FC<RecipePlannerSectionProps> = ({
                                 </p>
                               ) : null}
                               {getMacroSummary(slot.recipe) ? (
-                                <p className="inline-flex flex-wrap gap-x-3 gap-y-1 rounded-full bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-500 shadow-sm ring-1 ring-slate-200">
+                                <p className="flex w-fit max-w-full flex-wrap items-center gap-x-3 gap-y-1 rounded-full bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-500 shadow-sm ring-1 ring-slate-200 leading-none">
                                   {getMacroSummary(slot.recipe)}
                                 </p>
                               ) : null}
@@ -530,38 +530,37 @@ export const RecipePlannerSection: React.FC<RecipePlannerSectionProps> = ({
                       !isRecipeMealSectionCompatible(draggedRecipe, slot);
 
                     return (
-                      <div
-                        key={`${day}-${slot.id}`}
-                        draggable
-                        onDragStart={() => {
-                          setCurrentDay(day);
-                          setDraggedSlotId(slot.id);
-                        }}
-                        onDragEnd={() => setDraggedSlotId(null)}
-                        onDragOver={(e) => {
-                          e.preventDefault();
-                          setDropTargetKey(`${day}-${slot.id}`);
-                        }}
-                        onDragLeave={() => {
-                          if (dropTargetKey === `${day}-${slot.id}`) {
-                            setDropTargetKey(null);
-                          }
-                        }}
-                        onDrop={() => {
-                          handleSlotDrop(slot.id, day);
-                        }}
-                        className={cn(
-                          "rounded-2xl border p-4 transition-all cursor-pointer relative overflow-hidden",
-                          isDropTarget &&
-                            (isDropBlocked
-                              ? "ring-2 ring-rose-300 border-rose-300 bg-rose-50/30"
-                              : "ring-2 ring-emerald-300 border-emerald-300 bg-emerald-50/30"),
-                          slot.recipe
-                            ? "border-slate-200 bg-slate-50"
-                            : "border-dashed border-slate-300 bg-white",
-                        )}
-                        onClick={() => openSlotEditor(day, slot.id)}
-                      >
+                        <div
+                          key={`${day}-${slot.id}`}
+                          draggable
+                          onDragStart={() => {
+                            setCurrentDay(day);
+                            setDraggedSlotId(slot.id);
+                          }}
+                          onDragEnd={() => setDraggedSlotId(null)}
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            setDropTargetKey(`${day}-${slot.id}`);
+                          }}
+                          onDragLeave={() => {
+                            if (dropTargetKey === `${day}-${slot.id}`) {
+                              setDropTargetKey(null);
+                            }
+                          }}
+                          onDrop={() => {
+                            handleSlotDrop(slot.id, day);
+                          }}
+                          className={cn(
+                            "rounded-2xl border p-4 transition-all relative overflow-hidden",
+                            isDropTarget &&
+                              (isDropBlocked
+                                ? "ring-2 ring-rose-300 border-rose-300 bg-rose-50/30"
+                                : "ring-2 ring-emerald-300 border-emerald-300 bg-emerald-50/30"),
+                            slot.recipe
+                              ? "border-slate-200 bg-slate-50"
+                              : "border-dashed border-slate-300 bg-white",
+                          )}
+                        >
                         {isDropBlocked ? (
                           <div className="mb-2 inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2 py-1 text-[10px] font-black uppercase tracking-widest text-rose-600">
                             <Lock className="h-3 w-3" />
@@ -600,7 +599,7 @@ export const RecipePlannerSection: React.FC<RecipePlannerSectionProps> = ({
                                 </p>
                               ) : null}
                               {getMacroSummary(slot.recipe) ? (
-                                <p className="mt-1 inline-flex flex-wrap gap-x-3 gap-y-1 rounded-full bg-white px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-slate-500 shadow-sm ring-1 ring-slate-200">
+                                <p className="mt-1 flex w-fit max-w-full flex-wrap items-center gap-x-3 gap-y-1 rounded-full bg-white px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-slate-500 shadow-sm ring-1 ring-slate-200 leading-none">
                                   {getMacroSummary(slot.recipe)}
                                 </p>
                               ) : null}
@@ -622,6 +621,17 @@ export const RecipePlannerSection: React.FC<RecipePlannerSectionProps> = ({
                             </div>
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openSlotEditor(day, slot.id);
+                              }}
+                              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-600 transition-all hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700"
+                              title="Abrir detalles"
+                            >
+                              Abrir
+                            </button>
                             {slot.isUserAdded ? (
                               <button
                                 type="button"

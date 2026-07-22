@@ -2,6 +2,13 @@ import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { Consultation } from "@/features/consultations";
 
+export type MetricSeriesPoint = {
+  date: string;
+  fullDate: string;
+  sortDate: string;
+  [key: string]: string | number;
+};
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
@@ -46,6 +53,55 @@ export const hasHistoricalMetricKey = (
       ? c.metrics.some((m) => normalizeMetricKey(m.label, m.key) === targetKey)
       : false,
   );
+
+export const buildMetricSeriesForKey = (
+  consultations: Consultation[],
+  targetKey: string,
+) => {
+  const seriesByDate = new Map<string, MetricSeriesPoint>();
+
+  const sortedConsultations = [...consultations].sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+  );
+
+  sortedConsultations.forEach((consultation) => {
+    const dateOnly = toDateOnly(consultation.date);
+    if (!dateOnly || !Array.isArray(consultation.metrics)) return;
+
+    consultation.metrics.forEach((metric) => {
+      const metricKey = normalizeMetricKey(metric.label, metric.key);
+      if (metricKey !== targetKey) return;
+
+      const rawValue =
+        typeof metric.value === "string"
+          ? metric.value.replace(",", ".")
+          : metric.value;
+      const value = Number(rawValue);
+      if (Number.isNaN(value)) return;
+
+      // This series is consultation-only. Baseline profile values are handled separately.
+      seriesByDate.set(dateOnly, {
+        date: formatDateOnlyForLocale(dateOnly, {
+          day: "2-digit",
+          month: "short",
+        }),
+        fullDate: formatDateOnlyForLocale(dateOnly, {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        }),
+        sortDate: dateOnly,
+        [targetKey]: value,
+      });
+    });
+  });
+
+  return Array.from(seriesByDate.values()).sort((a, b) => {
+    const left = a.sortDate || "";
+    const right = b.sortDate || "";
+    return left.localeCompare(right);
+  });
+};
 
 export const INDEPENDENT_METRICS_REGISTRY_TITLE = "registro de metricas independiente";
 

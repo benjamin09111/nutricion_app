@@ -27,6 +27,7 @@ import {
   HelpCircle,
   ChevronDown,
   ChevronRight,
+  Megaphone,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -56,8 +57,14 @@ const groups: SidebarGroup[] = [
     items: [
       { name: "Pacientes", href: "/dashboard/pacientes", icon: Users, tutorialPath: "/dashboard/pacientes" },
       { name: "Consultas", href: "/dashboard/consultas", icon: CalendarDays, tutorialPath: "/dashboard/consultas" },
-      { name: "Fichas clínicas", href: "/dashboard/fichas-clinicas", icon: FileText },
-      { name: "Citas", href: "/dashboard/citas", icon: CalendarDays, tutorialPath: "/dashboard/citas" },
+      { name: "Fichas clínicas", href: "/dashboard/fichas-clinicas", icon: FileText, hidden: true },
+      { name: "Citas", href: "/dashboard/citas", icon: CalendarDays, locked: true },
+    ],
+  },
+  {
+    title: "Crecimiento",
+    items: [
+      { name: "Marketing", href: "/dashboard/marketing", icon: Megaphone, locked: true },
     ],
   },
   {
@@ -100,7 +107,6 @@ const groups: SidebarGroup[] = [
   {
     title: "Ajustes",
     items: [
-      { name: "Información de Cálculos", href: "/dashboard/herramientas/porciones-intercambio", icon: BookOpen },
       { name: "Notificaciones", href: "/dashboard/ajustes/notificaciones", icon: Bell },
       { name: "Feedback & Soporte", href: "/dashboard/feedback", icon: MessageSquare },
     ],
@@ -108,6 +114,7 @@ const groups: SidebarGroup[] = [
   {
     title: "Ayuda",
     items: [
+      { name: "Información de Cálculos", href: "/dashboard/herramientas/porciones-intercambio", icon: BookOpen },
       { name: "Preguntas frecuentes", href: "/dashboard/preguntas-frecuentes", icon: HelpCircle },
     ],
   },
@@ -118,23 +125,48 @@ export function Sidebar() {
   const { isSidebarCollapsed, toggleSidebarCollapsed, isSidebarToggleHighlighted } = useDashboardShell();
   const { isDarkMode } = useTheme();
 
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  const SIDEBAR_GROUPS_STORAGE_KEY = "nutri_dashboard_sidebar_open_groups";
+
+  const getInitialOpenGroups = (): Record<string, boolean> => {
+    if (typeof window === "undefined") {
+      return { "Administración": true, "Crecimiento": true };
+    }
+    try {
+      const stored = localStorage.getItem(SIDEBAR_GROUPS_STORAGE_KEY);
+      if (stored === null) {
+        return { "Administración": true, "Crecimiento": true };
+      }
+      const parsed = JSON.parse(stored) as Record<string, boolean>;
+      if (typeof parsed !== "object" || parsed === null) {
+        return { "Administración": true, "Crecimiento": true };
+      }
+      return { "Administración": true, "Crecimiento": true, ...parsed };
+    } catch {
+      return { "Administración": true, "Crecimiento": true };
+    }
+  };
+
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(getInitialOpenGroups);
 
   const toggleGroup = (title: string) => {
     if (isSidebarCollapsed) return;
-    setOpenGroups((prev) => ({
-      ...prev,
-      [title]: !prev[title],
-    }));
+    setOpenGroups((prev) => {
+      const next = { ...prev, [title]: !prev[title] };
+      if (typeof window !== "undefined") {
+        localStorage.setItem(SIDEBAR_GROUPS_STORAGE_KEY, JSON.stringify(next));
+      }
+      return next;
+    });
   };
 
   const getGroupPriority = (group: SidebarGroup) => {
     if (group.title === "Administración") return 0;
-    if (group.title === "Nutrición y Dietética") return 1;
-    if (group.title === "Ejercicio y Deporte") return 2;
-    if (group.title === "Herramientas") return 3;
-    if (group.title === "Agentes & IA") return 4;
-    if (group.title === "Ayuda") return 5;
+    if (group.title === "Crecimiento") return 1;
+    if (group.title === "Nutrición y Dietética") return 2;
+    if (group.title === "Ejercicio y Deporte") return 3;
+    if (group.title === "Herramientas") return 4;
+    if (group.title === "Agentes & IA") return 5;
+    if (group.title === "Ayuda") return 6;
     return 10;
   };
 
@@ -149,20 +181,20 @@ export function Sidebar() {
   return (
     <div
       className={cn(
-        "sidebar-scroll dashboard-sidebar-bg flex h-full grow flex-col gap-y-4 overflow-y-auto border-r pb-4 transition-all duration-300",
+        "sidebar-scroll dashboard-sidebar-bg flex h-full grow flex-col gap-y-4 overflow-y-auto overflow-x-hidden border-r pb-4 transition-all duration-300",
         isSidebarCollapsed ? "px-2" : "px-3",
       )}
       style={{ scrollbarWidth: "thin" }}
     >
       <div
         className={cn(
-          "flex h-16 shrink-0 items-center justify-between",
-          isSidebarCollapsed ? "flex-col gap-1 pt-2 pb-1 h-20" : "pl-2",
+          "flex h-16 shrink-0 items-center justify-between sticky top-0 z-10 dashboard-sidebar-bg",
+          isSidebarCollapsed ? "flex-col gap-1 pt-2 pb-1 h-20 -mx-2 px-2" : "-mx-4 px-4 pl-6",
         )}
       >
         <Link
           href="/dashboard"
-          className="flex items-center rounded-xl transition-colors hover:opacity-90"
+          className="flex min-w-0 items-center rounded-xl transition-colors hover:opacity-90"
           aria-label="Ir al dashboard"
           title="Ir al dashboard"
         >
@@ -172,7 +204,7 @@ export function Sidebar() {
             width={isSidebarCollapsed ? 72 : 180}
             height={isSidebarCollapsed ? 23 : 57}
             className={cn("h-auto w-auto object-contain", isSidebarCollapsed ? "max-w-[72px]" : "max-w-[180px]")}
-            priority
+            style={{ width: "auto", height: "auto" }}
           />
         </Link>
 
@@ -196,7 +228,7 @@ export function Sidebar() {
         <ul role="list" className="flex flex-1 flex-col gap-y-2">
           {visibleGroups.map((group) => {
             const isOpen = openGroups[group.title] === true;
-            const showItems = isSidebarCollapsed || isOpen;
+            const showItems = isOpen;
 
             return (
               <li key={group.title}>
@@ -227,7 +259,7 @@ export function Sidebar() {
                         return (
                           <li key={item.name} className="mt-4 mb-1 px-3">
                             <div className={cn(
-                              "text-[10px] font-bold uppercase tracking-widest",
+                              "px-3 text-[10px] font-bold uppercase tracking-widest",
                               isDarkMode ? "text-indigo-300/40" : "text-slate-400/80"
                             )}>
                               {item.name}
@@ -246,8 +278,11 @@ export function Sidebar() {
                             onClick={(event) => {
                               if (isLocked) {
                                 event.preventDefault();
+                                const desc = item.name === "Marketing"
+                                  ? "Próximamente: conecta con potenciales pacientes que buscan un nutricionista. Perfil público, directorio especializado y canal de captación."
+                                  : `El módulo "${item.name}" estará disponible en futuras actualizaciones.`;
                                 toast.info("Próximamente", {
-                                  description: `El módulo "${item.name}" estará disponible en futuras actualizaciones.`,
+                                  description: desc,
                                 });
                               }
                             }}
@@ -260,7 +295,7 @@ export function Sidebar() {
                                   ? "text-indigo-100/72 hover:bg-indigo-500/8 hover:text-indigo-50 font-medium"
                                   : "text-slate-600 hover:text-indigo-600 hover:bg-slate-50 font-medium",
                               isLocked && "cursor-not-allowed grayscale opacity-50",
-                              "group flex cursor-pointer items-center gap-x-2 rounded-md p-2 leading-5 transition-colors",
+                              "group flex min-w-0 cursor-pointer items-center gap-x-2 rounded-md p-2 leading-5 transition-colors",
                               isSidebarCollapsed && "justify-center",
                               !isSidebarCollapsed && group.title === "Nutrición y Dietética" && "pl-4"
                             )}
@@ -283,7 +318,7 @@ export function Sidebar() {
                                 />
                               )}
                             </span>
-                            {!isSidebarCollapsed && <span className="flex-1">{item.name}</span>}
+                            {!isSidebarCollapsed && <span className="min-w-0 flex-1 truncate">{item.name}</span>}
                             {isLocked && <Lock className={cn("h-3 w-3", isDarkMode ? "text-indigo-100/35" : "text-slate-400")} />}
                           </Link>
                         </li>
@@ -296,22 +331,6 @@ export function Sidebar() {
           })}
         </ul>
       </nav>
-
-      <style jsx>{`
-        .sidebar-scroll::-webkit-scrollbar {
-          width: 6px;
-        }
-        .sidebar-scroll::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .sidebar-scroll::-webkit-scrollbar-thumb {
-          background: rgba(148, 163, 184, 0.35);
-          border-radius: 999px;
-        }
-        .sidebar-scroll::-webkit-scrollbar-thumb:hover {
-          background: rgba(100, 116, 139, 0.45);
-        }
-      `}</style>
     </div>
   );
 }

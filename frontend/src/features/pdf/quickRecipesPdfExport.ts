@@ -1,6 +1,7 @@
 "use client";
 
 import type { QuickRecipesPdfData } from "./QuickRecipesPdfDocument";
+import { membershipService } from "@/features/memberships/services/membership.service";
 
 /**
  * Generates and triggers a download of the Quick Recipes PDF.
@@ -17,6 +18,7 @@ export async function downloadQuickRecipesPdf(
 
   const doc = React.createElement(QuickRecipesPdfDocument, { data });
   const blob = await pdf(doc as any).toBlob();
+  await membershipService.consumeQuota("pdf.monthly.limit");
 
   const safeName =
     (data.title || "recetas_rapidas")

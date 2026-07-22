@@ -9,9 +9,10 @@ import {
 import { PrismaModule } from '../../prisma/prisma.module';
 import { MailModule } from '../mail/mail.module';
 import { AppointmentsModule } from '../appointments/appointments.module';
+import { DiscountCodesModule } from '../discount-codes/discount-codes.module';
 
 @Module({
-  imports: [PrismaModule, MailModule, AppointmentsModule],
+  imports: [PrismaModule, MailModule, AppointmentsModule, DiscountCodesModule],
   controllers: [
     UsersController,
     NutritionistsController,

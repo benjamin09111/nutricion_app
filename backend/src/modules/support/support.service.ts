@@ -16,7 +16,6 @@ export class SupportService {
     type: string;
     subject?: string;
   }) {
-    // Map frontend types to DB enum
     let dbType: SupportRequestType = SupportRequestType.OTHER;
     if (data.type === 'PASSWORD_RESET')
       dbType = SupportRequestType.PASSWORD_RESET;
@@ -25,9 +24,9 @@ export class SupportService {
     if (data.type === 'TESTIMONIO') dbType = SupportRequestType.TESTIMONIO;
     if (data.type === 'COMPLAINT') dbType = SupportRequestType.COMPLAINT;
     if (data.type === 'IDEA') dbType = SupportRequestType.IDEA;
+    if (data.type === 'REUNION') dbType = SupportRequestType.REUNION;
 
     // 1. Save request to DB
-    // We prepend the subject to the message for storage context
     const fullMessage = data.subject
       ? `[${data.subject}] ${data.message}`
       : data.message;
@@ -40,6 +39,18 @@ export class SupportService {
         status: SupportRequestStatus.PENDING,
       },
     });
+
+    if (data.type === 'REUNION' || dbType === SupportRequestType.REUNION) {
+      this.mailService
+        .sendMeetingRequestEmail({
+          userEmail: data.email,
+          subject: data.subject || 'Solicitud de reunión',
+          message: data.message || 'Sin detalle',
+        })
+        .catch((err) =>
+          console.error('Error enviando email de solicitud de reunión:', err),
+        );
+    }
 
     return request;
   }

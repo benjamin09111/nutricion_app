@@ -14,6 +14,10 @@ import {
   AlertCircle,
   Globe,
   Plus,
+  Link2,
+  Copy,
+  Mail,
+  Clock,
 } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
@@ -41,6 +45,12 @@ interface PatientAcompanamientoTabProps {
   isCreatingPortalMessage: boolean;
   handleCreatePortalMessage: () => Promise<void>;
   setActiveTab: (tab: any) => void;
+  portalAccessCode: string;
+  generatedPortalLink: string;
+  handleCopyPortalLink: (link?: string) => Promise<void>;
+  handleSendInvitationEmail: (email?: string) => Promise<void>;
+  isCreatingPortalInvite: boolean;
+  setIsPortalInviteModalOpen: (open: boolean) => void;
 
   // Notification modal props
   isPortalNotificationModalOpen: boolean;
@@ -73,6 +83,12 @@ export function PatientAcompanamientoTab({
   isCreatingPortalMessage,
   handleCreatePortalMessage,
   setActiveTab,
+  portalAccessCode,
+  generatedPortalLink,
+  handleCopyPortalLink,
+  handleSendInvitationEmail,
+  isCreatingPortalInvite,
+  setIsPortalInviteModalOpen,
 
   isPortalNotificationModalOpen,
   setIsPortalNotificationModalOpen,
@@ -86,93 +102,207 @@ export function PatientAcompanamientoTab({
   handleCreatePortalNotification,
 }: PatientAcompanamientoTabProps) {
   const portalEntries = portalOverview?.entries || [];
+  const activeInvitation = portalOverview?.portal?.activeInvitation;
+  const latestInvitation = portalOverview?.portal?.latestInvitation;
+  const isVerified = !!(activeInvitation?.verifiedAt || latestInvitation?.verifiedAt);
+  const hasPortal = !!(activeInvitation || latestInvitation);
+  const displayCode = portalAccessCode;
+  const displayLink = generatedPortalLink;
+
+  if (!hasPortal) {
+    return (
+      <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm text-center space-y-4">
+          <div className="w-14 h-14 rounded-2xl bg-emerald-50 flex items-center justify-center mx-auto">
+            <Link2 className="w-7 h-7 text-emerald-600" />
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-lg font-bold text-slate-900">
+              Crea un link y compártelo a tu paciente
+            </h3>
+            <p className="text-sm text-slate-500 max-w-md mx-auto">
+              Genera un enlace de acceso y un código personal. Tu paciente entrará con su correo y el código, y una vez verifique su identidad, el portal queda activo de forma permanente.
+            </p>
+          </div>
+          <Button
+            onClick={() => setIsPortalInviteModalOpen(true)}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-8 h-12 rounded-2xl shadow-lg shadow-emerald-100 cursor-pointer"
+          >
+            <Link2 className="w-4 h-4 mr-2" />
+            Crear link de acceso
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isVerified) {
+    return (
+      <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className="bg-white p-6 rounded-3xl border border-amber-100 shadow-sm space-y-4">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center shrink-0">
+              <Clock className="w-6 h-6 text-amber-600" />
+            </div>
+            <div className="flex-1 space-y-1">
+              <h3 className="text-base font-bold text-slate-900">Esperando que el paciente ingrese su código</h3>
+              <p className="text-sm text-slate-500">
+                Tu paciente aún no ha ingresado su código de acceso. Comparte el link y el código para que pueda activar su portal.
+              </p>
+            </div>
+          </div>
+          {displayLink && (
+            <div className="space-y-3 bg-slate-50 rounded-2xl p-4">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Link de acceso</p>
+                <p className="text-sm font-semibold text-slate-700 break-all">{displayLink}</p>
+              </div>
+              {displayCode && (
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Código de acceso</p>
+                  <p className="text-2xl font-black tracking-[0.2em] text-slate-900">{displayCode}</p>
+                </div>
+              )}
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => void handleCopyPortalLink(displayLink)}
+                  className="flex-1 rounded-2xl h-10 cursor-pointer"
+                >
+                  <Copy className="w-4 h-4 mr-2" />
+                  Copiar link
+                </Button>
+                <Button
+                  onClick={() => void handleSendInvitationEmail()}
+                  isLoading={isCreatingPortalInvite}
+                  className="flex-1 rounded-2xl h-10 bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer"
+                >
+                  <Mail className="w-4 h-4 mr-2" />
+                  Enviar por correo
+                </Button>
+              </div>
+            </div>
+          )}
+          <button
+            onClick={() => setIsPortalInviteModalOpen(true)}
+            className="text-xs font-semibold text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+          >
+            Generar un nuevo link
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      {/* Portal active status */}
+      <div className="bg-white p-5 rounded-2xl border border-emerald-100 shadow-sm flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center">
+            <ShieldCheck className="w-5 h-5 text-emerald-600" />
+          </div>
+          <div>
+            <p className="text-sm font-bold text-emerald-700">Portal del paciente activo</p>
+            <p className="text-xs text-slate-400">
+              {portalOverview?.summary?.latestEntryAt
+                ? `Última actividad hace ${portalOverview.summary.daysSinceLastEntry} día${portalOverview.summary.daysSinceLastEntry === 1 ? '' : 's'}`
+                : 'Sin actividad aún'}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {displayCode && (
+            <span className="text-xs font-black tracking-widest text-slate-400 bg-slate-50 px-3 py-1.5 rounded-xl">
+              {displayCode}
+            </span>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void handleCopyPortalLink(displayLink)}
+            className="h-8 rounded-xl text-[10px] font-bold cursor-pointer"
+          >
+            <Copy className="w-3 h-3 mr-1" />
+            Copiar link
+          </Button>
+        </div>
+      </div>
+
       {/* Sub-tabs Navigation */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm">
-        <div className="flex p-1.5 bg-slate-100/80 rounded-2xl w-full lg:w-fit border border-slate-200/50 backdrop-blur-sm overflow-x-auto no-scrollbar scroll-smooth">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+        <div className="flex gap-1 overflow-x-auto no-scrollbar">
           {[
             {
               id: "diario",
-              label: "Diario de Paciente",
+              label: "Diario",
               icon: ClipboardList,
-              color: "text-indigo-600",
-              bg: "bg-indigo-50",
+              activeColor: "text-indigo-600",
             },
             {
               id: "mensajes",
-              label: "Mensajes al Paciente",
+              label: "Mensajes",
               icon: Send,
-              color: "text-blue-600",
-              bg: "bg-blue-50",
+              activeColor: "text-blue-600",
             },
             {
               id: "preguntas",
               label: "Consultas",
               icon: MessageSquare,
-              color: "text-emerald-600",
-              bg: "bg-emerald-50",
+              activeColor: "text-emerald-600",
             },
             {
               id: "planes",
               label: "Planes",
               icon: Sparkles,
-              color: "text-amber-600",
-              bg: "bg-amber-50",
+              activeColor: "text-amber-600",
             },
             {
               id: "notificaciones",
-              label: "Notificaciones Correo",
+              label: "Notificaciones",
               icon: Bell,
-              color: "text-rose-600",
-              bg: "bg-rose-50",
+              activeColor: "text-rose-600",
             },
           ].map((sub) => (
             <button
               key={sub.id}
               onClick={() => setActiveAcompTab(sub.id as any)}
               className={cn(
-                "px-6 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all duration-300 cursor-pointer flex items-center gap-2 group whitespace-nowrap",
+                "px-4 py-2 text-[10px] font-bold uppercase tracking-wider rounded-xl transition-all duration-200 cursor-pointer flex items-center gap-1.5 whitespace-nowrap shrink-0",
                 activeAcompTab === sub.id
-                  ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200/50"
-                  : "text-slate-500 hover:text-slate-700 hover:bg-white/50",
+                  ? `${sub.activeColor} bg-slate-50`
+                  : "text-slate-400 hover:text-slate-600",
               )}
             >
-              <sub.icon
-                className={cn(
-                  "w-3.5 h-3.5 transition-transform group-hover:scale-110",
-                  activeAcompTab === sub.id ? sub.color : "text-slate-400",
-                )}
-              />
+              <sub.icon className="w-3.5 h-3.5" />
               {sub.label}
             </button>
           ))}
         </div>
 
-        <div className="flex items-center gap-3 bg-emerald-50/50 px-4 py-2 rounded-2xl border border-emerald-100/50">
-          <ShieldCheck className="w-4 h-4 text-emerald-600" />
-          <div className="text-[10px] font-bold text-emerald-700 uppercase tracking-tight">
-            Portal del Paciente Activo
-          </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+          <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">
+            Portal activo
+          </span>
         </div>
       </div>
 
       {/* Sub-tab Content */}
       <div className="min-h-[400px]">
         {activeAcompTab === "diario" && (
-          <div className="animate-in fade-in slide-in-from-right-4 duration-500 space-y-6">
-            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
-              <div className="flex items-center gap-4 mb-8">
-                <div className="p-3 bg-indigo-50 rounded-2xl">
-                  <ClipboardList className="w-6 h-6 text-indigo-600" />
+          <div className="animate-in fade-in slide-in-from-right-4 duration-500 space-y-4">
+            <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+              <div className="flex items-center gap-3 mb-5">
+                <div className="p-2 rounded-xl bg-indigo-50">
+                  <ClipboardList className="w-5 h-5 text-indigo-600" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-slate-900">
-                    Diario de {patient?.fullName}
+                  <h3 className="text-xs font-black uppercase tracking-wider text-indigo-600">
+                    Diario
                   </h3>
-                  <p className="text-sm font-medium text-slate-400">
-                    Revisa la bitácora de alimentación y hábitos del paciente
+                  <p className="text-[10px] font-medium text-slate-400">
+                    Bitácora de alimentación y hábitos de {patient?.fullName}
                   </p>
                 </div>
               </div>
@@ -255,18 +385,18 @@ export function PatientAcompanamientoTab({
         )}
 
         {activeAcompTab === "preguntas" && (
-          <div className="animate-in fade-in slide-in-from-right-4 duration-500 space-y-6">
-            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
-              <div className="flex items-center gap-4 mb-8">
-                <div className="p-3 bg-emerald-50 rounded-2xl">
-                  <MessageSquare className="w-6 h-6 text-emerald-600" />
+          <div className="animate-in fade-in slide-in-from-right-4 duration-500 space-y-4">
+            <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+              <div className="flex items-center gap-3 mb-5">
+                <div className="p-2 rounded-xl bg-emerald-50">
+                  <MessageSquare className="w-5 h-5 text-emerald-600" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-slate-900">
-                    Preguntas de {patient?.fullName}
+                  <h3 className="text-xs font-black uppercase tracking-wider text-emerald-600">
+                    Consultas
                   </h3>
-                  <p className="text-sm font-medium text-slate-400">
-                    Responde las dudas y consultas de tu paciente
+                  <p className="text-[10px] font-medium text-slate-400">
+                    Responde las dudas de {patient?.fullName}
                   </p>
                 </div>
               </div>
@@ -282,7 +412,7 @@ export function PatientAcompanamientoTab({
                           <div className="w-10 h-10 rounded-2xl bg-indigo-50 flex items-center justify-center shrink-0">
                             <User className="w-5 h-5 text-indigo-600" />
                           </div>
-                          <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-100 relative group">
+                          <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100 relative group">
                             <div className="flex items-center gap-2 mb-2">
                               <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">
                                 {patient?.fullName}
@@ -313,7 +443,7 @@ export function PatientAcompanamientoTab({
                             key={r.id}
                             className="flex justify-end gap-4 ml-12"
                           >
-                            <div className="p-6 bg-emerald-50 rounded-[2rem] border border-emerald-100 relative group">
+                            <div className="p-5 bg-emerald-50 rounded-2xl border border-emerald-100 relative group">
                               <div className="flex items-center gap-2 mb-2 justify-end">
                                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">
                                   {new Date(r.createdAt).toLocaleDateString(
@@ -353,7 +483,7 @@ export function PatientAcompanamientoTab({
 
                         <div className="flex justify-end pl-12 pr-14">
                           {replyTarget?.id === q.id ? (
-                            <div className="w-full space-y-3 bg-white p-6 rounded-[2.5rem] border border-emerald-100 shadow-xl shadow-emerald-500/5 animate-in zoom-in-95 duration-300">
+                            <div className="w-full space-y-3 bg-white p-5 rounded-2xl border border-emerald-100 shadow-xl shadow-emerald-500/5 animate-in zoom-in-95 duration-300">
                               <Textarea
                                 placeholder="Escribe tu respuesta aquí..."
                                 className="min-h-[100px] rounded-2xl border-transparent bg-slate-50 focus:bg-white focus:border-emerald-500/20 font-medium py-4 px-6 text-sm resize-none"
@@ -412,28 +542,28 @@ export function PatientAcompanamientoTab({
         )}
 
         {activeAcompTab === "planes" && (
-          <div className="animate-in fade-in slide-in-from-right-4 duration-500 space-y-6">
-            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
-              <div className="flex items-center justify-between gap-4 mb-8">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-amber-50 rounded-2xl">
-                    <Sparkles className="w-6 h-6 text-amber-600" />
+          <div className="animate-in fade-in slide-in-from-right-4 duration-500 space-y-4">
+            <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+              <div className="flex items-center justify-between gap-3 mb-5">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-amber-50">
+                    <Sparkles className="w-5 h-5 text-amber-600" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold text-slate-900">
-                      Planes Compartidos
+                    <h3 className="text-xs font-black uppercase tracking-wider text-amber-600">
+                      Planes
                     </h3>
-                    <p className="text-sm font-medium text-slate-400">
-                      Gestiona los entregables visibles para {patient?.fullName}
+                    <p className="text-[10px] font-medium text-slate-400">
+                      Entregables visibles para {patient?.fullName}
                     </p>
                   </div>
                 </div>
                 <Button
                   onClick={() => setActiveTab("Creaciones")}
-                  className="bg-slate-900 hover:bg-slate-800 text-white font-black px-6 rounded-2xl shadow-lg h-12 text-[10px] tracking-widest uppercase cursor-pointer"
+                  className="bg-slate-900 hover:bg-slate-800 text-white font-black px-5 rounded-2xl shadow-lg h-10 text-[10px] tracking-widest uppercase cursor-pointer"
                 >
-                  <Plus className="w-4 h-4 mr-2 text-amber-400" />
-                  Compartir Nueva Creación
+                  <Plus className="w-3.5 h-3.5 mr-1.5 text-amber-400" />
+                  Compartir
                 </Button>
               </div>
 
@@ -498,18 +628,18 @@ export function PatientAcompanamientoTab({
         )}
 
         {activeAcompTab === "mensajes" && (
-          <div className="animate-in fade-in slide-in-from-right-4 duration-500 space-y-6">
-            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-8">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-blue-50 rounded-2xl">
-                  <Send className="w-6 h-6 text-blue-600" />
+          <div className="animate-in fade-in slide-in-from-right-4 duration-500 space-y-4">
+            <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-5">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-xl bg-blue-50">
+                  <Send className="w-5 h-5 text-blue-600" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-slate-900">
-                    Mensajes Directos
+                  <h3 className="text-xs font-black uppercase tracking-wider text-blue-600">
+                    Mensajes
                   </h3>
-                  <p className="text-sm font-medium text-slate-400">
-                    Escribe mensajes que tu paciente leerá al entrar a su portal
+                  <p className="text-[10px] font-medium text-slate-400">
+                    Mensajes que tu paciente leerá en su portal
                   </p>
                 </div>
               </div>
@@ -519,7 +649,7 @@ export function PatientAcompanamientoTab({
                   value={portalMessageText}
                   onChange={(e) => setPortalMessageText(e.target.value)}
                   placeholder="Escribe un mensaje, recomendación o saludo para tu paciente..."
-                  className="min-h-[120px] rounded-[2rem] border-slate-100 bg-slate-50/50 focus:bg-white focus:ring-blue-500/10 focus:border-blue-500 resize-none py-6 px-8 text-sm font-medium leading-relaxed"
+                  className="min-h-[120px] rounded-xl border-slate-100 bg-slate-50/50 focus:bg-white focus:ring-blue-500/10 focus:border-blue-500 resize-none py-5 px-6 text-sm font-medium leading-relaxed"
                 />
                 <div className="flex justify-end">
                   <Button
@@ -576,28 +706,28 @@ export function PatientAcompanamientoTab({
         )}
 
         {activeAcompTab === "notificaciones" && (
-          <div className="animate-in fade-in slide-in-from-right-4 duration-500 space-y-6">
-            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
-              <div className="flex items-center justify-between gap-4 mb-8">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-rose-50 rounded-2xl">
-                    <Bell className="w-6 h-6 text-rose-600" />
+          <div className="animate-in fade-in slide-in-from-right-4 duration-500 space-y-4">
+            <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+              <div className="flex items-center justify-between gap-3 mb-5">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-rose-50">
+                    <Bell className="w-5 h-5 text-rose-600" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold text-slate-900">
-                      Notificaciones por Correo
+                    <h3 className="text-xs font-black uppercase tracking-wider text-rose-600">
+                      Notificaciones
                     </h3>
-                    <p className="text-sm font-medium text-slate-400">
+                    <p className="text-[10px] font-medium text-slate-400">
                       Envía avisos que disparan un email a tu paciente
                     </p>
                   </div>
                 </div>
                 <Button
                   onClick={() => setIsPortalNotificationModalOpen(true)}
-                  className="bg-slate-900 hover:bg-slate-800 text-white font-black px-6 rounded-2xl shadow-lg h-12 text-[10px] tracking-widest uppercase cursor-pointer"
+                  className="bg-slate-900 hover:bg-slate-800 text-white font-black px-5 rounded-2xl shadow-lg h-10 text-[10px] tracking-widest uppercase cursor-pointer"
                 >
-                  <Plus className="w-4 h-4 mr-2 text-rose-400" />
-                  Nueva Notificación
+                  <Plus className="w-3.5 h-3.5 mr-1.5 text-rose-400" />
+                  Nueva
                 </Button>
               </div>
 

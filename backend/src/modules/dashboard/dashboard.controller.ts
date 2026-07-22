@@ -23,6 +23,9 @@ export class DashboardController {
 
   @Get('stats')
   getStats(@Request() req: any) {
-    return this.dashboardService.getNutritionistStats(req.user.nutritionistId);
+    return this.dashboardService.getNutritionistStats(
+      req.user.nutritionistId,
+      req.user.id,
+    );
   }
 }

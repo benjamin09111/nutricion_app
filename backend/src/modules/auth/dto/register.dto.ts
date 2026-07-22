@@ -1,19 +1,25 @@
-import {
+﻿import {
   IsEmail,
   IsNotEmpty,
   IsString,
   MinLength,
   Matches,
+  MaxLength,
 } from 'class-validator';
 import { PASSWORD_MIN_LENGTH, PASSWORD_REGEX } from '../password-policy';
 
 export class RegisterDto {
   @IsEmail({}, { message: 'El correo electrónico no es válido' })
   @IsNotEmpty({ message: 'El correo es requerido' })
+  @MaxLength(254, { message: 'El correo es demasiado largo' })
   email: string;
 
   @IsString({ message: 'El nombre debe ser texto' })
   @IsNotEmpty({ message: 'El nombre completo es requerido' })
+  @MaxLength(120, { message: 'El nombre es demasiado largo' })
+  @Matches(/^\s*\S+(?:\s+\S+){2,}\s*$/, {
+    message: 'Ingresa nombre y dos apellidos',
+  })
   fullName: string;
 
   @IsString({ message: 'La contraseña debe ser texto' })
@@ -21,6 +27,7 @@ export class RegisterDto {
   @MinLength(PASSWORD_MIN_LENGTH, {
     message: `La contraseña debe tener al menos ${PASSWORD_MIN_LENGTH} caracteres`,
   })
+  @MaxLength(72, { message: 'La contraseña es demasiado larga' })
   @Matches(PASSWORD_REGEX.uppercase, {
     message: 'La contraseña debe incluir al menos una letra mayúscula',
   })

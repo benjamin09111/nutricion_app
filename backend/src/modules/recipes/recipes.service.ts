@@ -17,8 +17,17 @@ import {
 import { CacheService } from '../../common/services/cache.service';
 import { AiService } from '../../common/services/ai.service';
 import { RECIPES_AI_PROMPTS } from './recipes-ai-prompts';
+import {
+  aiFillDayResponseSchema,
+  aiFillWeekResponseSchema,
+  quickAiFillResponseSchema,
+  quickAiDishSchema,
+} from './recipes-ai-schemas';
 import { isAdminRole } from '../permissions/permissions.constants';
 import { PlanUsageService } from '../permissions/plan-usage.service';
+import type { ZodTypeAny } from 'zod';
+import { z } from 'zod';
+import { buildPatientAiContext } from '../patients/patient-ai-context.builder';
 
 type AiRecipeOutput = {
   slotId: string;
@@ -32,7 +41,12 @@ type AiRecipeOutput = {
   calories: number;
   carbs: number;
   fats: number;
-  ingredients: string[];
+  ingredients: Array<{
+    name: string;
+    quantity?: string;
+    amount?: number;
+    unit?: string;
+  }>;
   mainIngredients: string[];
   extraIngredients?: string[];
 };
@@ -130,12 +144,90 @@ export class RecipesService {
 
     const optimizedPayload = {
       ...payload,
-      patientProfile: this.aiService.formatPatientContext(
-        payload.patientProfile,
-      ),
+      patientContext: payload.patientContext || null,
+      patientProfile:
+        payload.patientContext ||
+        this.aiService.formatPatientContext(payload.patientProfile),
     };
 
     return [scopePrompt, JSON.stringify(optimizedPayload)].join('\n');
+  }
+
+  private async resolvePatientContext(
+    nutritionistId: string,
+    payload: {
+      patientId?: string;
+      patientContext?: Record<string, unknown> | null;
+      patient?: {
+        ageYears?: number | null;
+        birthDate?: string | Date | null;
+        gender?: string | null;
+        height?: number | null;
+        weight?: number | null;
+        activityLevel?: string | null;
+        nutritionalFocus?: string | null;
+        fitnessGoals?: string | null;
+        clinicalSummary?: string | null;
+        restrictions?: string[] | null;
+        likes?: string | null;
+      };
+    },
+  ) {
+    if (payload.patientContext) return payload.patientContext;
+
+    if (payload.patientId) {
+      const patient = await this.prisma.patient.findFirst({
+        where: { id: payload.patientId, nutritionistId },
+        select: {
+          age: true,
+          birthDate: true,
+          gender: true,
+          height: true,
+          weight: true,
+          activityLevel: true,
+          nutritionalFocus: true,
+          fitnessGoals: true,
+          primaryCondition: true,
+          clinicalSummary: true,
+          dietRestrictions: true,
+          likes: true,
+          customVariables: true,
+          clinicalRecord: true,
+          consultations: {
+            orderBy: { date: 'desc' },
+            take: 3,
+            select: {
+              date: true,
+              title: true,
+              description: true,
+              plansDelivered: true,
+            },
+          },
+        },
+      });
+
+      if (patient) {
+        return buildPatientAiContext(patient);
+      }
+    }
+
+    if (payload.patient) {
+      return buildPatientAiContext({
+        age: payload.patient.ageYears ?? null,
+        birthDate: payload.patient.birthDate ?? null,
+        gender: payload.patient.gender ?? null,
+        height: payload.patient.height ?? null,
+        weight: payload.patient.weight ?? null,
+        activityLevel: payload.patient.activityLevel ?? null,
+        nutritionalFocus: payload.patient.nutritionalFocus ?? null,
+        fitnessGoals: payload.patient.fitnessGoals ?? null,
+        clinicalSummary: payload.patient.clinicalSummary ?? null,
+        dietRestrictions: payload.patient.restrictions ?? [],
+        likes: payload.patient.likes ?? null,
+      });
+    }
+
+    return null;
   }
 
   private mapAiErrorMessage(upstreamMessage: string): string {
@@ -169,15 +261,49 @@ export class RecipesService {
     userPrompt: string,
   ): Promise<string> {
     try {
-      await this.planUsageService.consumeMonthlyQuota(
-        accountId,
-        'ai.calls.limit',
-      );
+      await this.planUsageService.consumeQuota(accountId, 'ai.calls.limit');
 
       const text = await this.aiService.callJson(systemInstruction, userPrompt);
       this.logger.log(`[AI] Response ok chars=${text.length}`);
-      this.logger.log(`[AI] Raw response:\n${text}`);
       return text;
+    } catch (error) {
+      if (error instanceof ForbiddenException) {
+        throw error;
+      }
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`[AI] Request failed: ${message}`);
+      throw new BadRequestException(this.mapAiErrorMessage(message));
+    }
+  }
+
+  private async callAiObject(
+    accountId: string,
+    taskName: string,
+    systemInstruction: string,
+    userPrompt: string,
+    schema: ZodTypeAny,
+  ): Promise<{
+    provider: 'deepseek' | 'openai';
+    modelId: string;
+    object: any;
+  }> {
+    try {
+      await this.planUsageService.consumeQuota(accountId, 'ai.calls.limit');
+
+      const result = await this.aiService.generateStructuredObject(
+        taskName,
+        systemInstruction,
+        userPrompt,
+        schema,
+      );
+      this.logger.log(
+        `[AI] Response ok provider=${result.provider} model=${result.modelId}`,
+      );
+      return result as {
+        provider: 'deepseek' | 'openai';
+        modelId: string;
+        object: any;
+      };
     } catch (error) {
       if (error instanceof ForbiddenException) {
         throw error;
@@ -302,7 +428,11 @@ export class RecipesService {
       ...(recipe.ingredients || []),
       ...(recipe.mainIngredients || []),
     ]
-      .map((item) => this.normalizeFoodName(item))
+      .map((item) =>
+        this.normalizeFoodName(
+          typeof item === 'string' ? item : item?.name || '',
+        ),
+      )
       .filter(Boolean);
 
     const requiresStrictDietFoods = this.isStrictMealSection(
@@ -387,20 +517,27 @@ export class RecipesService {
     await this.getNutritionistId(userId);
 
     const { payload } = dto;
+    const patientContext = await this.resolvePatientContext(userId, payload);
+    const payloadWithContext = {
+      ...payload,
+      patientContext,
+    } as AiFillPayload;
     const allowedFoods = new Set(
       payload.allowedFoodsByDiet.map((food) => this.normalizeFoodName(food)),
     );
 
-    const content = await this.callAiJson(
+    const structured = await this.callAiObject(
       userId,
+      'recipes.fill',
       RECIPES_AI_PROMPTS.base,
-      this.buildAiPrompt(payload),
+      this.buildAiPrompt(payloadWithContext),
+      payload.scope === 'day'
+        ? aiFillDayResponseSchema
+        : aiFillWeekResponseSchema,
     );
 
-    const parsed = this.parseAiResponse(content);
-
     if (payload.scope === 'day') {
-      const result = parsed as AiFillDayResponse;
+      const result = structured.object as AiFillDayResponse;
       this.validateReplacementGuide(result.meta);
 
       const slotMap = new Map(
@@ -422,7 +559,7 @@ export class RecipesService {
         if (extraIngredients.length > 0) {
           recipe.extraIngredients = extraIngredients;
           this.logger.warn(
-            `[Gemini] Extra ingredients accepted slot=${recipe.slotId} extras=${JSON.stringify(extraIngredients)}`,
+            `[AI:${structured.provider}] Extra ingredients accepted slot=${recipe.slotId} extras=${JSON.stringify(extraIngredients)}`,
           );
         }
       });
@@ -430,7 +567,7 @@ export class RecipesService {
       return result;
     }
 
-    const result = parsed as AiFillWeekResponse;
+    const result = structured.object as AiFillWeekResponse;
     this.validateReplacementGuide(result.meta);
 
     const slotMap = new Map(
@@ -456,7 +593,7 @@ export class RecipesService {
         if (extraIngredients.length > 0) {
           recipe.extraIngredients = extraIngredients;
           this.logger.warn(
-            `[Gemini] Extra ingredients accepted day=${dayBlock.day} slot=${recipe.slotId} extras=${JSON.stringify(extraIngredients)}`,
+            `[AI:${structured.provider}] Extra ingredients accepted day=${dayBlock.day} slot=${recipe.slotId} extras=${JSON.stringify(extraIngredients)}`,
           );
         }
       });
@@ -637,7 +774,9 @@ export class RecipesService {
         12,
       ),
       resources: this.sanitizeStringList(payload.resources).slice(0, 12),
-      patient: this.aiService.formatPatientContext(payload.patient),
+      patientContext: payload.patientContext || null,
+      patient:
+        payload.patientContext || this.aiService.formatPatientContext(payload.patient),
       nutritionalTargets: payload.nutritionalTargets || null,
       existingDishes: this.sanitizeQuickExistingDishes(payload.existingDishes),
       desiredDishCount,
@@ -647,6 +786,7 @@ export class RecipesService {
 
     return [
       'Objetivo: generar platos realistas para el modulo rapido de recetas.',
+      'Si patientContext existe, es la fuente de verdad compacta del paciente y debe usarse para decidir porciones, restricciones y nivel de detalle.',
       'Responde solo JSON valido, sin markdown, sin texto extra y sin bloques vacios.',
       'Respeta siempre las restricciones y evita ingredientes prohibidos.',
       'Prioriza allowedFoodsMain, gustos del paciente y platos simples de cocina chilena/latam.',
@@ -666,17 +806,25 @@ export class RecipesService {
       `CONTEXTO: ${JSON.stringify(safePayload)}`,
     ].join('\n');
   }
+
   async quickFillWithAi(userId: string, dto: QuickAiFillRecipesDto) {
     await this.getNutritionistId(userId);
 
     const payload = dto.payload || ({} as QuickAiFillPayload);
-    const content = await this.callAiJson(
+    const patientContext = await this.resolvePatientContext(userId, payload);
+    const payloadWithContext = {
+      ...payload,
+      patientContext,
+    } as QuickAiFillPayload & { patientContext: Record<string, unknown> | null };
+    const structured = await this.callAiObject(
       userId,
+      'recipes.quick-fill',
       'Eres un nutricionista clínico experto. Responde solo JSON válido.',
-      this.buildQuickAiPrompt(payload),
+      this.buildQuickAiPrompt(payloadWithContext),
+      quickAiFillResponseSchema,
     );
 
-    const parsed = this.parseQuickAiResponse(content);
+    const parsed = structured.object;
     const dishes = Array.isArray(parsed?.dishes) ? parsed.dishes : [];
     if (dishes.length === 0) {
       throw new BadRequestException(
@@ -1133,17 +1281,27 @@ export class RecipesService {
     ].join('\n');
 
     try {
-      const content = await this.callAiJson(
-        userId,
+      await this.planUsageService.consumeQuota(userId, 'ai.calls.limit');
+
+      const structured = await this.aiService.generateStructuredObject(
+        'recipes.estimate-macros',
         'Eres un asistente nutricional. Responde solo JSON.',
         prompt,
+        z
+          .object({
+            calories: z.number().finite(),
+            proteins: z.number().finite(),
+            carbs: z.number().finite(),
+            lipids: z.number().finite(),
+          })
+          .strict(),
       );
 
-      const parsed = JSON.parse(content) as {
-        calories?: number;
-        proteins?: number;
-        carbs?: number;
-        lipids?: number;
+      const parsed = structured.object as {
+        calories: number;
+        proteins: number;
+        carbs: number;
+        lipids: number;
       };
       return {
         calories: Math.round(parsed.calories ?? 0),

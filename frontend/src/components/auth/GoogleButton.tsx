@@ -17,7 +17,7 @@ export default function GoogleButton({
     <Button
       type="button"
       variant="outline"
-      className="w-full flex items-center justify-center gap-3 bg-white hover:bg-slate-50 border-slate-200 text-slate-700 font-medium py-6 px-4 shadow-sm transition-all duration-200 hover:shadow-md active:scale-[0.98]"
+      className="w-full flex items-center justify-center gap-3 bg-white hover:bg-slate-50 border-slate-200 text-slate-700 font-bold h-11 px-4 rounded-xl shadow-xs transition-all duration-200 hover:shadow-sm active:scale-[0.98] text-sm"
       onClick={onClick}
       isLoading={isLoading}
     >

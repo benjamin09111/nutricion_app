@@ -53,6 +53,7 @@ export class UsersController {
     @Query('plan') plan?: string,
     @Query('status') status?: string,
     @Query('payment') payment?: string,
+    @Query('verification') verification?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
@@ -92,6 +93,7 @@ export class UsersController {
       plan,
       status,
       payment,
+      verification,
       page ? Number(page) : undefined,
       limit ? Number(limit) : undefined,
     );
@@ -149,7 +151,7 @@ export class UsersController {
   @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
   updatePlan(
     @Param('id') id: string,
-    @Body() body: { plan: string; days?: number },
+    @Body() body: { plan: string; days?: number; recordPayment?: boolean },
     @Request() req: any,
   ) {
     if (!isAdminRole(req.user.role)) {
@@ -157,7 +159,25 @@ export class UsersController {
         'Solo el administrador puede cambiar planes',
       );
     }
-    return this.usersService.updatePlan(id, body.plan as any, body.days);
+    return this.usersService.updatePlan(
+      id,
+      body.plan as any,
+      body.days,
+      body.recordPayment,
+    );
+  }
+
+  @Post(':id/notify-transfer')
+  @UseGuards(AuthGuard, PermissionsGuard)
+  @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
+  notifyTransfer(@Param('id') id: string, @Request() req: any) {
+    if (!isAdminRole(req.user.role)) {
+      throw new UnauthorizedException(
+        'Solo el administrador puede enviar este aviso',
+      );
+    }
+
+    return this.usersService.sendTransferNotification(id);
   }
 
   @Patch(':id/public-profile')
@@ -218,7 +238,7 @@ export class UsersController {
       );
     }
 
-    return this.usersService.hardDelete(id);
+    return this.usersService.softDelete(id);
   }
 
   @Delete(':id')
@@ -245,5 +265,85 @@ export class UsersController {
     }
 
     return this.usersService.hardDelete(id);
+  }
+
+  @Post('me/deletion-request')
+  @UseGuards(AuthGuard)
+  async createDeletionRequest(@Request() req: any) {
+    const accountId = req.user.id;
+    const result = await this.usersService.createDeletionRequest(accountId);
+
+    if (result.exists) {
+      return {
+        success: true,
+        message: 'Ya existe una solicitud pendiente',
+        request: result.request,
+      };
+    }
+
+    return {
+      success: true,
+      message: 'Solicitud de eliminación creada',
+      request: result.request,
+    };
+  }
+
+  @Get('me/deletion-request')
+  @UseGuards(AuthGuard)
+  async getMyDeletionRequest(@Request() req: any) {
+    const accountId = req.user.id;
+    const request = await this.usersService.getPendingDeletionRequests();
+    const pending = request.filter((r) => r.accountId === accountId);
+    return {
+      hasPendingRequest: pending.length > 0,
+      request: pending[0] || null,
+    };
+  }
+
+  @Get('deletion-requests')
+  @UseGuards(AuthGuard, PermissionsGuard)
+  @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
+  async getDeletionRequests(@Request() req: any) {
+    const requesterRole = req.user.role;
+    if (!isAdminRole(requesterRole)) {
+      throw new UnauthorizedException(
+        'Solo personal autorizado puede ver estas solicitudes',
+      );
+    }
+
+    return this.usersService.getPendingDeletionRequests();
+  }
+
+  @Get('deletion-requests/count')
+  @UseGuards(AuthGuard, PermissionsGuard)
+  @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
+  async countDeletionRequests(@Request() req: any) {
+    const requesterRole = req.user.role;
+    if (!isAdminRole(requesterRole)) {
+      throw new UnauthorizedException(
+        'Solo personal autorizado puede ver estas solicitudes',
+      );
+    }
+
+    const count = await this.usersService.countPendingDeletionRequests();
+    return { count };
+  }
+
+  @Post('deletion-requests/:id/accept')
+  @UseGuards(AuthGuard, PermissionsGuard)
+  @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
+  async acceptDeletionRequest(
+    @Param('id') id: string,
+    @Body() body: { notes?: string },
+    @Request() req: any,
+  ) {
+    const requesterRole = req.user.role;
+    if (!isAdminRole(requesterRole)) {
+      throw new UnauthorizedException(
+        'Solo personal autorizado puede procesar estas solicitudes',
+      );
+    }
+
+    return this.usersService.acceptDeletionRequest(id, req.user.id, body.notes);
   }
 }

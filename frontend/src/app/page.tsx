@@ -23,6 +23,17 @@ import { getMembershipFeatureDisplay } from "@/features/memberships/utils/featur
 import { type MembershipPlan } from "@/features/memberships/services/membership.service";
 import LandingContactForm from "@/components/landing/LandingContactForm";
 
+const toMembershipPlanArray = (value: unknown): MembershipPlan[] => {
+  if (Array.isArray(value)) return value as MembershipPlan[];
+  if (value && typeof value === "object") {
+    const payload = value as { data?: unknown; plans?: unknown; items?: unknown };
+    if (Array.isArray(payload.data)) return payload.data as MembershipPlan[];
+    if (Array.isArray(payload.plans)) return payload.plans as MembershipPlan[];
+    if (Array.isArray(payload.items)) return payload.items as MembershipPlan[];
+  }
+  return [];
+};
+
 export default function LandingPage() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [plans, setPlans] = useState<MembershipPlan[]>([]);
@@ -30,7 +41,7 @@ export default function LandingPage() {
   useEffect(() => {
     fetchApi(`/memberships/active`)
       .then((res) => res.json())
-      .then((data) => setPlans(data))
+      .then((data) => setPlans(toMembershipPlanArray(data)))
       .catch(() => {});
   }, []);
 
@@ -133,6 +144,7 @@ export default function LandingPage() {
               width={160}
               height={50}
               className="h-auto w-[118px] object-contain transition-transform duration-300 hover:scale-105 sm:w-[148px]"
+              style={{ width: "auto", height: "auto" }}
               priority
             />
           </div>
@@ -152,12 +164,6 @@ export default function LandingPage() {
               className="relative text-sm font-semibold transition-colors duration-200 after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-0 after:bg-[#a88aed] after:transition-all after:duration-300 hover:after:w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a88aed] focus-visible:ring-offset-2 rounded text-[#a88aed] hover:text-[#8f70d8]"
             >
               Inicia Sesión
-            </Link>
-            <Link
-              href="/nutricionistas"
-              className="relative text-sm font-semibold transition-colors duration-200 after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-0 after:bg-emerald-500 after:transition-all after:duration-300 hover:after:w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 rounded text-emerald-600 hover:text-emerald-700"
-            >
-              Ver Nutricionistas
             </Link>
             <Link href="/login">
               <Button className="rounded-full h-10 px-6 text-xs font-bold uppercase tracking-wider bg-[#a88aed] hover:bg-[#8f70d8] text-white transition-all duration-300 hover:scale-105 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a88aed] focus-visible:ring-offset-2">
@@ -197,13 +203,6 @@ export default function LandingPage() {
                 className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-[#a88aed]/20 hover:bg-[#a88aed]/5 hover:text-[#8f70d8]"
               >
                 Inicia Sesión
-              </Link>
-              <Link
-                href="/nutricionistas"
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="rounded-2xl border border-emerald-200 px-4 py-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50"
-              >
-                Ver Nutricionistas
               </Link>
               <Link
                 href="/login"
@@ -364,6 +363,15 @@ export default function LandingPage() {
                 {content.pricing.titleLine2} 🌱
               </span>
             </div>
+
+            {/* Launch Offer Banner */}
+            <div className="flex justify-center mb-10">
+              <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-3 text-sm font-bold text-white shadow-xl">
+                <Sparkles className="h-4 w-4" />
+                OFERTA DE LANZAMIENTO: $19.990/mes para las primeras 20 personas (Precio regular $25.000)
+              </div>
+            </div>
+
             <div
               className={cn(
                 "grid gap-6 xl:gap-8",
@@ -407,11 +415,18 @@ export default function LandingPage() {
                         >
                           {plan.name}
                         </h3>
-                        <div className="flex items-baseline justify-center gap-1">
-                          <span className="text-5xl font-black tracking-tight text-slate-900">
-                            ${Number(plan.price).toLocaleString("es-CL")}
-                          </span>
-                          <span className="text-slate-500 text-sm">/mes</span>
+                        <div className="flex flex-col items-center justify-center gap-1">
+                          {plan.slug === "pro" && (
+                            <span className="text-sm font-semibold text-slate-400 line-through">
+                              $25.000 / mes
+                            </span>
+                          )}
+                          <div className="flex items-baseline justify-center gap-1">
+                            <span className="text-5xl font-black tracking-tight text-slate-900">
+                              ${Number(plan.price).toLocaleString("es-CL")}
+                            </span>
+                            <span className="text-slate-500 text-sm">/mes</span>
+                          </div>
                         </div>
                         {plan.description && (
                           <p className="mt-3 text-sm text-slate-500">

@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { ResourceEditor } from "../ResourceEditor";
 
 export const metadata = {
@@ -6,5 +7,9 @@ export const metadata = {
 };
 
 export default function NuevoRecursoPage() {
-  return <ResourceEditor />;
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-sm font-medium text-slate-400">Cargando editor...</div>}>
+      <ResourceEditor />
+    </Suspense>
+  );
 }

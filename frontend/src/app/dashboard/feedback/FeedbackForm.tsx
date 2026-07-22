@@ -12,6 +12,7 @@ import {
   Lightbulb,
   AlertTriangle,
   Loader2,
+  Calendar,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -25,8 +26,8 @@ function cn(...inputs: ClassValue[]) {
 }
 
 const feedbackSchema = z.object({
-  type: z.enum(["feedback", "complaint", "idea", "testimonio"]),
-  subject: z.string().min(5, "El asunto debe tener al menos 5 caracteres"),
+  type: z.enum(["feedback", "complaint", "idea", "testimonio", "reunion"]),
+  subject: z.string().min(5, "El asunto/motivo debe tener al menos 5 caracteres"),
   message: z
     .string()
     .min(10, "El mensaje debe ser más detallado (mínimo 10 caracteres)"),
@@ -62,8 +63,6 @@ export function FeedbackForm() {
       const token = localStorage.getItem("auth_token");
       const payload = {
         ...data,
-        // Map frontend types to uppercase for backend consistency if needed,
-        // though backend DTO maps string to enum.
         type: data.type.toUpperCase(),
       };
 
@@ -91,37 +90,9 @@ export function FeedbackForm() {
       setTimeout(() => setIsSuccess(false), 3000);
     } catch (error) {
       console.error(error);
-      // Optionally set an error state to show to user
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const typeStyles = {
-    feedback: {
-      wrapper: "border-emerald-500 bg-emerald-50",
-      icon: "text-emerald-600",
-      label: "text-emerald-900", // High contrast
-      dot: "bg-emerald-500",
-    },
-    testimonio: {
-      wrapper: "border-sky-500 bg-sky-50",
-      icon: "text-sky-600",
-      label: "text-sky-950",
-      dot: "bg-sky-500",
-    },
-    idea: {
-      wrapper: "border-amber-500 bg-amber-50",
-      icon: "text-amber-600",
-      label: "text-amber-950", // High contrast (was likely too light before)
-      dot: "bg-amber-500",
-    },
-    complaint: {
-      wrapper: "border-rose-500 bg-rose-50",
-      icon: "text-rose-600",
-      label: "text-rose-950", // High contrast
-      dot: "bg-rose-500",
-    },
   };
 
   return (
@@ -136,29 +107,31 @@ export function FeedbackForm() {
               Tu mensaje nos importa
             </h3>
             <p className="text-slate-500 text-sm font-medium leading-relaxed max-w-md mx-auto">
-              Ayúdanos a mejorar NutriNet. Cuéntanos tus ideas, problemas o testimonios para seguir evolucionando juntos.
+              Ayúdanos a mejorar NutriNet. Cuéntanos tus ideas, problemas, solicitudes de reunión o testimonios.
             </p>
           </div>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             {/* Type Selection */}
             <div className="space-y-4">
-              <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1">
+              <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest ml-1">
                 Tipo de Mensaje
               </label>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
                 {[
                   { id: "feedback", label: "Feedback", icon: MessageSquare, color: "indigo" },
                   { id: "testimonio", label: "Testimonio", icon: CheckCircle2, color: "green" },
                   { id: "idea", label: "Idea", icon: Lightbulb, color: "amber" },
                   { id: "complaint", label: "Problema", icon: AlertTriangle, color: "rose" },
+                  { id: "reunion", label: "Reunión", icon: Calendar, color: "purple" },
                 ].map((item) => {
                   const isSelected = selectedType === item.id;
                   const colorMap: Record<string, string> = {
                     indigo: "indigo",
                     green: "emerald",
                     amber: "amber",
-                    rose: "rose"
+                    rose: "rose",
+                    purple: "purple",
                   };
                   const color = colorMap[item.color];
 
@@ -169,23 +142,23 @@ export function FeedbackForm() {
                         setValue("type", item.id as FeedbackFormData["type"])
                       }
                       className={cn(
-                        "cursor-pointer relative overflow-hidden rounded-[1.5rem] border-2 p-4 transition-all duration-200 hover:shadow-sm active:scale-95 text-center flex flex-col items-center gap-2",
+                        "cursor-pointer relative overflow-hidden rounded-[1.25rem] border-2 p-3 transition-all duration-200 hover:shadow-sm active:scale-95 text-center flex flex-col items-center gap-1.5",
                         isSelected
                           ? `border-${color}-500 bg-${color}-50 text-${color}-700`
-                          : "border-slate-50 bg-slate-50/50 text-slate-400 hover:border-slate-200 hover:bg-slate-50",
+                          : "border-slate-100 bg-slate-50 text-slate-500 hover:border-slate-200 hover:bg-slate-100",
                       )}
                     >
                       <item.icon
                         className={cn(
-                          "w-6 h-6",
+                          "w-5 h-5",
                           isSelected ? `text-${color}-600` : "text-slate-300",
                         )}
                       />
-                      <span className="text-[11px] font-semibold uppercase tracking-wider">
+                      <span className="text-[10px] font-bold uppercase tracking-wider">
                         {item.label}
                       </span>
                       {isSelected && (
-                        <div className={cn("absolute top-2 right-2 w-1.5 h-1.5 rounded-full", `bg-${color}-500`)} />
+                        <div className={cn("absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full", `bg-${color}-500`)} />
                       )}
                     </div>
                   );
@@ -195,6 +168,12 @@ export function FeedbackForm() {
                 <div className="rounded-[1.25rem] border border-green-100 bg-green-50 p-4 text-xs text-green-700 font-medium leading-relaxed">
                   <p className="font-semibold text-green-800 mb-1">Testimonio público</p>
                   Usaremos tu comentario como testimonio público en nuestra plataforma. ¡Gracias por tu apoyo!
+                </div>
+              )}
+              {selectedType === "reunion" && (
+                <div className="rounded-[1.25rem] border border-purple-100 bg-purple-50 p-4 text-xs text-purple-800 font-medium leading-relaxed">
+                  <p className="font-semibold text-purple-950 mb-1">Solicitud de Reunión</p>
+                  Al enviar esta solicitud, notificaremos directamente a <strong>contacto@nutrinet.cl</strong> indicando tu correo y el motivo especificado para agendar una reunión.
                 </div>
               )}
               {errors.type && (
@@ -207,7 +186,7 @@ export function FeedbackForm() {
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <label htmlFor="subject" className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1">
+                <label htmlFor="subject" className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest ml-1">
                   Asunto
                 </label>
                 <Input
@@ -217,10 +196,16 @@ export function FeedbackForm() {
                   {...register("subject")}
                   className="rounded-xl bg-slate-50/50 border-slate-100 focus:bg-white focus:border-indigo-500 transition-all font-medium"
                 />
+                {errors.subject && (
+                  <p className="flex items-center gap-1 text-rose-500 text-xs font-medium ml-1">
+                    <AlertCircle className="w-3 h-3" />
+                    {errors.subject.message}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="message" className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1">
+                <label htmlFor="message" className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest ml-1">
                   Detalle del mensaje
                 </label>
                 <Textarea
@@ -231,6 +216,12 @@ export function FeedbackForm() {
                   {...register("message")}
                   className="rounded-xl bg-slate-50/50 border-slate-100 focus:bg-white focus:border-indigo-500 transition-all font-medium resize-none"
                 />
+                {errors.message && (
+                  <p className="flex items-center gap-1 text-rose-500 text-xs font-medium ml-1">
+                    <AlertCircle className="w-3 h-3" />
+                    {errors.message.message}
+                  </p>
+                )}
               </div>
             </div>
 

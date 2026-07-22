@@ -15,7 +15,9 @@ import { PatientsService } from './patients.service';
 import { CreatePatientDto } from './dto/create-patient.dto';
 import { UpdatePatientDto } from './dto/update-patient.dto';
 import { CreateExamDto } from './dto/create-exam.dto';
+import { UpdateClinicalRecordDto } from './dto/update-clinical-record.dto';
 import { AuthGuard } from '../auth/guards/auth.guard';
+import { PatientDataAccessGuard } from './guards/patient-data-access.guard';
 import { HttpCacheInterceptor } from '../../common/interceptors/http-cache.interceptor';
 import { CacheTTL } from '@nestjs/cache-manager';
 import { PermissionsGuard } from '../permissions/permissions.guard';
@@ -23,7 +25,7 @@ import { RequireFeatures } from '../permissions/permissions.decorator';
 import { SPECIAL_FEATURES } from '../permissions/permissions.constants';
 
 @Controller('patients')
-@UseGuards(AuthGuard, PermissionsGuard)
+@UseGuards(AuthGuard, PatientDataAccessGuard, PermissionsGuard)
 @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
 @UseInterceptors(HttpCacheInterceptor)
 @CacheTTL(300000) // 5 minutes
@@ -69,6 +71,12 @@ export class PatientsController {
     return this.patientsService.findOne(req.user.nutritionistId, id);
   }
 
+  @Get(':id/ai-context')
+  @CacheTTL(0)
+  getAiContext(@Request() req: any, @Param('id') id: string) {
+    return this.patientsService.getAiContext(req.user.nutritionistId, id);
+  }
+
   @Patch(':id')
   update(
     @Request() req: any,
@@ -105,6 +113,24 @@ export class PatientsController {
       req.user.nutritionistId,
       patientId,
       createExamDto,
+    );
+  }
+
+  @Get(':id/clinical-record')
+  getClinicalRecord(@Request() req: any, @Param('id') id: string) {
+    return this.patientsService.getClinicalRecord(req.user.nutritionistId, id);
+  }
+
+  @Patch(':id/clinical-record')
+  updateClinicalRecord(
+    @Request() req: any,
+    @Param('id') id: string,
+    @Body() updateClinicalRecordDto: UpdateClinicalRecordDto,
+  ) {
+    return this.patientsService.updateClinicalRecord(
+      req.user.nutritionistId,
+      id,
+      updateClinicalRecordDto,
     );
   }
 }

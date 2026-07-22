@@ -1,6 +1,7 @@
 "use client";
 
 import type { FastDeliverablePdfData } from "./FastDeliverablePdfDocument";
+import { membershipService } from "@/features/memberships/services/membership.service";
 
 export async function downloadFastDeliverablePdf(
   data: FastDeliverablePdfData,
@@ -13,6 +14,7 @@ export async function downloadFastDeliverablePdf(
 
   const doc = React.createElement(FastDeliverablePdfDocument, { data });
   const blob = await pdf(doc as unknown as Parameters<typeof pdf>[0]).toBlob();
+  await membershipService.consumeQuota("pdf.monthly.limit");
 
   const safeName =
     data.name.replace(/\s+/g, "_").replace(/[^\w-]/g, "") ||

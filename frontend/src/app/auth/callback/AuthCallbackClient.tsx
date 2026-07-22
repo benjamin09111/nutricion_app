@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { fetchApi } from "@/lib/api-base";
 import { getCurrentUser, setCurrentUser } from "@/lib/current-user";
+import { resolveSafePostAuthPath } from "@/lib/safe-redirect";
+import { persistAuthSession } from "@/features/auth/services/auth.service";
 
 const DRAFT_STORAGE_KEYS = [
   "nutri_active_draft",
@@ -30,7 +32,7 @@ export default function AuthCallbackClient({ fallbackMessage }: Props = {}) {
 
   useEffect(() => {
     const ticket = params.get("ticket");
-    const next = params.get("next") || "/dashboard";
+    const next = resolveSafePostAuthPath(params.get("next"));
 
     if (!ticket) {
       setMessage("No encontramos el ticket de autenticación.");
@@ -56,6 +58,14 @@ export default function AuthCallbackClient({ fallbackMessage }: Props = {}) {
           throw new Error("No pudimos validar el ticket de autenticación.");
         }
 
+        const exchangedSession = sessionResponse
+          ? await sessionResponse.json()
+          : null;
+        if (!exchangedSession?.access_token) {
+          throw new Error("Google no devolvió una sesión válida.");
+        }
+        persistAuthSession(exchangedSession.access_token);
+
         const response = await fetchApi("/auth/me");
 
         if (!response.ok) {
@@ -74,7 +84,15 @@ export default function AuthCallbackClient({ fallbackMessage }: Props = {}) {
         }
         setCurrentUser(data.user);
 
-        router.replace(data.user?.requiresPlanSelection ? "/plan" : next);
+        const postRutNext = data.user?.requiresPlanSelection ? "/plan" : next;
+        if (!data.user?.rut) {
+          router.replace(
+            `/onboarding/rut?next=${encodeURIComponent(postRutNext)}`,
+          );
+          return;
+        }
+
+        router.replace(postRutNext);
       } catch (error) {
         console.error("Auth callback error:", error);
         setMessage("No pudimos completar el inicio de sesión con Google.");

@@ -4,11 +4,20 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../../prisma/prisma.service';
 import type { Request } from 'express';
+import {
+  AUTH_SESSION_COOKIE,
+  LEGACY_AUTH_SESSION_COOKIE,
+} from '../auth-cookie.constants';
 
 const extractTokenFromCookie = (request: Request) => {
   const cookieHeader = request.headers.cookie || '';
-  const match = cookieHeader.match(/(?:^|;\s*)auth_token_http=([^;]+)/);
-  return match ? decodeURIComponent(match[1]) : null;
+  for (const cookieName of [AUTH_SESSION_COOKIE, LEGACY_AUTH_SESSION_COOKIE]) {
+    const match = cookieHeader.match(
+      new RegExp(`(?:^|;\\s*)${cookieName}=([^;]+)`),
+    );
+    if (match) return decodeURIComponent(match[1]);
+  }
+  return null;
 };
 
 @Injectable()
@@ -29,6 +38,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       ]),
       ignoreExpiration: false,
       secretOrKey: secret,
+      algorithms: ['HS256'],
+      issuer: configService.get<string>('JWT_ISSUER') || 'nutrinet-api',
+      audience: configService.get<string>('JWT_AUDIENCE') || 'nutrinet-app',
     });
   }
 
@@ -40,24 +52,33 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         status: true,
         role: true,
         email: true,
+        rut: true,
+        lastLoginAt: true,
         nutritionist: {
           select: { id: true },
         },
       },
     });
 
-    if (
-      !account ||
-      account.status === 'SUSPENDED' ||
-      account.status === 'DELETED'
-    ) {
+    if (!account || account.status !== 'ACTIVE') {
       throw new UnauthorizedException('Sesión inválida');
+    }
+
+    if (
+      account.lastLoginAt &&
+      typeof payload?.iat === 'number' &&
+      Math.floor(account.lastLoginAt.getTime() / 1000) > payload.iat
+    ) {
+      throw new UnauthorizedException(
+        `Su plan ha sido actualizado ${payload.email}, por favor, vuelva a iniciar sesión por seguridad.`,
+      );
     }
 
     return {
       id: payload.sub,
       email: account.email,
       role: account.role,
+      rut: account.rut,
       nutritionistId: account.nutritionist?.id,
     };
   }

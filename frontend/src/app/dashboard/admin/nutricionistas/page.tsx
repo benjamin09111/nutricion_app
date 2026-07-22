@@ -18,6 +18,7 @@ import {
   Mail,
   X,
   Trash2,
+  UserX,
 } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -26,6 +27,7 @@ import { Pagination } from "@/components/ui/Pagination";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { fetchApi } from "@/lib/api-base";
+import { normalizeMembershipPlansResponse } from "@/features/memberships/services/membership.service";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -44,7 +46,8 @@ type ClientTab =
   | "Nutricionistas"
   | "Organizaciones"
   | "Suplementos fitness"
-  | "Supermercados";
+  | "Supermercados"
+  | "Solicitudes de eliminación";
 
 export default function AdminClientsPage() {
   const [activeTab, setActiveTab] = useState<ClientTab>("Nutricionistas");
@@ -63,6 +66,8 @@ export default function AdminClientsPage() {
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showPaymentConfirmModal, setShowPaymentConfirmModal] = useState(false);
+  const [showAcceptDeletionModal, setShowAcceptDeletionModal] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const [durationDays, setDurationDays] = useState<number>(30);
@@ -70,6 +75,10 @@ export default function AdminClientsPage() {
   const [selectedPlan, setSelectedPlan] = useState<string>("");
   const [isUpdating, setIsUpdating] = useState(false);
   const [isResendingVerification, setIsResendingVerification] = useState(false);
+  const [deletionRequests, setDeletionRequests] = useState<any[]>([]);
+  const [isLoadingDeletionRequests, setIsLoadingDeletionRequests] = useState(false);
+  const [selectedDeletionRequest, setSelectedDeletionRequest] = useState<any>(null);
+  const [deletionRequestsCount, setDeletionRequestsCount] = useState(0);
   const actionButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const menuRef = useRef<HTMLDivElement | null>(null);
 
@@ -79,6 +88,18 @@ export default function AdminClientsPage() {
       return "FREE";
     }
     return plan.slug.toUpperCase();
+  };
+
+  const normalizePlanKeyValue = (value?: string | null) => {
+    const normalized = String(value || "").trim().toLowerCase();
+
+    if (!normalized) return "FREE";
+    if (normalized.includes("free") || normalized.includes("gratis")) return "FREE";
+    if (normalized.includes("pro") || normalized.includes("premium")) return "PRO";
+    if (normalized.includes("enterprise")) return "ENTERPRISE";
+    if (normalized.includes("iniciante") || normalized.includes("starter")) return "INICIANTE";
+
+    return normalized.toUpperCase();
   };
 
   const getFreePlanValue = (plans: MembershipPlan[]) => {
@@ -124,7 +145,7 @@ export default function AdminClientsPage() {
   const getSelectedPlanValue = (clientPlan?: string | null) => {
     if (!clientPlan) return getFreePlanValue(membershipPlans);
 
-    const normalized = clientPlan.toUpperCase();
+    const normalized = normalizePlanKeyValue(clientPlan);
     const matchingPlan = membershipPlans.find(
       (plan) => normalizePlanValue(plan) === normalized,
     );
@@ -132,10 +153,35 @@ export default function AdminClientsPage() {
     return matchingPlan ? normalizePlanValue(matchingPlan) : getFreePlanValue(membershipPlans);
   };
 
+  const getPlanByValue = (planValue?: string | null) =>
+    membershipPlans.find((plan) => normalizePlanValue(plan) === normalizePlanKeyValue(planValue)) || null;
+
+  const getPlanLabelByValue = (planValue?: string | null) => {
+    const plan = getPlanByValue(planValue);
+    if (plan) return getPlanLabel(plan);
+
+    return normalizePlanKeyValue(planValue) === "FREE"
+      ? "Gratis"
+      : String(planValue || "Sin plan");
+  };
+
+  const getSelectedMembershipPlan = () =>
+    membershipPlans.find((plan) => normalizePlanValue(plan) === selectedPlan) || null;
+
+  const selectedMembershipPlan = getPlanByValue(selectedPlan);
+  const currentUserPlanValue = getSelectedPlanValue(selectedUser?.plan);
+  const currentMembershipPlan = getPlanByValue(selectedUser?.plan);
+  const isSelectedPlanUnchanged = selectedPlan === currentUserPlanValue;
+
   useEffect(() => {
     fetchMembershipPlans();
-    fetchClients(1);
-  }, [activeTab]);
+    fetchDeletionRequestsCount();
+    if (activeTab === "Solicitudes de eliminación") {
+      fetchDeletionRequests();
+    } else {
+      fetchClients(1);
+    }
+  }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -190,9 +236,10 @@ export default function AdminClientsPage() {
       });
       if (!response.ok) throw new Error("Error al cargar planes");
       const data = await response.json();
-      setMembershipPlans(data);
+      const plans = normalizeMembershipPlansResponse(data) as MembershipPlan[];
+      setMembershipPlans(plans);
 
-      const freePlanValue = getFreePlanValue(data);
+      const freePlanValue = getFreePlanValue(plans);
       setSelectedPlan((current) => current || freePlanValue);
     } catch (error) {
       console.error("Error fetching membership plans:", error);
@@ -204,32 +251,34 @@ export default function AdminClientsPage() {
     try {
       const token =
         Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      let role = "ALL_NUTRITIONISTS";
-
-      switch (activeTab) {
-        case "Organizaciones":
-          role = "ORGANIZATION";
-          break;
-        case "Suplementos fitness":
-          role = "SUPPLEMENT_STORE";
-          break;
-        case "Supermercados":
-          role = "SUPERMARKET";
-          break;
-        default:
-          role = "ALL_NUTRITIONISTS";
-      }
-
       const params = new URLSearchParams({
-        role,
+        role: "ALL_NUTRITIONISTS",
         page: String(pageArg),
         limit: "10",
       });
 
+      switch (activeTab) {
+        case "Organizaciones":
+          params.set("role", "ORGANIZATION");
+          break;
+        case "Suplementos fitness":
+          params.set("role", "SUPPLEMENT_STORE");
+          break;
+        case "Supermercados":
+          params.set("role", "SUPERMARKET");
+          break;
+      }
+
       if (searchTerm.trim()) params.set("search", searchTerm.trim());
       if (planFilter !== "all") params.set("plan", planFilter);
       if (statusFilter !== "all") params.set("status", statusFilter);
-      if (paymentFilter !== "all") params.set("payment", paymentFilter);
+      if (paymentFilter !== "all") {
+        if (paymentFilter === "pending_transfer") {
+          params.set("verification", "pending_transfer");
+        } else {
+          params.set("payment", paymentFilter);
+        }
+      }
 
       const response = await fetchApi(`/users?${params.toString()}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -256,6 +305,80 @@ export default function AdminClientsPage() {
       setTotalPages(1);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchDeletionRequests = async () => {
+    setIsLoadingDeletionRequests(true);
+    try {
+      const token =
+        Cookies.get("auth_token") || localStorage.getItem("auth_token");
+      const response = await fetchApi(`/users/deletion-requests`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) throw new Error("Error al cargar solicitudes");
+      const data = await response.json();
+      setDeletionRequests(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error(error);
+      toast.error("No se pudieron cargar las solicitudes de eliminación");
+      setDeletionRequests([]);
+    } finally {
+      setIsLoadingDeletionRequests(false);
+    }
+  };
+
+  const fetchDeletionRequestsCount = async () => {
+    try {
+      const token =
+        Cookies.get("auth_token") || localStorage.getItem("auth_token");
+      const response = await fetchApi(`/users/deletion-requests/count`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setDeletionRequestsCount(data.count || 0);
+      }
+    } catch (error) {
+      console.error("Error fetching deletion requests count:", error);
+    }
+  };
+
+  const handleAcceptDeletionRequest = async () => {
+    if (!selectedDeletionRequest) return;
+    setIsUpdating(true);
+    try {
+      const token =
+        Cookies.get("auth_token") || localStorage.getItem("auth_token");
+      const response = await fetchApi(
+        `/users/deletion-requests/${selectedDeletionRequest.id}/accept`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({}),
+        },
+      );
+
+      if (!response.ok) throw new Error("Error al procesar la solicitud");
+
+      toast.success(
+        `La cuenta de ${selectedDeletionRequest.fullName || selectedDeletionRequest.email} ha sido eliminada permanentemente.`,
+      );
+      setShowAcceptDeletionModal(false);
+      setSelectedDeletionRequest(null);
+      void fetchDeletionRequests();
+      void fetchDeletionRequestsCount();
+      dispatchEvent(new CustomEvent("admin-deletion-request-accepted"));
+    } catch (error) {
+      console.error(error);
+      toast.error("Error al procesar la solicitud de eliminación");
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -288,30 +411,25 @@ export default function AdminClientsPage() {
     void fetchClients(page);
   };
 
-  const formatPlanName = (planValue?: string | null) => {
-    if (!planValue) return "Gratis";
+  const handleManualConfig = async (
+    recordPayment = false,
+    force = false,
+    planOverride?: string,
+  ) => {
+    if (!selectedUser || !selectedPlan) return;
 
-    const normalized = planValue.toUpperCase();
-    const matchedPlan = membershipPlans.find(
-      (plan) => normalizePlanValue(plan) === normalized,
-    );
-
-    if (matchedPlan) {
-      return matchedPlan.price === 0 ? "Gratis" : matchedPlan.name;
+    const targetPlan = planOverride || selectedPlan;
+    const currentPlanValue = getSelectedPlanValue(selectedUser.plan);
+    if (!force && targetPlan === currentPlanValue) {
+      toast.error("Ese usuario ya tiene ese plan");
+      return;
     }
 
-    if (normalized === "FREE") return "Gratis";
-    return normalized;
-  };
-
-  const handlePlanChange = (user: any, newPlan: string) => {
-    setSelectedUser(user);
-    setSelectedPlan(newPlan);
-    setShowConfigModal(true);
-  };
-
-  const handleManualConfig = async () => {
-    if (!selectedUser || !selectedPlan) return;
+    const membershipPlan = getPlanByValue(targetPlan);
+    if (membershipPlan && membershipPlan.price > 0 && !recordPayment) {
+      setShowPaymentConfirmModal(true);
+      return;
+    }
 
     setIsUpdating(true);
     try {
@@ -324,8 +442,9 @@ export default function AdminClientsPage() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          plan: selectedPlan,
+          plan: targetPlan,
           days: durationDays,
+          recordPayment,
         }),
       });
 
@@ -335,6 +454,7 @@ export default function AdminClientsPage() {
         `Configuración aplicada a ${selectedUser.fullName || selectedUser.email}`,
       );
       setShowConfigModal(false);
+      setShowPaymentConfirmModal(false);
       fetchClients();
     } catch (error) {
       console.error(error);
@@ -402,9 +522,18 @@ export default function AdminClientsPage() {
     { label: "Organizaciones", icon: Building2 },
     { label: "Suplementos fitness", icon: Pill },
     { label: "Supermercados", icon: ShoppingCart },
+    { label: "Solicitudes de eliminación", icon: UserX },
   ];
 
   const getPaymentStatus = (client: any) => {
+    if (client.verification === "pending_transfer") {
+      return {
+        label: "Transferencia pendiente",
+        color: "text-amber-700 bg-amber-50",
+        icon: AlertCircle,
+      };
+    }
+
     if (client.paymentState === "free") {
       return {
         label: "Gratis",
@@ -415,7 +544,7 @@ export default function AdminClientsPage() {
 
     if (client.paymentState === "paid") {
       return {
-        label: "Al día",
+        label: "Aprobado",
         color: "text-green-700 bg-green-50",
         icon: CheckCircle2,
       };
@@ -431,7 +560,7 @@ export default function AdminClientsPage() {
 
     if (!client.subscriptionEndsAt)
       return {
-        label: "Sin Pago",
+        label: "Sin pago",
         color: "text-slate-500 bg-slate-100",
         icon: AlertCircle,
       };
@@ -440,7 +569,7 @@ export default function AdminClientsPage() {
 
     if (endDate > now) {
       return {
-        label: "Al día",
+        label: "Aprobado",
         color: "text-green-700 bg-green-50",
         icon: CheckCircle2,
       };
@@ -481,6 +610,14 @@ export default function AdminClientsPage() {
     } finally {
       setIsResendingVerification(false);
     }
+  };
+
+  const handleForceFreePlan = async () => {
+    if (!selectedUser) return;
+
+    const freePlanValue = getFreePlanValue(membershipPlans);
+    setSelectedPlan(freePlanValue);
+    await handleManualConfig(false, true, freePlanValue);
   };
 
   const getMenuPosition = (button: HTMLButtonElement) => {
@@ -554,6 +691,11 @@ export default function AdminClientsPage() {
                   )}
                 />
                 {tab.label}
+                {tab.label === "Solicitudes de eliminación" && deletionRequestsCount > 0 && (
+                  <span className="ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-black leading-none text-white">
+                    {deletionRequestsCount > 99 ? "99+" : deletionRequestsCount}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -611,7 +753,8 @@ export default function AdminClientsPage() {
         >
           <option value="all">Todos los pagos</option>
           <option value="free">Gratis</option>
-          <option value="paid">Al día</option>
+          <option value="paid">Solo realizados</option>
+          <option value="pending_transfer">Transferencias pendientes</option>
           <option value="expired">Vencido</option>
           <option value="none">Sin pago</option>
         </select>
@@ -621,44 +764,110 @@ export default function AdminClientsPage() {
       </p>
 
       {/* Table */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200">
-            <thead className="bg-slate-50/80 border-b border-slate-200">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
-                  {activeTab === "Nutricionistas"
-                    ? "Profesional"
-                    : activeTab === "Organizaciones"
-                      ? "Organización"
-                      : activeTab === "Suplementos fitness"
-                        ? "Tienda"
-                        : "Supermercado"}
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
-                  Plan
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
-                  Pago
-                </th>
-                <th className="px-6 py-3 text-center text-xs font-bold text-slate-700 uppercase tracking-wider">
-                  {activeTab === "Nutricionistas"
-                    ? "Pacientes"
-                    : activeTab === "Organizaciones"
-                      ? "Miembros"
-                      : activeTab === "Suplementos fitness"
-                        ? "Productos"
-                        : "Sucursales"}
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
-                  Estado
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
-                  Último Acceso
-                </th>
-                <th className="px-6 py-3 w-[50px]"></th>
-              </tr>
-            </thead>
+      {activeTab === "Solicitudes de eliminación" ? (
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-slate-200">
+              <thead className="bg-slate-50/80 border-b border-slate-200">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Profesional</th>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Email</th>
+                  <th className="px-6 py-3 text-center text-xs font-bold text-slate-700 uppercase tracking-wider">Pacientes</th>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Fecha de Solicitud</th>
+                  <th className="px-6 py-3 w-[120px]"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {isLoadingDeletionRequests ? (
+                  <tr>
+                    <td colSpan={5} className="text-center py-8 text-slate-500">Cargando...</td>
+                  </tr>
+                ) : deletionRequests.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="text-center py-8 text-slate-500">
+                      No hay solicitudes de eliminación pendientes.
+                    </td>
+                  </tr>
+                ) : (
+                  deletionRequests.map((request) => (
+                    <tr key={request.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="h-9 w-9 rounded-full bg-red-100 flex items-center justify-center text-red-600 font-medium uppercase">
+                            {request.fullName?.charAt(0) || request.email.charAt(0)}
+                          </div>
+                          <div className="font-medium text-slate-900">{request.fullName || "Sin Nombre"}</div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-slate-600 text-sm">{request.email}</td>
+                      <td className="px-6 py-4 text-center text-slate-600 font-mono">{request.patientCount || 0}</td>
+                      <td className="px-6 py-4 text-slate-500 text-xs">
+                        {new Date(request.requestedAt).toLocaleDateString("es-CL", {
+                          day: "2-digit",
+                          month: "long",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </td>
+                      <td className="px-6 py-4">
+                        <Button
+                          type="button"
+                          onClick={() => {
+                            setSelectedDeletionRequest(request);
+                            setShowAcceptDeletionModal(true);
+                          }}
+                          className="h-8 px-3 rounded-lg text-xs font-bold bg-red-600 hover:bg-red-700 text-white cursor-pointer"
+                        >
+                          Aceptar Solicitud
+                        </Button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-slate-200">
+              <thead className="bg-slate-50/80 border-b border-slate-200">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    {activeTab === "Nutricionistas"
+                      ? "Profesional"
+                      : activeTab === "Organizaciones"
+                        ? "Organización"
+                        : activeTab === "Suplementos fitness"
+                          ? "Tienda"
+                          : "Supermercado"}
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    Plan
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    Pago
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    {activeTab === "Nutricionistas"
+                      ? "Pacientes"
+                      : activeTab === "Organizaciones"
+                        ? "Miembros"
+                        : activeTab === "Suplementos fitness"
+                          ? "Productos"
+                          : "Sucursales"}
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    Estado
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    Último Acceso
+                  </th>
+                  <th className="px-6 py-3 w-[50px]"></th>
+                </tr>
+              </thead>
             <tbody className="divide-y divide-slate-100">
               {isLoading ? (
                 <tr>
@@ -697,36 +906,31 @@ export default function AdminClientsPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <select
-                          value={getSelectedPlanValue(client.plan)}
-                          onChange={(e) =>
-                            handlePlanChange(client, e.target.value)
-                          }
-                          className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset cursor-pointer border-none outline-none ${
-                            client.plan === "ENTERPRISE"
-                              ? "bg-purple-50 text-purple-700 ring-purple-600/20"
-                              : client.plan === "PRO"
-                                ? "bg-indigo-50 text-indigo-700 ring-indigo-600/20"
-                                : "bg-slate-50 text-slate-700 ring-slate-600/20"
-                          }`}
-                        >
-                          {membershipPlans.length > 0 ? (
-                            membershipPlans.map((plan) => (
-                              <option
-                                key={plan.id}
-                                value={normalizePlanValue(plan)}
-                              >
-                                {getPlanLabel(plan)}
-                              </option>
-                            ))
-                          ) : (
-                            <>
-                              <option value="FREE">Gratis</option>
-                              <option value="PRO">PRO</option>
-                              <option value="ENTERPRISE">ENTERPRISE</option>
-                            </>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedUser(client);
+                            setSelectedPlan(getSelectedPlanValue(client.plan));
+                            setDurationDays(30);
+                            setShowConfigModal(true);
+                            setOpenMenuId(null);
+                            setMenuPosition(null);
+                          }}
+                          className={cn(
+                            "inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold ring-1 ring-inset transition-colors cursor-pointer",
+                            normalizePlanKeyValue(client.plan) === "PRO"
+                              ? "bg-indigo-50 text-indigo-700 ring-indigo-200 hover:bg-indigo-100"
+                              : normalizePlanKeyValue(client.plan) === "ENTERPRISE"
+                                ? "bg-purple-50 text-purple-700 ring-purple-200 hover:bg-purple-100"
+                                : "bg-slate-50 text-slate-700 ring-slate-200 hover:bg-slate-100",
                           )}
-                        </select>
+                          aria-label="Cambiar plan"
+                        >
+                          <span>{getPlanLabelByValue(client.plan)}</span>
+                          <span className="text-[10px] font-black uppercase tracking-wider text-current/60">
+                            Cambiar
+                          </span>
+                        </button>
                       </td>
                       <td className="px-6 py-4">
                         <span
@@ -873,6 +1077,7 @@ export default function AdminClientsPage() {
           />
         </div>
       </div>
+      )}
 
       {/* Manual Config Modal */}
       {showConfigModal && (
@@ -881,113 +1086,205 @@ export default function AdminClientsPage() {
           onClick={() => setShowConfigModal(false)}
         >
           <div
-            className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200"
+            className="flex w-full max-w-6xl flex-col overflow-hidden rounded-[2rem] bg-white shadow-2xl ring-1 ring-black/5 animate-in zoom-in-95 duration-200 max-h-[calc(100dvh-4rem)]"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-bold text-slate-900">
-                  Configurar Acceso
+            <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-6 py-5 sm:px-8">
+              <div className="space-y-1">
+                <div className="inline-flex items-center rounded-full bg-indigo-50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-indigo-700">
+                  Configurar acceso
+                </div>
+                <h2 className="text-2xl font-black tracking-tight text-slate-900">
+                  Cambiar plan
                 </h2>
-                <p className="text-sm text-slate-500 mt-1">
-                  Trial personalizado para{" "}
-                  <strong>
-                    {selectedUser?.fullName || selectedUser?.email}
-                  </strong>
+                <p className="text-sm text-slate-500">
+                  {selectedUser?.fullName || selectedUser?.email}
                 </p>
               </div>
               <button
                 onClick={() => setShowConfigModal(false)}
-                className="text-slate-400 hover:text-slate-600"
+                className="rounded-full p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                aria-label="Cerrar"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="p-6 space-y-5">
-              <div>
-                <label className="block text-xs uppercase tracking-widest font-black text-slate-500 mb-2">
-                  Membresía a Asignar
-                </label>
-                <select
-                  value={selectedPlan}
-                  onChange={(e) => setSelectedPlan(e.target.value)}
-                  className="w-full rounded-xl border-2 border-slate-200 py-3.5 px-4 text-base font-bold text-slate-900 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-600 outline-none bg-white shadow-sm transition-all cursor-pointer"
-                >
-                  {membershipPlans.length > 0 ? (
-                    membershipPlans.map((plan) => (
-                      <option
-                        key={plan.id}
-                        value={normalizePlanValue(plan)}
-                        className="text-slate-900 font-bold py-2"
-                      >
-                        {getPlanLabel(plan)} —{" "}
-                        {plan.billingPeriod === "monthly"
-                          ? "Ciclo Mensual"
-                          : "Ciclo Anual"}
-                      </option>
-                    ))
-                  ) : (
-                    <>
-                      <option value="FREE" className="text-slate-900 font-bold">
-                        Gratis (Plan Básico)
-                      </option>
-                      <option value="PRO" className="text-slate-900 font-bold">
-                        PRO (Plan Premium)
-                      </option>
-                      <option
-                        value="ENTERPRISE"
-                        className="text-slate-900 font-bold"
-                      >
-                        ENTERPRISE (Plan Corporativo)
-                      </option>
-                    </>
-                  )}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs uppercase tracking-widest font-black text-slate-500 mb-2">
-                  Días de Trial / Cortesía
-                </label>
-                <Input
-                  type="number"
-                  min="1"
-                  value={durationDays}
-                  onChange={(e) =>
-                    setDurationDays(parseInt(e.target.value) || 0)
-                  }
-                  className="h-12 text-lg font-black text-indigo-900 border-2 border-slate-200 focus:border-indigo-600 rounded-xl"
-                  placeholder="Ej: 30"
-                />
-                <div className="mt-3 p-3 bg-indigo-50 rounded-lg border border-indigo-100">
-                  <p className="text-xs font-bold text-indigo-700 flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4" />
-                    Vence el:{" "}
-                    {new Date(
-                      new Date().setDate(new Date().getDate() + durationDays),
-                    ).toLocaleDateString("es-CL", {
-                      day: "2-digit",
-                      month: "long",
-                      year: "numeric",
-                    })}
-                  </p>
-                </div>
-                <p className="text-[10px] text-slate-400 mt-2 font-medium italic">
-                  * El usuario volverá al plan FREE automáticamente tras expirar
-                  este periodo.
-                </p>
+
+            <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6 sm:px-8">
+              <div className="grid gap-6 lg:grid-cols-[0.94fr_1.06fr]">
+                <section className="rounded-[1.75rem] border border-slate-200 bg-slate-50/70 p-5 sm:p-6">
+                  <div className="mb-4 flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
+                        Plan actual
+                      </p>
+                      <h3 className="mt-1 text-lg font-bold text-slate-900">
+                        {currentMembershipPlan?.name || "Sin plan"}
+                      </h3>
+                    </div>
+                    <span className="rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-700">
+                      Actual
+                    </span>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <div className="flex items-baseline justify-between gap-4">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-500">Plan vigente</p>
+                        <p className="mt-1 text-2xl font-black text-slate-900">
+                          {getPlanLabelByValue(selectedUser?.plan)}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
+                          Estado
+                        </p>
+                        <p className="mt-1 text-sm font-bold text-slate-700">
+                          {selectedUser?.status || "Activo"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                      <div className="rounded-2xl bg-slate-50 p-3">
+                        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
+                          Días de cortesía
+                        </p>
+                        <p className="mt-1 text-lg font-black text-slate-900">
+                          {durationDays}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl bg-slate-50 p-3">
+                        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
+                          Vence el
+                        </p>
+                        <p className="mt-1 text-sm font-bold text-slate-900">
+                          {new Date(
+                            new Date().setDate(new Date().getDate() + durationDays),
+                          ).toLocaleDateString("es-CL", {
+                            day: "2-digit",
+                            month: "long",
+                            year: "numeric",
+                          })}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50/70 p-4 text-sm text-amber-900">
+                    Si eliges el mismo plan actual, no se aplicarán cambios.
+                  </div>
+                </section>
+
+                <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 sm:p-6 shadow-sm">
+                  <div className="mb-4 flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
+                        Nuevo plan
+                      </p>
+                      <h3 className="mt-1 text-lg font-bold text-slate-900">
+                        Selecciona una membresía
+                      </h3>
+                    </div>
+                    <span className="rounded-full bg-indigo-50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-indigo-700">
+                      {selectedMembershipPlan?.name || "Selecciona"}
+                    </span>
+                  </div>
+
+                  <div className="grid gap-3">
+                    {membershipPlans.length > 0 ? (
+                      membershipPlans.map((plan) => {
+                        const value = normalizePlanValue(plan);
+                        const isSelected = selectedPlan === value;
+                        const isCurrent = currentUserPlanValue === value;
+
+                        return (
+                          <button
+                            key={plan.id}
+                            type="button"
+                            onClick={() => setSelectedPlan(value)}
+                            className={cn(
+                              "rounded-2xl border-2 p-4 text-left transition-all cursor-pointer",
+                              isSelected
+                                ? "border-indigo-600 bg-indigo-50 shadow-sm"
+                                : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50",
+                            )}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <p className="text-sm font-black text-slate-900">{plan.name}</p>
+                                <p className="mt-1 text-sm text-slate-500">
+                                  {getPlanLabel(plan)} · {plan.billingPeriod === "monthly" ? "Mensual" : "Anual"}
+                                </p>
+                              </div>
+                              {isSelected && <CheckCircle2 className="h-5 w-5 text-indigo-600" />}
+                            </div>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {isCurrent && (
+                                <span className="inline-flex rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-emerald-700">
+                                  Plan actual
+                                </span>
+                              )}
+                              {plan.price === 0 && (
+                                <span className="inline-flex rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black uppercase tracking-wider text-slate-600">
+                                  Gratuito
+                                </span>
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })
+                    ) : (
+                      <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+                        No hay planes activos disponibles.
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mt-5 space-y-2">
+                    <label className="block text-xs uppercase tracking-widest font-black text-slate-500">
+                      Días de Trial / Cortesía
+                    </label>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={durationDays}
+                      onChange={(e) =>
+                        setDurationDays(parseInt(e.target.value) || 0)
+                      }
+                      className="h-12 rounded-2xl border-slate-200 text-base font-bold text-slate-900 focus:border-indigo-600"
+                      placeholder="30"
+                    />
+                  </div>
+                </section>
               </div>
             </div>
-            <div className="p-4 bg-slate-50 flex justify-end gap-3 border-t border-slate-100">
-              <Button variant="ghost" onClick={() => setShowConfigModal(false)}>
-                Cancelar
-              </Button>
-              <Button
-                className="bg-indigo-600 hover:bg-indigo-700 text-white"
-                onClick={handleManualConfig}
-                isLoading={isUpdating}
-              >
-                Aplicar Configuración
-              </Button>
+
+            <div className="flex flex-col gap-3 border-t border-slate-100 bg-slate-50/80 px-6 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-8">
+              <div className="text-xs text-slate-500">
+                * El usuario volverá al plan FREE automáticamente tras expirar este periodo.
+              </div>
+              <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+                <Button variant="ghost" onClick={() => setShowConfigModal(false)}>
+                  Cancelar
+                </Button>
+                <Button
+                  variant="outline"
+                  className="border-emerald-200 text-emerald-700 hover:bg-emerald-50 cursor-pointer"
+                  onClick={() => void handleForceFreePlan()}
+                  isLoading={isUpdating}
+                >
+                  Forzar plan gratis
+                </Button>
+                <Button
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                  onClick={() => void handleManualConfig()}
+                  isLoading={isUpdating}
+                  disabled={isSelectedPlanUnchanged}
+                >
+                  Aplicar Configuración
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -1013,6 +1310,33 @@ export default function AdminClientsPage() {
         title="Eliminar Cuenta"
         message={`¿Estás seguro que deseas eliminar la cuenta de ${selectedUser?.fullName || selectedUser?.email}? El usuario no podrá volver a ingresar y su cuenta quedará marcada como eliminada.`}
         confirmText="Eliminar Cuenta"
+        cancelText="Cancelar"
+        variant="danger"
+        isLoading={isUpdating}
+      />
+
+      <ConfirmModal
+        isOpen={showPaymentConfirmModal}
+        onClose={() => setShowPaymentConfirmModal(false)}
+        onConfirm={() => void handleManualConfig(true)}
+        title="Registrar pago"
+        message={`El plan ${getSelectedMembershipPlan()?.name || selectedPlan} es pagado. Al confirmar, se registrará como ganancia y quedará guardado en pagos para ${selectedUser?.fullName || selectedUser?.email}.`}
+        confirmText="Confirmar y guardar"
+        cancelText="Cancelar"
+        variant="info"
+        isLoading={isUpdating}
+      />
+
+      <ConfirmModal
+        isOpen={showAcceptDeletionModal}
+        onClose={() => {
+          setShowAcceptDeletionModal(false);
+          setSelectedDeletionRequest(null);
+        }}
+        onConfirm={() => void handleAcceptDeletionRequest()}
+        title="Aceptar solicitud de eliminación"
+        message={`¿Estás seguro de que deseas eliminar permanentemente la cuenta de ${selectedDeletionRequest?.fullName || selectedDeletionRequest?.email}? Esta acción eliminará toda la información del nutricionista, sus pacientes, fichas clínicas, dietas, recursos y agenda. Esta acción es irreversible.`}
+        confirmText="Sí, eliminar cuenta"
         cancelText="Cancelar"
         variant="danger"
         isLoading={isUpdating}

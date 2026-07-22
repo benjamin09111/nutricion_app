@@ -28,11 +28,7 @@ export function FontProvider({ children }: { children: React.ReactNode }) {
     if (typeof document === "undefined") return;
 
     const root = document.documentElement;
-    const body = document.body;
-    const isFormal = fontPreference === "formal";
-
     root.dataset.font = fontPreference;
-    body.style.fontFamily = isFormal ? 'Helvetica, Arial, sans-serif' : '"Poppins", sans-serif';
     window.localStorage.setItem(STORAGE_KEY, fontPreference);
   }, [fontPreference]);
 

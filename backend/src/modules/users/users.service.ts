@@ -1,9 +1,17 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { resolveRequiredUrl } from '../../common/utils/runtime-url.util';
 const normalizeCalendarTimeZone = (timeZone?: string | null) =>
   !timeZone || timeZone === 'UTC' ? 'America/Santiago' : timeZone;
-import { AccountStatus, SubscriptionPlan, UserRole } from '@prisma/client';
+import {
+  AccountStatus,
+  SubscriptionPlan,
+  UserRole,
+  PaymentMethod,
+  PaymentStatus,
+} from '@prisma/client';
 import { MailService } from '../mail/mail.service';
+import { DiscountCodesService } from '../discount-codes/discount-codes.service';
 import { ADMIN_ROLES } from '../permissions/permissions.constants';
 import { normalizeMembershipPlanKey } from '../memberships/plan-entitlements';
 import { resolveAccountPlanFromMembershipPlan } from '../memberships/account-plan';
@@ -17,6 +25,7 @@ export class UsersService {
   constructor(
     private prisma: PrismaService,
     private readonly mailService: MailService,
+    private readonly discountCodesService: DiscountCodesService,
   ) {}
 
   /**
@@ -30,6 +39,7 @@ export class UsersService {
     plan?: string,
     status?: string,
     payment?: string,
+    verification?: string,
     page?: number,
     limit?: number,
   ) {
@@ -144,6 +154,20 @@ export class UsersService {
       }
     }
 
+    if (verification === 'pending_transfer') {
+      where.AND = [
+        ...(where.AND || []),
+        {
+          payments: {
+            some: {
+              status: 'PENDING',
+              method: 'BANK_TRANSFER',
+            },
+          },
+        },
+      ];
+    }
+
     const normalizedPage = Math.max(1, Math.trunc(page || 1));
     const normalizedLimit = Math.min(50, Math.max(1, Math.trunc(limit || 10)));
     const hasPagination = page !== undefined || limit !== undefined;
@@ -165,17 +189,24 @@ export class UsersService {
               },
             },
           },
+          payments: {
+            where: {
+              status: 'PENDING',
+              method: 'BANK_TRANSFER',
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+            select: {
+              id: true,
+            },
+          },
           subscription: {
             include: {
               plan: true,
             },
           },
         },
-        orderBy: [
-          { lastLoginAt: { sort: 'desc', nulls: 'last' } },
-          { createdAt: 'desc' },
-        ],
-        skip,
+        orderBy: { createdAt: 'desc' },
         take: normalizedLimit,
       });
 
@@ -200,16 +231,24 @@ export class UsersService {
             },
           },
         },
+        payments: {
+          where: {
+            status: 'PENDING',
+            method: 'BANK_TRANSFER',
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: {
+            id: true,
+          },
+        },
         subscription: {
           include: {
             plan: true,
           },
         },
       },
-      orderBy: [
-        { lastLoginAt: { sort: 'desc', nulls: 'last' } },
-        { createdAt: 'desc' },
-      ],
+      orderBy: { createdAt: 'desc' },
     });
 
     // Backend optimizes the data structure before sending to frontend
@@ -230,6 +269,7 @@ export class UsersService {
       id: acc.id,
       email: acc.email,
       role: acc.role,
+      rut: acc.rut || null,
       status: acc.status,
       plan: acc.plan,
       subscriptionEndsAt: acc.subscriptionEndsAt,
@@ -266,6 +306,7 @@ export class UsersService {
       consultationMode: acc.nutritionist?.consultationMode || null,
       location: acc.nutritionist?.location || null,
       avatarUrl: acc.nutritionist?.avatarUrl || null,
+      verification: acc.payments?.length ? 'pending_transfer' : 'none',
     };
   }
 
@@ -295,6 +336,55 @@ export class UsersService {
       where: { id },
       include: { nutritionist: true },
     });
+  }
+
+  async sendTransferNotification(id: string) {
+    const account = await this.prisma.account.findUnique({
+      where: { id },
+      select: {
+        email: true,
+        plan: true,
+        nutritionist: {
+          select: {
+            fullName: true,
+          },
+        },
+        payments: {
+          where: {
+            status: PaymentStatus.PENDING,
+            method: PaymentMethod.BANK_TRANSFER,
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: {
+            id: true,
+            amount: true,
+            metadata: true,
+          },
+        },
+      },
+    });
+
+    if (!account) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+
+    const latestPayment = account.payments[0];
+    const metadata = (latestPayment?.metadata as Record<string, any>) || {};
+
+    await this.mailService.sendTransferNotification({
+      nutritionistName: account.nutritionist?.fullName || 'No especificado',
+      nutritionistEmail: account.email,
+      planName: metadata.planName || account.plan,
+      amount: latestPayment ? Number(latestPayment.amount) : undefined,
+      paymentId: latestPayment?.id,
+      source: 'users.admin-panel',
+    });
+
+    return {
+      success: true,
+      message: 'Aviso de transferencia enviado a contacto@nutrinet.cl',
+    };
   }
 
   async update(
@@ -431,9 +521,10 @@ export class UsersService {
       },
     });
 
-    const frontendUrl = (
-      process.env.FRONTEND_URL || 'https://nutrinet.cl'
-    ).replace(/\/$/, '');
+    const frontendUrl = resolveRequiredUrl(
+      process.env.FRONTEND_URL,
+      process.env.NEXT_PUBLIC_FRONTEND_URL,
+    );
     const publicUrl = `${frontendUrl}/nutricionistas/${nutritionist.publicSlug || this.generateSlug(nutritionist.fullName, accountId)}`;
 
     this.mailService
@@ -456,18 +547,71 @@ export class UsersService {
   /**
    * Update user's subscription plan
    */
-  async updatePlan(userId: string, plan: SubscriptionPlan, days?: number) {
+  async updatePlan(
+    userId: string,
+    plan: SubscriptionPlan,
+    days?: number,
+    recordPayment = false,
+  ) {
     const normalizedPlan = normalizeMembershipPlanKey(String(plan));
+    const accountForPayment = await this.prisma.account.findUnique({
+      where: { id: userId },
+      select: {
+        email: true,
+        nutritionist: { select: { fullName: true } },
+      },
+    });
+
+    if (recordPayment && !accountForPayment) {
+      throw new NotFoundException('Cuenta no encontrada');
+    }
 
     return this.prisma.$transaction(async (tx) => {
       if (normalizedPlan === 'free') {
+        const subscriptions = await tx.subscription.findMany({
+          where: { accountId: userId },
+          select: { id: true },
+        });
+
+        if (subscriptions.length > 0) {
+          await tx.subscriptionEvent.deleteMany({
+            where: {
+              subscriptionId: {
+                in: subscriptions.map((subscription) => subscription.id),
+              },
+            },
+          });
+        }
+
         await tx.subscription.deleteMany({ where: { accountId: userId } });
+
+        if (accountForPayment?.email) {
+          void this.mailService
+            .sendAnnouncementEmail({
+              email: accountForPayment.email,
+              name: accountForPayment.nutritionist?.fullName,
+              title: 'Tu plan fue actualizado a Gratuito',
+              message:
+                `Hola${accountForPayment.nutritionist?.fullName ? ` ${accountForPayment.nutritionist.fullName}` : ''},\n\n` +
+                `Tu plan en NutriNet fue actualizado a Plan Gratuito.\n` +
+                `Para ver los cambios, cierra sesión y vuelve a iniciar sesión.\n\n` +
+                `Gracias por confiar en NutriNet.`,
+            })
+            .catch((error) => {
+              this.logger.error(
+                `No se pudo enviar el correo de cambio de plan a ${accountForPayment.email}`,
+                error instanceof Error ? error.stack : String(error),
+              );
+            });
+        }
 
         return tx.account.update({
           where: { id: userId },
           data: {
             plan: SubscriptionPlan.FREE,
             subscriptionEndsAt: null,
+            membershipSelectedAt: new Date(),
+            lastLoginAt: new Date(),
           },
         });
       }
@@ -486,14 +630,16 @@ export class UsersService {
         throw new Error('Plan de membresía no encontrado');
       }
 
+      const planPrice = Number(membershipPlan.price);
       const endDate = new Date();
       endDate.setDate(endDate.getDate() + (days && days > 0 ? days : 30));
+      const shouldRecordPayment = recordPayment && planPrice > 0;
 
       const accountPlan = resolveAccountPlanFromMembershipPlan(
         membershipPlan.slug || membershipPlan.name,
       );
 
-      await tx.subscription.upsert({
+      const subscription = await tx.subscription.upsert({
         where: { accountId: userId },
         update: {
           planId: membershipPlan.id,
@@ -512,11 +658,133 @@ export class UsersService {
         },
       });
 
+      const pendingTransfer = await tx.payment.findFirst({
+        where: {
+          accountId: userId,
+          status: PaymentStatus.PENDING,
+          method: PaymentMethod.BANK_TRANSFER,
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      const upsertDailyMetric = async (amount: number) => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        await tx.dailyMetric.upsert({
+          where: { date: today },
+          update: { totalRevenue: { increment: amount } },
+          create: {
+            date: today,
+            totalRevenue: amount,
+            activeSubscriptions: 1,
+            totalUsers: await tx.account.count(),
+          },
+        });
+      };
+
+      let paymentId: string | null = pendingTransfer?.id || null;
+
+      if (pendingTransfer) {
+        const discountCode =
+          (pendingTransfer.metadata as Record<string, any> | null)
+            ?.discountCode ||
+          (pendingTransfer.metadata as Record<string, any> | null)?.discount
+            ?.code;
+
+        await tx.payment.update({
+          where: { id: pendingTransfer.id },
+          data: {
+            status: PaymentStatus.COMPLETED,
+            paidAt: new Date(),
+            metadata: {
+              ...(pendingTransfer.metadata as Record<string, any>),
+              approvedByAdmin: true,
+              approvedAt: new Date().toISOString(),
+              approvalSource: 'users.updatePlan',
+            },
+          },
+        });
+
+        if (discountCode) {
+          await this.discountCodesService.markAsUsed(discountCode, userId, tx);
+        }
+
+        await upsertDailyMetric(Number(pendingTransfer.amount));
+      } else if (shouldRecordPayment) {
+        const createdPayment = await tx.payment.create({
+          data: {
+            accountId: userId,
+            amount: planPrice,
+            currency: membershipPlan.currency,
+            status: PaymentStatus.COMPLETED,
+            method: PaymentMethod.BANK_TRANSFER,
+            paidAt: new Date(),
+            metadata: {
+              type: 'MEMBERSHIP_PLAN',
+              source: 'ADMIN_PLAN_CHANGE',
+              adminConfirmed: true,
+              approvedByAdmin: true,
+              approvedAt: new Date().toISOString(),
+              planId: membershipPlan.id,
+              planName: membershipPlan.name,
+              planSlug: membershipPlan.slug,
+              fullPrice: planPrice,
+              chargedAmount: planPrice,
+              nutritionistEmail: accountForPayment?.email,
+              nutritionistName:
+                accountForPayment?.nutritionist?.fullName || 'No especificado',
+            },
+          },
+        });
+
+        paymentId = createdPayment.id;
+        await upsertDailyMetric(planPrice);
+      }
+
+      if (paymentId) {
+        await tx.subscriptionEvent.create({
+          data: {
+            subscriptionId: subscription.id,
+            eventType: 'ACTIVATED',
+            paymentId,
+            newPlanId: membershipPlan.id,
+            metadata: {
+              source: 'users.updatePlan',
+              recordPayment: shouldRecordPayment || Boolean(pendingTransfer),
+            },
+          },
+        });
+      }
+
+      if (accountForPayment?.email) {
+        const planLabel = accountPlan;
+        void this.mailService
+          .sendAnnouncementEmail({
+            email: accountForPayment.email,
+            name: accountForPayment.nutritionist?.fullName,
+            title: `Tu plan fue actualizado a ${planLabel}`,
+            message:
+              `Hola${accountForPayment.nutritionist?.fullName ? ` ${accountForPayment.nutritionist.fullName}` : ''},\n\n` +
+              `Tu plan en NutriNet fue actualizado a ${planLabel}.\n` +
+              `Para ver los cambios, cierra sesión y vuelve a iniciar sesión.\n\n` +
+              `Gracias por confiar en NutriNet.`,
+          })
+          .catch((error) => {
+            this.logger.error(
+              `No se pudo enviar el correo de cambio de plan a ${accountForPayment.email}`,
+              error instanceof Error ? error.stack : String(error),
+            );
+          });
+      }
+
       return tx.account.update({
         where: { id: userId },
         data: {
           plan: accountPlan,
           subscriptionEndsAt: endDate,
+          membershipSelectedAt: new Date(),
+          lastLoginAt: new Date(),
         },
       });
     });
@@ -601,6 +869,245 @@ export class UsersService {
 
       return { success: true, message: 'Cuenta eliminada permanentemente' };
     });
+  }
+
+  /**
+   * Create a deletion request for the current user's account.
+   */
+  async createDeletionRequest(accountId: string) {
+    const existing = await this.prisma.accountDeletionRequest.findFirst({
+      where: {
+        accountId,
+        status: 'PENDING',
+      },
+    });
+
+    if (existing) {
+      return { exists: true, request: existing };
+    }
+
+    const request = await this.prisma.accountDeletionRequest.create({
+      data: {
+        accountId,
+        status: 'PENDING',
+      },
+    });
+
+    return { exists: false, request };
+  }
+
+  /**
+   * Get pending deletion requests with account/nutritionist info.
+   */
+  async getPendingDeletionRequests() {
+    const requests = await this.prisma.accountDeletionRequest.findMany({
+      where: { status: 'PENDING' },
+      include: {
+        account: {
+          select: {
+            id: true,
+            email: true,
+            role: true,
+            createdAt: true,
+            nutritionist: {
+              select: {
+                fullName: true,
+                _count: {
+                  select: { patients: true },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: { requestedAt: 'asc' },
+    });
+
+    return requests.map((r) => ({
+      id: r.id,
+      accountId: r.accountId,
+      email: r.account.email,
+      role: r.account.role,
+      fullName:
+        r.account.nutritionist?.fullName || r.account.email.split('@')[0],
+      patientCount: r.account.nutritionist?._count?.patients || 0,
+      requestedAt: r.requestedAt,
+    }));
+  }
+
+  /**
+   * Count pending deletion requests.
+   */
+  async countPendingDeletionRequests() {
+    return this.prisma.accountDeletionRequest.count({
+      where: { status: 'PENDING' },
+    });
+  }
+
+  /**
+   * Accept a deletion request and permanently delete the account and all related data.
+   */
+  async acceptDeletionRequest(
+    requestId: string,
+    adminId: string,
+    notes?: string,
+  ) {
+    const request = await this.prisma.accountDeletionRequest.findUnique({
+      where: { id: requestId },
+      include: { account: { select: { id: true, role: true } } },
+    });
+
+    if (!request) {
+      throw new NotFoundException('Solicitud no encontrada');
+    }
+
+    if (request.status !== 'PENDING') {
+      return { success: false, message: 'La solicitud ya fue procesada' };
+    }
+
+    const { accountId } = request;
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.accountDeletionRequest.update({
+        where: { id: requestId },
+        data: {
+          status: 'ACCEPTED',
+          resolvedAt: new Date(),
+          resolvedByAdmin: adminId,
+          adminNotes: notes || null,
+        },
+      });
+
+      const account = await tx.account.findUnique({
+        where: { id: accountId },
+        include: {
+          nutritionist: {
+            include: {
+              patients: { select: { id: true } },
+            },
+          },
+          payments: { select: { id: true } },
+          subscription: { select: { id: true } },
+          notifications: { select: { id: true } },
+          googleCalendarConnections: { select: { id: true } },
+          planUsageCounters: { select: { id: true } },
+        },
+      });
+
+      if (!account) {
+        return { success: false, message: 'Cuenta no encontrada' };
+      }
+
+      const nutritionistId = account.nutritionist?.id;
+      const patientIds = account.nutritionist?.patients.map((p) => p.id) || [];
+      const paymentIds = account.payments.map((p) => p.id);
+      const subscriptionId = account.subscription?.id;
+      const notificationIds = account.notifications.map((n) => n.id);
+      const calendarConnectionIds = account.googleCalendarConnections.map(
+        (c) => c.id,
+      );
+      const planUsageCounterIds = account.planUsageCounters.map((p) => p.id);
+
+      if (notificationIds.length > 0) {
+        await tx.notification.deleteMany({
+          where: { id: { in: notificationIds } },
+        });
+      }
+
+      if (planUsageCounterIds.length > 0) {
+        await tx.planUsageCounter.deleteMany({
+          where: { id: { in: planUsageCounterIds } },
+        });
+      }
+
+      if (calendarConnectionIds.length > 0) {
+        await tx.googleCalendarConnection.deleteMany({
+          where: { id: { in: calendarConnectionIds } },
+        });
+      }
+
+      if (paymentIds.length > 0) {
+        await tx.subscriptionEvent.deleteMany({
+          where: { paymentId: { in: paymentIds } },
+        });
+        await tx.payment.deleteMany({ where: { id: { in: paymentIds } } });
+      }
+
+      if (subscriptionId) {
+        await tx.subscriptionEvent.deleteMany({ where: { subscriptionId } });
+        await tx.subscription.deleteMany({ where: { id: subscriptionId } });
+      }
+
+      if (nutritionistId) {
+        await tx.patientPortalCheckIn.deleteMany({ where: { nutritionistId } });
+        await tx.patientPortalEntry.deleteMany({ where: { nutritionistId } });
+        await tx.patientIntakeSubmission.deleteMany({
+          where: { nutritionistId },
+        });
+        await tx.patientIntakeLink.deleteMany({ where: { nutritionistId } });
+        await tx.appointmentTimeSlot.deleteMany({
+          where: { calendar: { nutritionistId } },
+        });
+        await tx.appointment.deleteMany({
+          where: { calendar: { nutritionistId } },
+        });
+        await tx.bookingLink.deleteMany({
+          where: { calendar: { nutritionistId } },
+        });
+        await tx.availabilityRule.deleteMany({
+          where: { calendar: { nutritionistId } },
+        });
+        await tx.appointmentCalendar.deleteMany({ where: { nutritionistId } });
+
+        await tx.recipeLibrary.deleteMany({ where: { nutritionistId } });
+        await tx.ingredientPreference.deleteMany({ where: { nutritionistId } });
+
+        for (const patientId of patientIds) {
+          await tx.clinicalRecord.deleteMany({ where: { patientId } });
+          await tx.patientExam.deleteMany({ where: { patientId } });
+          await tx.consultation.deleteMany({ where: { patientId } });
+        }
+        await tx.patient.deleteMany({ where: { nutritionistId } });
+
+        await tx.project.deleteMany({ where: { nutritionistId } });
+        await tx.creation.deleteMany({ where: { nutritionistId } });
+        await tx.ingredientGroup.deleteMany({ where: { nutritionistId } });
+        await tx.substitute.deleteMany({ where: { nutritionistId } });
+        await tx.resource.deleteMany({ where: { nutritionistId } });
+        await tx.resourceSection.deleteMany({ where: { nutritionistId } });
+        await tx.tag.deleteMany({ where: { nutritionistId } });
+        await tx.metricDefinition.deleteMany({ where: { nutritionistId } });
+        await tx.recipe.deleteMany({ where: { nutritionistId } });
+
+        await tx.nutritionist.delete({ where: { id: nutritionistId } });
+      }
+
+      await tx.account.delete({ where: { id: accountId } });
+
+      return { success: true, message: 'Cuenta eliminada permanentemente' };
+    });
+  }
+
+  /**
+   * Delete account logically (soft delete).
+   * Sets the account status to DELETED.
+   */
+  async softDelete(id: string) {
+    const account = await this.prisma.account.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+
+    if (!account) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+
+    await this.prisma.account.update({
+      where: { id },
+      data: { status: 'DELETED' as AccountStatus },
+    });
+
+    return { success: true, message: 'Usuario marcado como eliminado' };
   }
 
   /**

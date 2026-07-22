@@ -14,6 +14,7 @@ interface Metric {
   unit: string;
   id?: string;
   isSystem?: boolean;
+  nutritionistId?: string | null;
 }
 
 interface MetricTagInputProps {
@@ -120,7 +121,7 @@ export function MetricTagInput({
 
   const allMatchingMetrics = [
     ...DEFAULT_METRICS.map((metric) => ({ ...metric, isSystem: true })),
-    ...fetchedMetrics.map((metric) => ({ ...metric, isSystem: false })),
+    ...fetchedMetrics.map((metric) => ({ ...metric, isSystem: !metric.nutritionistId })),
   ].filter((metric, index, self) => {
     const isFirstAppearance = index === self.findIndex((item) => item.key === metric.key);
     if (!isFirstAppearance) return false;

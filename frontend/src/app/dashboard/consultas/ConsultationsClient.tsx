@@ -2,18 +2,16 @@
 
 import { useState, useEffect } from "react";
 import {
-  Search,
-  Eye,
   CalendarDays,
-  User,
   Plus,
-  Trash2,
+  Search,
+  FileText,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Input } from "@/components/ui/Input";
 import {
   Consultation,
   ConsultationsResponse,
+  ConsultationsTableView,
 } from "@/features/consultations";
 import { useScrollLock } from "@/hooks/useScrollLock";
 import { toast } from "sonner";
@@ -23,6 +21,7 @@ import Cookies from "js-cookie";
 import { Pagination } from "@/components/ui/Pagination";
 import { fetchApi } from "@/lib/api-base";
 import { useSubscription } from "@/context/SubscriptionContext";
+import { Input } from "@/components/ui/Input";
 
 export default function ConsultationsClient() {
   const router = useRouter();
@@ -31,6 +30,8 @@ export default function ConsultationsClient() {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [consultations, setConsultations] = useState<Consultation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -54,7 +55,7 @@ export default function ConsultationsClient() {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  /** Lee el token en el momento de la peticion para evitar valores obsoletos */
+  /** Lee el token en el momento de la petición para evitar valores obsoletos */
   const getAuthHeaders = () => {
     const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
     return {
@@ -72,6 +73,8 @@ export default function ConsultationsClient() {
         type: "CLINICAL",
         ...(debouncedSearchTerm && { search: debouncedSearchTerm }),
         ...(patientIdFromQuery && { patientId: patientIdFromQuery }),
+        ...(dateFrom && { dateFrom }),
+        ...(dateTo && { dateTo }),
       });
 
       const response = await fetchApi(`/consultations?${queryParams}`, {
@@ -85,14 +88,12 @@ export default function ConsultationsClient() {
       } else {
         toast.error("Error al cargar consultas");
       }
-      // Solo apagar el spinner tras exito o error HTTP controlado
       setIsLoading(false);
     } catch (e) {
       if (retries > 0) {
-        // Reintentar sin apagar el spinner todavia
         setTimeout(() => fetchConsultations(retries - 1), 2000);
       } else {
-        toast.error("Error de conexion");
+        toast.error("Error de conexión");
         setIsLoading(false);
       }
     }
@@ -100,7 +101,7 @@ export default function ConsultationsClient() {
 
   useEffect(() => {
     fetchConsultations();
-  }, [page, debouncedSearchTerm, patientIdFromQuery]);
+  }, [page, debouncedSearchTerm, patientIdFromQuery, dateFrom, dateTo]);
 
   const handleDelete = async () => {
     if (!consultationToDelete) return;
@@ -120,49 +121,70 @@ export default function ConsultationsClient() {
         toast.error("Error al eliminar");
       }
     } catch (error) {
-      toast.error("Error de conexion");
+      toast.error("Error de conexión");
     }
   };
 
   return (
     <ModuleLayout
       title="Mis Consultas"
-      description="Espacio con todas tus consultas realizadas, puedes filtrar por pacientes y ver el detalle de cada consulta que has realizado. Todas se conectan con tus pacientes."
+      description="Espacio con todas tus consultas realizadas. Puedes filtrar por paciente y ver el detalle de cada sesión. Todas se conectan con tus pacientes."
       className="pb-8"
     >
       <ConfirmationModal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={handleDelete}
-        title="Eliminar consulta?"
-        description="Esta accion no se puede deshacer."
+        title="¿Eliminar consulta?"
+        description="Esta acción no se puede deshacer."
         confirmText="Eliminar"
         cancelText="Cancelar"
         variant="destructive"
       />
 
-      <div className="space-y-6 relative animate-in fade-in duration-700">
-        {/* Filters Bar */}
-        <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row gap-4 items-center justify-between">
-          <div className="relative w-full md:w-96">
-            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-              <Search className="h-5 w-5 text-slate-400" aria-hidden="true" />
+      <div className="space-y-4 mb-6">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-1 items-center gap-3 min-w-0">
+            <div className="pl-2 shrink-0">
+              <Search className="h-5 w-5 text-slate-400" />
             </div>
             <Input
               type="search"
               placeholder="Buscar por nombre del paciente..."
-              className="pl-10 h-11 rounded-xl bg-slate-50 border-slate-200 focus:bg-white transition-all"
+              className="h-10 text-sm border border-slate-200 bg-white focus-visible:border-indigo-500 placeholder:text-slate-400 font-medium"
               value={searchTerm}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+              onChange={(e) => {
                 setSearchTerm(e.target.value);
                 setPage(1);
               }}
             />
           </div>
 
-          <div className="flex gap-2 w-full md:w-auto">
+          <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Desde</span>
+              <div className="relative">
+                <CalendarDays className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
+                  className="h-10 w-[9rem] pl-9 pr-2 rounded-xl border border-slate-200 bg-white text-xs font-medium text-slate-600 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/10 outline-none cursor-pointer transition-all"
+                />
+              </div>
+              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Hasta</span>
+              <div className="relative">
+                <CalendarDays className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
+                  className="h-10 w-[9rem] pl-9 pr-2 rounded-xl border border-slate-200 bg-white text-xs font-medium text-slate-600 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/10 outline-none cursor-pointer transition-all"
+                />
+              </div>
+            </div>
             <div className="hidden md:flex items-center rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-semibold text-slate-500">
-              Limite mensual: {Number.isFinite(consultationLimit) ? consultationLimit : "Ilimitado"}
+              Límite mensual: {Number.isFinite(consultationLimit) ? consultationLimit : "Ilimitado"}
             </div>
             <button
               onClick={() => router.push("/dashboard/consultas/nueva")}
@@ -174,129 +196,35 @@ export default function ConsultationsClient() {
           </div>
         </div>
 
-        {/* Consultations Table */}
-        <div className="bg-white shadow-sm border border-slate-200 rounded-[2rem] overflow-hidden relative">
-          {isLoading && (
-            <div className="absolute inset-0 bg-white/50 backdrop-blur-[2px] z-10 flex items-center justify-center">
-              <div className="h-10 w-10 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin" />
-            </div>
-          )}
-
-          <div className="overflow-x-auto min-h-[400px]">
-            <table className="min-w-full divide-y divide-slate-100">
-              <thead className="bg-slate-50/50">
-                <tr>
-                  <th className="px-6 py-5 text-left text-xs font-semibold text-slate-500 uppercase tracking-tight">Paciente</th>
-                  <th className="px-6 py-5 text-left text-xs font-semibold text-slate-500 uppercase tracking-tight">Fecha</th>
-                  <th className="px-6 py-5 text-left text-xs font-semibold text-slate-500 uppercase tracking-tight">Sesion</th>
-                  <th className="px-6 py-5 text-right text-xs font-semibold text-slate-500 uppercase tracking-tight">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {consultations.map((item) => (
-                  <tr
-                    key={item.id}
-                    onClick={() => router.push(`/dashboard/consultas/${item.id}/view`)}
-                    className="hover:bg-indigo-50/40 hover:shadow-sm transition-all group cursor-pointer border-l-4 border-l-transparent hover:border-l-indigo-500"
-                  >
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center">
-                          <User className="w-4 h-4 text-indigo-600" />
-                        </div>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            router.push(`/dashboard/pacientes/${item.patientId}`);
-                          }}
-                          className="text-sm font-semibold text-slate-700 hover:text-indigo-600 transition-colors text-left cursor-pointer"
-                        >
-                          {item.patientName}
-                        </button>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2 text-slate-500 font-semibold text-xs uppercase">
-                        <CalendarDays className="w-4 h-4 text-indigo-500" />
-                        {new Date(item.date).toLocaleDateString("es-ES", {
-                          day: "numeric",
-                          month: "short",
-                          year: "numeric",
-                        })}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="text-sm font-semibold text-slate-800 tracking-tight block max-w-xs truncate">
-                        {item.title}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            router.push(`/dashboard/pacientes/${item.patientId}`);
-                          }}
-                          className="p-2 text-slate-400 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition-colors cursor-pointer"
-                          title="Ver Paciente"
-                        >
-                          <User className="w-5 h-5" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            router.push(`/dashboard/consultas/${item.id}/view`);
-                          }}
-                          className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
-                          title="Ver Consulta"
-                        >
-                          <Eye className="w-5 h-5" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setConsultationToDelete(item.id);
-                            setIsDeleteModalOpen(true);
-                          }}
-                          className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                          title="Eliminar"
-                        >
-                          <Trash2 className="w-5 h-5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {!isLoading && consultations.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={4}
-                      className="py-32 text-center text-slate-400 font-semibold uppercase tracking-tight text-xs"
-                    >
-                      No hay consultas registradas
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {meta.lastPage > 1 && (
-            <div className="p-6 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-tight">
-                Pagina {meta.page} de {meta.lastPage}
-              </p>
-              <div className="flex gap-2">
-                <Pagination
-                  currentPage={page}
-                  totalPages={meta.lastPage}
-                  onPageChange={setPage}
-                />
-              </div>
-            </div>
-          )}
+        <div className="flex items-center justify-between gap-4 px-1 py-2 sm:px-3">
+          <p className="text-xs font-medium text-slate-500 flex items-center gap-1.5 min-w-0 flex-wrap">
+            <FileText className="h-4 w-4 shrink-0 text-slate-400" />
+            <span>
+              <strong className="text-indigo-600 font-semibold">{meta.total}</strong> consultas registradas
+            </span>
+          </p>
         </div>
       </div>
+
+      <ConsultationsTableView
+        consultations={consultations}
+        isLoading={isLoading}
+        onViewConsultation={(id) => router.push(`/dashboard/consultas/${id}/view`)}
+        onViewPatient={(patientId) => router.push(`/dashboard/pacientes/${patientId}`)}
+        onDelete={(id) => {
+          setConsultationToDelete(id);
+          setIsDeleteModalOpen(true);
+        }}
+        footer={
+          meta.lastPage > 1 ? (
+            <Pagination
+              currentPage={page}
+              totalPages={meta.lastPage}
+              onPageChange={setPage}
+            />
+          ) : undefined
+        }
+      />
     </ModuleLayout>
   );
 }

@@ -37,6 +37,8 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { AnnouncementsModule } from './modules/announcements/announcements.module';
 import { MessageTemplatesModule } from './modules/message-templates/message-templates.module';
 import { DiscountCodesModule } from './modules/discount-codes/discount-codes.module';
+import { CalculationsModule } from './modules/calculations/calculations.module';
+import { CopilotModule } from './modules/copilot/copilot.module';
 
 @Module({
   imports: [
@@ -68,11 +70,23 @@ import { DiscountCodesModule } from './modules/discount-codes/discount-codes.mod
               ttl: 300_000, // cache-manager-redis-yet uses milliseconds
             };
           } catch (error) {
+            if (process.env.NODE_ENV === 'production') {
+              throw new Error(
+                `REDIS_URL is configured but unavailable: ${
+                  error instanceof Error ? error.message : String(error)
+                }`,
+              );
+            }
             console.warn(
               '[Cache] Redis unavailable, falling back to in-memory cache:',
               error instanceof Error ? error.message : error,
             );
           }
+        }
+        if (process.env.NODE_ENV === 'production') {
+          throw new Error(
+            'REDIS_URL is required in production for secure shared sessions',
+          );
         }
         // Fallback to in-memory store when Redis is not configured
         return { ttl: 300 };
@@ -96,6 +110,8 @@ import { DiscountCodesModule } from './modules/discount-codes/discount-codes.mod
     AnnouncementsModule,
     MessageTemplatesModule,
     DiscountCodesModule,
+    CalculationsModule,
+    CopilotModule,
   ],
   controllers: [AppController],
   providers: [AppService],

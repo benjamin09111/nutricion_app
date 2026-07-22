@@ -10,8 +10,8 @@ import {
   Trash2 as TrashIcon,
   AlertCircle,
   Globe,
-  Zap,
   Save,
+  FileSpreadsheet,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -21,15 +21,17 @@ import {
   XAxis,
   YAxis,
   Tooltip,
+  Brush,
 } from "recharts";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
+import { Select } from "@/components/ui/Select";
 import { MetricTagInput } from "@/components/ui/metric-tag-input";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { Patient } from "@/features/patients";
 import { Consultation, Metric } from "@/features/consultations";
-import { cn, normalizeMetricKey } from "../utils/patient-helpers";
+import { buildMetricSeriesForKey, cn, normalizeMetricKey, toDateOnly } from "../utils/patient-helpers";
 
 interface PatientProgressTabProps {
   patient: Patient;
@@ -53,9 +55,8 @@ interface PatientProgressTabProps {
   setIsDeleteEntireMetricConfirmOpen: (open: boolean) => void;
   isOverwriteConfirmOpen: boolean;
   setIsOverwriteConfirmOpen: (open: boolean) => void;
-  isExportModalOpen: boolean;
-  setIsExportModalOpen: (open: boolean) => void;
   isExporting: boolean;
+  isSavingMetrics: boolean;
 
   // Form states and actions
   metricForm: { date: string; metrics: Metric[] };
@@ -81,14 +82,13 @@ interface PatientProgressTabProps {
   removeMetricFromForm: (index: number) => void;
   handleDeleteEntireMetric: () => Promise<void>;
   handleExportPDF: () => Promise<void>;
+  handleExportProgressExcel: () => Promise<void>;
 }
 
 export function PatientProgressTab({
-  patient,
-  chartData,
+  consultations,
   getAllMetricKeys,
   getMetricInfo,
-  prepareChartData,
   availableMetricSuggestions,
   metricHistory,
 
@@ -102,9 +102,7 @@ export function PatientProgressTab({
   setIsDeleteEntireMetricConfirmOpen,
   isOverwriteConfirmOpen,
   setIsOverwriteConfirmOpen,
-  isExportModalOpen,
-  setIsExportModalOpen,
-  isExporting,
+  isSavingMetrics,
 
   // States
   metricForm,
@@ -129,6 +127,7 @@ export function PatientProgressTab({
   removeMetricFromForm,
   handleDeleteEntireMetric,
   handleExportPDF,
+  handleExportProgressExcel,
   registeredMetricKeys,
 }: PatientProgressTabProps) {
   return (
@@ -145,12 +144,21 @@ export function PatientProgressTab({
         </div>
         <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
           <button
-            onClick={() => setIsExportModalOpen(true)}
+            onClick={handleExportPDF}
             className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 bg-white text-emerald-600 font-black rounded-xl border border-emerald-100 hover:bg-emerald-50 transition-all cursor-pointer group/pdf shadow-sm hover:shadow-md"
           >
             <FileText className="w-4 h-4 text-emerald-500" />
             <span className="text-[10px] uppercase tracking-widest">
               Exportar PDF
+            </span>
+          </button>
+          <button
+            onClick={handleExportProgressExcel}
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 bg-white text-emerald-600 font-black rounded-xl border border-emerald-100 hover:bg-emerald-50 transition-all cursor-pointer group/pdf shadow-sm hover:shadow-md"
+          >
+            <FileSpreadsheet className="w-4 h-4 text-emerald-500" />
+            <span className="text-[10px] uppercase tracking-widest">
+              Exportar Excel
             </span>
           </button>
           <button
@@ -167,9 +175,11 @@ export function PatientProgressTab({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4 lg:gap-6 px-2">
         {getAllMetricKeys().map((key) => {
           const info = getMetricInfo(key);
-          const filtered = chartData.filter((d) => d[key] !== undefined);
+          const metricSeries = buildMetricSeriesForKey(consultations, key);
           const lastPoint =
-            filtered.length > 0 ? filtered[filtered.length - 1] : null;
+            metricSeries.length > 0
+              ? metricSeries[metricSeries.length - 1]
+              : null;
 
           return (
             <div
@@ -205,15 +215,15 @@ export function PatientProgressTab({
       </div>
 
       {/* Progression Charts Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {getAllMetricKeys().map((key) => {
           const info = getMetricInfo(key);
-          const filteredData = chartData.filter((d) => d[key] !== undefined);
-          const firstPoint = filteredData.length > 0 ? filteredData[0] : null;
+          const seriesData = buildMetricSeriesForKey(consultations, key);
+          const consultationPoints = seriesData;
+          const hasEnoughPointsForChart = consultationPoints.length >= 2;
+          const firstPoint = seriesData.length > 0 ? seriesData[0] : null;
           const latestPoint =
-            filteredData.length > 0
-              ? filteredData[filteredData.length - 1]
-              : null;
+            seriesData.length > 0 ? seriesData[seriesData.length - 1] : null;
 
           const firstValueRaw = firstPoint ? Number(firstPoint[key]) : null;
           const latestValueRaw = latestPoint ? Number(latestPoint[key]) : null;
@@ -240,88 +250,38 @@ export function PatientProgressTab({
           return (
             <div
               key={key}
-              id={`export-chart-${key}`}
-              className="bg-white rounded-2xl p-6 lg:p-8 border border-slate-200 shadow-sm group"
+              className="bg-white rounded-2xl border border-slate-100 shadow-sm group"
             >
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
-                <div className="space-y-1">
-                  <h3 className="text-base lg:text-lg font-semibold text-slate-900 flex items-center gap-3">
-                    <info.icon
-                      className={cn(
-                        "w-6 h-6",
-                        info.color === "#3b82f6"
-                          ? "text-indigo-500"
-                          : info.color === "#10b981"
-                            ? "text-emerald-500"
-                            : "text-slate-400",
-                      )}
-                    />
-                    {info.label}
-                  </h3>
-                  <p className="text-xs font-semibold text-slate-400 opacity-80">
-                    Tendencia histórica ({info.unit})
-                  </p>
-                  <div className="grid grid-cols-3 gap-2 mt-3">
-                    <div className="bg-slate-50 rounded-xl px-3 py-2 border border-slate-100 min-h-[72px] flex flex-col justify-between">
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider leading-tight min-h-[18px]">
-                        Primer valor
-                      </p>
-                      <div className="flex items-baseline gap-1 flex-wrap mt-2">
-                        <span className="text-sm font-black text-slate-700 leading-none">
-                          {formatMetricValue(firstValueRaw)}
-                        </span>
-                        <span className="text-[10px] text-slate-400 leading-none">
-                          {info.unit}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="bg-slate-50 rounded-xl px-3 py-2 border border-slate-100 min-h-[72px] flex flex-col justify-between">
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider leading-tight min-h-[18px]">
-                        Último valor
-                      </p>
-                      <div className="flex items-baseline gap-1 flex-wrap mt-2">
-                        <span className="text-sm font-black text-slate-700 leading-none">
-                          {formatMetricValue(latestValueRaw)}
-                        </span>
-                        <span className="text-[10px] text-slate-400 leading-none">
-                          {info.unit}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="bg-slate-50 rounded-xl px-3 py-2 border border-slate-100 min-h-[72px] flex flex-col justify-between">
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider leading-tight min-h-[18px]">
-                        Diferencia
-                      </p>
-                      <div className={cn("flex items-baseline gap-1 flex-wrap mt-2")}>
-                        <span
-                          className={cn(
-                            "text-sm font-black leading-none",
-                            diffRaw === null || !Number.isFinite(diffRaw)
-                              ? "text-slate-500"
-                              : diffRaw > 0
-                                ? "text-emerald-600"
-                                : diffRaw < 0
-                                  ? "text-indigo-600"
-                                  : "text-slate-700",
-                          )}
-                        >
-                          {diffDisplay}
-                        </span>
-                        <span className={cn("text-[10px] text-slate-400 leading-none")}>
-                          {info.unit}
-                        </span>
-                      </div>
-                    </div>
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 pt-5 pb-2">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <info.icon
+                    className={cn(
+                      "w-5 h-5 shrink-0",
+                      info.color === "#3b82f6"
+                        ? "text-indigo-500"
+                        : info.color === "#10b981"
+                          ? "text-emerald-500"
+                          : "text-slate-400",
+                    )}
+                  />
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-bold text-slate-900 truncate">
+                      {info.label}
+                    </h3>
+                    <p className="text-[10px] font-semibold text-slate-400">
+                      {info.unit}
+                    </p>
                   </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-1 shrink-0 ml-2">
                   <button
                     onClick={() => openMetricLogger(key)}
                     data-no-export="true"
-                    className="p-3 bg-emerald-50 text-emerald-600 hover:text-white hover:bg-emerald-600 rounded-xl transition-all active:scale-95 cursor-pointer border border-emerald-100"
-                    title={`Registrar ${info.label} rápidamente`}
+                    className="p-1.5 bg-emerald-50 text-emerald-600 hover:text-white hover:bg-emerald-600 rounded-lg transition-all active:scale-95 cursor-pointer border border-emerald-100"
+                    title={`Registrar ${info.label}`}
                   >
-                    <Plus className="w-4 h-4" />
+                    <Plus className="w-3.5 h-3.5" />
                   </button>
                   <button
                     onClick={() => {
@@ -329,10 +289,10 @@ export function PatientProgressTab({
                       setIsEditMetricHistoryModalOpen(true);
                     }}
                     data-no-export="true"
-                    className="p-3 bg-slate-50 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all active:scale-95 cursor-pointer border border-transparent hover:border-emerald-100"
+                    className="p-1.5 bg-slate-50 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all active:scale-95 cursor-pointer border border-transparent hover:border-emerald-100"
                     title={`Editar historial de ${info.label}`}
                   >
-                    <Edit2 className="w-4 h-4" />
+                    <Edit2 className="w-3.5 h-3.5" />
                   </button>
                   <button
                     onClick={() => {
@@ -340,137 +300,141 @@ export function PatientProgressTab({
                       setIsDeleteEntireMetricConfirmOpen(true);
                     }}
                     data-no-export="true"
-                    className="p-3 bg-slate-50 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all active:scale-95 cursor-pointer border border-transparent hover:border-indigo-100"
-                    title={`Eliminar toda la métrica ${info.label}`}
+                    className="p-1.5 bg-slate-50 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all active:scale-95 cursor-pointer border border-transparent hover:border-indigo-100"
+                    title={`Eliminar métrica ${info.label}`}
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
 
-              <div className="h-[300px] w-full">
+              {/* Chart — only this zone is captured for PDF */}
+              <div
+                id={`export-chart-${key}`}
+                className="h-[260px] w-full bg-white [&_*:focus]:outline-none [&_svg]:outline-none [&_.recharts-surface]:outline-none"
+              >
                 {(() => {
-                  if (filteredData.length >= 2) {
+                  if (hasEnoughPointsForChart) {
                     return (
                       <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart
-                          data={chartData}
-                          margin={{
-                            top: 10,
-                            right: 10,
-                            left: -20,
-                            bottom: 0,
-                          }}
-                        >
+                          <AreaChart
+                            data={seriesData}
+                            margin={{ top: 10, right: 15, left: 0, bottom: 5 }}
+                          >
                           <defs>
                             <linearGradient
-                              id={`color-${key}`}
-                              x1="0"
-                              y1="0"
-                              x2="0"
-                              y2="1"
+                              id={`grad-${key}`}
+                              x1="0" y1="0" x2="0" y2="1"
                             >
-                              <stop
-                                offset="5%"
-                                stopColor="#10b981"
-                                stopOpacity={0.3}
-                              />
-                              <stop
-                                offset="95%"
-                                stopColor="#10b981"
-                                stopOpacity={0}
-                              />
+                              <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                              <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                             </linearGradient>
                           </defs>
-                          <CartesianGrid
-                            strokeDasharray="3 3"
-                            vertical={false}
-                            stroke="#f1f5f9"
-                          />
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                           <XAxis
                             dataKey="date"
                             axisLine={false}
                             tickLine={false}
-                            tick={{
-                              fontSize: 11,
-                              fontWeight: 600,
-                              fill: "#94a3b8",
-                            }}
-                            dy={15}
+                            tick={{ fontSize: 10, fontWeight: 600, fill: "#94a3b8" }}
+                            dy={8}
                           />
                           <YAxis
                             axisLine={false}
                             tickLine={false}
-                            tick={{
-                              fontSize: 11,
-                              fontWeight: 600,
-                              fill: "#94a3b8",
-                            }}
+                            tick={{ fontSize: 10, fontWeight: 600, fill: "#94a3b8" }}
                             domain={["auto", "auto"]}
+                            width={40}
                           />
                           <Tooltip
                             contentStyle={{
-                              borderRadius: "16px",
+                              borderRadius: "12px",
                               border: "none",
                               boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
-                              padding: "12px",
-                            }}
-                            itemStyle={{
-                              fontWeight: 600,
-                              fontSize: "12px",
-                            }}
-                            labelStyle={{
-                              fontWeight: 700,
-                              color: "#1e293b",
-                              marginBottom: "4px",
+                              padding: "10px",
                             }}
                           />
                           <Area
                             type="monotone"
                             dataKey={key}
                             stroke="#10b981"
-                            strokeWidth={3}
+                            strokeWidth={2.5}
                             fillOpacity={1}
-                            fill={`url(#color-${key})`}
+                            fill={`url(#grad-${key})`}
                             animationDuration={1500}
                             connectNulls
                           />
+                          {seriesData.length > 6 && (
+                            <Brush dataKey="date" height={20} stroke="#cbd5e1" fill="#f8fafc" />
+                          )}
                         </AreaChart>
                       </ResponsiveContainer>
                     );
                   }
 
                   return (
-                    <div className="h-full flex flex-col items-center justify-center bg-slate-50/50 rounded-2xl border-2 border-dashed border-slate-100 gap-4 group-hover:bg-slate-50 transition-colors">
-                      <div className="w-20 h-20 bg-white rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center justify-center animate-in zoom-in-50 duration-500">
-                        {latestPoint ? (
-                          <>
-                            <span className="text-2xl font-black text-slate-900 leading-none">
-                              {latestPoint[key]}
-                            </span>
-                            <span className="text-[10px] font-bold text-slate-400 uppercase mt-1">
-                              {info.unit}
-                            </span>
-                          </>
-                        ) : (
-                          <info.icon className="w-8 h-8 opacity-20 text-slate-400" />
-                        )}
-                      </div>
-                      <div className="text-center space-y-1 px-6">
-                        <p className="text-xs font-bold text-slate-600">
-                          {latestPoint
-                            ? "Primer registro detectado"
-                            : "Sin registros detectados"}
-                        </p>
-                        <p className="text-[10px] font-semibold text-slate-400 leading-tight">
-                          {latestPoint
-                            ? "Se necesitan al menos 2 registros en fechas distintas para generar la curva de tendencia."
-                            : `No hay datos históricos para ${info.label.toLowerCase()}.`}
-                        </p>
-                      </div>
+                    <div className="h-full flex flex-col items-center justify-center bg-slate-50/50 rounded-2xl border-2 border-dashed border-slate-100 gap-2 mx-5">
+                      {latestPoint ? (
+                        <>
+                          <span className="text-2xl font-black text-slate-900">
+                            {latestPoint[key]}
+                          </span>
+                          <span className="text-[10px] font-bold text-slate-400 uppercase">
+                            {info.unit}
+                          </span>
+                          <p className="text-[10px] font-semibold text-slate-400">
+                            Se necesitan 2 registros para la curva.
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <info.icon className="w-7 h-7 opacity-20 text-slate-400" />
+                          <p className="text-[10px] font-semibold text-slate-400 text-center px-4">
+                            Sin datos para {info.label.toLowerCase()}.
+                          </p>
+                        </>
+                      )}
                     </div>
                   );
                 })()}
+              </div>
+
+              {/* Stats below chart — not captured for export */}
+              <div className="grid grid-cols-3 divide-x divide-slate-100 border-t border-slate-100">
+                <div className="px-4 py-3 text-center">
+                  <p className="text-xl font-black text-slate-800 leading-tight">
+                    {formatMetricValue(firstValueRaw)}
+                  </p>
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mt-0.5">
+                    INICIAL
+                  </p>
+                </div>
+                <div className="px-4 py-3 text-center">
+                  <p className="text-xl font-black text-slate-800 leading-tight">
+                    {formatMetricValue(latestValueRaw)}
+                  </p>
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mt-0.5">
+                    ACTUAL
+                  </p>
+                </div>
+                <div className="px-4 py-3 text-center">
+                  <p
+                    className={cn(
+                      "text-xl font-black leading-tight",
+                      diffRaw === null || !Number.isFinite(diffRaw)
+                        ? "text-slate-500"
+                        : diffRaw > 0
+                          ? "text-emerald-600"
+                          : diffRaw < 0
+                            ? "text-indigo-600"
+                            : "text-slate-700",
+                    )}
+                  >
+                    {diffDisplay}
+                  </p>
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mt-0.5">
+                    CAMBIO
+                  </p>
+                </div>
               </div>
             </div>
           );
@@ -479,191 +443,223 @@ export function PatientProgressTab({
 
       {/* Independent Metric Logging Modal */}
       {isMetricModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-100 flex flex-col max-h-[90vh]">
-            <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+        <div
+          onClick={closeMetricLogger}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="relative bg-white rounded-3xl shadow-2xl w-full max-w-5xl overflow-hidden border border-slate-100 flex flex-col max-h-[90vh]"
+          >
+            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 shrink-0">
               <div>
-                <h3 className="text-2xl font-semibold text-slate-900 tracking-tight">
+                <h3 className="text-lg font-semibold text-slate-900 tracking-tight">
                   Registrar Evolución
                 </h3>
-                <p className="text-slate-500 font-medium text-xs mt-1">
+                <p className="text-[11px] text-slate-400 font-medium">
                   Añade datos biométricos fuera de consulta
                 </p>
               </div>
               <button
                 onClick={closeMetricLogger}
-                className="p-3 bg-white rounded-xl text-slate-400 hover:text-slate-600 transition-all border border-slate-100 shadow-sm cursor-pointer"
+                className="p-2.5 bg-white rounded-xl text-slate-400 hover:text-slate-600 transition-all border border-slate-100 shadow-sm cursor-pointer"
               >
-                <Plus className="w-6 h-6 rotate-45" />
+                <Plus className="w-5 h-5 rotate-45" />
               </button>
             </div>
 
-            <div className="p-8 space-y-8 overflow-y-auto flex-1 custom-scrollbar">
-              <div className="space-y-3">
-                <label className="text-xs font-semibold text-slate-500 uppercase tracking-tight ml-1">
-                  Fecha del Registro
-                </label>
-                <div className="relative">
-                  <Calendar className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-emerald-500" />
-                  <input
-                    type="date"
-                    className="w-full h-14 pl-14 pr-5 rounded-2xl bg-slate-50 border border-slate-100 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all font-semibold text-slate-700 cursor-pointer shadow-sm"
-                    value={metricForm.date}
-                    onChange={(e) =>
-                      setMetricForm({ ...metricForm, date: e.target.value })
-                    }
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-6">
-                <div className="flex justify-between items-center">
-                  <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-tight">
-                    Seleccionar Métricas
-                  </h4>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() =>
-                        setMetricForm({
-                          ...metricForm,
-                          metrics: [],
-                        })
-                      }
-                      className="text-[10px] font-bold text-slate-400 hover:text-indigo-500 transition-colors uppercase tracking-widest px-3 py-1 cursor-pointer"
-                    >
-                      Limpiar
-                    </button>
-                    <button
-                      onClick={addMetricToForm}
-                      className="text-xs font-semibold bg-slate-50 text-slate-500 px-4 py-2 rounded-xl border border-slate-100 hover:bg-slate-100 transition-all flex items-center gap-2 cursor-pointer"
-                    >
-                      <Plus className="w-4 h-4" /> FILA VACÍA
-                    </button>
+            <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
+              {/* Left column — selected metrics + date */}
+              <div className="w-full lg:w-1/2 lg:border-r border-slate-100 flex flex-col">
+                <div className="p-5 shrink-0">
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block">
+                        Fecha del Registro
+                      </label>
+                      <div className="relative">
+                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-emerald-500" />
+                        <input
+                          type="date"
+                          className="w-full h-11 pl-10 pr-4 rounded-xl bg-slate-50 border border-slate-100 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 outline-none transition-all font-semibold text-sm text-slate-700 cursor-pointer"
+                          value={metricForm.date}
+                          onChange={(e) =>
+                            setMetricForm({ ...metricForm, date: e.target.value })
+                          }
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <MetricTagInput
-                  value={metricForm.metrics}
-                  registeredKeys={registeredMetricKeys}
-                  onChange={(newMetrics) => {
-                    const updatedMetrics = newMetrics.map((m) => ({
-                      ...m,
-                      value: m.value || "",
-                    }));
-                    setMetricForm({ ...metricForm, metrics: updatedMetrics });
-                  }}
-                  placeholder="Busca por nombre (ej: Brazo, Cadera...)"
-                  className="mt-2"
-                />
-              </div>
-
-              <div className="space-y-4">
-                {metricForm.metrics.map((m, idx) => (
-                  <div
-                    key={idx}
-                    className="grid grid-cols-12 gap-4 items-end bg-slate-50 p-6 rounded-2xl border border-slate-100 animate-in slide-in-from-bottom-2"
+                <div className="px-5 pb-4 flex items-center justify-between shrink-0">
+                  <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                    Métricas seleccionadas
+                  </h4>
+                  <button
+                    onClick={() =>
+                      setMetricForm({ ...metricForm, metrics: [] })
+                    }
+                    className="text-[10px] font-bold text-slate-400 hover:text-rose-500 transition-colors uppercase tracking-widest cursor-pointer"
                   >
-                    <div className="col-span-4 space-y-2">
-                      <label className="text-[10px] font-semibold text-slate-400 uppercase ml-1">
-                        Concepto
-                      </label>
-                      <Input
-                        placeholder="Peso, Cintura..."
-                        value={m.label}
-                        onChange={(e) =>
-                          updateMetricInForm(idx, "label", e.target.value)
-                        }
-                        className="bg-white"
-                      />
+                    Limpiar todo
+                  </button>
+                </div>
+
+                <div className="max-h-[35vh] lg:max-h-[45vh] overflow-y-auto px-5 pb-5 custom-scrollbar space-y-3">
+                  {metricForm.metrics.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-center">
+                      <Activity className="w-10 h-10 text-slate-200 mb-3" />
+                      <p className="text-sm font-semibold text-slate-400">
+                        Sin métricas seleccionadas
+                      </p>
+                      <p className="text-[11px] text-slate-300 mt-1">
+                        Usa el panel derecho para buscar y agregar métricas
+                      </p>
                     </div>
-                    <div className="col-span-4 space-y-2">
-                      <label className="text-[10px] font-semibold text-slate-400 uppercase ml-1">
-                        Valor
-                      </label>
-                      <Input
-                        placeholder="70.5"
-                        value={m.value}
-                        onChange={(e) =>
-                          updateMetricInForm(idx, "value", e.target.value)
-                        }
-                        className="bg-white"
-                      />
-                    </div>
-                    <div className="col-span-3 space-y-2">
-                      <label className="text-[10px] font-semibold text-slate-400 uppercase ml-1">
-                        Unidad
-                      </label>
-                      {(() => {
-                        const known = availableMetricSuggestions.find(
-                          (s) =>
-                            s.label.toLowerCase() === m.label.toLowerCase() ||
-                            s.key === normalizeMetricKey(m.label, m.key),
-                        );
-                        return (
-                          <div className="relative">
-                            <select
-                              value={m.unit}
-                              disabled={!!known}
-                              onChange={(e) =>
-                                updateMetricInForm(idx, "unit", e.target.value)
-                              }
-                              className={cn(
-                                "w-full rounded-xl border h-11 text-slate-900 bg-white px-4 py-2 text-sm focus:ring-4 outline-none font-bold cursor-pointer transition-shadow shadow-xs",
-                                known
-                                  ? "bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed"
-                                  : "border-slate-200 focus:ring-emerald-500/10 focus:border-emerald-500",
-                              )}
-                            >
-                              <option value="" disabled>
-                                Selecciona...
-                              </option>
-                              <option value="kg">kg (Kilogramos)</option>
-                              <option value="g">g (Gramos)</option>
-                              <option value="cm">cm (Centímetros)</option>
-                              <option value="mm">mm (Milímetros)</option>
-                              <option value="%">% (Porcentaje)</option>
-                              <option value="mg/dL">mg/dL</option>
-                              <option value="mmol/L">mmol/L</option>
-                              <option value="kcal">kcal</option>
-                              <option value="latidos/min">latidos/min</option>
-                              <option value="hrs">hrs</option>
-                              <option value="mins">mins</option>
-                              <option value="niveles">niveles (1-10)</option>
-                              <option value="unidades">unidades</option>
-                            </select>
+                  ) : (
+                    metricForm.metrics.map((m, idx) => {
+                      const known = availableMetricSuggestions.find(
+                        (s) =>
+                          s.label.toLowerCase() === m.label.toLowerCase() ||
+                          s.key === normalizeMetricKey(m.label, m.key),
+                      );
+                      return (
+                        <div
+                          key={idx}
+                          className="bg-slate-50 rounded-xl border border-slate-100 p-4 space-y-2"
+                        >
+                          <div className="flex items-center justify-between">
+                            {!!m.key ? (
+                              <span className="text-xs font-bold text-slate-700">
+                                {m.label || "Métrica sin nombre"}
+                              </span>
+                            ) : (
+                              <Input
+                                placeholder="Nombre de la métrica"
+                                value={m.label}
+                                onChange={(e) =>
+                                  updateMetricInForm(idx, "label", e.target.value)
+                                }
+                                className="h-8 text-xs font-semibold bg-white"
+                              />
+                            )}
                             {known && (
-                              <span className="absolute -top-6 right-0 text-[8px] font-black uppercase text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 animate-in fade-in slide-in-from-right-2">
-                                Unidad Oficial
+                              <span className="text-[8px] font-black uppercase text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">
+                                Oficial
                               </span>
                             )}
+                            <button
+                              onClick={() => removeMetricFromForm(idx)}
+                              className="p-1 text-slate-300 hover:text-rose-500 transition-colors cursor-pointer"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                           </div>
-                        );
-                      })()}
-                    </div>
-                    <div className="col-span-1 pb-1">
-                      <button
-                        onClick={() => removeMetricFromForm(idx)}
-                        className="p-2 text-slate-400 hover:text-indigo-500 transition-colors"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
-                    </div>
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1">
+                              <input
+                                type="text"
+                                placeholder="Valor"
+                                value={m.value}
+                                onChange={(e) =>
+                                  updateMetricInForm(idx, "value", e.target.value)
+                                }
+                                className="w-full h-9 px-3 rounded-lg bg-white border border-slate-200 text-sm font-semibold text-slate-700 placeholder:text-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 outline-none transition-all"
+                              />
+                            </div>
+                            <div className="w-28">
+                              {!!m.key ? (
+                                <Select
+                                  disabled={!!known}
+                                  value={m.unit ?? ""}
+                                  onChange={(val) =>
+                                    updateMetricInForm(idx, "unit", val)
+                                  }
+                                  options={[
+                                    { value: "", label: "Und." },
+                                    { value: "kg", label: "kg" },
+                                    { value: "g", label: "g" },
+                                    { value: "cm", label: "cm" },
+                                    { value: "mm", label: "mm" },
+                                    { value: "%", label: "%" },
+                                    { value: "mg/dL", label: "mg/dL" },
+                                    { value: "mmol/L", label: "mmol/L" },
+                                    { value: "kcal", label: "kcal" },
+                                    { value: "latidos/min", label: "lat/min" },
+                                    { value: "hrs", label: "hrs" },
+                                    { value: "mins", label: "mins" },
+                                    { value: "niveles", label: "niveles" },
+                                    { value: "unidades", label: "unid." },
+                                  ]}
+                                  placeholder="Und."
+                                  className="h-9"
+                                />
+                              ) : (
+                                <Input
+                                  placeholder="Unidad"
+                                  value={m.unit ?? ""}
+                                  onChange={(e) =>
+                                    updateMetricInForm(idx, "unit", e.target.value)
+                                  }
+                                  className="h-9 text-xs font-semibold bg-white"
+                                />
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              {/* Right column — metric search and selection */}
+              <div className="w-full lg:w-1/2 flex flex-col max-h-[70vh] lg:max-h-[90vh] overflow-y-auto custom-scrollbar">
+                <div className="p-5 pb-3 shrink-0">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block">
+                    Selector de métricas
+                  </label>
+                  <MetricTagInput
+                    value={metricForm.metrics}
+                    registeredKeys={registeredMetricKeys}
+                    onChange={(newMetrics) => {
+                      const updatedMetrics = newMetrics.map((m) => ({
+                        ...m,
+                        value: m.value || "",
+                      }));
+                      setMetricForm({ ...metricForm, metrics: updatedMetrics });
+                    }}
+                    placeholder="Buscar métricas (ej: Peso, Cintura...)"
+                  />
+                  <div className="mt-3 flex justify-end">
+                    <button
+                      onClick={addMetricToForm}
+                      className="text-[10px] font-bold text-slate-400 hover:text-indigo-500 transition-colors uppercase tracking-widest cursor-pointer flex items-center gap-1"
+                    >
+                      <Plus className="w-3 h-3" /> Agregar manual
+                    </button>
                   </div>
-                ))}
+                </div>
               </div>
             </div>
 
-            <div className="p-8 bg-slate-50 border-t border-slate-100 flex justify-end gap-4 shrink-0">
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3 shrink-0">
               <button
                 onClick={closeMetricLogger}
-                className="px-6 py-3 bg-white text-slate-500 font-semibold rounded-xl border border-slate-200 hover:bg-slate-50 transition-all cursor-pointer"
+                disabled={isSavingMetrics}
+                className="px-5 py-2.5 bg-white text-slate-500 font-semibold text-sm rounded-xl border border-slate-200 hover:bg-slate-50 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 CANCELAR
               </button>
               <button
                 onClick={handleSaveMetricsClick}
-                className="px-8 py-3 bg-slate-900 text-white font-semibold rounded-xl hover:bg-slate-800 transition-all shadow-lg active:scale-95 cursor-pointer"
+                disabled={isSavingMetrics}
+                className="px-8 py-2.5 bg-slate-900 text-white font-semibold text-sm rounded-xl hover:bg-slate-800 transition-all shadow-lg active:scale-95 cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2"
               >
+                {isSavingMetrics && (
+                  <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                )}
                 GUARDAR CAMBIOS
               </button>
             </div>
@@ -824,84 +820,6 @@ export function PatientProgressTab({
         cancelText="Cancelar"
       />
 
-      {/* Modal de Exportación PDF con aviso de IA */}
-      <Modal
-        isOpen={isExportModalOpen}
-        onClose={() => !isExporting && setIsExportModalOpen(false)}
-        title="Exportar Informe de Progreso"
-      >
-        <div className="space-y-6 pt-2">
-          <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 flex gap-4 items-start">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
-              <Zap className="w-6 h-6 animate-pulse" />
-            </div>
-            <div className="space-y-2">
-              <h4 className="text-sm font-bold text-slate-900 uppercase tracking-tight">
-                Próximamente: Análisis por IA
-              </h4>
-              En futuras actualizaciones, nuestro motor de IA realizará un
-              análisis automático de estas tendencias para identificar patrones
-              de éxito y áreas de mejora en el tratamiento de{" "}
-              <strong>{patient?.fullName || "Paciente"}</strong>.
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            <div className="flex items-center gap-3 p-4 bg-white border border-slate-100 rounded-xl">
-              <FileText className="w-5 h-5 text-slate-400" />
-              <div className="flex-1">
-                <p className="text-[10px] font-black uppercase text-slate-400">
-                  Nombre del Archivo
-                </p>
-                <p className="text-xs font-bold text-slate-700">
-                  Evolucion_
-                  {(patient?.fullName || "Paciente").replace(/\s+/g, "_")}.pdf
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 p-4 bg-white border border-slate-100 rounded-xl">
-              <Calendar className="w-5 h-5 text-slate-400" />
-              <div className="flex-1">
-                <p className="text-[10px] font-black uppercase text-slate-400">
-                  Contenido
-                </p>
-                <p className="text-xs font-bold text-slate-700">
-                  Resumen textual + Gráficos de tendencia
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex gap-3 pt-4">
-            <Button
-              variant="ghost"
-              className="flex-1 h-12 rounded-xl font-bold text-slate-400"
-              onClick={() => setIsExportModalOpen(false)}
-              disabled={isExporting}
-            >
-              CANCELAR
-            </Button>
-            <Button
-              className="flex-2 h-12 bg-slate-900 text-white rounded-xl font-black text-[10px] tracking-widest shadow-xl shadow-slate-200 active:scale-95 transition-all flex items-center justify-center gap-2"
-              onClick={handleExportPDF}
-              disabled={isExporting}
-            >
-              {isExporting ? (
-                <>
-                  <div className="h-4 w-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                  GENERANDO...
-                </>
-              ) : (
-                <>
-                  <FileText className="w-4 h-4" />
-                  GENERAR INFORME PDF
-                </>
-              )}
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
       {/* Modal Confirmación Borrar Métrica Completa */}
       <ConfirmationModal
         isOpen={isDeleteEntireMetricConfirmOpen}
@@ -990,14 +908,7 @@ function MetricRecordRow({
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
   const normalizeDate = (d: string) => {
-    try {
-      const dateObj = new Date(d);
-      return isNaN(dateObj.getTime())
-        ? ""
-        : dateObj.toISOString().split("T")[0];
-    } catch {
-      return "";
-    }
+    return toDateOnly(d);
   };
 
   const [date, setDate] = useState(normalizeDate(record.date));

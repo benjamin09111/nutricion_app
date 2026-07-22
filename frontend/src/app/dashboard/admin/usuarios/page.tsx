@@ -46,6 +46,17 @@ interface MembershipPlan {
   billingPeriod: string;
 }
 
+const toMembershipPlanArray = (value: unknown): MembershipPlan[] => {
+  if (Array.isArray(value)) return value as MembershipPlan[];
+  if (value && typeof value === "object") {
+    const payload = value as { data?: unknown; plans?: unknown; items?: unknown };
+    if (Array.isArray(payload.data)) return payload.data as MembershipPlan[];
+    if (Array.isArray(payload.plans)) return payload.plans as MembershipPlan[];
+    if (Array.isArray(payload.items)) return payload.items as MembershipPlan[];
+  }
+  return [];
+};
+
 type CreationRole =
   | "ADMIN_MASTER"
   | "ADMIN_GENERAL"
@@ -133,9 +144,10 @@ export default function AdminUsersPage() {
       const response = await fetchApi(`/memberships/active`);
       if (!response.ok) throw new Error("Error al cargar planes");
       const data = await response.json();
-      setMembershipPlans(data);
-      if (data.length > 0) {
-        setSelectedPlanId(data[0].id);
+      const plans = toMembershipPlanArray(data);
+      setMembershipPlans(plans);
+      if (plans.length > 0) {
+        setSelectedPlanId(plans[0].id);
       }
     } catch (error) {
       console.error("Error fetching membership plans:", error);

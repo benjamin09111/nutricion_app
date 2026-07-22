@@ -24,6 +24,8 @@ const STAFF_ROLES = new Set([
   "WORKER",
 ]);
 
+const ONBOARDING_PATH = "/onboarding/rut";
+
 const WORKER_ALLOWED_ADMIN_PATHS = [
   "/dashboard/admin/nutricionistas",
   "/dashboard/admin/mensajes",
@@ -50,7 +52,7 @@ export default function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  let parsedUser: { role?: string } | null = null;
+  let parsedUser: { role?: string; rut?: string | null } | null = null;
   let userParseFailed = false;
 
   if (userData) {
@@ -64,6 +66,20 @@ export default function proxy(request: NextRequest) {
 
   const isDashboardRoute = pathname.startsWith("/dashboard");
   const isAuthRoute = pathname === "/login";
+  const isOnboardingRoute = pathname.startsWith(ONBOARDING_PATH);
+  const needsRut = Boolean(
+    parsedUser && !STAFF_ROLES.has(parsedUser.role || "") && !parsedUser.rut,
+  );
+
+  if (!token && isOnboardingRoute) {
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
+
+  if (token && needsRut && !isOnboardingRoute) {
+    const url = new URL(ONBOARDING_PATH, request.url);
+    url.searchParams.set("next", pathname + request.nextUrl.search);
+    return NextResponse.redirect(url);
+  }
 
   if (isDashboardRoute && !token) {
     const url = new URL("/login", request.url);
@@ -79,6 +95,12 @@ export default function proxy(request: NextRequest) {
   }
 
   if (isAuthRoute && token) {
+    if (needsRut) {
+      const url = new URL(ONBOARDING_PATH, request.url);
+      url.searchParams.set("next", "/dashboard");
+      return NextResponse.redirect(url);
+    }
+
     const target =
       parsedUser && STAFF_ROLES.has(parsedUser.role || "")
         ? "/dashboard/admin"
@@ -113,6 +135,14 @@ export default function proxy(request: NextRequest) {
     if (pathname.startsWith("/dashboard/admin") && !isStaff) {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
+  }
+
+  if (isOnboardingRoute && token && !needsRut) {
+    const target =
+      parsedUser && STAFF_ROLES.has(parsedUser.role || "")
+        ? "/dashboard/admin"
+        : "/dashboard";
+    return NextResponse.redirect(new URL(target, request.url));
   }
 
   return NextResponse.next();

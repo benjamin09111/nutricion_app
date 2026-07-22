@@ -1,18 +1,18 @@
 import type { Metadata } from "next";
-import { Poppins } from "next/font/google";
-import { Inter } from "next/font/google";
+import { Inter, Poppins } from "next/font/google";
 import "./globals.css";
 
 const poppins = Poppins({
-  variable: "--font-poppins",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800", "900"],
+  weight: ["300", "400", "500", "600", "700", "800", "900"],
+  variable: "--font-poppins",
+  display: "swap",
 });
 
 const inter = Inter({
-  variable: "--font-inter",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-inter",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -31,6 +31,9 @@ export const metadata: Metadata = {
     email: false,
     address: false,
     telephone: false,
+  },
+  verification: {
+    google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || "q0IxOy6dmULvxVnYzc342k3vZEozt62agOXGx9MrlVg",
   },
   keywords: [
     "nutricionista",
@@ -96,8 +99,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es-CL" suppressHydrationWarning>
-      <body className={`${poppins.variable} ${inter.variable} antialiased`}>
+    <html
+      lang="es-CL"
+      suppressHydrationWarning
+      data-scroll-behavior="smooth"
+      className={`${poppins.variable} ${inter.variable}`}
+    >
+      <body className="antialiased">
         <Providers>
           {children}
           <Toaster position="top-right" richColors />

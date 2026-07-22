@@ -76,6 +76,51 @@ export const intakeFormSchema = z.object({
     .max(500)
     .optional()
     .or(z.literal('')),
+  kneeHeight: z.string().optional().or(z.literal('')).transform(v => {
+    if (!v || v.trim() === '') return undefined;
+    const n = Number(v);
+    return isNaN(n) ? undefined : n;
+  }),
+  calfCircumference: z.string().optional().or(z.literal('')).transform(v => {
+    if (!v || v.trim() === '') return undefined;
+    const n = Number(v);
+    return isNaN(n) ? undefined : n;
+  }),
+  armCircumference: z.string().optional().or(z.literal('')).transform(v => {
+    if (!v || v.trim() === '') return undefined;
+    const n = Number(v);
+    return isNaN(n) ? undefined : n;
+  }),
+  waistCircumference: z.string().optional().or(z.literal('')).transform(v => {
+    if (!v || v.trim() === '') return undefined;
+    const n = Number(v);
+    return isNaN(n) ? undefined : n;
+  }),
+  hipCircumference: z.string().optional().or(z.literal('')).transform(v => {
+    if (!v || v.trim() === '') return undefined;
+    const n = Number(v);
+    return isNaN(n) ? undefined : n;
+  }),
+  pliegueTricipital: z.string().optional().or(z.literal('')).transform(v => {
+    if (!v || v.trim() === '') return undefined;
+    const n = Number(v);
+    return isNaN(n) ? undefined : n;
+  }),
+  pliegueBicipital: z.string().optional().or(z.literal('')).transform(v => {
+    if (!v || v.trim() === '') return undefined;
+    const n = Number(v);
+    return isNaN(n) ? undefined : n;
+  }),
+  pliegueSubescapular: z.string().optional().or(z.literal('')).transform(v => {
+    if (!v || v.trim() === '') return undefined;
+    const n = Number(v);
+    return isNaN(n) ? undefined : n;
+  }),
+  pliegueSuprailiaco: z.string().optional().or(z.literal('')).transform(v => {
+    if (!v || v.trim() === '') return undefined;
+    const n = Number(v);
+    return isNaN(n) ? undefined : n;
+  }),
   honeypot: z.string().optional(),
 });
 

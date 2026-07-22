@@ -9,7 +9,6 @@ export type UsePatientsParams = {
   page: number;
   searchTerm: string;
   activeTab: PatientTab;
-  documentIdFilter: string;
   classificationTags: string[];
   startDateFilter: string;
 };
@@ -18,7 +17,6 @@ const buildPatientsQuery = ({
   page,
   searchTerm,
   activeTab,
-  documentIdFilter,
   classificationTags,
   startDateFilter,
 }: UsePatientsParams) => {
@@ -27,7 +25,6 @@ const buildPatientsQuery = ({
     limit: "10",
     ...(searchTerm && { search: searchTerm }),
     ...(activeTab !== "Todos" && { status: activeTab }),
-    ...(documentIdFilter && { documentId: documentIdFilter }),
     ...(classificationTags.length > 0 && {
       tags: classificationTags.join(","),
     }),

@@ -12,6 +12,7 @@ model Account {
   id              String  @id @default(uuid())
   email           String  @unique
   password        String?
+  rut             String? @unique @map("rut")
   googleSub       String? @unique @map("google_sub")
   googleEmail     String? @map("google_email")
   googleAvatarUrl String? @map("google_avatar_url")
@@ -23,6 +24,7 @@ model Account {
   updatedAt                 DateTime                   @updatedAt @map("updated_at")
   plan                      SubscriptionPlan           @default(FREE)
   subscriptionEndsAt        DateTime?                  @map("subscription_ends_at")
+  membershipSelectedAt      DateTime?                  @map("membership_selected_at")
   lastLoginAt               DateTime?                  @map("last_login_at") @db.Timestamptz(6)
   emailVerificationToken    String?                    @unique @map("email_verification_token")
   emailVerificationSentAt   DateTime?                  @map("email_verification_sent_at") @db.Timestamptz(6)
@@ -36,6 +38,7 @@ model Account {
   createdDiscountCodes      DiscountCode[]             @relation("DiscountCodeCreator")
   usedDiscountCodes         DiscountCode[]             @relation("DiscountCodeUser")
   archivedDiscountCodes     DiscountCode[]             @relation("DiscountCodeArchiver")
+  deletionRequests          AccountDeletionRequest[]
 
   @@index([role, createdAt])
   @@map("accounts")
@@ -177,6 +180,7 @@ model Patient {
   nutritionalFocus  String?                   @map("nutritional_focus")
   status            String?                   @default("Active")
   activityLevel     String?                   @map("activity_level")
+  primaryCondition  String?                   @map("primary_condition")
   tags              String[]                  @default([])
   likes             String?
   consultations     Consultation[]
@@ -185,12 +189,29 @@ model Patient {
   portalEntries     PatientPortalEntry[]
   portalCheckIns    PatientPortalCheckIn[]
   intakeSubmissions PatientIntakeSubmission[]
+  clinicalRecord    ClinicalRecord?
   nutritionist      Nutritionist              @relation(fields: [nutritionistId], references: [id])
   projects          Project[]
   appointments      Appointment[]
 
   @@index([nutritionistId])
   @@map("patients")
+}
+
+model ClinicalRecord {
+  id                    String   @id @default(uuid())
+  patientId             String   @unique @map("patient_id")
+  vitalHistory          Json?    @default("{}") @map("vital_history")
+  gynecoObstetric       Json?    @default("{}") @map("gyneco_obstetric")
+  nutritionalAnamnesis  Json?    @default("{}") @map("nutritional_anamnesis")
+  anthropometry         Json?    @default("{}")
+  dataSources           Json?    @default("{}") @map("data_sources")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+  patient               Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@map("clinical_records")
 }
 
 model PatientIntakeLink {
@@ -257,6 +278,7 @@ model Consultation {
   title          String
   description    String?
   metrics        Json?        @default("[]")
+  plansDelivered Boolean?     @default(false) @map("plans_delivered")
   createdAt      DateTime     @default(now()) @map("created_at")
   updatedAt      DateTime     @updatedAt @map("updated_at")
   nutritionist   Nutritionist @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
@@ -534,6 +556,22 @@ model RegistrationRequest {
   @@map("registration_requests")
 }
 
+model AccountDeletionRequest {
+  id              String        @id @default(uuid())
+  accountId       String        @map("account_id")
+  status          RequestStatus @default(PENDING)
+  requestedAt     DateTime      @default(now()) @map("requested_at")
+  resolvedAt      DateTime?     @map("resolved_at")
+  resolvedByAdmin String?       @map("resolved_by_admin")
+  adminNotes      String?       @map("admin_notes")
+
+  account         Account       @relation(fields: [accountId], references: [id])
+
+  @@index([accountId])
+  @@index([status])
+  @@map("account_deletion_requests")
+}
+
 model MembershipPlan {
   id                    String              @id @default(uuid())
   name                  String
@@ -632,6 +670,7 @@ model DiscountCode {
   code              String           @unique
   type              DiscountCodeType
   discountPercent   Int              @map("discount_percent")
+  status            DiscountCodeStatus @default(ACTIVE)
   isUsed            Boolean          @default(false) @map("is_used")
   usedByAccountId   String?          @map("used_by_account_id")
   usedAt            DateTime?        @map("used_at")
@@ -774,8 +813,8 @@ model Resource {
   category       String
   tags           String[]      @default([])
   isPublic       Boolean       @default(false) @map("is_public")
-  createdAt      DateTime      @default(now()) @map("created_at")
-  updatedAt      DateTime      @updatedAt @map("updated_at")
+  createdAt      DateTime      @default(now()) @map("createdAt")
+  updatedAt      DateTime      @default(now()) @updatedAt @map("updatedAt")
   images         Json?         @default("[]")
   format         String        @default("HTML")
   fileUrl        String?       @map("file_url")
@@ -835,6 +874,7 @@ enum SupportRequestType {
   TESTIMONIO
   COMPLAINT
   IDEA
+  REUNION
 }
 
 enum SupportRequestStatus {
@@ -877,6 +917,12 @@ enum SubscriptionStatus {
 enum DiscountCodeType {
   NUTRI
   BETA
+}
+
+enum DiscountCodeStatus {
+  ACTIVE
+  SHARED
+  EXPIRED
 }
 
 model AppointmentCalendar {

@@ -5,6 +5,16 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { SanitizationPipe } from './common/pipes/sanitization.pipe';
 import * as dns from 'dns';
+import { normalizeUrl } from './common/utils/runtime-url.util';
+import type { NextFunction, Request, Response } from 'express';
+import {
+  AUTH_SESSION_COOKIE,
+  LEGACY_AUTH_SESSION_COOKIE,
+} from './modules/auth/auth-cookie.constants';
+import {
+  LEGACY_PATIENT_PORTAL_SESSION_COOKIE,
+  PATIENT_PORTAL_SESSION_COOKIE,
+} from './modules/patient-portals/patient-portal-cookie.constants';
 
 // Force IPv4 preference for DNS resolution to avoid ENETUNREACH on IPv6-only cloud networks
 dns.setDefaultResultOrder('ipv4first');
@@ -23,11 +33,41 @@ async function bootstrap() {
       process.env.FRONTEND_URL,
       process.env.NEXT_PUBLIC_FRONTEND_URL,
       process.env.CORS_ORIGIN,
-      'http://localhost:3000',
     ]
       .filter(Boolean)
-      .map((origin) => origin!.replace(/\/$/, '')),
+      .map((origin) => normalizeUrl(origin!)),
   );
+
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    const unsafeMethod = !['GET', 'HEAD', 'OPTIONS'].includes(req.method);
+    const cookieHeader = req.headers.cookie || '';
+    const usesSessionCookie =
+      cookieHeader.includes(`${AUTH_SESSION_COOKIE}=`) ||
+      cookieHeader.includes(`${LEGACY_AUTH_SESSION_COOKIE}=`) ||
+      cookieHeader.includes(`${PATIENT_PORTAL_SESSION_COOKIE}=`) ||
+      cookieHeader.includes(`${LEGACY_PATIENT_PORTAL_SESSION_COOKIE}=`);
+
+    if (!unsafeMethod || !usesSessionCookie) {
+      return next();
+    }
+
+    const fetchSite = req.headers['sec-fetch-site'];
+    const origin = req.headers.origin;
+    const crossSite = fetchSite === 'cross-site';
+    const originAllowed = Boolean(
+      origin && frontendOrigins.has(origin.replace(/\/$/, '')),
+    );
+
+    if (crossSite || !originAllowed) {
+      return res.status(403).json({
+        statusCode: 403,
+        message: 'Solicitud bloqueada por protección de seguridad.',
+      });
+    }
+
+    return next();
+  });
+
   app.enableCors({
     origin: (
       origin: string | undefined,

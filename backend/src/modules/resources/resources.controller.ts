@@ -62,7 +62,7 @@ export class ResourcesController {
         ? null
         : req.user.nutritionistId
       : req.user.nutritionistId;
-    const restData = { ...data };
+    const restData = { ...data, isPublic: false };
     delete restData.isGlobal;
     return this.resourcesService.create(nutritionistId, restData);
   }
@@ -83,7 +83,7 @@ export class ResourcesController {
   update(@Param('id') id: string, @Request() req: any, @Body() data: any) {
     const nutritionistId = req.user.nutritionistId;
     const isAdmin = isAdminRole(req.user.role);
-    const restData = { ...data };
+    const restData = { ...data, isPublic: false };
     delete restData.isGlobal;
     return this.resourcesService.update(id, nutritionistId, isAdmin, restData);
   }

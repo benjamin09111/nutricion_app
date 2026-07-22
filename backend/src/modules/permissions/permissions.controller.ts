@@ -12,7 +12,7 @@ export class PermissionsController {
     @Request() req: any,
     @Body() body: { featureKey: string; amount?: number },
   ) {
-    return this.planUsageService.consumeMonthlyQuota(
+    return this.planUsageService.consumeQuota(
       req.user.id,
       body.featureKey,
       body.amount || 1,

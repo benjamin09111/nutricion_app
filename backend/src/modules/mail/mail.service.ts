@@ -12,6 +12,7 @@ import {
   type AnnouncementSenderEmail,
   type EmailChannel,
 } from './email-identities';
+import { resolveRequiredUrl } from '../../common/utils/runtime-url.util';
 
 type SupportEmailRequestData = {
   fullName?: string;
@@ -31,10 +32,10 @@ export class MailService {
     DEFAULT_REPLY_TO ||
     process.env.ADMIN_EMAIL?.trim() ||
     'contacto@nutrinet.cl';
-  private readonly frontendUrl = (this.isProduction
-    ? process.env.FRONTEND_URL || 'https://nutrinet.cl'
-    : 'http://localhost:3000'
-  ).replace(/\/$/, '');
+  private readonly frontendUrl = resolveRequiredUrl(
+    process.env.FRONTEND_URL,
+    process.env.NEXT_PUBLIC_FRONTEND_URL,
+  );
   private readonly adminEmail =
     process.env.ADMIN_EMAIL?.trim() || this.replyTo || 'contacto@nutrinet.cl';
 
@@ -237,6 +238,45 @@ export class MailService {
     });
   }
 
+  async sendTransferNotification(data: {
+    nutritionistName: string;
+    nutritionistEmail: string;
+    planName?: string;
+    amount?: number;
+    paymentId?: string;
+    source?: string;
+  }): Promise<void> {
+    const amountLabel =
+      typeof data.amount === 'number'
+        ? new Intl.NumberFormat('es-CL', {
+            style: 'currency',
+            currency: 'CLP',
+            maximumFractionDigits: 0,
+          }).format(data.amount)
+        : 'N/D';
+
+    const html = this.wrapHtml(
+      'Transferencia informada',
+      `<p>Un nutricionista indicó que ya realizó una transferencia.</p><ul style="line-height:1.9;padding-left:18px"><li><strong>Nombre:</strong> ${this.escapeHtml(data.nutritionistName)}</li><li><strong>Correo:</strong> ${this.escapeHtml(data.nutritionistEmail)}</li><li><strong>Plan:</strong> ${this.escapeHtml(data.planName || 'N/D')}</li><li><strong>Monto:</strong> ${this.escapeHtml(amountLabel)}</li><li><strong>ID pago:</strong> ${this.escapeHtml(data.paymentId || 'N/D')}</li><li><strong>Origen:</strong> ${this.escapeHtml(data.source || 'N/D')}</li></ul>`,
+    );
+
+    await this.sendEmail({
+      to: this.adminEmail,
+      subject: 'Nutri informó una transferencia',
+      html,
+      text: [
+        'Un nutricionista indicó que ya realizó una transferencia.',
+        `Nombre: ${data.nutritionistName}`,
+        `Correo: ${data.nutritionistEmail}`,
+        `Plan: ${data.planName || 'N/D'}`,
+        `Monto: ${amountLabel}`,
+        `ID pago: ${data.paymentId || 'N/D'}`,
+        `Origen: ${data.source || 'N/D'}`,
+      ].join('\n'),
+      channel: 'notifications',
+    });
+  }
+
   async sendAnnouncementEmail(data: {
     email: string;
     name?: string;
@@ -277,6 +317,26 @@ export class MailService {
       html,
       text: `Tipo: ${data.type}\nAsunto: ${data.subject}\nMensaje: ${data.message}`,
       replyTo: data.fromEmail,
+      channel: 'support',
+    });
+  }
+
+  async sendMeetingRequestEmail(data: {
+    userEmail: string;
+    subject: string;
+    message: string;
+  }): Promise<void> {
+    const html = this.wrapHtml(
+      'Solicitud de Reunión con NutriNet',
+      `<p>El usuario <strong>${this.escapeHtml(data.userEmail)}</strong> desea agendar una reunión con el equipo de NutriNet.</p><ul style="line-height:1.9;padding-left:18px"><li><strong>Correo del solicitante:</strong> ${this.escapeHtml(data.userEmail)}</li><li><strong>Motivo de la reunión:</strong> ${this.escapeHtml(data.subject)}</li></ul><div style="margin-top:16px;padding:16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px"><strong style="color:#4f46e5 font-size:12px uppercase">Detalle del motivo:</strong><br>${this.escapeHtml(data.message).replace(/\n/g, '<br>')}</div>`,
+    );
+
+    await this.sendEmail({
+      to: 'contacto@nutrinet.cl',
+      subject: `[SOLICITUD DE REUNIÓN] ${data.subject} (${data.userEmail})`,
+      html,
+      text: `Solicitud de reunión de: ${data.userEmail}\nMotivo: ${data.subject}\nDetalle: ${data.message}`,
+      replyTo: data.userEmail,
       channel: 'support',
     });
   }

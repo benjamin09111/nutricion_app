@@ -7,9 +7,15 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreatePatientDto } from './dto/create-patient.dto';
 import { UpdatePatientDto } from './dto/update-patient.dto';
 import { CreateExamDto } from './dto/create-exam.dto';
+import { UpdateClinicalRecordDto } from './dto/update-clinical-record.dto';
+import {
+  buildPatientAiContext,
+  type PatientAiContext,
+} from './patient-ai-context.builder';
 
 import { CacheService } from '../../common/services/cache.service';
 import { PermissionsService } from '../permissions/permissions.service';
+import { CalculationsService } from '../calculations/calculations.service';
 
 const AUTOMATIC_NUTRITION_KEY = 'automaticNutritionCalculations';
 
@@ -21,6 +27,7 @@ type NutritionCalculationInput = {
   activityLevel?: string | null;
   nutritionalFocus?: string | null;
   fitnessGoals?: string | null;
+  clinicalRecord?: any;
 };
 
 @Injectable()
@@ -29,6 +36,7 @@ export class PatientsService {
     private prisma: PrismaService,
     private cacheService: CacheService,
     private permissionsService: PermissionsService,
+    private calculationsService: CalculationsService,
   ) {}
 
   async create(
@@ -36,7 +44,13 @@ export class PatientsService {
     nutritionistId: string,
     createPatientDto: CreatePatientDto,
   ) {
-    const { recalculateNutrition, ...patientData } = createPatientDto as any;
+    const { recalculateNutrition, clinicalRecord, ...patientData } =
+      createPatientDto as any;
+    const clinicalRecordData = clinicalRecord;
+    const patientForCalculations = {
+      ...patientData,
+      clinicalRecord: clinicalRecordData,
+    };
     const activePatients = await this.prisma.patient.count({
       where: { nutritionistId, status: 'Active' },
     });
@@ -49,16 +63,31 @@ export class PatientsService {
 
     const customVariables = this.withAutomaticNutritionCalculations(
       patientData.customVariables,
-      patientData,
+      patientForCalculations,
       recalculateNutrition !== false,
     );
 
-    const patient = await this.prisma.patient.create({
-      data: {
-        ...patientData,
-        customVariables,
-        nutritionistId,
-      },
+    const patient = await this.prisma.$transaction(async (tx) => {
+      const createdPatient = await tx.patient.create({
+        data: {
+          ...patientData,
+          customVariables,
+          nutritionistId,
+        },
+      });
+
+      await tx.clinicalRecord.create({
+        data: {
+          patientId: createdPatient.id,
+          vitalHistory: clinicalRecordData?.vitalHistory || {},
+          gynecoObstetric: clinicalRecordData?.gynecoObstetric || {},
+          nutritionalAnamnesis: clinicalRecordData?.nutritionalAnamnesis || {},
+          anthropometry: clinicalRecordData?.anthropometry || {},
+          dataSources: clinicalRecordData?.dataSources || {},
+        },
+      });
+
+      return createdPatient;
     });
 
     await this.cacheService.invalidateNutritionistPrefix(
@@ -253,8 +282,12 @@ export class PatientsService {
     // Lightweight ownership check — does NOT load consultations, exams, or projects
     await this.assertOwnership(nutritionistId, id);
 
-    const current = await this.prisma.patient.findUnique({ where: { id } });
-    const { recalculateNutrition, ...patientData } = updatePatientDto as any;
+    const current = await this.prisma.patient.findUnique({
+      where: { id },
+      include: { clinicalRecord: true },
+    });
+    const { recalculateNutrition, clinicalRecord, ...patientData } =
+      updatePatientDto as any;
     const mergedForCalculation = { ...(current || {}), ...patientData };
     const customVariables = this.withAutomaticNutritionCalculations(
       patientData.customVariables ?? current?.customVariables,
@@ -270,6 +303,14 @@ export class PatientsService {
       },
     });
 
+    if (clinicalRecord) {
+      await this.prisma.clinicalRecord.upsert({
+        where: { patientId: id },
+        update: clinicalRecord,
+        create: { patientId: id, ...clinicalRecord },
+      });
+    }
+
     await this.cacheService.invalidateNutritionistPrefix(
       nutritionistId,
       'patients',
@@ -283,15 +324,19 @@ export class PatientsService {
 
   async recalculateAutomaticNutrition(nutritionistId: string, id: string) {
     await this.assertOwnership(nutritionistId, id);
-    const current = await this.prisma.patient.findUnique({ where: { id } });
-    if (!current) throw new NotFoundException('Paciente no encontrado');
+    const currentWithClinicalRecord = await this.prisma.patient.findUnique({
+      where: { id },
+      include: { clinicalRecord: true },
+    });
+    if (!currentWithClinicalRecord)
+      throw new NotFoundException('Paciente no encontrado');
 
     const patient = await this.prisma.patient.update({
       where: { id },
       data: {
         customVariables: this.withAutomaticNutritionCalculations(
-          current.customVariables,
-          current,
+          currentWithClinicalRecord.customVariables,
+          currentWithClinicalRecord,
           true,
         ),
       },
@@ -350,6 +395,75 @@ export class PatientsService {
     return exam;
   }
 
+  async getClinicalRecord(nutritionistId: string, patientId: string) {
+    await this.assertOwnership(nutritionistId, patientId);
+
+    return this.prisma.clinicalRecord.upsert({
+      where: { patientId },
+      update: {},
+      create: { patientId },
+    });
+  }
+
+  async getAiContext(nutritionistId: string, patientId: string): Promise<PatientAiContext> {
+    await this.assertOwnership(nutritionistId, patientId);
+
+    const patient = await this.prisma.patient.findUnique({
+      where: { id: patientId },
+      select: {
+        age: true,
+        birthDate: true,
+        gender: true,
+        height: true,
+        weight: true,
+        activityLevel: true,
+        nutritionalFocus: true,
+        fitnessGoals: true,
+        primaryCondition: true,
+        clinicalSummary: true,
+        dietRestrictions: true,
+        likes: true,
+        customVariables: true,
+        clinicalRecord: true,
+        consultations: {
+          orderBy: { date: 'desc' },
+          take: 3,
+          select: {
+            date: true,
+            title: true,
+            description: true,
+            plansDelivered: true,
+          },
+        },
+      },
+    });
+
+    if (!patient) {
+      throw new NotFoundException('Paciente no encontrado');
+    }
+
+    return buildPatientAiContext(patient);
+  }
+
+  async updateClinicalRecord(
+    nutritionistId: string,
+    patientId: string,
+    dto: UpdateClinicalRecordDto,
+  ) {
+    await this.assertOwnership(nutritionistId, patientId);
+
+    const data = this.buildClinicalRecordPayload(dto);
+
+    return this.prisma.clinicalRecord.upsert({
+      where: { patientId },
+      update: data,
+      create: {
+        patientId,
+        ...data,
+      },
+    });
+  }
+
   /**
    * Lightweight ownership validation. Only loads the nutritionistId field.
    * Use instead of findOne() when the full patient object is not needed.
@@ -385,11 +499,15 @@ export class PatientsService {
 
     const variables = Array.isArray(customVariables)
       ? customVariables.filter(
-          (item: any) => item?.key !== AUTOMATIC_NUTRITION_KEY,
+          (item: any) =>
+            item?.key?.toLowerCase() !== AUTOMATIC_NUTRITION_KEY.toLowerCase(),
         )
       : [];
 
-    const calculations = this.buildAutomaticNutritionCalculations(patient);
+    const calculations = this.buildAutomaticNutritionCalculations(
+      patient,
+      customVariables,
+    );
     if (!calculations) return variables as any;
 
     return [
@@ -405,59 +523,166 @@ export class PatientsService {
 
   private buildAutomaticNutritionCalculations(
     patient: NutritionCalculationInput,
+    customVariables: any,
   ) {
-    const weight = this.toPositiveNumber(patient.weight);
-    const height = this.toPositiveNumber(patient.height);
-    const age = this.calculateAge(patient.birthDate);
-    if (!weight || !height || age === null) return null;
+    const customVars = Array.isArray(customVariables) ? customVariables : [];
+    const clinical = patient.clinicalRecord || {};
+    const anthropometry = clinical.anthropometry || {};
+    const findVar = (key: string) => {
+      const found = customVars.find((v: any) => v?.key === key);
+      return found ? found.value : null;
+    };
 
+    const resolveValue = (key: string, path: string[]) => {
+      const custom = findVar(key);
+      if (custom !== null && custom !== undefined && custom !== '')
+        return custom;
+
+      let current: any = anthropometry;
+      for (const segment of path) {
+        current = current?.[segment];
+      }
+      return current ?? null;
+    };
+
+    const kneeHeight = this.toPositiveNumber(
+      resolveValue('alturaRodilla', ['circumferences', 'kneeHeight']),
+    );
+    const calfCircumference = this.toPositiveNumber(
+      resolveValue('circunferenciaPantorrilla', [
+        'circumferences',
+        'calfCircumference',
+      ]),
+    );
+    const armCircumference = this.toPositiveNumber(
+      resolveValue('circunferenciaBraquial', [
+        'circumferences',
+        'armCircumference',
+      ]),
+    );
+    const waistCircumference = this.toPositiveNumber(
+      resolveValue('circunferenciaCintura', [
+        'circumferences',
+        'waistCircumference',
+      ]),
+    );
+    const hipCircumference = this.toPositiveNumber(
+      resolveValue('circunferenciaCadera', [
+        'circumferences',
+        'hipCircumference',
+      ]),
+    );
+    const tricipitalFold = this.toPositiveNumber(
+      resolveValue('pliegueTricipital', ['skinfolds', 'tricipital']),
+    );
+    const bicipitalFold = this.toPositiveNumber(
+      resolveValue('pliegueBicipital', ['skinfolds', 'bicipital']),
+    );
+    const subescapularFold = this.toPositiveNumber(
+      resolveValue('pliegueSubescapular', ['skinfolds', 'subescapular']),
+    );
+    const suprailiacoFold = this.toPositiveNumber(
+      resolveValue('pliegueSuprailiaco', ['skinfolds', 'suprailiac']),
+    );
+
+    const resolvedAge = this.calculateAge(patient.birthDate);
     const gender = this.normalizeGender(patient.gender);
     const activity = this.normalizeActivityLevel(patient.activityLevel);
-    const bmi = this.round(weight / Math.pow(height / 100, 2), 1);
-    const classification = this.classifyBmi(bmi);
-    const tmb = this.calculateMifflinStJeor(gender, weight, height, age);
-    const activityFactor = this.getActivityFactor(activity);
-    const get = Math.round(tmb * activityFactor);
-    const macros = this.calculateMacros(get);
-    const portionProfile = this.resolvePortionProfile({
-      calories: get,
-      bmi,
+
+    const calcResult = this.calculationsService.calculateAll({
+      gender,
+      weight: this.toPositiveNumber(patient.weight),
+      height: this.toPositiveNumber(patient.height),
+      birthDate: patient.birthDate,
+      ageYears: resolvedAge,
       activityLevel: activity,
-      nutritionalFocus: patient.nutritionalFocus,
+      kneeHeight,
+      calfCircumference,
+      armCircumference,
+      waistCircumference,
+      hipCircumference,
+      tricipitalFold,
+      bicipitalFold,
+      subescapularFold,
+      suprailiacoFold,
     });
+
+    if (!calcResult.bmi) return null;
+    const bmiVal = calcResult.bmi.bmi;
+    const classification = calcResult.bmi.classification;
+
     const category = this.resolvePatientNutritionCategory({
-      bmi,
+      bmi: bmiVal,
       classification,
       activityLevel: activity,
       nutritionalFocus: patient.nutritionalFocus,
       fitnessGoals: patient.fitnessGoals,
     });
-    const dailyTargets = this.buildSuggestedDailyTargets({
-      get,
-      macros,
+
+    const proteinGramsPerKg = this.resolveProteinGramsPerKg(
       category,
-      proteinGramsPerKg: this.resolveProteinGramsPerKg(category, weight),
+      calcResult.inputs.weight || 0,
+    );
+
+    const energy = calcResult.energy;
+    if (!energy) return null;
+
+    const dailyTargets = {
+      calories: this.resolveTargetCalories(energy.get, category),
+      protein: Math.round(
+        (this.resolveTargetCalories(energy.get, category) *
+          (energy.macros.proteinPercent / 100)) /
+          4,
+      ),
+      carbs: Math.round(
+        (this.resolveTargetCalories(energy.get, category) *
+          (energy.macros.carbsPercent / 100)) /
+          4,
+      ),
+      fats: Math.round(
+        (this.resolveTargetCalories(energy.get, category) *
+          (energy.macros.fatsPercent / 100)) /
+          9,
+      ),
+      proteinPercent: energy.macros.proteinPercent,
+      carbsPercent: energy.macros.carbsPercent,
+      fatsPercent: energy.macros.fatsPercent,
+      proteinPerKg: proteinGramsPerKg,
+      formula: category.strategy,
+    };
+
+    const portionProfile = this.resolvePortionProfile({
+      calories: energy.get,
+      bmi: bmiVal,
+      activityLevel: activity,
+      nutritionalFocus: patient.nutritionalFocus,
     });
 
     return {
-      version: '2026-05-29-v1',
+      version: '2026-07-01-v2',
       calculatedAt: new Date().toISOString(),
-      source: 'OMS IMC + Mifflin-St Jeor + factores de actividad estándar',
+      source: 'Motor Centralizado de Cálculos Nutricionales',
       status: 'SUGGESTED_REVIEW_REQUIRED',
       note: 'Valores orientativos para apoyo clínico. Deben ser revisados y ajustados por el nutricionista tratante.',
-      inputs: { weight, height, age, gender, activityLevel: activity },
-      bmi: { value: bmi, classification },
-      idealWeight: this.getIdealWeightRange(height),
+      inputs: calcResult.inputs,
+      bmi: calcResult.bmi,
+      idealWeight: calcResult.idealWeight,
+      adjustedWeight: calcResult.adjustedWeight,
+      estimatedHeight: calcResult.estimatedHeight,
+      estimatedWeight: calcResult.estimatedWeight,
+      armComposition: calcResult.armComposition,
+      cardiovascularRisk: calcResult.cardiovascularRisk,
       energy: {
-        tmb: Math.round(tmb),
-        get,
-        activityFactor,
-        formula: 'Mifflin-St Jeor',
+        tmb: energy.tmb,
+        get: energy.get,
+        activityFactor: energy.activityFactor,
+        formula: energy.formula,
       },
-      macros,
+      macros: energy.macros,
       category,
       dailyTargets,
       portionProfile,
+      exchangePortions: calcResult.exchangePortions,
     };
   }
 
@@ -475,50 +700,6 @@ export class PatientsService {
       age -= 1;
     }
     return age >= 0 ? age : null;
-  }
-
-  private calculateMifflinStJeor(
-    gender: 'Masculino' | 'Femenino',
-    weight: number,
-    height: number,
-    age: number,
-  ) {
-    const base = 10 * weight + 6.25 * height - 5 * age;
-    return gender === 'Masculino' ? base + 5 : base - 161;
-  }
-
-  private calculateMacros(calories: number) {
-    const carbsPercent = 55;
-    const proteinPercent = 20;
-    const fatsPercent = 25;
-    return {
-      calories,
-      carbs: Math.round((calories * (carbsPercent / 100)) / 4),
-      protein: Math.round((calories * (proteinPercent / 100)) / 4),
-      fats: Math.round((calories * (fatsPercent / 100)) / 9),
-      carbsPercent,
-      proteinPercent,
-      fatsPercent,
-    };
-  }
-
-  private classifyBmi(bmi: number) {
-    if (bmi < 18.5) return 'Bajo peso';
-    if (bmi < 25) return 'Normopeso';
-    if (bmi < 30) return 'Sobrepeso';
-    if (bmi < 35) return 'Obesidad I';
-    if (bmi < 40) return 'Obesidad II';
-    return 'Obesidad III';
-  }
-
-  private getIdealWeightRange(height: number) {
-    const heightM = height / 100;
-    return {
-      min: this.round(18.5 * heightM * heightM, 1),
-      max: this.round(24.9 * heightM * heightM, 1),
-      reference: 'Normopeso (IMC 18.5-24.9)',
-      note: 'Rango adulto de referencia.',
-    };
   }
 
   private resolvePortionProfile(input: {
@@ -605,6 +786,19 @@ export class PatientsService {
   private toPositiveNumber(value: unknown) {
     const number = Number(value);
     return Number.isFinite(number) && number > 0 ? number : null;
+  }
+
+  private buildClinicalRecordPayload(dto: UpdateClinicalRecordDto) {
+    const payload: Record<string, unknown> = {};
+
+    if (dto.vitalHistory) payload.vitalHistory = dto.vitalHistory;
+    if (dto.gynecoObstetric) payload.gynecoObstetric = dto.gynecoObstetric;
+    if (dto.nutritionalAnamnesis)
+      payload.nutritionalAnamnesis = dto.nutritionalAnamnesis;
+    if (dto.anthropometry) payload.anthropometry = dto.anthropometry;
+    if (dto.dataSources) payload.dataSources = dto.dataSources;
+
+    return payload;
   }
 
   private resolvePatientNutritionCategory(input: {

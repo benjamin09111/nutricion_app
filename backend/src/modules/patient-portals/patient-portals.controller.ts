@@ -6,6 +6,7 @@ import {
   Post,
   Query,
   Request,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '../auth/guards/auth.guard';
@@ -17,6 +18,11 @@ import { CreatePatientPortalReplyDto } from './dto/create-patient-portal-reply.d
 import { CreatePatientPortalNotificationDto } from './dto/create-patient-portal-notification.dto';
 import { RequestAppointmentDto } from './dto/request-appointment.dto';
 import { PatientPortalAuthGuard } from './guards/patient-portal.guard';
+import type { Response } from 'express';
+import {
+  PATIENT_PORTAL_SESSION_COOKIE,
+  patientPortalSessionCookieOptions,
+} from './patient-portal-cookie.constants';
 
 @Controller('patient-portals')
 export class PatientPortalsController {
@@ -33,6 +39,20 @@ export class PatientPortalsController {
       req.user.nutritionistId,
       patientId,
       dto,
+    );
+  }
+
+  @UseGuards(AuthGuard)
+  @Post('patients/:patientId/invitations/send-email')
+  sendInvitationEmail(
+    @Request() req: any,
+    @Param('patientId') patientId: string,
+    @Body() body: { email?: string },
+  ) {
+    return this.patientPortalsService.sendInvitationEmail(
+      req.user.nutritionistId,
+      patientId,
+      body.email,
     );
   }
 
@@ -77,19 +97,42 @@ export class PatientPortalsController {
   }
 
   @Post('invitations/:token/verify')
-  verifyInvitation(
+  async verifyInvitation(
     @Param('token') token: string,
     @Body() body: { email: string; accessCode: string },
+    @Res({ passthrough: true }) res: Response,
   ) {
-    return this.patientPortalsService.verifyInvitation(
+    const data = await this.patientPortalsService.verifyInvitation(
       token,
       body.email,
       body.accessCode,
     );
+
+    res.cookie(
+      PATIENT_PORTAL_SESSION_COOKIE,
+      data.accessToken,
+      patientPortalSessionCookieOptions(30 * 24 * 60 * 60 * 1000),
+    );
+
+    return data;
   }
   @Post('login')
-  login(@Body() body: { email: string; accessCode: string }) {
-    return this.patientPortalsService.login(body.email, body.accessCode);
+  async login(
+    @Body() body: { email: string; accessCode: string },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const data = await this.patientPortalsService.login(
+      body.email,
+      body.accessCode,
+    );
+
+    res.cookie(
+      PATIENT_PORTAL_SESSION_COOKIE,
+      data.accessToken,
+      patientPortalSessionCookieOptions(30 * 24 * 60 * 60 * 1000),
+    );
+
+    return data;
   }
 
   @UseGuards(PatientPortalAuthGuard)

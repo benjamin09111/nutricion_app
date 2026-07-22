@@ -1,16 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
+import { resolveRequiredUrl } from "@/lib/runtime-url.util";
 
 const getBackendBaseUrl = () =>
-  (process.env.BACKEND_URL || "http://localhost:3001").replace(/\/$/, "");
+  resolveRequiredUrl(
+    process.env.BACKEND_URL,
+    process.env.NEXT_PUBLIC_API_URL,
+    process.env.NEXT_PUBLIC_BACKEND_URL,
+  );
 
 type ProxyContext = {
   params: Promise<{ token: string }>;
 };
 
-export async function GET(
-  request: NextRequest,
-  context: ProxyContext,
-) {
+export async function GET(request: NextRequest, context: ProxyContext) {
   const { token } = await context.params;
 
   const target = new URL(

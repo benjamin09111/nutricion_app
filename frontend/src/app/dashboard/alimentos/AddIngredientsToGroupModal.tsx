@@ -179,7 +179,7 @@ export default function AddIngredientsToGroupModal({
               variant="outline"
               onClick={onCreateNew}
               className="border-indigo-200 text-indigo-600 hover:bg-indigo-50 shrink-0"
-              title="Nuevo alimento"
+              title="Nuevo Alimento"
             >
               <Plus size={18} />
             </Button>

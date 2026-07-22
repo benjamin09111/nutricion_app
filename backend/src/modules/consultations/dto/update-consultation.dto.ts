@@ -2,6 +2,7 @@ import {
   IsString,
   IsOptional,
   IsArray,
+  IsBoolean,
   IsDateString,
   ValidateNested,
 } from 'class-validator';
@@ -30,4 +31,8 @@ export class UpdateConsultationDto {
   @Type(() => ConsultationMetricDto)
   @IsOptional()
   metrics?: ConsultationMetricDto[];
+
+  @IsBoolean()
+  @IsOptional()
+  plansDelivered?: boolean;
 }

@@ -11,9 +11,12 @@ import {
   createDecipheriv,
   createHash,
   randomBytes,
+  timingSafeEqual,
 } from 'crypto';
 import * as jwt from 'jsonwebtoken';
 import { PrismaService } from '../../prisma/prisma.service';
+import { resolveRequiredUrl } from '../../common/utils/runtime-url.util';
+import { resolveSafePostAuthPath } from '../../common/utils/safe-redirect.util';
 
 type GoogleMode = 'login' | 'calendar';
 
@@ -23,6 +26,7 @@ type GoogleState = {
   accountId?: string;
   nutritionistId?: string;
   calendarId?: string;
+  browserBindingHash?: string;
 };
 
 type GoogleProfile = {
@@ -69,18 +73,21 @@ export class GoogleIntegrationService {
   ) {}
 
   private getFrontendUrl() {
-    return (
-      this.configService.get<string>('FRONTEND_URL') ||
-      this.configService.get<string>('NEXT_PUBLIC_FRONTEND_URL') ||
-      'http://localhost:3000'
-    ).replace(/\/$/, '');
+    return resolveRequiredUrl(
+      this.configService.get<string>('FRONTEND_URL'),
+      this.configService.get<string>('NEXT_PUBLIC_FRONTEND_URL'),
+    );
   }
 
   private getAppSecret() {
-    const secret = this.configService.get<string>('JWT_SECRET');
+    const secret =
+      this.configService.get<string>('OAUTH_STATE_SECRET') ||
+      (process.env.NODE_ENV !== 'production'
+        ? this.configService.get<string>('JWT_SECRET')
+        : undefined);
 
     if (!secret) {
-      throw new Error('JWT_SECRET is required');
+      throw new Error('OAUTH_STATE_SECRET is required');
     }
 
     return secret;
@@ -95,26 +102,40 @@ export class GoogleIntegrationService {
   }
 
   private getGoogleAuthRedirectUri() {
-    return (
-      this.configService.get<string>('GOOGLE_AUTH_REDIRECT_URI') ||
-      'http://localhost:3001/auth/google/callback'
+    const apiUrl = this.configService
+      .get<string>('API_URL')
+      ?.replace(/\/$/, '');
+    return resolveRequiredUrl(
+      this.configService.get<string>('GOOGLE_AUTH_REDIRECT_URI'),
+      apiUrl ? `${apiUrl}/auth/google/callback` : undefined,
     );
   }
 
   private getGoogleCalendarRedirectUri() {
-    return (
-      this.configService.get<string>('GOOGLE_CALENDAR_REDIRECT_URI') ||
-      'http://localhost:3001/calendars/google/callback'
+    const apiUrl = this.configService
+      .get<string>('API_URL')
+      ?.replace(/\/$/, '');
+    return resolveRequiredUrl(
+      this.configService.get<string>('GOOGLE_CALENDAR_REDIRECT_URI'),
+      apiUrl ? `${apiUrl}/calendars/google/callback` : undefined,
     );
   }
 
   private getEncryptionKey() {
+    const configuredKey = this.configService.get<string>(
+      'GOOGLE_TOKEN_ENCRYPTION_KEY',
+    );
+    if (!configuredKey && process.env.NODE_ENV === 'production') {
+      throw new Error('GOOGLE_TOKEN_ENCRYPTION_KEY is required');
+    }
+
     return createHash('sha256')
-      .update(
-        this.configService.get<string>('GOOGLE_TOKEN_ENCRYPTION_KEY') ||
-          this.getAppSecret(),
-      )
+      .update(configuredKey || this.getAppSecret())
       .digest();
+  }
+
+  private hash(value: string) {
+    return createHash('sha256').update(value).digest('base64url');
   }
 
   private encrypt(value: string) {
@@ -204,26 +225,42 @@ export class GoogleIntegrationService {
     state: GoogleState;
     redirectUri: string;
     scopes: string[];
+    codeChallenge?: string;
   }) {
     const query = new URLSearchParams({
       client_id: this.getGoogleClientId(),
       redirect_uri: params.redirectUri,
       response_type: 'code',
       scope: params.scopes.join(' '),
-      access_type: 'offline',
-      prompt: 'consent',
       include_granted_scopes: 'true',
       state: this.signState(params.state),
     });
 
+    if (params.codeChallenge) {
+      query.set('code_challenge', params.codeChallenge);
+      query.set('code_challenge_method', 'S256');
+    } else {
+      query.set('access_type', 'offline');
+      query.set('prompt', 'consent');
+    }
+
     return `${GOOGLE_AUTH_BASE}?${query.toString()}`;
   }
 
-  buildGoogleLoginUrl(next = '/dashboard') {
+  buildGoogleLoginUrl(input: {
+    next?: string;
+    browserBinding: string;
+    codeChallenge: string;
+  }) {
     return this.buildGoogleAuthUrl({
-      state: { mode: 'login', next },
+      state: {
+        mode: 'login',
+        next: resolveSafePostAuthPath(input.next),
+        browserBindingHash: this.hash(input.browserBinding),
+      },
       redirectUri: this.getGoogleAuthRedirectUri(),
       scopes: ['openid', 'email', 'profile'],
+      codeChallenge: input.codeChallenge,
     });
   }
 
@@ -252,17 +289,26 @@ export class GoogleIntegrationService {
     });
   }
 
-  async exchangeCodeForProfile(code: string, redirectUri: string) {
+  async exchangeCodeForProfile(
+    code: string,
+    redirectUri: string,
+    codeVerifier?: string,
+  ) {
+    const tokenRequest = new URLSearchParams({
+      code,
+      client_id: this.getGoogleClientId(),
+      client_secret: this.getGoogleClientSecret(),
+      redirect_uri: redirectUri,
+      grant_type: 'authorization_code',
+    });
+    if (codeVerifier) {
+      tokenRequest.set('code_verifier', codeVerifier);
+    }
+
     const tokenResponse = await fetch(GOOGLE_TOKEN_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        code,
-        client_id: this.getGoogleClientId(),
-        client_secret: this.getGoogleClientSecret(),
-        redirect_uri: redirectUri,
-        grant_type: 'authorization_code',
-      }).toString(),
+      body: tokenRequest.toString(),
     });
 
     if (!tokenResponse.ok) {
@@ -297,19 +343,34 @@ export class GoogleIntegrationService {
     return { profile, tokens };
   }
 
-  async handleGoogleLoginCallback(code: string, stateToken: string) {
+  async handleGoogleLoginCallback(
+    code: string,
+    stateToken: string,
+    browserBinding: string,
+    codeVerifier: string,
+  ) {
     const state = this.verifyState(stateToken);
-    if (state.mode !== 'login') {
+    const expectedBinding = state.browserBindingHash || '';
+    const actualBinding = this.hash(browserBinding);
+    const bindingMatches =
+      expectedBinding.length === actualBinding.length &&
+      timingSafeEqual(
+        Buffer.from(expectedBinding, 'utf8'),
+        Buffer.from(actualBinding, 'utf8'),
+      );
+
+    if (state.mode !== 'login' || !bindingMatches || !codeVerifier) {
       throw new BadRequestException('Estado de autenticación inválido');
     }
 
     const result = await this.exchangeCodeForProfile(
       code,
       this.getGoogleAuthRedirectUri(),
+      codeVerifier,
     );
 
     return {
-      next: state.next || '/dashboard',
+      next: resolveSafePostAuthPath(state.next),
       profile: result.profile,
       tokens: result.tokens,
     };

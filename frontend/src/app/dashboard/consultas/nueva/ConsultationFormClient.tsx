@@ -24,12 +24,13 @@ import {
     Heart,
     RotateCcw,
     ChevronDown,
+    Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { MetricTagInput } from "@/components/ui/metric-tag-input";
-import { calculateBMI, calculateGET, calculateAge } from "@/lib/nutrition-formulas";
+import { calculateAge } from "@/lib/nutrition-formulas";
 import { TagInput } from "@/components/ui/TagInput";
 import { toast } from "sonner";
 import Cookies from "js-cookie";
@@ -87,8 +88,15 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
     const [isPatientInfoEditing, setIsPatientInfoEditing] = useState(false);
     const [hasClearedPatientSelection, setHasClearedPatientSelection] = useState(false);
     const [activityLevel, setActivityLevel] = useState<string>("sedentario");
+    const [isPatientAccordionOpen, setIsPatientAccordionOpen] = useState(false);
 
-    const [patients, setPatients] = useState<{ id: string; fullName: string }[]>([]);
+    const [patients, setPatients] = useState<{ id: string; fullName: string; status?: string }[]>([]);
+
+    const activePatients = useMemo(() => {
+        return patients
+            .filter((p) => !p.status || p.status === "Active")
+            .map((p) => ({ id: p.id, fullName: p.fullName }));
+    }, [patients]);
     const [patientData, setPatientData] = useState<Patient | null>(null);
 
     // Form State - Consultation
@@ -98,6 +106,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
         title: "",
         description: "",
         metrics: [] as Metric[],
+        plansDelivered: false,
     });
 
     // Form State - Patient Clinical Info (to be updated)
@@ -136,6 +145,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
     const [isDraftSaving, setIsDraftSaving] = useState(false);
     const [lastDraftSaved, setLastDraftSaved] = useState<string | null>(null);
     const isInitialLoad = useRef(true);
+    const [clinicalNotesTab, setClinicalNotesTab] = useState<"notes" | "apuntes">("notes");
 
     // Load draft on patient selection
     useEffect(() => {
@@ -164,6 +174,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                     description: formData.description,
                     metrics: formData.metrics,
                     date: formData.date,
+                    plansDelivered: formData.plansDelivered,
                 };
                 localStorage.setItem(draftKey, JSON.stringify(draft));
                 setIsDraftSaving(true);
@@ -175,7 +186,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
         return () => {
             if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
         };
-    }, [formData.title, formData.description, formData.date, JSON.stringify(formData.metrics), draftKey]);
+    }, [formData.title, formData.description, formData.date, formData.plansDelivered, JSON.stringify(formData.metrics), draftKey]);
 
     const clearDraft = useCallback(() => {
         if (draftKey) {
@@ -214,6 +225,8 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
         } else {
             setPatientData(null);
             setIsPatientInfoEditing(false);
+            setIsPatientAccordionOpen(false);
+            setClinicalNotesTab("notes");
             setPatientForm({
                 fullName: "",
                 email: "",
@@ -235,12 +248,20 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
     const fetchPatients = async () => {
         setIsPatientsLoading(true);
         try {
-            const response = await fetchApi(`/patients?limit=100`, {
+            const response = await fetchApi(`/patients?limit=100&status=Activos`, {
                 headers: getAuthHeaders(),
             });
             if (response.ok) {
                 const result = await response.json();
-                setPatients((result.data as Array<{ id: string; fullName: string }>).map((p) => ({ id: p.id, fullName: p.fullName })));
+                const seen = new Set<string>();
+                const uniquePatients = ((result.data || []) as Array<{ id: string; fullName: string; status?: string }>)
+                    .filter((p) => {
+                        if (seen.has(p.id)) return false;
+                        seen.add(p.id);
+                        return true;
+                    })
+                    .map((p) => ({ id: p.id, fullName: p.fullName, status: p.status }));
+                setPatients(uniquePatients);
             }
         } catch (error) {
             console.error("Error fetching patients", error);
@@ -299,6 +320,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                     title: data.title,
                     description: data.description || "",
                     metrics: data.metrics || [],
+                    plansDelivered: data.plansDelivered || false,
                 });
             }
         } catch (error) {
@@ -314,7 +336,6 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
     }, []);
 
     const hasSelectedPatient = Boolean(formData.patientId);
-    const showPatientMetrics = hasSelectedPatient && Boolean(patientData);
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -435,10 +456,13 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
             title: "",
             description: "",
             metrics: [],
+            plansDelivered: false,
         });
         setPatientData(null);
         setActivityLevel("sedentario");
         setIsPatientInfoEditing(false);
+        setIsPatientAccordionOpen(false);
+        setClinicalNotesTab("notes");
         setPatientForm({
             fullName: "",
             email: "",
@@ -485,7 +509,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                             <p className="mt-2 text-xs lg:text-sm font-normal text-slate-500 max-w-2xl leading-relaxed">
                                 {id
                                     ? "Actualiza los registros de la visita."
-                                    : "Registra una nueva sesión con un cliente nuevo o ya registrado."}
+                                    : "Registra una nueva sesión a un paciente."}
                             </p>
                             {hasSelectedPatient && !id && (
                                 <div className="mt-2 flex items-center gap-2">
@@ -504,76 +528,117 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2 lg:hidden w-full sm:w-auto">
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            onClick={handleReset}
-                            className="flex-1 sm:flex-none h-11 px-5 rounded-2xl text-slate-400 font-semibold hover:bg-slate-100 transition-all uppercase text-[10px] tracking-widest border border-slate-100"
-                        >
-                            Reiniciar
-                        </Button>
-                        <Button
-                            type="submit"
-                            disabled={isSaving}
-                            className="flex-[2] sm:flex-none h-11 px-6 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-semibold text-[10px] uppercase tracking-widest shadow-xl shadow-indigo-200 transition-all active:scale-95 group flex items-center justify-center gap-3"
-                        >
-                            {isSaving ? (
-                                <div className="h-4 w-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                            ) : (
-                                <>
-                                    <Save className="w-4 h-4 text-indigo-400 group-hover:scale-110 transition-transform" />
-                                    <span>Guardar</span>
-                                </>
-                            )}
-                        </Button>
-                    </div>
-                </div>
-
-                <div className="fixed right-6 top-1/2 z-50 hidden -translate-y-1/2 xl:flex flex-col gap-4">
-                    <div className="bg-white/80 backdrop-blur-xl p-3 rounded-3xl border border-slate-200 shadow-2xl flex flex-col gap-3">
+                    <div className="hidden lg:flex items-center gap-4 shrink-0">
+                        {hasSelectedPatient && !id && (
+                            <div className={cn(
+                                "flex items-center gap-1.5 text-[11px] font-semibold transition-all duration-500",
+                                isDraftSaving ? "text-indigo-600" : lastDraftSaved ? "text-slate-400" : "text-slate-300",
+                            )}>
+                                <div className={cn(
+                                    "h-1.5 w-1.5 rounded-full transition-colors",
+                                    isDraftSaving ? "bg-indigo-500 animate-pulse" : lastDraftSaved ? "bg-indigo-400" : "bg-slate-300",
+                                )} />
+                                {isDraftSaving ? "Guardando..." : lastDraftSaved ? `Borrador ${lastDraftSaved}` : "Borrador pendiente"}
+                            </div>
+                        )}
+                        <div className="group relative">
+                            <button
+                                type="button"
+                                disabled
+                                className="h-10 px-5 rounded-xl text-slate-300 font-semibold bg-slate-50 border border-slate-200 cursor-not-allowed uppercase text-[10px] tracking-widest flex items-center gap-2"
+                            >
+                                <Lock className="w-4 h-4" />
+                                Consulta online
+                            </button>
+                            <div className="pointer-events-none absolute right-0 top-full mt-2 w-72 rounded-xl bg-slate-900 px-3 py-2 text-[11px] font-medium text-white shadow-2xl opacity-0 transition-opacity group-hover:opacity-100">
+                                Funcionalidad futura: podrás crear una reunión online y transcribir automáticamente todo el contenido de la consulta.
+                            </div>
+                        </div>
                         <button
                             type="button"
                             onClick={handleReset}
-                            className="w-14 h-14 rounded-2xl bg-rose-50 text-rose-500 hover:bg-rose-100 hover:text-rose-600 transition-all flex items-center justify-center group relative"
-                            title="Reiniciar formulario"
+                            className="h-10 px-5 rounded-xl text-slate-400 font-semibold hover:bg-slate-100 transition-all uppercase text-[10px] tracking-widest border border-slate-100 cursor-pointer"
                         >
-                            <RotateCcw className="w-6 h-6 group-hover:rotate-[-45deg] transition-transform duration-300" />
-                            <span className="absolute right-full mr-4 bg-slate-900 text-white text-[10px] font-semibold uppercase px-2 py-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap tracking-wider">
-                                Reiniciar
-                            </span>
+                            <RotateCcw className="w-4 h-4 inline mr-2" />
+                            Reiniciar
                         </button>
-
-                        <div className="h-px bg-slate-100 mx-2" />
-
                         <button
                             type="submit"
                             disabled={isSaving}
                             className={cn(
-                                "w-14 h-14 rounded-2xl transition-all flex items-center justify-center group relative shadow-lg shadow-emerald-200/50",
-                                isSaving ? "bg-slate-100" : "bg-emerald-600 hover:bg-emerald-700 text-white",
+                                "h-10 px-5 rounded-xl font-semibold text-[10px] uppercase tracking-widest transition-all active:scale-95 cursor-pointer flex items-center gap-2",
+                                isSaving ? "bg-slate-100 text-slate-400" : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200",
                             )}
-                            title={id ? "Actualizar consulta" : "Guardar consulta"}
                         >
                             {isSaving ? (
-                                <span className="w-6 h-6 border-2 border-emerald-600/30 border-t-emerald-600 rounded-full animate-spin" />
+                                <span className="w-4 h-4 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
                             ) : (
-                                <Save className="w-6 h-6 group-hover:scale-110 transition-transform" />
+                                <Save className="w-4 h-4" />
                             )}
-                            <span className="absolute right-full mr-4 bg-slate-900 text-white text-[10px] font-semibold uppercase px-2 py-1 rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap tracking-wider">
-                                Guardar
-                            </span>
+                            Guardar
+                        </button>
+                    </div>
+
+                    <div className="lg:hidden flex items-center gap-2 w-full sm:w-auto mt-3">
+                        {hasSelectedPatient && !id && (
+                            <div className={cn(
+                                "flex items-center gap-1.5 text-[11px] font-semibold transition-all duration-500",
+                                isDraftSaving ? "text-indigo-600" : lastDraftSaved ? "text-slate-400" : "text-slate-300",
+                            )}>
+                                <div className={cn(
+                                    "h-1.5 w-1.5 rounded-full transition-colors",
+                                    isDraftSaving ? "bg-indigo-500 animate-pulse" : lastDraftSaved ? "bg-indigo-400" : "bg-slate-300",
+                                )} />
+                                {isDraftSaving ? "Guardando..." : lastDraftSaved ? `Borrador ${lastDraftSaved}` : ""}
+                            </div>
+                        )}
+                        <div className="group relative flex-1 sm:flex-none">
+                            <button
+                                type="button"
+                                disabled
+                                className="flex-1 sm:flex-none h-10 px-4 rounded-xl text-slate-300 font-semibold bg-slate-50 border border-slate-200 cursor-not-allowed uppercase text-[10px] tracking-widest flex items-center justify-center gap-2"
+                            >
+                                <Lock className="w-4 h-4" />
+                                Consulta online
+                            </button>
+                            <div className="pointer-events-none absolute left-0 top-full mt-2 w-72 max-w-[85vw] rounded-xl bg-slate-900 px-3 py-2 text-[11px] font-medium text-white shadow-2xl opacity-0 transition-opacity group-hover:opacity-100">
+                                Funcionalidad futura: podrás crear una reunión online y transcribir automáticamente todo el contenido de la consulta.
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={handleReset}
+                            className="flex-1 sm:flex-none h-10 px-4 rounded-xl text-slate-400 font-semibold hover:bg-slate-100 transition-all uppercase text-[10px] tracking-widest border border-slate-100 cursor-pointer"
+                        >
+                            <RotateCcw className="w-4 h-4 inline mr-1" />
+                            Reiniciar
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={isSaving}
+                            className={cn(
+                                "flex-[2] sm:flex-none h-10 px-5 rounded-xl font-semibold text-[10px] uppercase tracking-widest transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-2",
+                                isSaving ? "bg-slate-100 text-slate-400" : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200",
+                            )}
+                        >
+                            {isSaving ? (
+                                <span className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                            ) : (
+                                <>
+                                    <Save className="w-4 h-4" />
+                                    Guardar
+                                </>
+                            )}
                         </button>
                     </div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
-                    {/* LEFT COLUMN: Detalles + Métricas */}
-                    <div className="space-y-6">
-                        <div id="consulta-detalles" className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
-                        <div className="p-5 lg:p-6 border-b border-slate-50 bg-slate-50/30 flex items-center justify-between">
-                            <h3 className="text-xl font-bold text-slate-900 flex items-center gap-3">
-                                <ClipboardList className="w-6 h-6 text-indigo-500" />
+                    {/* Fila 1, Col 1: Detalles de la Sesión */}
+                    <div id="consulta-detalles" className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                        <div className="p-4 lg:p-5 border-b border-slate-50 bg-slate-50/30 flex items-center justify-between">
+                            <h3 className="text-base sm:text-lg font-semibold text-slate-900 flex items-center gap-2">
+                                <ClipboardList className="w-5 h-5 text-indigo-500" />
                                 Detalles de la Sesión
                             </h3>
                         </div>
@@ -584,7 +649,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                         Paciente
                                     </label>
                                     <SearchableSelect
-                                        options={patients.map((p) => ({ value: p.id, label: p.fullName }))}
+                                        options={activePatients.map((p) => ({ value: p.id, label: p.fullName }))}
                                         value={formData.patientId}
                                         onChange={(val) => setFormData({ ...formData, patientId: val })}
                                         placeholder="Seleccionar paciente..."
@@ -628,200 +693,225 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                     required
                                 />
                             </div>
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1">
-                                    Observaciones / Notas Clínicas <span className="text-rose-500">*</span>
-                                </label>
+                            <div className="space-y-3">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1 block">
+                                        Observaciones / Notas Clínicas <span className="text-rose-500">*</span>
+                                    </label>
+                                    <div className="inline-flex rounded-xl bg-slate-100 p-1 self-start">
+                                        <button
+                                            type="button"
+                                            onClick={() => setClinicalNotesTab("notes")}
+                                            disabled={!hasSelectedPatient}
+                                            className={cn(
+                                                "px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all",
+                                                clinicalNotesTab === "notes"
+                                                    ? "bg-white text-slate-900 shadow-sm"
+                                                    : "text-slate-400 hover:text-slate-700",
+                                                !hasSelectedPatient && "cursor-not-allowed opacity-50",
+                                            )}
+                                        >
+                                            Notas clínicas
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setClinicalNotesTab("apuntes")}
+                                            disabled={!hasSelectedPatient}
+                                            className={cn(
+                                                "px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all",
+                                                clinicalNotesTab === "apuntes"
+                                                    ? "bg-white text-indigo-700 shadow-sm"
+                                                    : "text-slate-400 hover:text-slate-700",
+                                                !hasSelectedPatient && "cursor-not-allowed opacity-50",
+                                            )}
+                                        >
+                                            Escribir apuntes
+                                        </button>
+                                    </div>
+                                </div>
                                 <textarea
                                     disabled={!hasSelectedPatient}
-                                    className="w-full h-32 rounded-3xl bg-white border border-slate-200 p-4 font-medium text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all resize-none shadow-sm disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
-                                    placeholder="Describe la evolución, cambios en el estilo de vida, adherencia al plan..."
+                                    className={cn(
+                                        "w-full rounded-3xl bg-white border border-slate-200 p-4 font-medium text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all shadow-sm disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400",
+                                        clinicalNotesTab === "apuntes" ? "min-h-[24rem] resize-y" : "h-32 resize-none",
+                                    )}
+                                    placeholder={clinicalNotesTab === "apuntes"
+                                        ? "Escribe apuntes extensos de la sesión, detalles clínicos, observaciones, acuerdos y contexto. Este espacio está pensado para texto largo."
+                                        : "Describe la evolución, cambios en el estilo de vida, adherencia al plan..."}
                                     value={formData.description}
                                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                                     required
                                 />
                             </div>
+                            <label className={cn(
+                                "flex items-start gap-3 rounded-2xl border px-4 py-3.5 text-left cursor-pointer transition-all",
+                                !hasSelectedPatient
+                                    ? "border-slate-100 bg-slate-50/50 cursor-not-allowed opacity-60"
+                                    : "border-slate-200 bg-white hover:border-emerald-200 hover:shadow-sm",
+                            )}>
+                                <input
+                                    type="checkbox"
+                                    checked={formData.plansDelivered}
+                                    onChange={(e) => setFormData({ ...formData, plansDelivered: e.target.checked })}
+                                    disabled={!hasSelectedPatient}
+                                    className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer disabled:cursor-not-allowed"
+                                />
+                                <div>
+                                    <p className="text-sm font-semibold text-slate-700">Se entregaron planes?</p>
+                                    <p className="text-xs text-slate-400 mt-0.5">Selecciona en el caso que hayas entregado algún plan alimenticio.</p>
+                                </div>
+                            </label>
                         </div>
                     </div>
 
-                        <div id="consulta-metricas" className={showPatientMetrics ? "bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden" : "hidden"}>
-                            <div className="p-4 lg:p-5 border-b border-slate-50 bg-slate-50/30 flex items-center justify-between gap-3">
-                                <h3 className="text-xl font-bold text-slate-900 flex items-center gap-3">
-                                    <Activity className="w-6 h-6 text-indigo-500" />
-                                    Métricas y biometría
+                    {/* Fila 1, Col 2: Métricas */}
+                    <div id="consulta-metricas" className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                        <div className="p-4 lg:p-5 border-b border-slate-50 bg-slate-50/30">
+                            <div className="flex items-center justify-between gap-3">
+                                <h3 className="text-base sm:text-lg font-semibold text-slate-900 flex items-center gap-2">
+                                    <Activity className="w-5 h-5 text-indigo-500" />
+                                    Nuevas métricas
                                 </h3>
-                                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-xl uppercase">
-                                    Máx. 3 visibles
-                                </span>
                             </div>
-                            <div className="p-4 lg:p-5 space-y-4">
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1">
-                                        Añadir métricas rápidas
-                                    </label>
-                                    <MetricTagInput
-                                        value={formData.metrics}
-                                        registeredKeys={registeredMetricKeys}
-                                        placeholder="Busca: Peso, Cintura, % Grasa..."
-                                        onChange={(newMetrics) =>
-                                            setFormData({
-                                                ...formData,
-                                                metrics: newMetrics.map((metric) => ({
-                                                    ...metric,
-                                                    value:
-                                                        metric.value === undefined || metric.value === null
-                                                            ? ""
-                                                            : metric.value,
-                                                })),
-                                            })
-                                        }
-                                    />
-                                </div>
-
-                                <div className="max-h-[16rem] overflow-y-auto pr-1 space-y-3 overscroll-contain">
-                                    {formData.metrics.length > 0 ? (
-                                        formData.metrics.map((m, idx) => (
-                                            <div
-                                                key={idx}
-                                                className="flex flex-col md:grid md:grid-cols-12 gap-3 items-start md:items-end bg-slate-50 p-4 rounded-3xl border border-slate-100 group hover:border-emerald-200 transition-all"
-                                            >
-                                                <div className="w-full md:col-span-5 space-y-1.5">
-                                                    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1">Concepto</label>
-                                                    <Input
-                                                        placeholder="Métrica..."
-                                                        value={m.label || ""}
-                                                        onChange={(e) => updateMetric(idx, "label", e.target.value)}
-                                                        className="bg-white h-12 rounded-xl"
-                                                        disabled={!hasSelectedPatient}
-                                                    />
-                                                </div>
-                                                <div className="w-full md:col-span-3 space-y-1.5">
-                                                    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1">Valor</label>
-                                                    <Input
-                                                        placeholder="0.0"
-                                                        value={m.value || ""}
-                                                        onChange={(e) => updateMetric(idx, "value", e.target.value)}
-                                                        className="bg-white h-12 rounded-xl font-bold text-center"
-                                                        disabled={!hasSelectedPatient}
-                                                    />
-                                                </div>
-                                                <div className="w-full md:col-span-3 space-y-1.5">
-                                                    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1">Unidad</label>
-                                                    <Input
-                                                        placeholder="kg, %, cm..."
-                                                        value={m.unit || ""}
-                                                        onChange={(e) => updateMetric(idx, "unit", e.target.value)}
-                                                        className="bg-white h-12 rounded-xl text-slate-500 font-bold"
-                                                        disabled={!hasSelectedPatient}
-                                                    />
-                                                </div>
-                                                <div className="w-full md:col-span-1 flex justify-end">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => removeMetric(idx)}
-                                                        disabled={!hasSelectedPatient}
-                                                        className="p-3 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all h-fit disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-300"
-                                                    >
-                                                        <Trash2 className="w-5 h-5" />
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        ))
-                                    ) : null}
-                                </div>
-
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() =>
+                        </div>
+                        <div className="p-4 lg:p-5 space-y-4">
+                            {!hasSelectedPatient && (
+                                <p className="text-xs text-slate-400 italic bg-slate-50 rounded-xl px-3 py-2">
+                                    Selecciona un paciente para registrar métricas.
+                                </p>
+                            )}
+                            <div className={cn("space-y-2", !hasSelectedPatient && "opacity-50 pointer-events-none")}>
+                                <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1">
+                                    Añadir métricas rápidas
+                                </label>
+                                <MetricTagInput
+                                    value={formData.metrics}
+                                    registeredKeys={registeredMetricKeys}
+                                    placeholder="Busca: Peso, Cintura, % Grasa..."
+                                    onChange={(newMetrics) =>
                                         setFormData({
                                             ...formData,
-                                            metrics: [...formData.metrics, { label: "", value: "", unit: "" }],
+                                            metrics: newMetrics.map((metric) => ({
+                                                ...metric,
+                                                value:
+                                                    metric.value === undefined || metric.value === null
+                                                        ? ""
+                                                        : metric.value,
+                                            })),
                                         })
                                     }
-                                    disabled={!hasSelectedPatient}
-                                    className="w-full h-12 rounded-2xl border-slate-200 text-slate-400 hover:text-slate-600 border-dashed disabled:cursor-not-allowed disabled:opacity-40"
-                                >
-                                    <PlusCircle className="w-5 h-5 mr-2" />
-                                    Añadir métrica manualmente
-                                </Button>
+                                />
                             </div>
+
+                            <div className="max-h-[14rem] overflow-y-auto pr-1 space-y-3 overscroll-contain">
+                                {formData.metrics.length > 0 ? (
+                                    formData.metrics.map((m, idx) => (
+                                        <div
+                                            key={idx}
+                                            className="flex flex-col md:grid md:grid-cols-12 gap-3 items-start md:items-end bg-slate-50 p-4 rounded-3xl border border-slate-100 group hover:border-emerald-200 transition-all"
+                                        >
+                                            <div className="w-full md:col-span-5 space-y-1.5">
+                                                <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1">Concepto</label>
+                                                <Input
+                                                    placeholder="Métrica..."
+                                                    value={m.label || ""}
+                                                    onChange={(e) => updateMetric(idx, "label", e.target.value)}
+                                                    className="bg-white h-12 rounded-xl"
+                                                    disabled={!hasSelectedPatient}
+                                                />
+                                            </div>
+                                            <div className="w-full md:col-span-3 space-y-1.5">
+                                                <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1">Valor</label>
+                                                <Input
+                                                    placeholder="0.0"
+                                                    value={m.value || ""}
+                                                    onChange={(e) => updateMetric(idx, "value", e.target.value)}
+                                                    className="bg-white h-12 rounded-xl font-bold text-center"
+                                                    disabled={!hasSelectedPatient}
+                                                />
+                                            </div>
+                                            <div className="w-full md:col-span-3 space-y-1.5">
+                                                <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1">Unidad</label>
+                                                <Input
+                                                    placeholder="kg, %, cm..."
+                                                    value={m.unit || ""}
+                                                    onChange={(e) => updateMetric(idx, "unit", e.target.value)}
+                                                    className="bg-white h-12 rounded-xl text-slate-500 font-bold"
+                                                    disabled={!hasSelectedPatient}
+                                                />
+                                            </div>
+                                            <div className="w-full md:col-span-1 flex justify-end">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeMetric(idx)}
+                                                    disabled={!hasSelectedPatient}
+                                                    className="p-3 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all h-fit disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-300"
+                                                >
+                                                    <Trash2 className="w-5 h-5" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : null}
+                            </div>
+
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() =>
+                                    setFormData({
+                                        ...formData,
+                                        metrics: [...formData.metrics, { label: "", value: "", unit: "" }],
+                                    })
+                                }
+                                disabled={!hasSelectedPatient}
+                                className="w-full h-12 rounded-2xl border-slate-200 text-slate-400 hover:text-slate-600 border-dashed disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                                <PlusCircle className="w-5 h-5 mr-2" />
+                                Añadir métrica manualmente
+                            </Button>
                         </div>
                     </div>
+                </div>
 
-                    {/* RIGHT COLUMN: Información del paciente */}
-                    <div className="space-y-6">
-                        {patientData ? (
-                        <div
-                            id="consulta-paciente"
-                            className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden"
-                        >
-                            <div className="p-4 lg:p-5 border-b border-slate-50 bg-slate-50/30">
-                                <div>
-                                    <h3 className="text-xl font-bold text-slate-900 flex items-center gap-3">
-                                        <User className="w-6 h-6 text-indigo-500" />
-                                        {patientData.fullName}
-                                    </h3>
-                                    {(() => {
-                                      const bmi = calculateBMI(
-                                        Number(patientForm.weight || patientData.weight),
-                                        Number(patientForm.height || patientData.height),
-                                        {
-                                          gender: (patientForm.gender || patientData.gender) === "Masculino" || (patientForm.gender || patientData.gender) === "Femenino"
-                                            ? (patientForm.gender || patientData.gender) as "Masculino" | "Femenino"
-                                            : null,
-                                          ageYears: calculateAge(patientData.birthDate) || undefined,
-                                          birthDate: patientData.birthDate || undefined,
-                                        }
-                                      );
-                                      const getVal = calculateGET(
-                                        (patientForm.gender || patientData.gender) === "Masculino" ? "Masculino" : "Femenino",
-                                        Number(patientForm.weight || patientData.weight) || 0,
-                                        Number(patientForm.height || patientData.height) || 0,
-                                        calculateAge(patientData.birthDate) ?? 30,
-                                        (activityLevel as any) || "sedentario",
-                                        "mifflin-st-jeor"
-                                      );
-                                      return (
-                                        <>
-                                          <div className="flex items-center gap-2 mt-2">
-                                          {bmi && (
-                                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-white px-2 py-0.5 rounded-lg" style={{ backgroundColor: bmi.color }}>
-                                              IMC {bmi.bmi}
-                                            </span>
-                                          )}
-                                          {getVal && (
-                                            <>
-                                              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg">
-                                                GET {getVal.get} kcal
-                                              </span>
-                                              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-lg">
-                                                {getVal.macros.protein}g prot
-                                              </span>
-                                            </>
-                                          )}
-                                        </div>
-                                        <select
-                                          value={activityLevel}
-                                          onChange={(e) => setActivityLevel(e.target.value)}
-                                          className="mt-2 h-8 rounded-lg border border-slate-200 bg-white px-2 text-xs font-medium text-slate-600 cursor-pointer hover:border-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                                          title="Nivel de actividad para calcular GET"
-                                        >
-                                          <option value="sedentario">Sedentario (×1.2)</option>
-                                          <option value="ligero">Ligero (×1.375)</option>
-                                          <option value="moderado">Moderado (×1.55)</option>
-                                          <option value="activo">Activo (×1.725)</option>
-                                          <option value="muy_activo">Muy activo (×1.9)</option>
-                                        </select>
-                                        </>
-                                      );
-                                    })()}
+                {/* Fila 2: Paciente seleccionado — Accordion */}
+                {(patientData || isPatientDataLoading) && (
+                <div id="consulta-paciente" className="mt-6 lg:mt-8 bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                    <button
+                        type="button"
+                        onClick={() => setIsPatientAccordionOpen(!isPatientAccordionOpen)}
+                        className="w-full flex items-center justify-between p-4 lg:p-5 border-b border-slate-50 bg-slate-50/30 cursor-pointer transition-all hover:bg-slate-100/60"
+                    >
+                        <div className="flex items-center gap-2">
+                            <User className="w-5 h-5 text-indigo-500" />
+                            <h3 className="text-base sm:text-lg font-semibold text-slate-900">
+                                Paciente seleccionado
+                            </h3>
+                            <span className="text-base sm:text-lg font-semibold text-indigo-600">
+                                {patientData ? patientData.fullName : "Cargando..."}
+                            </span>
+                        </div>
+                        <ChevronDown
+                            className={cn(
+                                "w-5 h-5 text-slate-400 transition-transform duration-300",
+                                isPatientAccordionOpen && "rotate-180"
+                            )}
+                        />
+                    </button>
+
+                    {isPatientAccordionOpen && (
+                        <div className="p-4 lg:p-5">
+                            {isPatientDataLoading && !patientData ? (
+                                <div className="flex flex-col items-center justify-center py-8 gap-3">
+                                    <div className="h-8 w-8 border-4 border-indigo-100 border-t-indigo-500 rounded-full animate-spin" />
+                                    <p className="text-sm font-medium text-slate-500">Cargando información del paciente...</p>
                                 </div>
-                            </div>
-                            <div className="p-4 lg:p-5">
-                                <>
-                                    <div className={cn(
-                                        "mb-4 rounded-[24px] border px-4 py-4 transition-all",
+                            ) : (
+                            <>
+                            {patientData && (
+                            <>
+                            <div className={cn(
+                                        "mb-4 rounded-2xl border px-4 py-4 transition-all",
                                         isPatientInfoEditing
                                             ? "border-emerald-200 bg-emerald-50/50 shadow-lg shadow-emerald-100/60"
                                             : "border-slate-100 bg-slate-50/70",
@@ -831,242 +921,144 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                                 <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">
                                                     {isPatientInfoEditing ? "Modo edición activo" : "Ficha rápida del paciente"}
                                                 </p>
-                                                <p className="hidden">
-                                                    {isPatientInfoEditing
-                                                        ? "Aquí puedes ajustar toda la información del paciente antes de guardar la consulta."
-                                                        : "Consulta lo esencial y entra a edición solo si necesitas cambiar algo."}
-                                                </p>
                                             </div>
                                         </div>
                                     </div>
 
                                     {isPatientInfoEditing ? (
-                                    <div
-                                        className="bg-slate-50/50 rounded-[28px] border border-slate-100 overflow-hidden"
-                                    >
-                                        <div className="border-t border-slate-100 bg-white p-4 lg:p-5 space-y-4">
-                                            <section className="space-y-3">
-                                                <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">
-                                                    Información personal del paciente
-                                                </p>
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                                    <Input
-                                                        className="h-11 rounded-2xl border-slate-200 font-semibold"
-                                                        placeholder="Nombre completo"
-                                                        value={patientForm.fullName}
-                                                        onChange={(e) => setPatientForm({ ...patientForm, fullName: e.target.value })}
-                                                    />
-                                                    <Input
-                                                        className="h-11 rounded-2xl border-slate-200 font-semibold"
-                                                        placeholder="RUT"
-                                                        value={patientForm.documentId}
-                                                        onChange={(e) => setPatientForm({ ...patientForm, documentId: formatRut(e.target.value) })}
-                                                    />
-                                                    <Input
-                                                        className="h-11 rounded-2xl border-slate-200 font-semibold md:col-span-2"
-                                                        placeholder="Correo"
-                                                        value={patientForm.email}
-                                                        onChange={(e) => setPatientForm({ ...patientForm, email: e.target.value })}
-                                                    />
-                                                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 md:col-span-2">
+                                        <div className="bg-slate-50/50 rounded-2xl border border-slate-100 overflow-hidden">
+                                            <div className="border-t border-slate-100 bg-white p-4 lg:p-5 space-y-4">
+                                                <section className="space-y-3">
+                                                    <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">
+                                                        Información personal del paciente
+                                                    </p>
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                                         <Input
-                                                            className="h-11 rounded-2xl border-slate-200 font-semibold sm:col-span-2"
-                                                            placeholder="Teléfono"
-                                                            value={patientForm.phone}
-                                                            onChange={(e) => setPatientForm({ ...patientForm, phone: e.target.value })}
-                                                        />
-                                                        <select
-                                                            value={patientForm.gender}
-                                                            onChange={(e) => setPatientForm({ ...patientForm, gender: e.target.value })}
-                                                            className="h-11 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
-                                                        >
-                                                            <option value="">Sexo biológico</option>
-                                                            <option value="Masculino">Masculino</option>
-                                                            <option value="Femenino">Femenino</option>
-                                                            <option value="Otro">Otro</option>
-                                                        </select>
-                                                        <Input
-                                                            type="number"
-                                                            min="0"
-                                                            step="0.1"
                                                             className="h-11 rounded-2xl border-slate-200 font-semibold"
-                                                            placeholder="Estatura (cm)"
-                                                            value={patientForm.height}
-                                                            onChange={(e) => setPatientForm({ ...patientForm, height: e.target.value })}
+                                                            placeholder="Nombre completo"
+                                                            value={patientForm.fullName}
+                                                            onChange={(e) => setPatientForm({ ...patientForm, fullName: e.target.value })}
                                                         />
-                                                    </div>
-                                                    <Input
-                                                        type="number"
-                                                        min="0"
-                                                        step="0.1"
-                                                        className="h-11 rounded-2xl border-slate-200 font-semibold md:col-span-2"
-                                                        placeholder="Peso (kg)"
-                                                        value={patientForm.weight}
-                                                        onChange={(e) => setPatientForm({ ...patientForm, weight: e.target.value })}
-                                                    />
-                                                </div>
-                                            </section>
-
-                                            <section className="space-y-2">
-                                                <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">
-                                                    Resumen clínico del paciente
-                                                </p>
-                                                <textarea
-                                                    className="w-full h-24 rounded-2xl border border-slate-200 bg-white p-3.5 text-sm font-medium text-slate-700 outline-none transition-all resize-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
-                                                    placeholder="Resumen del estado clínico del paciente..."
-                                                    value={patientForm.clinicalSummary}
-                                                    onChange={(e) => setPatientForm({ ...patientForm, clinicalSummary: e.target.value })}
-                                                />
-                                            </section>
-
-                                            <section className="space-y-3">
-                                                <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">
-                                                    Preferencias y contexto
-                                                </p>
-                                                <div className="space-y-2">
-                                                    <label className="text-[10px] font-black uppercase tracking-widest text-rose-500 ml-1">Restricciones</label>
-                                                    <TagInput
-                                                        value={patientForm.dietRestrictions}
-                                                        onChange={(tags) => setPatientForm({ ...patientForm, dietRestrictions: tags })}
-                                                        fetchSuggestionsUrl={`${getApiUrl()}/tags`}
-                                                        className="bg-white border border-slate-200 rounded-2xl min-h-[56px] p-2"
-                                                        placeholder="Ej: Celiaquía, Diabetes..."
-                                                    />
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 ml-1">Foco nutricional</label>
-                                                    <Input
-                                                        className="h-11 rounded-2xl border-slate-200 font-semibold"
-                                                        placeholder="Ej: Déficit calórico"
-                                                        value={patientForm.nutritionalFocus}
-                                                        onChange={(e) => setPatientForm({ ...patientForm, nutritionalFocus: e.target.value })}
-                                                    />
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 ml-1">Metas fitness</label>
-                                                    <textarea
-                                                        className="w-full h-20 rounded-2xl border border-slate-200 bg-white p-3.5 text-sm font-medium text-slate-700 outline-none transition-all resize-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
-                                                        placeholder="Ej: Correr 10k, mejorar fuerza..."
-                                                        value={patientForm.fitnessGoals}
-                                                        onChange={(e) => setPatientForm({ ...patientForm, fitnessGoals: e.target.value })}
-                                                    />
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 ml-1">Gustos</label>
-                                                    <textarea
-                                                        className="w-full h-20 rounded-2xl border border-slate-200 bg-white p-3.5 text-sm font-medium text-slate-700 outline-none transition-all resize-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
-                                                        placeholder="Ej: Le gusta el chocolate, evita el brócoli..."
-                                                        value={patientForm.likes}
-                                                        onChange={(e) => setPatientForm({ ...patientForm, likes: e.target.value })}
-                                                    />
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 ml-1">Etiquetas</label>
-                                                    <TagInput
-                                                        value={patientForm.tags}
-                                                        onChange={(tags) => setPatientForm({ ...patientForm, tags })}
-                                                        fetchSuggestionsUrl={`${getApiUrl()}/tags`}
-                                                        className="bg-white border border-slate-200 rounded-2xl min-h-[56px] p-2"
-                                                        placeholder="Ej: #Deportista, #Vegano..."
-                                                    />
-                                                </div>
-                                            </section>
-                                            <div className="hidden grid-cols-1 sm:grid-cols-2 gap-3">
-                                                <div className="rounded-2xl bg-slate-50 border border-slate-100 p-3.5">
-                                                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Correo</p>
-                                                    <p className="mt-1 text-sm font-semibold text-slate-800 truncate">{patientData.email || "No registrado"}</p>
-                                                </div>
-                                                <div className="rounded-2xl bg-slate-50 border border-slate-100 p-3.5">
-                                                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Teléfono</p>
-                                                    <p className="mt-1 text-sm font-semibold text-slate-800">{patientData.phone || "No registrado"}</p>
-                                                </div>
-                                            </div>
-
-                                            <div className="hidden grid-cols-1 md:grid-cols-2 gap-3">
-                                                <div className="space-y-2">
-                                                    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1">Estatura</label>
-                                                    <div className="flex items-center gap-2">
+                                                        <Input
+                                                            className="h-11 rounded-2xl border-slate-200 font-semibold"
+                                                            placeholder="RUT"
+                                                            value={patientForm.documentId}
+                                                            onChange={(e) => setPatientForm({ ...patientForm, documentId: formatRut(e.target.value) })}
+                                                        />
+                                                        <Input
+                                                            className="h-11 rounded-2xl border-slate-200 font-semibold md:col-span-2"
+                                                            placeholder="Correo"
+                                                            value={patientForm.email}
+                                                            onChange={(e) => setPatientForm({ ...patientForm, email: e.target.value })}
+                                                        />
+                                                        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 md:col-span-2">
+                                                            <Input
+                                                                className="h-11 rounded-2xl border-slate-200 font-semibold sm:col-span-2"
+                                                                placeholder="Teléfono"
+                                                                value={patientForm.phone}
+                                                                onChange={(e) => setPatientForm({ ...patientForm, phone: e.target.value })}
+                                                            />
+                                                            <select
+                                                                value={patientForm.gender}
+                                                                onChange={(e) => setPatientForm({ ...patientForm, gender: e.target.value })}
+                                                                className="h-11 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+                                                            >
+                                                                <option value="">Sexo biológico</option>
+                                                                <option value="Masculino">Masculino</option>
+                                                                <option value="Femenino">Femenino</option>
+                                                                <option value="Otro">Otro</option>
+                                                            </select>
+                                                            <Input
+                                                                type="number"
+                                                                min="0"
+                                                                step="0.1"
+                                                                className="h-11 rounded-2xl border-slate-200 font-semibold"
+                                                                placeholder="Estatura (cm)"
+                                                                value={patientForm.height}
+                                                                onChange={(e) => setPatientForm({ ...patientForm, height: e.target.value })}
+                                                            />
+                                                        </div>
                                                         <Input
                                                             type="number"
                                                             min="0"
                                                             step="0.1"
-                                                            className="h-11 bg-white border-slate-200 rounded-2xl font-bold"
-                                                            placeholder="Ej: 168"
-                                                            value={patientForm.height}
-                                                            onChange={(e) => setPatientForm({ ...patientForm, height: e.target.value })}
+                                                            className="h-11 rounded-2xl border-slate-200 font-semibold md:col-span-2"
+                                                            placeholder="Peso (kg)"
+                                                            value={patientForm.weight}
+                                                            onChange={(e) => setPatientForm({ ...patientForm, weight: e.target.value })}
                                                         />
-                                                        <span className="shrink-0 rounded-xl bg-white px-3 py-2.5 text-[10px] font-black uppercase tracking-widest text-slate-500 border border-slate-200">cm</span>
                                                     </div>
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1">Foco nutricional</label>
-                                                    <Input
-                                                        className="h-11 bg-white border-slate-200 rounded-2xl font-semibold"
-                                                        placeholder="Ej: Déficit calórico"
-                                                        value={patientForm.nutritionalFocus}
-                                                        onChange={(e) => setPatientForm({ ...patientForm, nutritionalFocus: e.target.value })}
-                                                    />
-                                                </div>
-                                            </div>
+                                                </section>
 
-                                            <div className="hidden grid-cols-1 gap-3">
-                                                <div className="space-y-2">
-                                                    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1">Metas fitness</label>
+                                                <section className="space-y-2">
+                                                    <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">
+                                                        Resumen clínico del paciente
+                                                    </p>
                                                     <textarea
-                                                        className="w-full h-20 rounded-2xl bg-white border border-slate-200 p-3.5 font-medium text-slate-700 focus:ring-4 focus:ring-rose-500/10 outline-none transition-all resize-none text-sm"
-                                                        placeholder="Ej: Correr 10k, mejorar fuerza..."
-                                                        value={patientForm.fitnessGoals}
-                                                        onChange={(e) => setPatientForm({ ...patientForm, fitnessGoals: e.target.value })}
-                                                    />
-                                                </div>
-
-                                                <div className="space-y-2">
-                                                    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1">Gustos y preferencias</label>
-                                                    <textarea
-                                                        className="w-full h-24 rounded-2xl bg-white border border-slate-200 p-4 font-medium text-slate-700 focus:ring-4 focus:ring-rose-500/10 outline-none transition-all resize-none text-sm"
-                                                        placeholder="Ej: No le gusta el brócoli, ama el chocolate..."
-                                                        value={patientForm.likes}
-                                                        onChange={(e) => setPatientForm({ ...patientForm, likes: e.target.value })}
-                                                    />
-                                                </div>
-
-                                                <div className="space-y-3">
-                                                    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1">Restricciones de salud</label>
-                                                    <TagInput
-                                                        value={patientForm.dietRestrictions}
-                                                        onChange={(tags) => setPatientForm({ ...patientForm, dietRestrictions: tags })}
-                                                        fetchSuggestionsUrl={`${getApiUrl()}/tags`}
-                                                        className="bg-white border border-slate-200 rounded-2xl min-h-[56px] p-2"
-                                                        placeholder="Ej: Celiaquía, Diabetes..."
-                                                    />
-                                                </div>
-
-                                                <div className="space-y-3">
-                                                    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1">Etiquetas</label>
-                                                    <TagInput
-                                                        value={patientForm.tags}
-                                                        onChange={(tags) => setPatientForm({ ...patientForm, tags: tags })}
-                                                        fetchSuggestionsUrl={`${getApiUrl()}/tags`}
-                                                        className="bg-white border border-slate-200 rounded-2xl min-h-[56px] p-2"
-                                                        placeholder="Ej: #Deportista, #Vegano..."
-                                                    />
-                                                </div>
-
-                                                <div className="space-y-3">
-                                                    <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1">Resumen clínico</label>
-                                                    <textarea
-                                                        className="w-full h-20 rounded-2xl bg-white border border-slate-200 p-3.5 font-medium text-slate-700 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all resize-none text-sm"
+                                                        className="w-full h-24 rounded-2xl border border-slate-200 bg-white p-3.5 text-sm font-medium text-slate-700 outline-none transition-all resize-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
                                                         placeholder="Resumen del estado clínico del paciente..."
                                                         value={patientForm.clinicalSummary}
                                                         onChange={(e) => setPatientForm({ ...patientForm, clinicalSummary: e.target.value })}
                                                     />
-                                                </div>
+                                                </section>
+
+                                                <section className="space-y-3">
+                                                    <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">
+                                                        Preferencias y contexto
+                                                    </p>
+                                                    <div className="space-y-2">
+                                                        <label className="text-[10px] font-black uppercase tracking-widest text-rose-500 ml-1">Restricciones</label>
+                                                        <TagInput
+                                                            value={patientForm.dietRestrictions}
+                                                            onChange={(tags) => setPatientForm({ ...patientForm, dietRestrictions: tags })}
+                                                            fetchSuggestionsUrl={`${getApiUrl()}/tags`}
+                                                            className="bg-white border border-slate-200 rounded-2xl min-h-[56px] p-2"
+                                                            placeholder="Ej: Celiaquía, Diabetes..."
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 ml-1">Foco nutricional</label>
+                                                        <Input
+                                                            className="h-11 rounded-2xl border-slate-200 font-semibold"
+                                                            placeholder="Ej: Déficit calórico"
+                                                            value={patientForm.nutritionalFocus}
+                                                            onChange={(e) => setPatientForm({ ...patientForm, nutritionalFocus: e.target.value })}
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 ml-1">Metas fitness</label>
+                                                        <textarea
+                                                            className="w-full h-20 rounded-2xl border border-slate-200 bg-white p-3.5 text-sm font-medium text-slate-700 outline-none transition-all resize-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+                                                            placeholder="Ej: Correr 10k, mejorar fuerza..."
+                                                            value={patientForm.fitnessGoals}
+                                                            onChange={(e) => setPatientForm({ ...patientForm, fitnessGoals: e.target.value })}
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 ml-1">Gustos</label>
+                                                        <textarea
+                                                            className="w-full h-20 rounded-2xl border border-slate-200 bg-white p-3.5 text-sm font-medium text-slate-700 outline-none transition-all resize-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+                                                            placeholder="Ej: Le gusta el chocolate, evita el brócoli..."
+                                                            value={patientForm.likes}
+                                                            onChange={(e) => setPatientForm({ ...patientForm, likes: e.target.value })}
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <label className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 ml-1">Etiquetas</label>
+                                                        <TagInput
+                                                            value={patientForm.tags}
+                                                            onChange={(tags) => setPatientForm({ ...patientForm, tags })}
+                                                            fetchSuggestionsUrl={`${getApiUrl()}/tags`}
+                                                            className="bg-white border border-slate-200 rounded-2xl min-h-[56px] p-2"
+                                                            placeholder="Ej: #Deportista, #Vegano..."
+                                                        />
+                                                    </div>
+                                                </section>
                                             </div>
                                         </div>
-                                    </div>
                                     ) : (
                                         <div className="space-y-4">
-                                            <section className="rounded-[24px] border border-slate-100 bg-white p-4">
+                                            <section className="rounded-2xl border border-slate-100 bg-white p-4">
                                                 <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">
                                                     Información personal del paciente
                                                 </p>
@@ -1094,7 +1086,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                                 </div>
                                             </section>
 
-                                            <section className="rounded-[24px] border border-slate-100 bg-white p-4">
+                                            <section className="rounded-2xl border border-slate-100 bg-white p-4">
                                                 <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">
                                                     Resumen clínico del paciente
                                                 </p>
@@ -1103,7 +1095,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                                 </p>
                                             </section>
 
-                                            <section className="rounded-[24px] border border-slate-100 bg-white p-4 space-y-4">
+                                            <section className="rounded-2xl border border-slate-100 bg-white p-4 space-y-4">
                                                 <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">
                                                     Preferencias y contexto
                                                 </p>
@@ -1156,23 +1148,14 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                             </section>
                                         </div>
                                     )}
-                                </>
-                            </div>
-                        </div>
-                        ) : (
-                        <div
-                            id="consulta-paciente"
-                            className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden"
-                        >
-                            <div className="p-5 lg:p-6 text-center">
-                                <User className="mx-auto h-8 w-8 text-slate-300 mb-2" />
-                                <p className="text-sm font-semibold text-slate-500">Sin paciente seleccionado</p>
-                                <p className="text-xs text-slate-400 mt-1">Selecciona un paciente para ver su información clínica y cálculos nutricionales.</p>
-                            </div>
-                        </div>
-                        )}
-                    </div>
-                </div> {/* End Grid */}
+                            </>
+                            )}
+                            </>
+                            )}
+                                </div>
+                    )}
+                </div>
+                )}
             </form>
         </div>
     );

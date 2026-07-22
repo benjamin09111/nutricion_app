@@ -3,6 +3,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { DiscountCodeType } from '@prisma/client';
 import { randomBytes } from 'crypto';
 
+type DiscountCodeStatus = 'ACTIVE' | 'SHARED' | 'EXPIRED';
+
 @Injectable()
 export class DiscountCodesService {
   private readonly logger = new Logger(DiscountCodesService.name);
@@ -60,6 +62,7 @@ export class DiscountCodesService {
   async findAll(params: {
     type?: DiscountCodeType;
     isUsed?: boolean;
+    status?: DiscountCodeStatus;
     adminId?: string;
     start?: number;
     limit?: number;
@@ -69,6 +72,7 @@ export class DiscountCodesService {
     const discountCodes = this.prisma.discountCode as any;
 
     if (params.type) where.type = params.type;
+    if (params.status) where.status = params.status;
     if (params.isUsed !== undefined) where.isUsed = params.isUsed;
     if (params.adminId) where.createdByAdminId = params.adminId;
     if (!params.includeArchived) where.archivedAt = null;
@@ -131,23 +135,66 @@ export class DiscountCodesService {
       throw new BadRequestException('Codigo de descuento invalido.');
     }
 
-    if (discountCode.isUsed) {
-      throw new BadRequestException('Este codigo ya fue utilizado.');
+    if (discountCode.archivedAt) {
+      throw new BadRequestException('Codigo expirado.');
+    }
+
+    const discountCodeStatus = (discountCode as any).status as
+      | DiscountCodeStatus
+      | undefined;
+
+    if (discountCodeStatus === 'EXPIRED' || discountCode.isUsed) {
+      throw new BadRequestException('Codigo expirado.');
     }
 
     return discountCode;
   }
 
-  markAsUsed(code: string, accountId: string, tx?: any) {
-    const client = tx || this.prisma;
-    return client.discountCode.update({
-      where: { code },
+  async setCodeStatus(
+    codeId: string,
+    status: Exclude<DiscountCodeStatus, 'ACTIVE'>,
+  ) {
+    const discountCode = await this.prisma.discountCode.findUnique({
+      where: { id: codeId },
+      select: { id: true },
+    });
+
+    if (!discountCode) {
+      throw new BadRequestException('Codigo no encontrado.');
+    }
+
+    const discountCodes = this.prisma.discountCode as any;
+
+    return discountCodes.update({
+      where: { id: codeId },
       data: {
+        status,
+        isUsed: status === 'EXPIRED',
+        usedByAccountId: null,
+        usedAt: status === 'EXPIRED' ? new Date() : null,
+        archivedByAdminId: null,
+      },
+    });
+  }
+
+  async markAsUsed(code: string, accountId: string, tx?: any) {
+    const client = (tx || this.prisma).discountCode;
+
+    const result = await client.updateMany({
+      where: { code, isUsed: false },
+      data: {
+        status: 'EXPIRED',
         isUsed: true,
         usedByAccountId: accountId,
         usedAt: new Date(),
       },
     });
+
+    if (result.count === 0) {
+      throw new BadRequestException('Codigo expirado.');
+    }
+
+    return result;
   }
 
   async archiveUsedCodes(adminId: string) {
@@ -157,6 +204,7 @@ export class DiscountCodesService {
     const result = await discountCodes.updateMany({
       where: {
         isUsed: true,
+        status: 'EXPIRED',
         archivedAt: null,
       },
       data: {

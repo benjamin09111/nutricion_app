@@ -33,6 +33,7 @@ export class IngredientGroupsService {
     const group = await this.prisma.ingredientGroup.create({
       data: {
         ...data,
+        updatedAt: new Date(),
         type: type || 'INGREDIENT',
         nutritionist: { connect: { id: nutritionistId } },
         tags: {
@@ -267,11 +268,19 @@ export class IngredientGroupsService {
       : dto.ingredientIds || [];
     if (itemIds.length === 0) return group;
 
+    const existingIds = new Set(
+      (group.entries || [])
+        .map((entry) => (isRecipeGroup ? entry.recipeId : entry.ingredientId))
+        .filter(Boolean),
+    );
+    const nextItemIds = itemIds.filter((itemId) => !existingIds.has(itemId));
+    if (nextItemIds.length === 0) return group;
+
     const updated = await this.prisma.ingredientGroup.update({
       where: { id },
       data: {
         entries: {
-          create: itemIds.map((itemId) => ({
+          create: nextItemIds.map((itemId) => ({
             ...(isRecipeGroup
               ? { recipeId: itemId }
               : { ingredientId: itemId }),

@@ -2,7 +2,6 @@
 
 import { useState, useMemo, useEffect } from "react";
 import {
-  Search,
   Download,
   Eye,
   Info,
@@ -12,10 +11,7 @@ import {
   ShoppingCart,
   ChefHat,
   Folder,
-  Filter,
   X,
-  ChevronLeft,
-  ChevronRight,
   Loader2,
   NotebookText,
   Share2,
@@ -24,15 +20,19 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
+import { Filtros_B } from "@/components/ui/Filtros_B";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
+import { useSubscription } from "@/context/SubscriptionContext";
 import { Creation, CreationType } from "@/features/creations";
 import { Pagination } from "@/components/ui/Pagination";
+import { RecordsTable, type Column } from "@/components/shared/RecordsTable";
 import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { fetchApi } from "@/lib/api-base";
+import { formatDateOnlyForLocale } from "@/features/patients/utils/patient-helpers";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -56,6 +56,7 @@ export default function CreationsClient({
   onUpdate
 }: CreationsClientProps) {
   const router = useRouter();
+  const { currentPlan } = useSubscription();
   const [selectedType, setSelectedType] = useState<CreationType | "Todos">("Todos");
   const [selectedTag, setSelectedTag] = useState<string>("Todos");
   const [searchTerm, setSearchTerm] = useState("");
@@ -288,15 +289,15 @@ export default function CreationsClient({
             const allFilterTags = Array.from(
               new Set([...(item.tags || []), ...contentConstraints]),
             );
-            return {
-              id: item.id,
-              name: item.name,
-              type: mapBackendTypeToFrontend(item.type),
-              createdAt: new Date(item.createdAt).toLocaleDateString("es-ES", {
-                day: "2-digit",
-                month: "short",
-                year: "numeric",
-              }),
+              return {
+                id: item.id,
+                name: item.name,
+                type: mapBackendTypeToFrontend(item.type),
+                createdAt: formatDateOnlyForLocale(item.createdAt, {
+                  day: "2-digit",
+                  month: "short",
+                  year: "numeric",
+                }),
               size: "N/A",
               format: item.format === "NATIVE" ? "JSON" : "PDF",
               tags: item.tags || [],
@@ -385,6 +386,17 @@ export default function CreationsClient({
   };
 
   const handleEdit = (item: Creation) => {
+    if (currentPlan?.key === "free") {
+      window.dispatchEvent(
+        new CustomEvent("show-freemium-upgrade", {
+          detail: {
+            description:
+              "Editar creaciones guardadas es una característica exclusiva de los planes de pago. Mejora tu plan para modificar tus creaciones.",
+          },
+        })
+      );
+      return;
+    }
     switch (item.type) {
       case CreationType.DIET:
         localStorage.setItem("currentDietEditId", item.id);
@@ -439,6 +451,146 @@ export default function CreationsClient({
     }
   };
 
+  const creationColumns: Column<Creation>[] = [
+    {
+      header: "Nombre",
+      render: (item) => (
+        <div className="flex items-center gap-3">
+          <div className={cn(
+            "p-2 rounded-lg bg-slate-50 border border-slate-100",
+            item.type === CreationType.DIET && "group-hover:bg-blue-50 group-hover:border-blue-100",
+            item.type === CreationType.SHOPPING_LIST && "group-hover:bg-emerald-50 group-hover:border-emerald-100",
+            item.type === CreationType.RECIPE && "group-hover:bg-amber-50 group-hover:border-amber-100",
+          )}>
+            {getTypeIcon(item.type)}
+          </div>
+          <span className="text-sm font-bold text-slate-700 group-hover:text-slate-900 transition-colors">
+            {item.name}
+          </span>
+        </div>
+      ),
+    },
+    {
+      header: "Paciente",
+      render: (item) => (
+        (item as any).patientName ? (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-bold border border-indigo-100">
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+            {(item as any).patientName}
+          </span>
+        ) : (
+          <span className="text-xs text-slate-400 italic">Sin paciente</span>
+        )
+      ),
+    },
+    {
+      header: "Etiquetas",
+      render: (item) => (
+        <div className="flex flex-wrap gap-1">
+          {item.tags && item.tags.length > 0 ? (
+            item.tags.map((tag) => (
+              <span
+                key={tag}
+                className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200"
+              >
+                #{tag}
+              </span>
+            ))
+          ) : (
+            <span className="text-xs text-slate-400 italic">
+              Sin etiquetas
+            </span>
+          )}
+        </div>
+      ),
+    },
+    {
+      header: "Tipo",
+      render: (item) => (
+        <span
+          className={cn(
+            "inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset",
+            getTypeStyles(item.type),
+          )}
+        >
+          {item.type}
+        </span>
+      ),
+    },
+    {
+      header: "Fecha",
+      render: (item) => (
+        <span className="text-sm text-slate-500 font-medium whitespace-nowrap">
+          {item.createdAt}
+        </span>
+      ),
+    },
+    {
+      header: "Acciones",
+      className: "text-right",
+      render: (item) => (
+        <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+          <button
+            onClick={() => handleInfoClick(item)}
+            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all cursor-pointer"
+            title="Más info"
+          >
+            <Info className="h-4 w-4" />
+          </button>
+          {item.type !== CreationType.FAST_DELIVERABLE && (
+            <button
+              onClick={() => handleViewClick(item)}
+              className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all cursor-pointer"
+              title="Previsualizar"
+            >
+              <Eye className="h-4 w-4" />
+            </button>
+          )}
+          <button
+            onClick={() => handleEdit(item)}
+            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all cursor-pointer"
+            title="Editar"
+          >
+            <Edit className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => handleDownloadClick(item)}
+            className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all cursor-pointer"
+            title="Descargar / Exportar"
+          >
+            <Download className="h-4 w-4" />
+          </button>
+          {isInsidePatientDetail && (
+            <button
+              onClick={() => handleShareClick(item)}
+              disabled={isSharing === item.id}
+              className={cn(
+                "p-2 rounded-xl transition-all cursor-pointer",
+                sharedCreationIdSet.has(item.id)
+                  ? "text-emerald-600 bg-emerald-50 animate-pulse hover:bg-emerald-100"
+                  : "text-slate-400 hover:text-indigo-600 hover:bg-indigo-50",
+                isSharing === item.id && "cursor-not-allowed"
+              )}
+              title="Compartir con el paciente"
+            >
+              <Share2 className="h-4 w-4" />
+            </button>
+          )}
+          <div className="w-px h-4 bg-slate-200 mx-1" />
+          <button
+            onClick={() => handleDelete(item.id)}
+            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all cursor-pointer"
+            title="Eliminar"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-6">
       {!isInsidePatientDetail && (
@@ -452,288 +604,108 @@ export default function CreationsClient({
         </div>
       )}
 
-      <div className="bg-white p-4 rounded-[2rem] shadow-sm border border-slate-200 flex flex-col xl:flex-row gap-4 items-center justify-between">
-        <div className="flex flex-col md:flex-row gap-4 w-full xl:w-auto flex-1">
-          <div className="relative flex-1">
-            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-              <Search className="h-5 w-5 text-slate-400" aria-hidden="true" />
-            </div>
-            <Input
-              type="search"
-              placeholder="Buscar por nombre..."
-              className="pl-10 h-11 rounded-xl bg-slate-50 border-slate-200 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all w-full font-semibold"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-
-          {!isInsidePatientDetail && (
-            <div className="relative w-full md:w-52">
-              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                <svg className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
+      <div className="space-y-4">
+        <Filtros_B
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          searchPlaceholder="Buscar por nombre..."
+          rightContent={
+            <>
+              {!isInsidePatientDetail && (
+                <div className="relative w-full sm:w-52">
+                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                    <svg className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                  </div>
+                  <Input
+                    type="search"
+                    placeholder="Filtrar por paciente..."
+                    className="pl-10 h-10 rounded-xl bg-white border border-slate-200 focus:border-indigo-500 transition-all w-full font-medium text-sm"
+                    value={patientFilter}
+                    onChange={(e) => setPatientFilter(e.target.value)}
+                  />
+                  {patientFilter && (
+                    <button
+                      onClick={() => setPatientFilter("")}
+                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              )}
+              <select
+                value={selectedType}
+                onChange={(e) => setSelectedType(e.target.value as any)}
+                className="h-10 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-600 outline-none focus:border-indigo-500 transition-all cursor-pointer"
+              >
+                <option value="Todos">Todos los Tipos</option>
+                <option value={CreationType.DIET}>Dietas</option>
+                <option value={CreationType.SHOPPING_LIST}>Listas de Compra</option>
+                <option value={CreationType.RECIPE}>Recetas</option>
+                <option value={CreationType.FAST_DELIVERABLE}>Entregables Rápidos</option>
+              </select>
+              <div className="w-full md:w-56">
+                <SearchableSelect
+                  options={[
+                    { value: "Todos", label: "Todas las etiquetas" },
+                    ...allTags.map((tag) => ({ value: tag, label: tag })),
+                  ]}
+                  value={selectedTag}
+                  onChange={setSelectedTag}
+                  placeholder="Etiquetas..."
+                  triggerClassName="h-10 rounded-xl border border-slate-200 bg-white pl-4 pr-10 font-medium text-sm"
+                />
               </div>
-              <Input
-                type="search"
-                placeholder="Filtrar por paciente..."
-                className="pl-10 h-11 rounded-xl bg-slate-50 border-slate-200 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all w-full font-semibold"
-                value={patientFilter}
-                onChange={(e) => setPatientFilter(e.target.value)}
-              />
-              {patientFilter && (
-                <button
-                  onClick={() => setPatientFilter("")}
-                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 cursor-pointer"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-            </div>
-          )}
-
-          <div className="w-full md:w-48 relative">
-            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-              <Filter className="h-4 w-4 text-slate-400" />
-            </div>
-            <select
-              className="w-full h-11 pl-10 pr-4 rounded-xl bg-slate-50 border border-slate-200 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all font-semibold text-slate-700 appearance-none cursor-pointer text-sm"
-              value={selectedType}
-              onChange={(e) => setSelectedType(e.target.value as any)}
-            >
-              <option value="Todos">Todos los Tipos</option>
-              <option value={CreationType.DIET}>Dietas</option>
-              <option value={CreationType.SHOPPING_LIST}>
-                Listas de Compra
-              </option>
-              <option value={CreationType.RECIPE}>Recetas</option>
-              <option value={CreationType.FAST_DELIVERABLE}>
-                Entregables Rápidos
-              </option>
-            </select>
-          </div>
-
-          <div className="w-full md:w-64 relative">
-            <SearchableSelect
-              options={[
-                { value: "Todos", label: "Todas las etiquetas y restricciones" },
-                ...allTags.map((tag) => ({ value: tag, label: tag })),
-              ]}
-              value={selectedTag}
-              onChange={setSelectedTag}
-              placeholder="Buscar tag o restricción..."
-              triggerClassName="h-11 rounded-xl bg-slate-50 border-slate-200 focus:bg-white pl-10 font-semibold"
-            />
-            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 z-10">
-              <Folder className="h-4 w-4 text-slate-400" />
-            </div>
-          </div>
-        </div>
+            </>
+          }
+        />
       </div>
 
-      <div className="bg-white shadow-xl shadow-slate-200/50 border border-slate-200/60 sm:rounded-[2rem] overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-100">
-            <thead className="bg-slate-50/50 text-shadow-sm">
-              <tr>
-                <th scope="col" className="px-6 py-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-widest border-b border-slate-100">
-                  Nombre
-                </th>
-                <th scope="col" className="px-6 py-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-widest border-b border-slate-100">
-                  Paciente
-                </th>
-                <th scope="col" className="px-6 py-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-widest border-b border-slate-100">
-                  Etiquetas
-                </th>
-                <th scope="col" className="px-6 py-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-widest border-b border-slate-100">
-                  Tipo
-                </th>
-                <th scope="col" className="px-6 py-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-widest border-b border-slate-100">
-                  Fecha
-                </th>
-                <th scope="col" className="px-6 py-4 text-right text-[10px] font-semibold text-slate-500 uppercase tracking-widest border-b border-slate-100">
-                  Acciones
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50 bg-white">
-              {isLoading ? (
-                <tr>
-                  <td colSpan={6} className="text-center py-24">
-                    <div className="flex flex-col items-center justify-center space-y-3">
-                      <Loader2 className="h-10 w-10 text-indigo-500 animate-spin" />
-                      <p className="text-sm font-semibold text-slate-500">
-                        Cargando tus creaciones...
-                      </p>
-                    </div>
-                  </td>
-                </tr>
-              ) : paginatedData.length > 0 ? (
-                paginatedData.map((item) => (
-                  <tr
-                    key={item.id}
-                    className="hover:bg-emerald-50/20 transition-colors group"
-                  >
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className={cn(
-                          "p-2 rounded-lg bg-slate-50 border border-slate-100",
-                          item.type === CreationType.DIET && "group-hover:bg-blue-50 group-hover:border-blue-100",
-                          item.type === CreationType.SHOPPING_LIST && "group-hover:bg-emerald-50 group-hover:border-emerald-100",
-                          item.type === CreationType.RECIPE && "group-hover:bg-amber-50 group-hover:border-amber-100",
-                        )}>
-                          {getTypeIcon(item.type)}
-                        </div>
-                        <span className="text-sm font-bold text-slate-700 group-hover:text-slate-900 transition-colors">
-                          {item.name}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      {(item as any).patientName ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-bold border border-indigo-100">
-                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                          </svg>
-                          {(item as any).patientName}
-                        </span>
-                      ) : (
-                        <span className="text-xs text-slate-400 italic">Sin paciente</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-wrap gap-1">
-                        {item.tags && item.tags.length > 0 ? (
-                          item.tags.map((tag) => (
-                            <span
-                              key={tag}
-                              className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200"
-                            >
-                              #{tag}
-                            </span>
-                          ))
-                        ) : (
-                          <span className="text-xs text-slate-400 italic">
-                            Sin etiquetas
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span
-                        className={cn(
-                          "inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset",
-                          getTypeStyles(item.type),
-                        )}
-                      >
-                        {item.type}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="text-sm text-slate-500 font-medium whitespace-nowrap">
-                        {item.createdAt}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <button
-                          onClick={() => handleInfoClick(item)}
-                          className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all cursor-pointer"
-                          title="Más info"
-                        >
-                          <Info className="h-4 w-4" />
-                        </button>
-                        {item.type !== CreationType.FAST_DELIVERABLE && (
-                          <button
-                            onClick={() => handleViewClick(item)}
-                            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all cursor-pointer"
-                            title="Previsualizar"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </button>
-                        )}
-                        <button
-                          onClick={() => handleEdit(item)}
-                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all cursor-pointer"
-                          title="Editar"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDownloadClick(item)}
-                          className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all cursor-pointer"
-                          title="Descargar / Exportar"
-                        >
-                          <Download className="h-4 w-4" />
-                        </button>
-                        {isInsidePatientDetail && (
-                          <button
-                            onClick={() => handleShareClick(item)}
-                            disabled={isSharing === item.id}
-                            className={cn(
-                              "p-2 rounded-xl transition-all cursor-pointer",
-                              sharedCreationIdSet.has(item.id)
-                                ? "text-emerald-600 bg-emerald-50 animate-pulse hover:bg-emerald-100"
-                                : "text-slate-400 hover:text-indigo-600 hover:bg-indigo-50",
-                              isSharing === item.id && "cursor-not-allowed"
-                            )}
-                            title="Compartir con el paciente"
-                          >
-                            <Share2 className="h-4 w-4" />
-                          </button>
-                        )}
-                        <div className="w-px h-4 bg-slate-200 mx-1" />
-                        <button
-                          onClick={() => handleDelete(item.id)}
-                          className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all cursor-pointer"
-                          title="Eliminar"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={6} className="text-center py-24">
-                    <div className="flex flex-col items-center justify-center space-y-3">
-                      <div className="p-4 bg-slate-50 rounded-full">
-                        <Folder className="h-8 w-8 text-slate-300" />
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-base font-bold text-slate-600">
-                          No se encontraron creaciones
-                        </p>
-                        <p className="text-sm text-slate-400">
-                          Intenta ajustar los filtros de búsqueda.
-                        </p>
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-        <div className="bg-slate-50/50 p-4 border-t border-slate-100 flex items-center justify-between">
-          <p className="text-xs font-bold text-slate-500">
-            Mostrando{" "}
-            <span className="text-slate-900">{paginatedData.length}</span> de{" "}
-            <span className="text-slate-900">{filteredData.length}</span>{" "}
-            resultados
-          </p>
-          <div className="flex items-center gap-2">
-            {totalPages > 1 && (
-              <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPageChange={setCurrentPage}
-              />
-            )}
+      <RecordsTable
+        columns={creationColumns}
+        data={paginatedData}
+        keyExtractor={(item) => item.id}
+        isLoading={isLoading}
+        loadingRows={5}
+        loadingColumns={6}
+        emptyState={
+          <div className="flex flex-col items-center justify-center space-y-3">
+            <div className="p-4 bg-slate-50 rounded-full">
+              <Folder className="h-8 w-8 text-slate-300" />
+            </div>
+            <div className="space-y-1">
+              <p className="text-base font-bold text-slate-600">
+                No se encontraron creaciones
+              </p>
+              <p className="text-sm text-slate-400">
+                Intenta ajustar los filtros de búsqueda.
+              </p>
+            </div>
           </div>
-        </div>
-      </div>
+        }
+        rowClassName="hover:bg-emerald-50/20 transition-colors group"
+        footer={
+          <>
+            <p className="text-xs font-bold text-slate-500">
+              Mostrando{" "}
+              <span className="text-slate-900">{paginatedData.length}</span> de{" "}
+              <span className="text-slate-900">{filteredData.length}</span>{" "}
+              resultados
+            </p>
+            <div className="flex items-center gap-2">
+              {totalPages > 1 && (
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+                />
+              )}
+            </div>
+          </>
+        }
+      />
 
       <Modal
         isOpen={infoModalOpen}

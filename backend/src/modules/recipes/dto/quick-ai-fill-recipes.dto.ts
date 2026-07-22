@@ -191,6 +191,14 @@ class QuickAiFillPayloadDto {
   @IsOptional()
   patient?: QuickAiPatientDto;
 
+  @IsString()
+  @IsOptional()
+  patientId?: string;
+
+  @IsObject()
+  @IsOptional()
+  patientContext?: Record<string, unknown>;
+
   @ValidateNested()
   @Type(() => QuickAiNutritionalTargetsDto)
   @IsOptional()

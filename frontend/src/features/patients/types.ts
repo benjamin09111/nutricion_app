@@ -16,7 +16,7 @@ export interface Patient {
     key: string;
     label: string;
     unit?: string;
-    value?: string | number | boolean | Record<string, unknown>;
+    value?: string | number | boolean | Record<string, unknown> | string[];
   }[];
   exams?: PatientExam[];
   createdAt: string;
@@ -26,11 +26,65 @@ export interface Patient {
   fitnessGoals?: string;
   likes?: string;
   activityLevel?: ActivityLevel;
+  primaryCondition?: string;
+  clinicalRecord?: ClinicalRecord | null;
 
   // UI specific/Legacy fields
   status?: "Active" | "Inactive";
   lastVisit?: string;
   projects?: PatientProject[];
+}
+
+export interface ClinicalRecord {
+  id: string;
+  patientId: string;
+  vitalHistory?: {
+    occupation?: string;
+    workSchedule?: string;
+    medications?: string;
+    supplementsOrDrugs?: string;
+    diagnosedPathologies?: string;
+    familyHistory?: string;
+    sleepQuality?: string;
+    perceivedStress?: string;
+    weeklyExercise?: string;
+    motivoConsulta?: string;
+    manualCaloriesAdjustment?: number;
+    pesoObjetivoProf?: number;
+  };
+  gynecoObstetric?: {
+    isPregnant?: boolean;
+    pregnancyWeeks?: number;
+    pregestationalWeight?: number;
+    pregnancyType?: string;
+  };
+  nutritionalAnamnesis?: {
+    eatingPreferences?: string;
+    rejectedFoods?: string;
+    clinicalObservations?: string;
+    gestationalSymptoms?: string[];
+    gestationalSupplementation?: string[];
+    diagnosticoNutricional?: string;
+  };
+  anthropometry?: {
+    skinfolds?: {
+      tricipital?: number;
+      bicipital?: number;
+      subescapular?: number;
+      suprailiac?: number;
+    };
+    circumferences?: {
+      kneeHeight?: number;
+      calfCircumference?: number;
+      armCircumference?: number;
+      waistCircumference?: number;
+      hipCircumference?: number;
+    };
+    pesoHabitual?: number;
+  };
+  dataSources?: Record<string, "patient" | "nutritionist" | "calculated">;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export type ActivityLevel = "sedentario" | "ligero" | "moderado" | "activo" | "muy_activo";

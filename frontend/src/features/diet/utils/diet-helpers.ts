@@ -12,7 +12,7 @@ export interface RestrictionConflict {
 
 export interface DietVerificationResult {
   ok: boolean;
-  source: "openai" | "heuristic";
+  source: "deepseek" | "openai" | "heuristic";
   checkedFoods: number;
   checkedRestrictions: number;
   conflicts: RestrictionConflict[];

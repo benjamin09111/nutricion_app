@@ -17,6 +17,10 @@ import {
 } from '@prisma/client';
 import { DiscountCodesService } from '../discount-codes/discount-codes.service';
 import { resolveAccountPlanFromMembershipPlan } from '../memberships/account-plan';
+import { WhatsAppService } from '../notifications/whatsapp.service';
+import { MailService } from '../mail/mail.service';
+import { INDEPENDENT_METRICS_TITLE } from '../consultations/consultations.service';
+import * as XLSX from 'xlsx';
 
 @Injectable()
 export class PaymentsService {
@@ -28,6 +32,8 @@ export class PaymentsService {
     private readonly permissionsService: PermissionsService,
     private readonly planUsageService: PlanUsageService,
     private readonly discountCodesService: DiscountCodesService,
+    private readonly whatsappService: WhatsAppService,
+    private readonly mailService: MailService,
   ) {}
 
   private isMockMode(): boolean {
@@ -78,6 +84,29 @@ export class PaymentsService {
     });
   }
 
+  async deletePayment(paymentId: string) {
+    const payment = await this.prisma.payment.findUnique({
+      where: { id: paymentId },
+      select: { id: true },
+    });
+
+    if (!payment) {
+      throw new NotFoundException('Pago no encontrado');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.subscriptionEvent.deleteMany({
+        where: { paymentId },
+      });
+
+      await tx.payment.delete({
+        where: { id: paymentId },
+      });
+
+      return { success: true, id: paymentId };
+    });
+  }
+
   async getRevenueStats() {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -121,6 +150,167 @@ export class PaymentsService {
     };
   }
 
+  async exportAccountingWorkbook() {
+    const payments = await this.prisma.payment.findMany({
+      where: { status: PaymentStatus.COMPLETED },
+      include: {
+        account: {
+          select: {
+            id: true,
+            email: true,
+            createdAt: true,
+            nutritionist: {
+              select: { fullName: true },
+            },
+            subscription: {
+              select: {
+                status: true,
+                startDate: true,
+                endDate: true,
+                cancelAtPeriodEnd: true,
+                plan: {
+                  select: { id: true, name: true, slug: true },
+                },
+              },
+            },
+          },
+        },
+        subscriptionEvents: {
+          select: { eventType: true, createdAt: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const toIso = (value: Date | string | null | undefined) =>
+      value ? new Date(value).toISOString() : '';
+
+    const toClDateTime = (value: Date | string | null | undefined) =>
+      value
+        ? new Date(value).toLocaleString('es-CL', {
+            timeZone: 'America/Santiago',
+          })
+        : '';
+
+    const paymentRows = payments.map((payment) => {
+      const metadata = (payment.metadata as Record<string, any>) || {};
+      const subscription = payment.account.subscription;
+
+      return {
+        payment_id: payment.id,
+        account_id: payment.accountId,
+        email: payment.account.email,
+        nutritionist_name: payment.account.nutritionist?.fullName || '',
+        plan_name: metadata.planName || subscription?.plan?.name || '',
+        plan_slug: metadata.planSlug || subscription?.plan?.slug || '',
+        method: payment.method,
+        status: payment.status,
+        amount_clp: Number(payment.amount),
+        currency: payment.currency,
+        full_price_clp: Number(metadata.fullPrice ?? payment.amount),
+        prorated_credit_clp: Number(metadata.proratedCredit ?? 0),
+        charged_amount_clp: Number(metadata.chargedAmount ?? payment.amount),
+        discount_code: metadata.discountCode || '',
+        discount_percent: metadata.discountPercent ?? '',
+        provider: metadata.provider || '',
+        source: metadata.source || metadata.type || '',
+        is_mock: Boolean(metadata.mock || metadata.isSimulation),
+        transaction_id: payment.transactionId || '',
+        paid_at_iso: toIso(payment.paidAt),
+        paid_at_cl: toClDateTime(payment.paidAt),
+        created_at_iso: toIso(payment.createdAt),
+        created_at_cl: toClDateTime(payment.createdAt),
+        updated_at_iso: toIso(payment.updatedAt),
+        subscription_status: subscription?.status || '',
+        subscription_start_iso: toIso(subscription?.startDate),
+        subscription_end_iso: toIso(subscription?.endDate),
+        cancel_at_period_end: subscription?.cancelAtPeriodEnd ? 'SI' : 'NO',
+        subscription_event: payment.subscriptionEvents?.[0]?.eventType || '',
+        account_created_iso: toIso(payment.account.createdAt),
+      };
+    });
+
+    const transferRows = paymentRows.filter(
+      (row) => row.method === 'BANK_TRANSFER',
+    );
+
+    const totalRevenue = paymentRows.reduce(
+      (sum, row) => sum + Number(row.amount_clp || 0),
+      0,
+    );
+    const bankRevenue = transferRows.reduce(
+      (sum, row) => sum + Number(row.amount_clp || 0),
+      0,
+    );
+    const flowRevenue = paymentRows
+      .filter((row) => row.method === 'FLOW')
+      .reduce((sum, row) => sum + Number(row.amount_clp || 0), 0);
+    const manualRevenue = paymentRows
+      .filter((row) => row.method === 'MANUAL')
+      .reduce((sum, row) => sum + Number(row.amount_clp || 0), 0);
+
+    const workbook = XLSX.utils.book_new();
+
+    const summarySheet = XLSX.utils.aoa_to_sheet([
+      ['NutriNet - Resumen Contable'],
+      ['Generado el', toClDateTime(new Date())],
+      [],
+      ['Indicador', 'Valor'],
+      ['Ventas totales (CLP)', totalRevenue],
+      ['Pagos completados', paymentRows.length],
+      ['Transferencias aceptadas', transferRows.length],
+      ['Ingresos por transferencia (CLP)', bankRevenue],
+      ['Ingresos por Flow (CLP)', flowRevenue],
+      ['Ingresos manuales (CLP)', manualRevenue],
+    ]);
+
+    const salesSheet = XLSX.utils.json_to_sheet(paymentRows);
+    const transfersSheet = XLSX.utils.json_to_sheet(transferRows);
+
+    XLSX.utils.book_append_sheet(workbook, summarySheet, 'Resumen');
+    XLSX.utils.book_append_sheet(workbook, salesSheet, 'Ventas completadas');
+    XLSX.utils.book_append_sheet(
+      workbook,
+      transfersSheet,
+      'Transferencias aceptadas',
+    );
+
+    summarySheet['!cols'] = [{ wch: 32 }, { wch: 28 }];
+    salesSheet['!cols'] = [
+      { wch: 36 },
+      { wch: 36 },
+      { wch: 30 },
+      { wch: 28 },
+      { wch: 24 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 14 },
+      { wch: 14 },
+      { wch: 16 },
+      { wch: 16 },
+      { wch: 18 },
+      { wch: 16 },
+      { wch: 16 },
+      { wch: 16 },
+      { wch: 18 },
+      { wch: 12 },
+      { wch: 20 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 20 },
+    ];
+    transfersSheet['!cols'] = salesSheet['!cols'];
+
+    const buffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'buffer' });
+
+    return {
+      buffer,
+      filename: `nutrinet_contabilidad_${new Date().toISOString().slice(0, 10)}.xlsx`,
+    };
+  }
+
   // ─── Membership Status ────────────────────────────────────────────
 
   async getMembershipStatus(accountId: string) {
@@ -129,24 +319,44 @@ export class PaymentsService {
     if (!snapshot) throw new NotFoundException('Cuenta no encontrada');
 
     const subscription = snapshot.subscription;
-    const now = new Date();
-    const startOfMonth = new Date(
-      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
-    );
-    const [activePatients, monthlyConsultations, pdfUsage, aiUsage] =
-      await Promise.all([
-        this.prisma.patient.count({
-          where: { nutritionist: { accountId }, status: 'Active' },
-        }),
-        this.prisma.consultation.count({
-          where: {
-            nutritionist: { accountId },
-            date: { gte: startOfMonth },
-          },
-        }),
-        this.planUsageService.getUsage(accountId, 'pdf.monthly.limit'),
-        this.planUsageService.getUsage(accountId, 'ai.calls.limit'),
-      ]);
+    const [
+      activePatients,
+      totalConsultations,
+      activeFollowUps,
+      pdfUsage,
+      aiUsage,
+      calculatorUsage,
+      pendingTransferCount,
+    ] = await Promise.all([
+      this.prisma.patient.count({
+        where: { nutritionist: { accountId }, status: 'Active' },
+      }),
+      this.prisma.consultation.count({
+        where: {
+          nutritionist: { accountId },
+          title: { not: INDEPENDENT_METRICS_TITLE },
+        },
+      }),
+      this.prisma.patientPortalInvitation.count({
+        where: {
+          nutritionist: { accountId },
+          status: 'ACTIVE',
+          revokedAt: null,
+          blockedAt: null,
+          expiresAt: { gte: new Date() },
+        },
+      }),
+      this.planUsageService.getUsage(accountId, 'pdf.monthly.limit'),
+      this.planUsageService.getUsage(accountId, 'ai.calls.limit'),
+      this.planUsageService.getUsage(accountId, 'clinical_calculator.limit'),
+      this.prisma.payment.count({
+        where: {
+          accountId,
+          status: PaymentStatus.PENDING,
+          method: PaymentMethod.BANK_TRANSFER,
+        },
+      }),
+    ]);
     const daysRemaining = subscription?.endDate
       ? Math.ceil(
           (new Date(subscription.endDate).getTime() - Date.now()) /
@@ -162,6 +372,7 @@ export class PaymentsService {
     return {
       requiresPlanSelection: snapshot.requiresPlanSelection,
       accountPlan: snapshot.accountPlan,
+      hasPendingTransfer: pendingTransferCount > 0,
       currentPlan: snapshot.currentPlan
         ? {
             id: snapshot.currentPlan.id,
@@ -178,9 +389,11 @@ export class PaymentsService {
       entitlements: snapshot.entitlements,
       usage: {
         patientsActive: activePatients,
-        consultationsMonthly: monthlyConsultations,
-        pdfMonthly: pdfUsage,
-        aiMonthly: aiUsage,
+        consultationsUsed: totalConsultations,
+        followupsPrivateActive: activeFollowUps,
+        pdfUsed: pdfUsage,
+        aiUsed: aiUsage,
+        calculatorUsed: calculatorUsage,
       },
       billing: {
         nextPaymentAt,
@@ -324,27 +537,14 @@ export class PaymentsService {
       throw new BadRequestException('Plan no encontrado o inactivo');
     }
 
-    const price = Number(plan.price);
-    if (price === 0) {
-      throw new BadRequestException(
-        'Este plan es gratuito. Usa el endpoint de plan gratis.',
-      );
-    }
-
-    const credit = await this.calculateProratedCredit(accountId);
-    let chargeAmount = Math.max(0, price - credit);
-
-    if (discount) {
-      chargeAmount = Math.max(
-        0,
-        Math.round(chargeAmount * (1 - discount.percent / 100)),
-      );
-    }
+    const pricing = await this.calculateMembershipCharge(accountId, plan, {
+      discount,
+    });
 
     return this.prisma.payment.create({
       data: {
         accountId,
-        amount: chargeAmount,
+        amount: pricing.finalPrice,
         currency: plan.currency,
         status: PaymentStatus.PENDING,
         method: PaymentMethod.FLOW,
@@ -355,14 +555,14 @@ export class PaymentsService {
           planId: plan.id,
           planName: plan.name,
           planSlug: plan.slug,
-          fullPrice: price,
-          proratedCredit: credit,
-          chargedAmount: chargeAmount,
-          ...(discount
+          fullPrice: pricing.price,
+          proratedCredit: pricing.credit,
+          chargedAmount: pricing.finalPrice,
+          ...(pricing.discount
             ? {
-                discountCode: discount.code,
-                discountPercent: discount.percent,
-                discountType: discount.type,
+                discountCode: pricing.discount.code,
+                discountPercent: pricing.discount.discountPercent,
+                discountType: pricing.discount.type,
               }
             : {}),
         },
@@ -379,25 +579,23 @@ export class PaymentsService {
       throw new BadRequestException('Plan no encontrado o inactivo');
     }
 
-    const discountCode =
-      await this.discountCodesService.validateAndGetDiscount(code);
-    const price = Number(plan.price);
-    const credit = await this.calculateProratedCredit(accountId);
-    const base = Math.max(0, price - credit);
-    const finalPrice = Math.max(
-      0,
-      Math.round(base * (1 - discountCode.discountPercent / 100)),
-    );
+    const pricing = await this.calculateMembershipCharge(accountId, plan, {
+      discountCode: code,
+    });
+
+    if (!pricing.discount) {
+      throw new BadRequestException('Código de descuento inválido.');
+    }
 
     return {
       valid: true,
-      code: discountCode.code,
-      type: discountCode.type,
-      discountPercent: discountCode.discountPercent,
-      originalPrice: price,
-      proratedCredit: credit,
-      basePrice: base,
-      finalPrice,
+      code: pricing.discount.code,
+      type: pricing.discount.type,
+      discountPercent: pricing.discount.discountPercent,
+      originalPrice: pricing.price,
+      proratedCredit: pricing.credit,
+      basePrice: pricing.basePrice,
+      finalPrice: pricing.finalPrice,
       currency: plan.currency,
     };
   }
@@ -431,6 +629,56 @@ export class PaymentsService {
     const credit = Math.round(dailyRate * daysRemaining);
 
     return credit;
+  }
+
+  private async calculateMembershipCharge(
+    accountId: string,
+    plan: { price: unknown; currency: string },
+    options?: {
+      discount?: { code: string; percent: number; type: string };
+      discountCode?: string;
+    },
+  ) {
+    const price = Number(plan.price);
+    if (price === 0) {
+      throw new BadRequestException(
+        'Este plan es gratuito. Usa el endpoint de plan gratis.',
+      );
+    }
+
+    const credit = await this.calculateProratedCredit(accountId);
+    const basePrice = Math.max(0, price - credit);
+
+    let discount = options?.discount;
+    if (!discount && options?.discountCode) {
+      const discountCode =
+        await this.discountCodesService.validateAndGetDiscount(
+          options.discountCode,
+        );
+      discount = {
+        code: discountCode.code,
+        percent: discountCode.discountPercent,
+        type: discountCode.type,
+      };
+    }
+
+    const finalPrice = discount
+      ? Math.max(0, Math.round(basePrice * (1 - discount.percent / 100)))
+      : basePrice;
+
+    return {
+      price,
+      credit,
+      basePrice,
+      finalPrice,
+      discount: discount
+        ? {
+            code: discount.code,
+            discountPercent: discount.percent,
+            type: discount.type,
+          }
+        : null,
+    };
   }
 
   private async mockCheckout(
@@ -530,8 +778,20 @@ export class PaymentsService {
         },
       });
 
+      const discountCode =
+        (metadata?.discountCode as string | undefined) ||
+        (metadata?.discount?.code as string | undefined);
+
+      if (discountCode) {
+        await this.discountCodesService.markAsUsed(discountCode, accountId, tx);
+      }
+
       await this.upsertSubscription(tx, accountId, plan, startDate, endDate);
       await this.updateAccountPlan(tx, accountId, plan, endDate);
+      await tx.account.update({
+        where: { id: accountId },
+        data: { lastLoginAt: new Date() },
+      });
       await this.createSubscriptionEvent(
         tx,
         accountId,
@@ -605,6 +865,141 @@ export class PaymentsService {
     return { success: true, endDate: updated.endDate };
   }
 
+  // ─── Manual Bank Transfer Payment ─────────────────────────────────
+
+  async createManualTransferPayment(
+    accountId: string,
+    planId: string,
+    nutritionistEmail?: string,
+    nutritionistName?: string,
+    discountCode?: string,
+    amount?: number,
+  ) {
+    const plan = await this.prisma.membershipPlan.findUnique({
+      where: { id: planId },
+    });
+
+    if (!plan || !plan.isActive) {
+      throw new NotFoundException('Plan no encontrado o inactivo');
+    }
+
+    const account = await this.prisma.account.findUnique({
+      where: { id: accountId },
+      include: { nutritionist: true },
+    });
+
+    if (!account) {
+      throw new NotFoundException('Cuenta no encontrada');
+    }
+
+    const pricing = await this.calculateMembershipCharge(accountId, plan, {
+      discountCode,
+    });
+    const paymentAmount = discountCode
+      ? pricing.finalPrice
+      : (amount ?? pricing.finalPrice);
+
+    const payment = await this.prisma.$transaction(async (tx) => {
+      const createdPayment = await tx.payment.create({
+        data: {
+          accountId,
+          amount: paymentAmount,
+          currency: plan.currency,
+          status: PaymentStatus.PENDING,
+          method: PaymentMethod.BANK_TRANSFER,
+          metadata: {
+            type: 'MEMBERSHIP_PLAN',
+            provider: 'MANUAL_TRANSFER',
+            planId: plan.id,
+            planName: plan.name,
+            planSlug: plan.slug,
+            fullPrice: pricing.price,
+            proratedCredit: pricing.credit,
+            chargedAmount: paymentAmount,
+            ...(pricing.discount
+              ? {
+                  discountCode: pricing.discount.code,
+                  discountPercent: pricing.discount.discountPercent,
+                  discountType: pricing.discount.type,
+                }
+              : {}),
+            nutritionistEmail: nutritionistEmail || account.email,
+            nutritionistName:
+              nutritionistName ||
+              account.nutritionist?.fullName ||
+              'No especificado',
+            requestedAt: new Date().toISOString(),
+          },
+        },
+      });
+
+      return createdPayment;
+    });
+
+    const nameForNotification =
+      nutritionistName || account.nutritionist?.fullName || 'No especificado';
+    const emailForNotification = nutritionistEmail || account.email;
+
+    this.whatsappService
+      .notifyOwnerOfTransfer({
+        nutritionistName: nameForNotification,
+        nutritionistEmail: emailForNotification,
+        planName: plan.name,
+        amount: paymentAmount,
+        paymentId: payment.id,
+      })
+      .catch((err) => {
+        this.logger.error(
+          '[Payments] Error enviando notificación WhatsApp:',
+          err,
+        );
+      });
+
+    this.mailService
+      .sendTransferNotification({
+        nutritionistName: nameForNotification,
+        nutritionistEmail: emailForNotification,
+        planName: plan.name,
+        amount: paymentAmount,
+        paymentId: payment.id,
+        source: 'payments.manual-transfer',
+      })
+      .catch((err) => {
+        this.logger.error('[Payments] Error enviando notificación email:', err);
+      });
+
+    return {
+      paymentId: payment.id,
+      plan: {
+        id: plan.id,
+        name: plan.name,
+        slug: plan.slug,
+        price: pricing.price,
+        currency: plan.currency,
+      },
+      status: 'PENDING',
+      message:
+        'Solicitud de pago registrada. Un administrador revisará tu transferencia.',
+    };
+  }
+
+  // ─── Get Bank Transfer Data ────────────────────────────────────────
+
+  getBankTransferData() {
+    return {
+      bankName: this.configService.get<string>('BANK_NAME') || 'Banco de Chile',
+      accountType:
+        this.configService.get<string>('BANK_ACCOUNT_TYPE') ||
+        'Cuenta Corriente',
+      accountNumber:
+        this.configService.get<string>('BANK_ACCOUNT_NUMBER') || '',
+      rut: this.configService.get<string>('BANK_RUT') || '',
+      email: this.configService.get<string>('BANK_EMAIL') || '',
+      beneficiary:
+        this.configService.get<string>('BANK_BENEFICIARY') || 'NutriNet SpA',
+    };
+  }
+
   // ─── Simulate Payment (Admin) ─────────────────────────────────────
 
   async simulatePayment(data: {
@@ -654,6 +1049,10 @@ export class PaymentsService {
 
       await this.upsertSubscription(tx, userId, plan, startDate, endDate);
       await this.updateAccountPlan(tx, userId, plan, endDate);
+      await tx.account.update({
+        where: { id: userId },
+        data: { lastLoginAt: new Date() },
+      });
       await this.createSubscriptionEvent(
         tx,
         userId,
@@ -665,6 +1064,47 @@ export class PaymentsService {
 
       return { payment, subscription: true };
     });
+  }
+
+  async approvePayment(paymentId: string) {
+    const result = await this.activateMembershipFromPayment(paymentId);
+
+    if (result.processed) {
+      await this.sendPaymentStatusEmail(paymentId, 'approved');
+    }
+
+    return result;
+  }
+
+  async rejectPayment(paymentId: string) {
+    const payment = await this.prisma.payment.findUnique({
+      where: { id: paymentId },
+      include: {
+        account: {
+          select: {
+            email: true,
+            nutritionist: { select: { fullName: true } },
+          },
+        },
+      },
+    });
+
+    if (!payment) {
+      throw new NotFoundException('Pago no encontrado');
+    }
+
+    if (payment.status !== PaymentStatus.PENDING) {
+      return { processed: false, reason: 'not_pending' };
+    }
+
+    await this.prisma.payment.update({
+      where: { id: paymentId },
+      data: { status: PaymentStatus.FAILED },
+    });
+
+    await this.sendPaymentStatusEmail(paymentId, 'rejected', payment.account);
+
+    return { processed: true, status: 'FAILED' };
   }
 
   async devSwitchPlan(accountId: string, planId: string) {
@@ -715,6 +1155,55 @@ export class PaymentsService {
     });
   }
 
+  private async sendPaymentStatusEmail(
+    paymentId: string,
+    status: 'approved' | 'rejected',
+    accountOverride?: {
+      email: string;
+      nutritionist?: { fullName: string | null } | null;
+    },
+  ) {
+    const payment = await this.prisma.payment.findUnique({
+      where: { id: paymentId },
+      include: {
+        account: {
+          select: {
+            email: true,
+            nutritionist: { select: { fullName: true } },
+          },
+        },
+      },
+    });
+
+    if (!payment) return;
+
+    const metadata = (payment.metadata as Record<string, any>) || {};
+    const planName = metadata.planName || 'tu plan';
+    const recipient = accountOverride || payment.account;
+    const fullName = recipient.nutritionist?.fullName || undefined;
+
+    if (status === 'approved') {
+      await this.mailService.sendAnnouncementEmail({
+        email: recipient.email,
+        name: fullName,
+        title: `Tu plan fue actualizado a ${planName}`,
+        message:
+          `Tu pago fue aprobado y tu plan ya quedó activo en NutriNet.\n\n` +
+          `Cierra sesión y vuelve a ingresar para ver los cambios.`,
+      });
+      return;
+    }
+
+    await this.mailService.sendAnnouncementEmail({
+      email: recipient.email,
+      name: fullName,
+      title: 'Tu pago fue rechazado',
+      message:
+        `No pudimos aprobar tu pago para ${planName}.\n\n` +
+        `Si crees que esto es un error, vuelve a registrar la transferencia o contacta al equipo de soporte.`,
+    });
+  }
+
   // ─── Private Helpers ──────────────────────────────────────────────
 
   private upsertSubscription(
@@ -760,6 +1249,7 @@ export class PaymentsService {
       data: {
         plan: accountPlan,
         subscriptionEndsAt: endDate,
+        membershipSelectedAt: new Date(),
       },
     });
   }

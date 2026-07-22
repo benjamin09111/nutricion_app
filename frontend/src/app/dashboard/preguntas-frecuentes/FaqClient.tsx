@@ -100,7 +100,7 @@ export function FaqClient() {
 
               <div className="relative flex h-full flex-col items-center justify-center gap-5 text-center">
                 <div className="relative h-28 w-28 overflow-hidden rounded-full border-4 border-white shadow-lg ring-1 ring-indigo-100">
-                  <Image src="/nutria.webp" alt="Nutria de NutriNet" fill className="object-cover" priority />
+                   <Image src="/nutria.webp" alt="Nutria de NutriNet" fill sizes="112px" className="object-cover" priority />
                 </div>
                 <div className="space-y-2">
                   <p className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-xs font-black uppercase tracking-[0.22em] text-emerald-800">

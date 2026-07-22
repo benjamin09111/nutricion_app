@@ -2,6 +2,7 @@ import {
   Controller,
   Post,
   Get,
+  Patch,
   Body,
   Query,
   HttpCode,
@@ -11,14 +12,38 @@ import {
   UnauthorizedException,
   BadRequestException,
   Res,
+  Req,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateAccountDto } from './dto/create-account.dto';
 import { AuthGuard } from './guards/auth.guard';
-import { UpdatePasswordDto } from './dto/update-password.dto';
+import { CompleteRutDto } from './dto/complete-rut.dto';
 import { isAdminRole } from '../permissions/permissions.constants';
 import { GoogleIntegrationService } from '../integrations/google-integration.service';
-import type { Response } from 'express';
+import type { Request as ExpressRequest, Response } from 'express';
+import { createHash, randomBytes } from 'crypto';
+import { resolveRequiredUrl } from '../../common/utils/runtime-url.util';
+import { LoginDto } from './dto/login.dto';
+import { RegisterDto } from './dto/register.dto';
+import { ResendVerificationDto } from './dto/resend-verification.dto';
+import { resolveSafePostAuthPath } from '../../common/utils/safe-redirect.util';
+import {
+  AUTH_SESSION_COOKIE,
+  LEGACY_AUTH_SESSION_COOKIE,
+  authSessionCookieOptions,
+} from './auth-cookie.constants';
+import { RolesGuard } from './guards/roles.guard';
+import { Roles } from './guards/roles.decorator';
+import { UserRole } from '@prisma/client';
+
+const GOOGLE_OAUTH_COOKIE = 'nutrinet_google_oauth';
+const GOOGLE_OAUTH_COOKIE_PATH = '/auth/google';
+
+const readCookie = (request: ExpressRequest, name: string) => {
+  const cookieHeader = request.headers.cookie || '';
+  const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${name}=([^;]+)`));
+  return match ? decodeURIComponent(match[1]) : null;
+};
 
 @Controller('auth')
 export class AuthController {
@@ -29,9 +54,24 @@ export class AuthController {
 
   @Get('google/start')
   googleStart(@Query('next') next: string | undefined, @Res() res: Response) {
-    const authUrl = this.googleIntegrationService.buildGoogleLoginUrl(
-      next || '/dashboard',
-    );
+    const browserBinding = randomBytes(32).toString('base64url');
+    const codeVerifier = randomBytes(48).toString('base64url');
+    const codeChallenge = createHash('sha256')
+      .update(codeVerifier)
+      .digest('base64url');
+    const authUrl = this.googleIntegrationService.buildGoogleLoginUrl({
+      next: resolveSafePostAuthPath(next),
+      browserBinding,
+      codeChallenge,
+    });
+
+    res.cookie(GOOGLE_OAUTH_COOKIE, `${browserBinding}.${codeVerifier}`, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: GOOGLE_OAUTH_COOKIE_PATH,
+      maxAge: 10 * 60 * 1000,
+    });
     return res.redirect(authUrl);
   }
 
@@ -39,29 +79,42 @@ export class AuthController {
   async googleCallback(
     @Query('code') code: string,
     @Query('state') state: string,
+    @Req() req: ExpressRequest,
     @Res() res: Response,
   ) {
     if (!code || !state) {
       throw new BadRequestException('Callback de Google incompleto');
     }
 
+    const transaction = readCookie(req, GOOGLE_OAUTH_COOKIE);
+    res.clearCookie(GOOGLE_OAUTH_COOKIE, { path: GOOGLE_OAUTH_COOKIE_PATH });
+    const [browserBinding, codeVerifier] = (transaction || '').split('.');
+    if (!browserBinding || !codeVerifier) {
+      throw new BadRequestException(
+        'La sesión de Google expiró. Intenta nuevamente.',
+      );
+    }
+
     const callback =
       await this.googleIntegrationService.handleGoogleLoginCallback(
         code,
         state,
+        browserBinding,
+        codeVerifier,
       );
     const result = await this.authService.loginWithGoogle(callback.profile);
-    const ticket = this.authService.createOAuthSessionTicket(result);
-    const frontendUrl = (
-      process.env.FRONTEND_URL || 'http://localhost:3000'
-    ).replace(/\/$/, '');
-    const targetUrl = `${frontendUrl}/auth/callback?ticket=${encodeURIComponent(ticket)}&next=${encodeURIComponent(callback.next || '/dashboard')}`;
+    const ticket = await this.authService.createOAuthSessionTicket(result);
+    const frontendUrl = resolveRequiredUrl(
+      process.env.FRONTEND_URL,
+      process.env.NEXT_PUBLIC_FRONTEND_URL,
+    );
+    const targetUrl = `${frontendUrl}/auth/callback?ticket=${encodeURIComponent(ticket)}&next=${encodeURIComponent(resolveSafePostAuthPath(callback.next))}`;
     return res.redirect(targetUrl);
   }
 
   @Post('oauth/exchange')
   @HttpCode(HttpStatus.OK)
-  exchangeOAuthTicket(
+  async exchangeOAuthTicket(
     @Body() body: { ticket?: string },
     @Res({ passthrough: true }) res: Response,
   ) {
@@ -69,7 +122,9 @@ export class AuthController {
       throw new BadRequestException('Ticket de autenticación requerido');
     }
 
-    const session = this.authService.consumeOAuthSessionTicket(body.ticket);
+    const session = await this.authService.consumeOAuthSessionTicket(
+      body.ticket,
+    );
 
     if (!session) {
       throw new UnauthorizedException('Ticket inválido o expirado');
@@ -82,21 +137,21 @@ export class AuthController {
       path: '/',
     });
 
-    res.cookie('auth_token_http', session.access_token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-    });
+    res.cookie(
+      AUTH_SESSION_COOKIE,
+      session.access_token,
+      authSessionCookieOptions(30 * 24 * 60 * 60 * 1000),
+    );
 
-    return { user: session.user };
+    return { user: session.user, access_token: session.access_token };
   }
 
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   logout(@Res({ passthrough: true }) res: Response) {
     res.clearCookie('auth_token', { path: '/' });
-    res.clearCookie('auth_token_http', { path: '/' });
+    res.clearCookie(AUTH_SESSION_COOKIE, { path: '/' });
+    res.clearCookie(LEGACY_AUTH_SESSION_COOKIE, { path: '/' });
     res.clearCookie('auth_session', { path: '/' });
     return { success: true };
   }
@@ -108,13 +163,33 @@ export class AuthController {
   }
 
   @UseGuards(AuthGuard)
-  @Post('login')
+  @Patch('me/rut')
   @HttpCode(HttpStatus.OK)
-  login() {
-    throw new BadRequestException('El acceso solo está disponible con Google');
+  completeRut(@Request() req: any, @Body() body: CompleteRutDto) {
+    return this.authService.completeRut(req.user.id, body.rut);
   }
 
-  @UseGuards(AuthGuard)
+  @Post('login')
+  @HttpCode(HttpStatus.OK)
+  async login(
+    @Body() loginDto: LoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.login(loginDto);
+
+    res.cookie(
+      AUTH_SESSION_COOKIE,
+      result.access_token,
+      authSessionCookieOptions(
+        loginDto.rememberMe ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000,
+      ),
+    );
+
+    return result;
+  }
+
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.ADMIN_MASTER, UserRole.ADMIN_GENERAL)
   @Post('create-account')
   @HttpCode(HttpStatus.CREATED)
   createAccount(
@@ -149,34 +224,16 @@ export class AuthController {
 
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
-  async resetPassword(@Body() body: any) {
-    try {
-      if (!body.email) {
-        throw new BadRequestException('El correo es requerido');
-      }
-      return await this.authService.resetAccountPassword(body.email);
-    } catch (error) {
-      console.error('Error in reset-password controller:', error);
-      throw error;
-    }
-  }
-
-  @UseGuards(AuthGuard)
-  @Post('update-password')
-  @HttpCode(HttpStatus.OK)
-  updatePassword(
-    @Request() req: any,
-    @Body() updatePasswordDto: UpdatePasswordDto,
-  ) {
-    return this.authService.updatePassword(req.user.id, updatePasswordDto);
+  resetPassword() {
+    throw new BadRequestException(
+      'La recuperación de acceso se gestiona en contacto@nutrinet.cl',
+    );
   }
 
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
-  register() {
-    throw new BadRequestException(
-      'El registro solo está disponible con Google',
-    );
+  register(@Body() registerDto: RegisterDto) {
+    return this.authService.register(registerDto);
   }
 
   @Get('verify-email')
@@ -190,10 +247,7 @@ export class AuthController {
 
   @Post('resend-verification')
   @HttpCode(HttpStatus.OK)
-  async resendVerification(@Body() body: { email: string }) {
-    if (!body.email) {
-      throw new BadRequestException('El correo es requerido');
-    }
+  async resendVerification(@Body() body: ResendVerificationDto) {
     return this.authService.resendVerificationEmail(body.email);
   }
 }

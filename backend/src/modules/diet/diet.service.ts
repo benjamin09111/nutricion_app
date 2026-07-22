@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { VerifyFoodsDto } from './dto/verify-foods.dto';
 import { AiService } from '../../common/services/ai.service';
 import { PlanUsageService } from '../permissions/plan-usage.service';
+import { dietVerifyResponseSchema } from './diet-ai-schemas';
 
 type RestrictionConflict = {
   foodId: string;
@@ -14,7 +15,7 @@ type RestrictionConflict = {
 
 type VerifyResponse = {
   ok: boolean;
-  source: 'openai' | 'heuristic';
+  source: 'deepseek' | 'openai' | 'heuristic';
   checkedFoods: number;
   checkedRestrictions: number;
   conflicts: RestrictionConflict[];
@@ -134,7 +135,10 @@ export class DietService {
     accountId: string,
     foods: Array<{ id: string; name: string }>,
     restrictions: string[],
-  ): Promise<RestrictionConflict[] | null> {
+  ): Promise<{
+    conflicts: RestrictionConflict[];
+    provider: 'deepseek' | 'openai';
+  } | null> {
     const prompt = [
       'Eres un validador nutricional estricto.',
       'Revisa si los alimentos entran en conflicto con las restricciones.',
@@ -145,26 +149,15 @@ export class DietService {
     ].join('\n');
 
     try {
-      await this.planUsageService.consumeMonthlyQuota(
-        accountId,
-        'ai.calls.limit',
-      );
+      await this.planUsageService.consumeQuota(accountId, 'ai.calls.limit');
 
-      const content = await this.aiService.callJson(
+      const result = await this.aiService.generateStructuredObject(
+        'diet.verify-foods',
         'Eres un asistente clinico de apoyo para nutricionistas. Evalua incompatibilidades de alimentos.',
         prompt,
+        dietVerifyResponseSchema,
       );
-
-      const parsed = JSON.parse(content) as {
-        conflicts?: Array<{
-          foodName: string;
-          restriction: string;
-          reason: string;
-          severity: 'low' | 'medium' | 'high';
-        }>;
-      };
-
-      const conflicts = (parsed.conflicts || [])
+      const conflicts = (result.object.conflicts || [])
         .map((entry) => {
           const food = foods.find(
             (candidate) =>
@@ -182,7 +175,7 @@ export class DietService {
         })
         .filter((entry): entry is RestrictionConflict => entry !== null);
 
-      return conflicts;
+      return { conflicts, provider: result.provider };
     } catch {
       return null;
     }
@@ -197,13 +190,13 @@ export class DietService {
       select: { id: true, name: true },
     });
 
-    const aiConflicts = await this.verifyWithAi(
+    const aiResult = await this.verifyWithAi(
       accountId,
       foods,
       body.restrictions,
     ).catch(() => null);
     const conflicts =
-      aiConflicts ?? this.heuristicVerify(foods, body.restrictions);
+      aiResult?.conflicts ?? this.heuristicVerify(foods, body.restrictions);
 
     const conflictedFoodIds = new Set(
       conflicts.map((conflict) => conflict.foodId),
@@ -214,7 +207,7 @@ export class DietService {
 
     return {
       ok: conflicts.length === 0,
-      source: aiConflicts ? 'openai' : 'heuristic',
+      source: aiResult?.provider ?? 'heuristic',
       checkedFoods: foods.length,
       checkedRestrictions: body.restrictions.length,
       conflicts,

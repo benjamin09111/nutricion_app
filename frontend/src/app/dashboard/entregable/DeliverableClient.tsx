@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useCallback, useState, useEffect, useMemo } from "react";
 import {
   ClipboardCheck,
   Download,
@@ -16,7 +16,6 @@ import {
   Apple,
   HelpCircle,
   Info,
-  Save,
   Pencil,
   Layout,
   X,
@@ -38,12 +37,10 @@ import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
-import { ModuleFooter } from "@/components/shared/ModuleFooter";
 import { WorkflowContextBanner } from "@/components/shared/WorkflowContextBanner";
+import { WizardTabs } from "@/components/shared/WizardTabs";
 import { useDashboardShell } from "@/context/DashboardShellContext";
 import { useSubscription } from "@/context/SubscriptionContext";
-import { membershipService } from "@/features/memberships/services/membership.service";
-import { ActionDockItem } from "@/components/ui/ActionDock";
 import { PremiumGuard } from "@/components/common/PremiumGuard";
 import { useAdmin } from "@/context/AdminContext";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -266,6 +263,14 @@ const DELIVERABLE_SECTIONS: SectionItem[] = [
     category: "info",
     contentType: "theory",
   },
+];
+
+const WIZARD_STEPS = [
+  { label: "Dieta", description: "Resumen de la estrategia y módulos." },
+  { label: "Recetas y porciones", description: "Cuantificación y platos." },
+  { label: "Carrito y cantidades", description: "Logística y paciente." },
+  { label: "Recursos", description: "Portada, bienvenida y secciones." },
+  { label: "Exportar, guardar", description: "Genera el PDF profesional." },
 ];
 
 const getBlankDeliverableSections = () =>
@@ -579,6 +584,19 @@ export default function DeliverableClient() {
   >("all");
   const [resourceHashtagQuery, setResourceHashtagQuery] = useState("");
   const [isFlowSummaryOpen, setIsFlowSummaryOpen] = useState(false);
+  const [currentStep, setCurrentStep] = useState(0);
+
+  const goToStep = useCallback((step: number) => {
+    setCurrentStep(Math.max(0, Math.min(step, WIZARD_STEPS.length - 1)));
+  }, []);
+
+  const goBack = useCallback(() => {
+    setCurrentStep((prev) => Math.max(0, prev - 1));
+  }, []);
+
+  const goNext = useCallback(() => {
+    setCurrentStep((prev) => Math.min(WIZARD_STEPS.length - 1, prev + 1));
+  }, []);
 
   // Export Wizard State
   const [isExportWizardOpen, setIsExportWizardOpen] = useState(false);
@@ -1120,8 +1138,6 @@ export default function DeliverableClient() {
         id: "pdf-toast",
       });
 
-      await membershipService.consumeQuota("pdf.monthly.limit");
-
       const { pdf } = await import("@react-pdf/renderer");
       const { StandardTemplate } =
         await import("@/features/deliverable/components/StandardTemplate");
@@ -1185,8 +1201,6 @@ export default function DeliverableClient() {
         id: "pdf-toast",
       });
 
-      await membershipService.consumeQuota("pdf.monthly.limit");
-
       const { pdf } = await import("@react-pdf/renderer");
       const { StandardTemplate } =
         await import("@/features/deliverable/components/StandardTemplate");
@@ -1218,7 +1232,7 @@ export default function DeliverableClient() {
               sections: exportSections,
               exportAs: "single",
             },
-          ];
+];
 
       if (packagesToUse.length === 0 || exportSections.length === 0) {
         toast.error("Debes tener al menos un paquete con módulos seleccionados", { id: "pdf-toast" });
@@ -1769,23 +1783,6 @@ export default function DeliverableClient() {
     refreshPreviousStagesSummary({}, null);
     toast.success("Proyecto en blanco iniciado.");
   };
-
-  const actionDockItems: ActionDockItem[] = [
-    {
-      id: "save-creations",
-      icon: Save,
-      label: "Guardar Entregable",
-      variant: "slate",
-      onClick: () => setIsSaveCreationModalOpen(true),
-    },
-    {
-      id: "export-pdf",
-      icon: Download,
-      label: features.canExportPDF ? "Descargar PDF" : "PDF Pro",
-      variant: "slate",
-      onClick: openExportWizard,
-    },
-  ];
 
   const handleImportCreation = (creation: any) => {
     try {
@@ -2367,39 +2364,20 @@ export default function DeliverableClient() {
 
       <ModuleLayout
         title="Producto Final: Entregable PDF"
-        description={<div className="space-y-4"><p>Personaliza la presentación final para tu paciente. Añade recursos educativos, portadas y genera el PDF profesional con todo el plan consolidado.</p><div className="flex flex-wrap gap-4 text-[11px] font-bold uppercase tracking-widest text-slate-400"><span className="text-emerald-600">1. Estrategia (✓)</span><span className="text-emerald-600">2. Cuantificación (✓)</span><span className="text-emerald-600">3. Logística (✓)</span><span className="text-slate-600 underline underline-offset-4 decoration-2">4. Producto Final</span></div></div>}
-        step={{
-          number: 4,
-          label: "Entregable PDF",
-          icon: ClipboardCheck,
-          color: "text-slate-600",
-        }}
-        rightNavItems={actionDockItems}
+        description={<div className="space-y-4"><p>Personaliza la presentación final para tu paciente. Añade recursos educativos, portadas y genera el PDF profesional con todo el plan consolidado.</p></div>}
         className="max-w-5xl"
-        footer={
-          <ModuleFooter>
-            <div className="flex items-center gap-3">
-              <Button
-                className="h-12 px-8 bg-slate-900 text-white font-black rounded-2xl shadow-xl shadow-slate-200 uppercase tracking-widest text-xs flex items-center gap-2"
-                onClick={openExportWizard}
-                disabled={isExporting || !previousStagesSummary.diet.hasData || !previousStagesSummary.patient.hasData || !previousStagesSummary.recipes.hasData || !previousStagesSummary.cart.hasData}
-              >
-                {isExporting ? (
-                  <div className="h-4 w-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                ) : (
-                  <Download className="h-4 w-4" />
-                )}
-                EXPORTAR PDF
-              </Button>
-            </div>
-          </ModuleFooter>
-        }
+
       >
         <WorkflowContextBanner
           projectName={currentProjectName}
           patientName={selectedPatient?.fullName || null}
           moduleLabel="Entregable"
         />
+
+        <WizardTabs steps={WIZARD_STEPS} currentStep={currentStep} onStepChange={goToStep} />
+
+        {currentStep === 1 && (
+        <>
         <div className="mt-8 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">
@@ -2509,6 +2487,9 @@ export default function DeliverableClient() {
             </span>
           </div>
         </div>
+        </>
+        )}
+        {currentStep === 2 && (
         <div className="mt-8 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
@@ -2724,6 +2705,9 @@ export default function DeliverableClient() {
             </div>
           </div>
         </div>
+        )}
+        {currentStep === 0 && (
+        <>
         <div className="mt-8 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
           <button
             type="button"
@@ -2858,9 +2842,13 @@ export default function DeliverableClient() {
             Este módulo está hecho para completarse después de los demás módulos.
           </p>
         </div>
+        </>
+        )}
         <div className="space-y-12 mt-8">
           {/* Main Selection Grid */}
           <div className="space-y-12">
+            {currentStep === 3 && (
+            <>
             <section className="space-y-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-indigo-100 rounded-lg">
@@ -3164,15 +3152,29 @@ export default function DeliverableClient() {
               </div>
             </section>
 
+            </>
+            )}
           </div>
 
           {/* Floating indicator for 'Manual preview' - subtle */}
+          {currentStep === 4 && (
           <div className="mt-20 flex justify-center pb-12">
             <div className="flex items-center gap-2 px-6 py-3 bg-emerald-50 rounded-full border border-emerald-100 text-emerald-700">
               <Sparkles className="h-4 w-4 fill-current" />
               <span className="text-[10px] font-black uppercase tracking-widest text-center">
                 El PDF se generará con la plantilla oficial de NutriNet usando los widgets seleccionados.
               </span>
+            </div>
+          </div>
+          )}
+          <div className="flex items-center justify-between gap-3 rounded-3xl border border-slate-200 bg-white px-4 py-3 shadow-sm mt-8">
+            <div className="min-w-0">
+              <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-400">Navegación por etapas</p>
+              <p className="text-sm font-medium text-slate-600">Revisa cada sección antes de exportar.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button type="button" variant="outline" onClick={goBack} disabled={currentStep === 0} className="h-10 rounded-xl border-slate-200 px-4 font-semibold text-slate-600 cursor-pointer">Anterior</Button>
+              <Button type="button" onClick={goNext} disabled={currentStep === WIZARD_STEPS.length - 1} className="h-10 rounded-xl bg-indigo-600 px-4 font-semibold text-white hover:bg-indigo-700 cursor-pointer">Siguiente</Button>
             </div>
           </div>
         </div>

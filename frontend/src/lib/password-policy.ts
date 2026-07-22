@@ -1,59 +1,79 @@
 export const PASSWORD_MIN_LENGTH = 8;
 
-export const PASSWORD_RULES = [
-  {
-    key: 'length',
-    label: `Al menos ${PASSWORD_MIN_LENGTH} caracteres`,
-    test: (value: string) => value.length >= PASSWORD_MIN_LENGTH,
-  },
-  {
-    key: 'uppercase',
-    label: 'Una mayúscula',
-    test: (value: string) => /[A-Z]/.test(value),
-  },
-  {
-    key: 'lowercase',
-    label: 'Una minúscula',
-    test: (value: string) => /[a-z]/.test(value),
-  },
-  {
-    key: 'number',
-    label: 'Un número',
-    test: (value: string) => /\d/.test(value),
-  },
-  {
-    key: 'special',
-    label: 'Un carácter especial',
-    test: (value: string) => /[^A-Za-z0-9]/.test(value),
-  },
-  {
-    key: 'noSpaces',
-    label: 'Sin espacios',
-    test: (value: string) => /^\S+$/.test(value),
-  },
-] as const;
+export const PASSWORD_REGEX = {
+  uppercase: /[A-Z]/,
+  lowercase: /[a-z]/,
+  number: /\d/,
+  special: /[^A-Za-z0-9]/,
+  noSpaces: /^\S+$/,
+};
 
-export function getPasswordStrength(value: string) {
-  const score = PASSWORD_RULES.filter((rule) => rule.test(value)).length;
+type PasswordRule = {
+  key: string;
+  label: string;
+  met: boolean;
+};
 
-  if (score >= PASSWORD_RULES.length) {
-    return { label: 'Muy segura', tone: 'emerald', score };
-  }
+type PasswordStrength = {
+  score: number;
+  label: string;
+  tone: "rose" | "amber" | "indigo" | "emerald";
+};
 
-  if (score >= 4) {
-    return { label: 'Segura', tone: 'indigo', score };
-  }
-
-  if (score >= 2) {
-    return { label: 'Intermedia', tone: 'amber', score };
-  }
-
-  return { label: 'Débil', tone: 'rose', score };
+export function getPasswordRequirements(password: string): PasswordRule[] {
+  return [
+    {
+      key: "length",
+      label: `Al menos ${PASSWORD_MIN_LENGTH} caracteres`,
+      met: password.length >= PASSWORD_MIN_LENGTH,
+    },
+    {
+      key: "uppercase",
+      label: "Una letra mayúscula",
+      met: PASSWORD_REGEX.uppercase.test(password),
+    },
+    {
+      key: "lowercase",
+      label: "Una letra minúscula",
+      met: PASSWORD_REGEX.lowercase.test(password),
+    },
+    {
+      key: "number",
+      label: "Un número",
+      met: PASSWORD_REGEX.number.test(password),
+    },
+    {
+      key: "special",
+      label: "Un carácter especial",
+      met: PASSWORD_REGEX.special.test(password),
+    },
+    {
+      key: "noSpaces",
+      label: "Sin espacios",
+      met: PASSWORD_REGEX.noSpaces.test(password),
+    },
+  ];
 }
 
-export function getPasswordRequirements(value: string) {
-  return PASSWORD_RULES.map((rule) => ({
-    ...rule,
-    met: rule.test(value),
-  }));
+export function getPasswordStrength(password: string): PasswordStrength {
+  const requirements = getPasswordRequirements(password);
+  const score = requirements.reduce((total, rule) => total + (rule.met ? 1 : 0), 0);
+
+  if (password.length === 0) {
+    return { score: 0, label: "Sin contraseña", tone: "rose" };
+  }
+
+  if (score <= 2) {
+    return { score, label: "Débil", tone: "rose" };
+  }
+
+  if (score <= 4) {
+    return { score, label: "Aceptable", tone: "amber" };
+  }
+
+  if (score === 5) {
+    return { score, label: "Fuerte", tone: "indigo" };
+  }
+
+  return { score, label: "Muy fuerte", tone: "emerald" };
 }

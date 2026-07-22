@@ -8,6 +8,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { cn } from "@/lib/utils";
 import { fetchApi } from "@/lib/api-base";
+import { formatDateOnlyForLocale } from "@/features/patients/utils/patient-helpers";
 
 interface Creation {
   id: string;
@@ -224,7 +225,7 @@ export function ImportCreationModal({
                       </span>
                     </div>
                     <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
-                      {new Date(creation.createdAt).toLocaleDateString("es-ES", {
+                      {formatDateOnlyForLocale(creation.createdAt, {
                         day: "2-digit",
                         month: "long",
                         year: "numeric",

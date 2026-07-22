@@ -42,6 +42,7 @@ export class DiscountCodesController {
   async findAll(
     @Query('type') type?: DiscountCodeType,
     @Query('isUsed') isUsed?: string,
+    @Query('status') status?: string,
     @Query('adminId') adminId?: string,
     @Query('start') start?: string,
     @Query('limit') limit?: string,
@@ -52,6 +53,10 @@ export class DiscountCodesController {
     return this.discountCodesService.findAll({
       type: type || undefined,
       isUsed: isUsed !== undefined ? isUsed === 'true' : undefined,
+      status:
+        status === 'ACTIVE' || status === 'SHARED' || status === 'EXPIRED'
+          ? status
+          : undefined,
       adminId: adminId || undefined,
       start: start ? parseInt(start) : 0,
       limit: limit ? parseInt(limit) : 100,
@@ -63,6 +68,20 @@ export class DiscountCodesController {
   async archiveUsed(@Request() req: any) {
     this.ensureStaff(req);
     return this.discountCodesService.archiveUsedCodes(req.user.id);
+  }
+
+  @Post(':id/status')
+  async setStatus(
+    @Param('id') id: string,
+    @Body() body: { status?: 'SHARED' | 'EXPIRED' },
+    @Request() req: any,
+  ) {
+    this.ensureStaff(req);
+    if (body.status !== 'SHARED' && body.status !== 'EXPIRED') {
+      throw new UnauthorizedException('Estado invalido');
+    }
+
+    return this.discountCodesService.setCodeStatus(id, body.status);
   }
 
   @Get(':id')

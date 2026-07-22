@@ -2,12 +2,16 @@ import {
   Controller,
   Get,
   Post,
+  Delete,
   Body,
+  Param,
   UseGuards,
   Query,
   Request,
   UnauthorizedException,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { PaymentsService } from './payments.service';
 import { FlowService } from './flow.service';
 import { DiscountCodesService } from '../discount-codes/discount-codes.service';
@@ -47,6 +51,60 @@ export class PaymentsController {
       );
     }
     return this.paymentsService.getRevenueStats();
+  }
+
+  @Get('export-accounting')
+  async exportAccounting(@Request() req: any, @Res() res: Response) {
+    if (!isAdminRole(req.user.role)) {
+      throw new UnauthorizedException(
+        'Solo administradores pueden exportar pagos',
+      );
+    }
+
+    const report = await this.paymentsService.exportAccountingWorkbook();
+
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${report.filename}"`,
+    );
+    return res.send(report.buffer);
+  }
+
+  @Delete(':id')
+  async deletePayment(@Param('id') id: string, @Request() req: any) {
+    if (!isAdminRole(req.user.role)) {
+      throw new UnauthorizedException(
+        'Solo administradores pueden eliminar pagos',
+      );
+    }
+
+    return this.paymentsService.deletePayment(id);
+  }
+
+  @Post(':id/approve')
+  async approvePayment(@Param('id') id: string, @Request() req: any) {
+    if (!isAdminRole(req.user.role)) {
+      throw new UnauthorizedException(
+        'Solo administradores pueden aprobar pagos',
+      );
+    }
+
+    return this.paymentsService.approvePayment(id);
+  }
+
+  @Post(':id/reject')
+  async rejectPayment(@Param('id') id: string, @Request() req: any) {
+    if (!isAdminRole(req.user.role)) {
+      throw new UnauthorizedException(
+        'Solo administradores pueden rechazar pagos',
+      );
+    }
+
+    return this.paymentsService.rejectPayment(id);
   }
 
   // ─── Membership Status ─────────────────────────────────────────────
@@ -111,7 +169,7 @@ export class PaymentsController {
 
   @Post('flow/checkout')
   async createFlowCheckout(
-    @Body() body: { planId: string },
+    @Body() body: { planId: string; returnPath?: string },
     @Request() req: any,
   ) {
     const accountId = req.user?.id;
@@ -125,6 +183,8 @@ export class PaymentsController {
       accountId,
       body.planId,
       payerEmail,
+      undefined,
+      body.returnPath,
     );
   }
 
@@ -150,7 +210,8 @@ export class PaymentsController {
 
   @Post('flow/discount-checkout')
   async createFlowDiscountCheckout(
-    @Body() body: { planId: string; discountCode?: string },
+    @Body()
+    body: { planId: string; discountCode?: string; returnPath?: string },
     @Request() req: any,
   ) {
     const accountId = req.user?.id;
@@ -165,6 +226,7 @@ export class PaymentsController {
       body.planId,
       payerEmail,
       body.discountCode || undefined,
+      body.returnPath,
     );
   }
 
@@ -177,6 +239,39 @@ export class PaymentsController {
     }
 
     return this.paymentsService.devSwitchPlan(accountId, body.planId);
+  }
+
+  // ─── Manual Bank Transfer Payment ─────────────────────────────────
+
+  @Post('manual')
+  async createManualPayment(
+    @Body()
+    body: {
+      planId: string;
+      nutritionistEmail?: string;
+      nutritionistName?: string;
+      discountCode?: string;
+      amount?: number;
+    },
+    @Request() req: any,
+  ) {
+    const accountId = req.user?.id;
+    if (!accountId) {
+      throw new UnauthorizedException('Usuario no identificado');
+    }
+    return this.paymentsService.createManualTransferPayment(
+      accountId,
+      body.planId,
+      body.nutritionistEmail,
+      body.nutritionistName,
+      body.discountCode,
+      body.amount,
+    );
+  }
+
+  @Get('bank-data')
+  getBankData() {
+    return this.paymentsService.getBankTransferData();
   }
 
   // ─── Simulate Payment (Admin Only) ─────────────────────────────────
