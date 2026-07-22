@@ -16,7 +16,6 @@ import {
   Apple,
   HelpCircle,
   Info,
-  Save,
   Pencil,
   Layout,
   X,
@@ -38,12 +37,10 @@ import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
-import { ModuleFooter } from "@/components/shared/ModuleFooter";
 import { WorkflowContextBanner } from "@/components/shared/WorkflowContextBanner";
 import { WizardTabs } from "@/components/shared/WizardTabs";
 import { useDashboardShell } from "@/context/DashboardShellContext";
 import { useSubscription } from "@/context/SubscriptionContext";
-import { ActionDockItem } from "@/components/ui/ActionDock";
 import { PremiumGuard } from "@/components/common/PremiumGuard";
 import { useAdmin } from "@/context/AdminContext";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -1787,23 +1784,6 @@ export default function DeliverableClient() {
     toast.success("Proyecto en blanco iniciado.");
   };
 
-  const actionDockItems: ActionDockItem[] = [
-    {
-      id: "save-creations",
-      icon: Save,
-      label: "Guardar Entregable",
-      variant: "slate",
-      onClick: () => setIsSaveCreationModalOpen(true),
-    },
-    {
-      id: "export-pdf",
-      icon: Download,
-      label: features.canExportPDF ? "Descargar PDF" : "PDF Pro",
-      variant: "slate",
-      onClick: openExportWizard,
-    },
-  ];
-
   const handleImportCreation = (creation: any) => {
     try {
       const { type, content } = creation;
@@ -2385,26 +2365,8 @@ export default function DeliverableClient() {
       <ModuleLayout
         title="Producto Final: Entregable PDF"
         description={<div className="space-y-4"><p>Personaliza la presentación final para tu paciente. Añade recursos educativos, portadas y genera el PDF profesional con todo el plan consolidado.</p></div>}
-        rightNavItems={actionDockItems}
         className="max-w-5xl"
-        footer={
-          <ModuleFooter>
-            <div className="flex items-center gap-3">
-              <Button
-                className="h-12 px-8 bg-slate-900 text-white font-black rounded-2xl shadow-xl shadow-slate-200 uppercase tracking-widest text-xs flex items-center gap-2"
-                onClick={openExportWizard}
-                disabled={isExporting || !previousStagesSummary.diet.hasData || !previousStagesSummary.patient.hasData || !previousStagesSummary.recipes.hasData || !previousStagesSummary.cart.hasData}
-              >
-                {isExporting ? (
-                  <div className="h-4 w-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                ) : (
-                  <Download className="h-4 w-4" />
-                )}
-                EXPORTAR PDF
-              </Button>
-            </div>
-          </ModuleFooter>
-        }
+
       >
         <WorkflowContextBanner
           projectName={currentProjectName}

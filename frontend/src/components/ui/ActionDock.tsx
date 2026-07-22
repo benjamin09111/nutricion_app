@@ -9,6 +9,7 @@ export interface ActionDockItem {
   id: string;
   icon: LucideIcon;
   label: string;
+  description?: string;
   onClick: () => void;
   variant?: "indigo" | "emerald" | "amber" | "rose" | "slate";
   isSeparator?: boolean;
@@ -112,7 +113,7 @@ export function ActionDock({ items, className }: ActionDockProps) {
                 >
                   <Icon className="h-6 w-6 group-hover:scale-110 transition-transform" />
                   <span className={cn("absolute right-full mr-4 top-1/2 -translate-y-1/2 px-3 py-1.5 text-[10px] font-black rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase tracking-widest whitespace-nowrap z-[60]", isDarkMode ? "bg-slate-950 text-emerald-50" : "bg-slate-900 text-white")}>
-                    {item.label}
+                    {item.description || item.label}
                   </span>
                 </button>
               );

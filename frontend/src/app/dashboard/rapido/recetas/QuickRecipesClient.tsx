@@ -13,10 +13,7 @@ import {
   Library,
   Loader2,
   Plus,
-  RotateCcw,
-  Save,
   Search,
-  Sparkles,
   Trash2,
   User,
   X,
@@ -31,9 +28,9 @@ import { Modal } from "@/components/ui/Modal";
 import { SaveCreationModal } from "@/components/ui/SaveCreationModal";
 import { ImportCreationModal } from "@/components/shared/ImportCreationModal";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
-import { ModuleFooter } from "@/components/shared/ModuleFooter";
 import { SectionProgressNav, type SectionProgressStatus } from "@/components/shared/SectionProgressNav";
-import { type ActionDockItem } from "@/components/ui/ActionDock";
+import { NatyLoadingOverlay, NatyButton, PlanWizardShell } from "@/components/plans";
+import { FormStepCard } from "@/components/patient-form/FormStepCard";
 import { fetchApi } from "@/lib/api-base";
 import { fetchCreation, saveCreation } from "@/lib/workflow";
 import { getAuthToken } from "@/lib/auth-token";
@@ -642,7 +639,7 @@ export default function QuickRecipesClient() {
     setSelectedPatient(patient);
     setIsPatientModalOpen(false);
     toast.success(
-      `Paciente "${patient.fullName}" vinculado. La IA considerará restricciones y características del paciente (edad, sexo, objetivos y contexto clínico).`,
+      `Paciente "${patient.fullName}" vinculado. Naty considerará restricciones y características del paciente (edad, sexo, objetivos y contexto clínico).`,
     );
   };
 
@@ -1185,43 +1182,7 @@ export default function QuickRecipesClient() {
     }
   };
 
-  const actionDockItems: ActionDockItem[] = [
-    {
-      id: "export-pdf",
-      icon: Download,
-      label: isExportingPdf ? "Exportando..." : "Recetario PDF",
-      variant: "slate",
-      onClick: handleExportPdf,
-      disabled: isExportingPdf || isExportDisabled,
-    },
-    {
-      id: "save",
-      icon: Save,
-      label: "Guardar creación",
-      variant: "slate",
-      onClick: () => {
-        if (!title.trim()) {
-          toast.error("Por favor ingresa un título antes de guardar.");
-          return;
-        }
-        setIsSaveCreationModalOpen(true);
-      },
-    },
-    {
-      id: "import",
-      icon: Library,
-      label: "Importar creación",
-      variant: "slate",
-      onClick: () => setIsImportCreationModalOpen(true),
-    },
-    {
-      id: "reset",
-      icon: RotateCcw,
-      label: "Reiniciar",
-      variant: "rose",
-      onClick: handleReset,
-    },
-  ];
+
 
   const mealSectionTabs = useMemo(() => {
     const ordered = MEAL_SECTIONS.filter((section) =>
@@ -1381,56 +1342,17 @@ export default function QuickRecipesClient() {
   return (
     <FeatureGate
       feature="ai.autofill.access"
-      message="Las recetas rápidas con IA están disponibles desde Pro."
+      message="Las recetas rápidas con Naty están disponibles desde Pro."
     >
+    {(isGenerating || isGeneratingWeekly) && (
+      <NatyLoadingOverlay title="Naty está cocinando..." subtitle="Generando recetas basadas en tus instrucciones y contexto del paciente" />
+    )}
     <>
       <ModuleLayout
         title="Recetas"
         description="Genera recetas rápidas reutilizando contexto clínico, restricciones y preferencias."
         step={{ number: "Express", label: "Receta rápida", icon: ChefHat, color: "text-amber-600" }}
-        rightNavItems={actionDockItems}
         className="max-w-5xl"
-        footer={
-          <ModuleFooter>
-            <div className="text-xs font-bold uppercase tracking-widest text-slate-400">
-              Modo Express · Recetas reutilizables
-            </div>
-            <div className="flex flex-col sm:flex-row items-center gap-4">
-              <Button
-                variant="outline"
-                className="h-11 rounded-2xl border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
-                onClick={openPatientModal}
-              >
-                <User className="mr-2 h-4 w-4" />
-                Importar paciente
-              </Button>
-              <Button
-                variant="outline"
-                className="h-11 rounded-2xl border-slate-200"
-                onClick={() => setIsImportCreationModalOpen(true)}
-              >
-                <Library className="mr-2 h-4 w-4" />
-                Importar
-              </Button>
-              <Button
-                variant="outline"
-                className="h-11 rounded-2xl border-slate-200"
-                onClick={() => setIsSaveCreationModalOpen(true)}
-              >
-                <Save className="mr-2 h-4 w-4" />
-                Guardar
-              </Button>
-              <Button
-                className="h-11 rounded-2xl bg-slate-900 px-6 text-white hover:bg-slate-800"
-                onClick={handleExportPdf}
-                disabled={isExportingPdf || !selectedPatient}
-              >
-                <ChefHat className="mr-2 h-4 w-4" />
-                {isExportingPdf ? "Generando..." : "Descargar recetario PDF"}
-              </Button>
-            </div>
-          </ModuleFooter>
-        }
       >
         {isSidebarCollapsed && (
           <div className="fixed left-[max(6rem,calc(50%-48rem))] top-28 z-20 hidden xl:block">
@@ -1490,7 +1412,7 @@ export default function QuickRecipesClient() {
                   <div>
                     <p className="text-sm font-bold text-amber-900">Puedes generar platos sin paciente o importar uno para personalizar mejor la IA.</p>
                     <p className="mt-1 text-xs leading-5 text-amber-800/80">
-                      Si importas un paciente, la IA considerará sus restricciones, objetivos y contexto clínico. El PDF sigue requiriendo un paciente vinculado.
+                      Si importas un paciente, Naty considerará sus restricciones, objetivos y contexto clínico. El PDF sigue requiriendo un paciente vinculado.
                     </p>
                   </div>
                   <Button
@@ -1579,7 +1501,7 @@ export default function QuickRecipesClient() {
             <div className="rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h3 className="text-sm font-black uppercase tracking-widest text-indigo-700">
-                  Generar con IA según instrucciones
+                  Generar con Naty según instrucciones
                 </h3>
                 <div className="text-xs font-semibold text-indigo-700">
                   Total a generar: {selectedGenerationTotal}
@@ -1625,15 +1547,7 @@ export default function QuickRecipesClient() {
                 ))}
               </div>
               <div className="mt-3 flex flex-wrap items-center gap-2">
-                <Button
-                  className="rounded-xl bg-indigo-600 text-white hover:bg-indigo-700"
-                  onClick={() => generateWithAi("single")}
-                  disabled={isGenerating || isGeneratingWeekly}
-                >
-                                    {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-
-                  {isGenerating ? "Generando..." : "Generar platos IA"}
-                </Button>
+                <NatyButton onClick={() => generateWithAi("single")} isLoading={isGenerating} disabled={isGeneratingWeekly} label="Generar platos con Naty" />
               </div>
             </div>
 
@@ -2017,7 +1931,7 @@ export default function QuickRecipesClient() {
               >
                 <ChefHat className="mb-4 h-12 w-12 text-slate-300" />
                 <h3 className="text-lg font-bold text-slate-400">Aún no hay platos generados</h3>
-                <p className="mt-1 text-sm text-slate-400">Configura los parámetros arriba y usa el botón Generar con IA.</p>
+                <p className="mt-1 text-sm text-slate-400">Configura los parámetros arriba y usa el botón Generar con Naty.</p>
                 <Button
                   variant="outline"
                   className="mt-6 rounded-2xl border-slate-200"
@@ -2039,7 +1953,7 @@ export default function QuickRecipesClient() {
       >
         <div className="space-y-4">
           <p className="text-sm text-slate-500">
-            Al importar un paciente, la IA considera restricciones y características personales
+            Al importar un paciente, Naty considera restricciones y características personales
             como edad, sexo, peso/talla, objetivos y resumen clínico.
           </p>
           <div className="relative">

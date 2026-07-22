@@ -5,7 +5,6 @@ import {
   ChefHat,
   Library,
   User,
-  Download,
   RotateCcw,
   ArrowRight,
   Loader2,
@@ -15,9 +14,8 @@ import { toast } from "sonner";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { ActionDockItem } from "@/components/ui/ActionDock";
+
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
-import { ModuleFooter } from "@/components/shared/ModuleFooter";
 import { WorkflowContextBanner } from "@/components/shared/WorkflowContextBanner";
 import { WizardTabs } from "@/components/shared/WizardTabs";
 import { DraftRestoreModal } from "@/components/shared/DraftRestoreModal";
@@ -59,77 +57,6 @@ export default function RecipesClient() {
     setCurrentStep((prev) => Math.min(WIZARD_STEPS.length - 1, prev + 1));
   }, []);
 
-  const actionDockItems: ActionDockItem[] = useMemo(
-    () => [
-      {
-        id: "created-recipes",
-        icon: ChefHat,
-        label: state.showOnlyMyRecipes ? "Mis platos creados" : "Mostrar mis platos",
-        variant: "emerald",
-        onClick: () => {
-          state.setShowOnlyMyRecipes(true);
-          state.setShowMatchingOnly(true);
-          state.setRecipeModalTab("mine");
-          state.setRecipeSearch("");
-          state.setRecipeMealSectionFilter("");
-          state.setRecipeLibraryPage(1);
-          toast.success("Mostrando tus platos creados.");
-        },
-      },
-      {
-        id: "created-recipes-anyway",
-        icon: Library,
-        label: "Importar aunque no coincidan",
-        variant: "slate",
-        onClick: () => {
-          state.setShowOnlyMyRecipes(true);
-          state.setShowMatchingOnly(false);
-          state.setRecipeModalTab("mine");
-          state.setRecipeSearch("");
-          state.setRecipeMealSectionFilter("");
-          state.setRecipeLibraryPage(1);
-          toast.info("Ahora puedes elegir platos creados aunque no coincidan al 100%.");
-        },
-      },
-      {
-        id: "import-creation",
-        icon: Library,
-        label: "Importar Creación",
-        variant: "indigo",
-        onClick: () => {
-          state.setIsImportCreationModalOpen(true);
-        },
-      },
-      !state.selectedPatient && {
-        id: "link-patient",
-        icon: User,
-        label: "Importar Paciente",
-        variant: "emerald",
-        onClick: () => {
-          state.setIsImportPatientModalOpen(true);
-          state.fetchPatients();
-        },
-      },
-      {
-        id: "export-pdf",
-        icon: Download,
-        label: "Exportar PDF",
-        variant: "slate",
-        onClick: state.handleExportPdf,
-        disabled: state.isRecipesLocked || state.isExportingPdf,
-      },
-      {
-        id: "reset",
-        icon: RotateCcw,
-        label: "Reiniciar Todo",
-        variant: "rose",
-        onClick: state.resetRecipes,
-        disabled: state.isRecipesLocked,
-      },
-    ].filter(Boolean) as ActionDockItem[],
-    [state],
-  );
-
   const assignedSourceSummary = useMemo(() => {
     if (state.sourceModules.diet) return "Dieta asignada · metas heredadas";
     return "Sin dieta asignada";
@@ -139,7 +66,7 @@ export default function RecipesClient() {
     <>
       {state.isGenerating ? (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/45 backdrop-blur-sm">
-          <div className="mx-4 flex max-w-sm flex-col items-center rounded-[2rem] bg-white px-8 py-7 text-center shadow-2xl">
+          <div className="mx-4 flex max-w-sm flex-col items-center rounded-3xl bg-white px-8 py-7 text-center shadow-2xl">
             <Image
               src="/nutria.webp"
               alt="Nati está cocinando"
@@ -158,7 +85,7 @@ export default function RecipesClient() {
             </p>
             <div className="mt-5 flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-700">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Generando con IA
+              Nati está cocinando
             </div>
           </div>
         </div>
@@ -190,79 +117,7 @@ export default function RecipesClient() {
           </div>
         }
         className="max-w-none"
-        rightNavItems={actionDockItems}
-        footer={
-          <ModuleFooter>
-            <div className="flex items-center gap-3">
-              <div className="h-3 w-3 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_rgba(16,185,129,1)]" />
-              <div>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">
-                  Status del Plan
-                </p>
-                <p className="text-xs font-bold text-slate-600">
-                  Estructura semanal alineada con Dieta y con sus objetivos clínicos heredados.
-                </p>
-              </div>
-            </div>
 
-            <div className="flex items-center gap-4">
-              <Button
-                className="h-12 px-8 bg-slate-900 text-white font-black rounded-2xl shadow-xl shadow-slate-200 uppercase tracking-widest text-xs"
-                disabled={state.isRecipesLocked}
-                onClick={async () => {
-                  try {
-                    if (state.isRecipesLocked) {
-                      toast.error("Importa una dieta primero.");
-                      return;
-                    }
-                    await state.persistRecipesCreation();
-                    toast.success("Creación guardada exitosamente");
-                  } catch (error: any) {
-                    toast.error(error?.message || "No se pudieron guardar las recetas.");
-                  }
-                }}
-              >
-                Guardar Creación
-              </Button>
-
-              <Button
-                disabled={state.isRecipesLocked}
-                onClick={async () => {
-                  try {
-                    if (state.isRecipesLocked) {
-                      toast.error("Importa una dieta primero.");
-                      return;
-                    }
-                    const emptyBlocks = state.getEmptyMealBlocks();
-                    if (emptyBlocks.length > 0) {
-                      const firstEmpty = emptyBlocks[0];
-                      toast.error("Aún hay bloques de comida vacíos.", {
-                        description: `${firstEmpty.day}: ${firstEmpty.label} (${firstEmpty.time}). Completa todos los bloques antes de continuar.`,
-                      });
-                      state.setCurrentDay(firstEmpty.day);
-                      state.setPlannerView("daily");
-                      return;
-                    }
-
-                    await state.persistRecipesCreation();
-                    router.push(
-                      buildProjectAwarePath(
-                        "/dashboard/carrito?flow=continue",
-                        state.currentProjectId,
-                      ),
-                    );
-                  } catch (error: any) {
-                    toast.error(error?.message || "No se pudieron guardar las recetas.");
-                  }
-                }}
-                className="h-12 px-8 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-2xl shadow-2xl shadow-emerald-200 transition-all hover:scale-[1.02] flex items-center gap-3 uppercase tracking-widest text-xs"
-              >
-                SIGUIENTE
-                <ArrowRight className="h-5 w-5" />
-              </Button>
-            </div>
-          </ModuleFooter>
-        }
       >
         <WorkflowContextBanner
           projectName={state.currentProjectName}

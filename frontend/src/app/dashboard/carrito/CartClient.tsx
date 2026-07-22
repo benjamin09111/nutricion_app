@@ -18,7 +18,7 @@ import {
   Info,
   AlertTriangle,
   Loader2,
-  Save,
+
   RotateCcw,
   Library,
   User,
@@ -26,7 +26,7 @@ import {
   BookOpen,
   Search,
   AlertCircle,
-  Download,
+
   Target,
   Pencil,
 } from "lucide-react";
@@ -41,8 +41,8 @@ import { cn } from "@/lib/utils";
 import { formatCLP } from "@/lib/utils/currency";
 import { useAdmin } from "@/context/AdminContext";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
-import { ModuleFooter } from "@/components/shared/ModuleFooter";
-import { ActionDockItem } from "@/components/ui/ActionDock";
+
+
 import { DraftRestoreModal } from "@/components/shared/DraftRestoreModal";
 import { useDashboardShell } from "@/context/DashboardShellContext";
 import { ImportCreationModal } from "@/components/shared/ImportCreationModal";
@@ -1398,46 +1398,6 @@ export default function CartClient() {
     toast.info("Carrito vaciado.");
   };
 
-  const actionDockItems: ActionDockItem[] = useMemo(
-    () => [
-      {
-        id: "import-creation",
-        icon: Library,
-        label: "Importar Creación",
-        variant: "indigo",
-        onClick: () => {
-          setIsImportCreationModalOpen(true);
-        },
-      },
-      {
-        id: "link-patient",
-        icon: User,
-        label: selectedPatient ? "Cambiar Paciente" : "Importar Paciente",
-        variant: "emerald",
-        onClick: () => {
-          setIsImportPatientModalOpen(true);
-          fetchPatients();
-        },
-      },
-      {
-        id: "export-pdf",
-        icon: Download,
-        label: "Exportar PDF",
-        variant: "slate",
-        onClick: () => toast.info("PDF del carrito disponible en la etapa Entregable."),
-        disabled: !hasRecipeSource,
-      },
-      {
-        id: "reset",
-        icon: RotateCcw,
-        label: "Reiniciar Todo",
-        variant: "rose",
-        onClick: clearCart,
-        disabled: !hasRecipeSource,
-      },
-    ],
-    [clearCart, selectedPatient, items, totals, cartTargets, currentProjectId, cartSourceLabel, hasRecipeSource],
-  );
 
   const handleKeepDraft = () => {
     sessionStorage.setItem("nutri_cart_draft_decided", "keep");
@@ -1580,7 +1540,7 @@ export default function CartClient() {
         title="Intercambio de Equivalentes"
       >
         <div className="space-y-4">
-          <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-[2rem]">
+          <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-3xl">
             <p className="text-[10px] font-semibold text-indigo-900 uppercase tracking-widest mb-1">Original</p>
             <p className="text-sm font-semibold text-slate-700">{selectedItemForEquivalent?.producto}</p>
             <p className="text-[10px] font-semibold text-indigo-600 uppercase mt-1">{selectedItemForEquivalent?.grupo}</p>
@@ -1662,91 +1622,7 @@ export default function CartClient() {
           icon: ShoppingCart,
           color: "text-indigo-600",
         }}
-        rightNavItems={actionDockItems}
-        footer={
-          <ModuleFooter>
-            <div className="flex items-center gap-8">
-              {/* Time View Selector in Footer */}
-              <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl border border-slate-200 shadow-inner">
-                {(["dia", "semana", "mes"] as const).map((view) => (
-                  <button
-                    key={view}
-                    onClick={() => setTimeView(view)}
-                    className={cn(
-                      "px-3 py-1.5 rounded-lg text-[10px] font-semibold uppercase tracking-widest transition-all",
-                      timeView === view
-                        ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200"
-                        : "text-slate-400 hover:text-slate-600",
-                    )}
-                  >
-                    {view === "dia" ? "D" : view === "semana" ? "S" : "M"}
-                  </button>
-                ))}
-              </div>
 
-              {/* Nutritional Summary */}
-              <div className="flex items-center gap-6">
-                <div className="space-y-0.5">
-                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest leading-none">
-                    Proteínas Totales
-                  </p>
-                  <p className="text-xl font-semibold text-indigo-600 flex items-baseline gap-1">
-                    {totals.protein}
-                    <span className="text-[10px] text-slate-400 uppercase">
-                      g
-                    </span>
-                    <span className="text-[9px] text-slate-300 font-medium lowercase ml-1">
-                      /{" "}
-                      {timeView === "dia"
-                        ? "dia"
-                        : timeView === "semana"
-                          ? "semana"
-                          : "mes"}
-                    </span>
-                  </p>
-                </div>
-                <div className="w-px h-8 bg-slate-200" />
-                <div className="space-y-0.5">
-                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest leading-none">
-                    Calorías Totales
-                  </p>
-                  <p className="text-xl font-semibold text-amber-600 flex items-baseline gap-1">
-                    {totals.calories}
-                    <span className="text-[10px] text-slate-400 uppercase">
-                      kcal
-                    </span>
-                    <span className="text-[9px] text-slate-300 font-medium lowercase ml-1">
-                      /{" "}
-                      {timeView === "dia"
-                        ? "dia"
-                        : timeView === "semana"
-                          ? "semana"
-                          : "mes"}
-                    </span>
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-4">
-              <Button
-                className="h-12 px-8 bg-slate-900"
-                disabled={!hasRecipeSource}
-                onClick={() => setIsSaveCreationModalOpen(true)}
-              >
-                Guardar Creación
-              </Button>
-              <Button
-                className="h-12 px-8 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-[2rem] shadow-xl shadow-indigo-200 transition-all hover:scale-[1.02] active:scale-95"
-                disabled={!hasRecipeSource}
-                onClick={handleFinalize}
-              >
-                SIGUIENTE
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Button>
-            </div>
-          </ModuleFooter>
-        }
       >
         <WorkflowContextBanner
           projectName={currentProjectName}
@@ -1755,7 +1631,7 @@ export default function CartClient() {
           moduleLabel="Carrito"
         />
         {!hasRecipeSource ? (
-          <div className="mb-6 rounded-[2rem] border border-amber-200 bg-amber-50 p-5 shadow-sm">
+          <div className="mb-6 rounded-3xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div className="space-y-1">
                 <p className="text-[10px] font-black uppercase tracking-[0.25em] text-amber-700">
@@ -1769,7 +1645,7 @@ export default function CartClient() {
                 <Button
                   variant="outline"
                   onClick={() => setIsImportCreationModalOpen(true)}
-                  className="rounded-[2rem] border-amber-200 bg-white font-semibold text-amber-900"
+                  className="rounded-3xl border-amber-200 bg-white font-semibold text-amber-900"
                 >
                   <Library className="mr-2 h-4 w-4" />
                   Importar dieta
@@ -1781,7 +1657,7 @@ export default function CartClient() {
                       buildProjectAwarePath("/dashboard/dieta", currentProjectId),
                     )
                   }
-                  className="rounded-[2rem] border-amber-200 bg-white font-semibold text-amber-900"
+                  className="rounded-3xl border-amber-200 bg-white font-semibold text-amber-900"
                 >
                   <ChevronLeft className="mr-2 h-4 w-4" />
                   Ir a Dieta
@@ -1801,7 +1677,7 @@ export default function CartClient() {
               </span>
             </div>
             {proteinSupplement.enabled ? (
-              <div className="mt-2 inline-flex items-center gap-2 rounded-[2rem] border border-indigo-200 bg-indigo-50 px-4 py-2">
+              <div className="mt-2 inline-flex items-center gap-2 rounded-3xl border border-indigo-200 bg-indigo-50 px-4 py-2">
                 <Target className="h-4 w-4 text-indigo-600" />
                 <span className="text-[10px] font-semibold uppercase tracking-widest text-indigo-700">
                   Suplemento activo: +{proteinSupplement.gramsPerDay}g proteina/dia
@@ -1812,7 +1688,7 @@ export default function CartClient() {
 
           {selectedPatient && (
             <div className="mb-6 animate-in slide-in-from-top duration-300">
-              <div className="bg-white border border-slate-200 p-5 rounded-[2rem] shadow-sm">
+              <div className="bg-white border border-slate-200 p-5 rounded-3xl shadow-sm">
                 <div className="flex flex-col gap-4">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center border border-indigo-100">

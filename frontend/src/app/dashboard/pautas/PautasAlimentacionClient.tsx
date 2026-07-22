@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { AlertCircle, Download, Plus, ChefHat, RotateCcw, Save, Trash2, User, X, Check, Search, Sparkles, Loader2 } from "lucide-react";
+import { AlertCircle, Plus, ChefHat, Trash2, User, X, Check, Search, Sparkles, Loader2, FileText } from "lucide-react";
 import Cookies from "js-cookie";
 import { useSearchParams } from "next/navigation";
 import Image from "next/image";
@@ -12,10 +12,10 @@ import { Modal } from "@/components/ui/Modal";
 import { SaveCreationModal } from "@/components/ui/SaveCreationModal";
 import { ImportCreationModal } from "@/components/shared/ImportCreationModal";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
-import { ModuleFooter } from "@/components/shared/ModuleFooter";
 import { WorkflowContextBanner } from "@/components/shared/WorkflowContextBanner";
-import { WizardTabs } from "@/components/shared/WizardTabs";
-import { type ActionDockItem } from "@/components/ui/ActionDock";
+import { PlanPatientSelector, NatyLoadingOverlay, NatyButton, PlanWizardShell } from "@/components/plans";
+import type { PlanPatient } from "@/components/plans";
+import { FormStepCard } from "@/components/patient-form/FormStepCard";
 import { fetchApi } from "@/lib/api-base";
 import { DEFAULT_CONSTRAINTS } from "@/lib/constants";
 import { fetchCreation, fetchProject, saveCreation } from "@/lib/workflow";
@@ -60,12 +60,7 @@ const createEmptyPatient = (): PautaPatient => ({ fullName: "", email: null, age
 const createFoodItem = (): PautaFoodItem => ({ id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, portion: "", food: "" });
 const createParagraph = (): PautaParagraph => ({ id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, category: "", categoryOptional: "", portionsPerDay: "", foods: [createFoodItem()], imagePath: null });
 
-const WIZARD_STEPS = [
-  { label: "General", description: "Título y restricción clínica." },
-  { label: "Paciente", description: "Importación o carga manual." },
-  { label: "Recurso", description: "Contenido educativo asociado." },
-  { label: "Párrafos", description: "Bloques de pauta y alimentos." },
-];
+const WIZARD_STEPS = ["Recurso", "Párrafos"];
 
 const formatPautaFoodLabel = (portion: string, food: string) => {
   const cleanFood = food.trim();
@@ -118,6 +113,7 @@ export default function PautasAlimentacionClient() {
   const [isSaving, setIsSaving] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
+  const completedSteps = useMemo(() => Array.from({ length: currentStep }, (_, i) => i), [currentStep]);
 
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [isImageSelectorOpen, setIsImageSelectorOpen] = useState(false);
@@ -429,7 +425,7 @@ export default function PautasAlimentacionClient() {
       return;
     }
     setIsGeneratingAi(true);
-    toast.info("La IA está generando las pautas. Puedes seguir editando mientras tanto.");
+    toast.info("Naty est\u00e1 generando las pautas. Puedes seguir editando mientras tanto.");
     try {
       const response = await fetchApi("/pautas/ai-generate", {
         method: "POST",
@@ -469,7 +465,7 @@ export default function PautasAlimentacionClient() {
         })).filter((np: { category: string }) => !existingCategories.includes(np.category));
         if (newParagraphs.length > 0) {
           setParagraphs((prev) => [...prev, ...newParagraphs]);
-          toast.success(`Se generaron ${newParagraphs.length} párrafos con IA.`);
+          toast.success(`Naty gener\u00f3 ${newParagraphs.length} p\u00e1rrafos.`);
         } else {
           toast.warning("Las categorías seleccionadas ya existen en las pautas.");
         }
@@ -518,149 +514,152 @@ export default function PautasAlimentacionClient() {
     toast.success("Pautas reiniciadas.");
   };
 
-  const actionDockItems: ActionDockItem[] = [
-    { id: "save", icon: Save, label: "Guardar", variant: "slate", onClick: () => setIsSaveCreationModalOpen(true) },
-    { id: "reset", icon: RotateCcw, label: "Reiniciar", variant: "rose", onClick: resetPauta },
-  ];
+  const fetchPatients = async (): Promise<PlanPatient[]> => {
+    try {
+      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
+      const response = await fetchApi("/patients", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        return data.data || [];
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  };
+
+  const handlePlanSelectPatient = (patient: PlanPatient) => {
+    setSelectedPatient({
+      id: patient.id,
+      fullName: patient.fullName,
+      email: patient.email,
+      ageYears: patient.ageYears ?? null,
+      weight: patient.weight ?? null,
+      height: patient.height ?? null,
+      source: patient.id ? "imported" : "manual",
+    });
+    setIsManualPatientExpanded(false);
+  };
 
   return (
     <>
+      {isGeneratingAi && (
+        <NatyLoadingOverlay
+          title="Naty est\u00e1 preparando..."
+          subtitle="Generando los p\u00e1rrafos de pautas alimenticias"
+        />
+      )}
+
       <ModuleLayout
-        title="Pautas de Alimentación"
-        description="Crea guías alimenticias para restricciones clínicas."
-        rightNavItems={actionDockItems}
+        title="Pautas de Alimentaci\u00f3n"
+        description="Crea gu\u00edas alimenticias para restricciones cl\u00ednicas."
         className="max-w-[68rem]"
-        footer={
-          <ModuleFooter>
-            <div className="flex flex-col sm:flex-row items-center gap-4">
-              <Button variant="outline" className="h-11 rounded-2xl border-slate-200" onClick={() => setIsSaveCreationModalOpen(true)}>
-                <Save className="mr-2 h-4 w-4" />
-                Guardar
-              </Button>
-              <Button className="h-11 rounded-2xl bg-slate-900 px-6 text-white hover:bg-slate-800" onClick={handleExportPdf} disabled={isExportingPdf}>
-                <Download className="mr-2 h-4 w-4" />
-                {isExportingPdf ? "Generando..." : "Descargar PDF"}
-              </Button>
-            </div>
-          </ModuleFooter>
-        }
       >
         <WorkflowContextBanner projectName={currentProjectName} patientName={selectedPatient?.fullName || null} mode={currentProjectMode} moduleLabel="Pautas" />
 
-        <div className="mt-10 space-y-8 xl:px-4">
-          <div className="rounded-3xl border border-emerald-200 bg-emerald-50/70 px-5 py-4 text-sm text-emerald-900">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-              <p>
-                Este módulo crea <strong>pautas de alimentación</strong> para una restricción clínica.
-              </p>
+        <div className="mt-6 xl:px-4 space-y-4">
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 max-w-2xl">
+            <div className="grid gap-6 md:grid-cols-2">
+              <div className="space-y-2">
+                <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Título</p>
+                <Input value={title} onChange={(e) => setTitle(e.target.value)} className="h-12 rounded-2xl border-slate-200 bg-slate-50 text-base font-semibold" placeholder={DEFAULT_TITLE} />
+              </div>
+              <div className="space-y-2">
+                <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Restricción clínica</p>
+                {selectedRestriction ? (
+                  <div className="flex items-center gap-2 rounded-2xl bg-emerald-50 px-4 py-3">
+                    <span className="flex-1 font-semibold text-emerald-900">{selectedRestriction}</span>
+                    <button type="button" onClick={() => { setSelectedRestriction(""); setRestrictionSearch(""); }} className="rounded-full p-1 text-emerald-600 hover:bg-emerald-100"><X className="h-4 w-4" /></button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="relative">
+                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <input type="text" value={restrictionSearch} onChange={(e) => setSelectedRestriction(e.target.value)} placeholder="Buscar o Escribir" className="h-12 w-full rounded-2xl border border-slate-200 bg-white pl-11 pr-4 text-base font-medium" />
+                    </div>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {filteredRestrictions.slice(0, 6).map((r) => (
+                        <button key={r} type="button" onClick={() => { setSelectedRestriction(r); setRestrictionSearch(""); }} className="rounded-full px-4 py-2 text-sm font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">
+                          {r}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+            <div className="mt-5 pt-4 border-t border-slate-100">
+              <PlanPatientSelector
+                patient={selectedPatient.fullName ? {
+                  id: selectedPatient.id,
+                  fullName: selectedPatient.fullName,
+                  email: selectedPatient.email,
+                  ageYears: selectedPatient.ageYears,
+                  weight: selectedPatient.weight,
+                  height: selectedPatient.height,
+                } : null}
+                onSelect={handlePlanSelectPatient}
+                onClear={clearSelectedPatient}
+                fetchPatients={fetchPatients}
+              />
+              {!isManualPatientExpanded && (
+                <button
+                  type="button"
+                  onClick={() => { setSelectedPatient(createEmptyPatient()); setIsManualPatientExpanded(true); }}
+                  className="mt-2 text-left text-sm font-semibold text-emerald-700 underline decoration-emerald-300 underline-offset-4 hover:text-emerald-800"
+                >
+                  O completa manualmente
+                </button>
+              )}
+              {isManualPatientExpanded && (
+                <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-5">
+                  <div className="flex flex-col gap-4 md:flex-row md:items-end">
+                    <div className="flex-1 space-y-1">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Nombre</p>
+                      <Input value={selectedPatient.fullName} onChange={(e) => setSelectedPatient((p) => ({ ...p, fullName: e.target.value }))} placeholder="Nombre y apellido" className="h-11 rounded-xl border-slate-200" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Edad</p>
+                      <Input type="number" min={0} value={manualPatientData.ageYears} onChange={(e) => setManualPatientData((d) => ({ ...d, ageYears: e.target.value }))} placeholder="Ej: 42" className="h-11 rounded-xl border-slate-200 w-24" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Peso (kg)</p>
+                      <Input type="number" min={0} step="0.1" value={manualPatientData.weight} onChange={(e) => setManualPatientData((d) => ({ ...d, weight: e.target.value }))} placeholder="Ej: 70" className="h-11 rounded-xl border-slate-200 w-24" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Talla (cm)</p>
+                      <Input type="number" min={0} value={manualPatientData.height} onChange={(e) => setManualPatientData((d) => ({ ...d, height: e.target.value }))} placeholder="Ej: 170" className="h-11 rounded-xl border-slate-200 w-24" />
+                    </div>
+                    <button type="button" onClick={() => { setIsManualPatientExpanded(false); setSelectedPatient(createEmptyPatient()); }} className="text-sm font-semibold text-emerald-700 underline decoration-emerald-300 underline-offset-4 hover:text-emerald-800">Importar paciente</button>
+                  </div>
+                  {calculatedBmi !== null && (
+                    <div className="mt-4 inline-block rounded-lg bg-emerald-50 px-4 py-2">
+                      <span className="text-sm font-semibold text-emerald-700">IMC:</span>{" "}
+                      <span className="text-base font-bold text-emerald-800">{calculatedBmi}</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
+        </div>
 
-          <WizardTabs steps={WIZARD_STEPS} currentStep={currentStep} onStepChange={goToStep} />
+        <div className="mt-6 xl:px-4">
+          <PlanWizardShell
+            steps={WIZARD_STEPS}
+            currentStep={currentStep}
+            completedSteps={completedSteps}
+            onStepClick={goToStep}
+            onBack={goBack}
+            onNext={goNext}
+            isLastStep={currentStep === WIZARD_STEPS.length - 1}
+            onReset={resetPauta}
+          >
 
           {currentStep === 0 && (
-            <section ref={identitySectionRef} className="rounded-3xl border border-slate-200 bg-white p-10 shadow-sm">
-              <div className="space-y-8">
-                <div className="grid gap-6 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Título</p>
-                    <Input value={title} onChange={(e) => setTitle(e.target.value)} className="h-12 rounded-2xl border-slate-200 bg-slate-50 text-base font-semibold" placeholder={DEFAULT_TITLE} />
-                  </div>
-                  <div className="space-y-2">
-                    <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Restricción clínica *</p>
-                    {selectedRestriction ? (
-                      <div className="flex items-center gap-2 rounded-2xl bg-emerald-50 px-4 py-3">
-                        <span className="flex-1 font-semibold text-emerald-900">{selectedRestriction}</span>
-                        <button type="button" onClick={() => { setSelectedRestriction(""); setRestrictionSearch(""); }} className="rounded-full p-1 text-emerald-600 hover:bg-emerald-100"><X className="h-4 w-4" /></button>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="relative">
-                          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                          <input type="text" value={restrictionSearch} onChange={(e) => setSelectedRestriction(e.target.value)} placeholder="Buscar o Escribir" className="h-12 w-full rounded-2xl border border-slate-200 bg-white pl-11 pr-4 text-base font-medium" />
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {filteredRestrictions.slice(0, 6).map((r) => (
-                            <button key={r} type="button" onClick={() => { setSelectedRestriction(r); setRestrictionSearch(""); }} className="rounded-full px-4 py-2 text-sm font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">
-                              {r}
-                            </button>
-                          ))}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </section>
-          )}
-
-          {currentStep === 1 && (
-            <section ref={patientDivRef} className="rounded-3xl border border-slate-200 bg-white p-10 shadow-sm">
-              <div className="space-y-8">
-                <div className="space-y-2">
-                  <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Datos del paciente</p>
-                  {!isManualPatientExpanded && (
-                    <div className="flex flex-col gap-3 md:flex-row md:items-end">
-                      {selectedPatient.fullName ? (
-                        <div className="flex items-center gap-3 rounded-2xl bg-emerald-50 px-4 py-3">
-                          <User className="h-5 w-5 text-emerald-600" />
-                          <div>
-                            <p className="font-semibold text-emerald-900">{selectedPatient.fullName}</p>
-                            <div className="flex gap-3 text-sm text-emerald-700">
-                              {selectedPatient.ageYears && <span>{selectedPatient.ageYears} años</span>}
-                              {selectedPatient.weight && <span>{selectedPatient.weight} kg</span>}
-                              {selectedPatient.height && <span>{selectedPatient.height} cm</span>}
-                              {calculatedBmi && <span>IMC: {calculatedBmi}</span>}
-                            </div>
-                          </div>
-                          <button type="button" onClick={clearSelectedPatient} className="rounded-full p-2 text-rose-500 hover:bg-rose-50"><X className="h-4 w-4" /></button>
-                        </div>
-                      ) : (
-                        <Button variant="outline" onClick={openPatientModal} className="h-12 rounded-2xl border-slate-200 font-bold"><User className="mr-2 h-4 w-4" />Importar paciente</Button>
-                      )}
-                      <button type="button" onClick={() => { setSelectedPatient(createEmptyPatient()); setIsManualPatientExpanded(true); }} className="text-left text-sm font-semibold text-emerald-700 underline decoration-emerald-300 underline-offset-4 hover:text-emerald-800">O completa manualmente sin reutilizar uno existente.</button>
-                    </div>
-                  )}
-                  {isManualPatientExpanded && (
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-5">
-                      <div className="flex flex-col gap-4 md:flex-row md:items-end">
-                        <div className="flex-1 space-y-1">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Nombre</p>
-                          <Input value={selectedPatient.fullName} onChange={(e) => setSelectedPatient((p) => ({ ...p, fullName: e.target.value }))} placeholder="Nombre y apellido" className="h-11 rounded-xl border-slate-200" />
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Edad</p>
-                          <Input type="number" min={0} value={manualPatientData.ageYears} onChange={(e) => setManualPatientData((d) => ({ ...d, ageYears: e.target.value }))} placeholder="Ej: 42" className="h-11 rounded-xl border-slate-200 w-24" />
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Peso (kg)</p>
-                          <Input type="number" min={0} step="0.1" value={manualPatientData.weight} onChange={(e) => setManualPatientData((d) => ({ ...d, weight: e.target.value }))} placeholder="Ej: 70" className="h-11 rounded-xl border-slate-200 w-24" />
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Talla (cm)</p>
-                          <Input type="number" min={0} value={manualPatientData.height} onChange={(e) => setManualPatientData((d) => ({ ...d, height: e.target.value }))} placeholder="Ej: 170" className="h-11 rounded-xl border-slate-200 w-24" />
-                        </div>
-                        <button type="button" onClick={() => { setIsManualPatientExpanded(false); setSelectedPatient(createEmptyPatient()); }} className="text-sm font-semibold text-emerald-700 underline decoration-emerald-300 underline-offset-4 hover:text-emerald-800">Importar paciente</button>
-                      </div>
-                      {calculatedBmi !== null && (
-                        <div className="mt-4 inline-block rounded-lg bg-emerald-50 px-4 py-2">
-                          <span className="text-sm font-semibold text-emerald-700">IMC:</span>{" "}
-                          <span className="text-base font-bold text-emerald-800">{calculatedBmi}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </section>
-          )}
-
-          {currentStep === 2 && (
-            <section ref={resourceDivRef} className="rounded-3xl border border-slate-200 bg-white p-10 shadow-sm">
-              <div className="space-y-8">
-                <div className="space-y-3">
-                  <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Recurso educativo</p>
+            <FormStepCard icon={<FileText className="w-4 h-4 text-emerald-600" />} title="Recurso educativo" description="Contenido educativo asociado">
                   <div className="flex items-center gap-4">
                     <button type="button" onClick={() => setEducationalMode('auto')} className={cn("px-4 py-2 rounded-full text-sm font-semibold transition-colors", educationalMode === 'auto' ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200")}>Automático</button>
                     <button type="button" onClick={() => setEducationalMode('manual')} className={cn("px-4 py-2 rounded-full text-sm font-semibold transition-colors", educationalMode === 'manual' ? "bg-emerald-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200")}>Manual</button>
@@ -712,13 +711,11 @@ export default function PautasAlimentacionClient() {
                       </div>
                     </div>
                   )}
-                </div>
-              </div>
-            </section>
+            </FormStepCard>
           )}
 
-          {currentStep === 3 && (
-            <section ref={paragraphsSectionRef} className="relative rounded-3xl border border-slate-200 bg-white p-10 shadow-sm">
+          {currentStep === 1 && (
+            <FormStepCard icon={<ChefHat className="w-4 h-4 text-emerald-600" />} title="Párrafos" description="Bloques de pauta y alimentos">
               {!selectedRestriction.trim() && (
                 <div className="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-3xl bg-white/90 backdrop-blur-sm">
                   <div className="text-center">
@@ -738,7 +735,7 @@ export default function PautasAlimentacionClient() {
                   </div>
                   <div className="flex gap-2">
                     <Button variant="outline" onClick={addParagraph} disabled={!selectedRestriction.trim()} className="h-10 rounded-2xl border-slate-200"><Plus className="mr-2 h-4 w-4" />Agregar</Button>
-                    <Button variant="outline" onClick={() => setIsAiModalOpen(true)} disabled={!selectedRestriction.trim()} title={!selectedRestriction.trim() ? "Selecciona una restricción clínica primero" : "Generar párrafos con IA"} className="h-10 rounded-2xl border-emerald-200 text-emerald-700 hover:bg-emerald-50"><Sparkles className="mr-2 h-4 w-4" />Generar con IA</Button>
+                    <Button variant="outline" onClick={() => setIsAiModalOpen(true)} disabled={!selectedRestriction.trim()} title={!selectedRestriction.trim() ? "Selecciona una restricci\u00f3n cl\u00ednica primero" : "Generar p\u00e1rrafos con Naty"} className="h-10 rounded-xl border-emerald-200 text-emerald-700 font-semibold hover:bg-emerald-50"><Sparkles className="mr-2 h-4 w-4" />Generar con Naty</Button>
                   </div>
                 </div>
                 <div className="space-y-6">
@@ -810,19 +807,10 @@ export default function PautasAlimentacionClient() {
                   ))}
                 </div>
               </div>
-            </section>
+            </FormStepCard>
           )}
 
-          <div className="flex items-center justify-between gap-3 rounded-3xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-            <div className="min-w-0">
-              <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-400">Navegación por etapas</p>
-              <p className="text-sm font-medium text-slate-600">Cambia entre secciones sin perder el contexto.</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button type="button" variant="outline" onClick={goBack} disabled={currentStep === 0} className="h-10 rounded-xl border-slate-200 px-4 font-semibold text-slate-600 cursor-pointer">Anterior</Button>
-              <Button type="button" onClick={goNext} disabled={currentStep === WIZARD_STEPS.length - 1} className="h-10 rounded-xl bg-indigo-600 px-4 font-semibold text-white hover:bg-indigo-700 cursor-pointer">Siguiente</Button>
-            </div>
-          </div>
+          </PlanWizardShell>
         </div>
       </ModuleLayout>
 
@@ -849,7 +837,7 @@ export default function PautasAlimentacionClient() {
                 <Sparkles className="h-5 w-5 text-emerald-600" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold">Generar con IA</h3>
+                <h3 className="text-lg font-semibold">Generar con Naty</h3>
                 <p className="text-sm text-slate-500">Rellena los párrafos automáticamente</p>
               </div>
             </div>
@@ -931,26 +919,15 @@ export default function PautasAlimentacionClient() {
           </div>
 
           <div className="mt-6 flex justify-end gap-3">
-            <Button variant="outline" onClick={() => setIsAiModalOpen(false)} className="rounded-2xl">
+            <Button variant="outline" onClick={() => setIsAiModalOpen(false)} className="rounded-xl">
               Cancelar
             </Button>
-            <Button
+            <NatyButton
               onClick={handleGenerateWithAi}
-              disabled={isGeneratingAi || aiSelectedCategories.length === 0}
-              className="rounded-2xl bg-emerald-600 text-white hover:bg-emerald-700"
-            >
-              {isGeneratingAi ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generando...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  Generar con IA
-                </>
-              )}
-            </Button>
+              isLoading={isGeneratingAi}
+              disabled={aiSelectedCategories.length === 0}
+              label="Generar con Naty"
+            />
           </div>
         </div>
       </Modal>

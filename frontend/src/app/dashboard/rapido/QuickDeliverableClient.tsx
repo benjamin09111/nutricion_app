@@ -3,16 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
-  Download,
   Plus,
-  ChefHat,
   Sparkles,
   Search,
   Filter,
-  RotateCcw,
-  Save,
   Trash2,
-  User,
   CheckCircle2,
   X,
   Loader2,
@@ -27,10 +22,10 @@ import { SaveCreationModal } from "@/components/ui/SaveCreationModal";
 import { Textarea } from "@/components/ui/Textarea";
 import { ImportCreationModal } from "@/components/shared/ImportCreationModal";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
-import { ModuleFooter } from "@/components/shared/ModuleFooter";
-import { WizardTabs } from "@/components/shared/WizardTabs";
 import { WorkflowContextBanner } from "@/components/shared/WorkflowContextBanner";
-import { type ActionDockItem } from "@/components/ui/ActionDock";
+import { PlanPatientSelector, NatyLoadingOverlay, NatyButton, PlanWizardShell } from "@/components/plans";
+import type { PlanPatient } from "@/components/plans";
+import { FormStepCard } from "@/components/patient-form/FormStepCard";
 import { fetchApi } from "@/lib/api-base";
 import { buildExchangeGuideForPatient } from "@/lib/exchange-portions";
 import { cn } from "@/lib/utils";
@@ -176,14 +171,7 @@ const QUICK_PORTION_GUIDE = [
 
 const DEFAULT_TITLE = "Entregable rápido";
 
-const WIZARD_STEPS = [
-  { label: "General", description: "Identidad y paciente." },
-  { label: "Comidas", description: "Tabla de comidas." },
-  { label: "Evitar", description: "Alimentos y restricciones." },
-  { label: "Recursos", description: "Material breve." },
-  { label: "Porciones", description: "Guía resumida." },
-  { label: "Resumen", description: "Cierre express." },
-];
+const WIZARD_STEPS = ["Comidas", "Evitar", "Recursos", "Porciones", "Resumen"];
 
 const createMeal = (section: QuickSection | "" = ""): QuickMeal => ({
   id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -314,6 +302,7 @@ export default function QuickDeliverableClient() {
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [showValidationHighlights, setShowValidationHighlights] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
+  const completedSteps = useMemo(() => Array.from({ length: currentStep }, (_, i) => i), [currentStep]);
   const identitySectionRef = useRef<HTMLElement | null>(null);
   const mealsSectionRef = useRef<HTMLElement | null>(null);
   const avoidFoodsSectionRef = useRef<HTMLElement | null>(null);
@@ -910,7 +899,7 @@ export default function QuickDeliverableClient() {
 
     setIsCreatedRecipesModalOpen(false);
     setIsGeneratingQuickAi(true);
-    toast.info("La IA esta generando opciones. Puedes seguir editando mientras tanto.");
+    toast.info("Naty está preparando opciones. Puedes seguir editando mientras tanto.");
 
     try {
       const response = await fetchApi("/recipes/quick-ai-fill", {
@@ -1018,7 +1007,7 @@ export default function QuickDeliverableClient() {
         });
       });
 
-      toast.success("La IA relleno los espacios vacios de alimentos.");
+      toast.success("Naty rellenó los espacios vacíos de alimentos.");
     } catch (error) {
       console.error("Error generating meals with AI", error);
       toast.error(error instanceof Error ? error.message : "No se pudo generar con IA.");
@@ -1053,6 +1042,20 @@ export default function QuickDeliverableClient() {
     setSelectedPatient(createEmptyQuickPatient());
     setIsManualPatientExpanded(false);
     toast.info("Paciente quitado del entregable.");
+  };
+
+  const fetchPatients = async (): Promise<PlanPatient[]> => {
+    try {
+      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
+      const response = await fetchApi("/patients", { headers: { Authorization: `Bearer ${token}` } });
+      if (response.ok) { const data = await response.json(); return data.data || []; }
+      return [];
+    } catch { return []; }
+  };
+
+  const handleSelectPatient = (patient: PlanPatient) => {
+    setSelectedPatient(patient);
+    setIsManualPatientExpanded(false);
   };
 
   useEffect(() => {
@@ -1354,54 +1357,15 @@ export default function QuickDeliverableClient() {
     toast.success("Entregable rápido reiniciado.");
   };
 
-  const actionDockItems: ActionDockItem[] = [
-    {
-      id: "created-recipes",
-      icon: ChefHat,
-      label: "Platos creados",
-      variant: "emerald",
-      onClick: () => setIsCreatedRecipesModalOpen(true),
-    },
-    {
-      id: "save",
-      icon: Save,
-      label: "Guardar creación",
-      variant: "slate",
-      onClick: () => setIsSaveCreationModalOpen(true),
-    },
-    {
-      id: "reset",
-      icon: RotateCcw,
-      label: "Reiniciar",
-      variant: "rose",
-      onClick: resetQuickDeliverable,
-    },
-  ];
-
   return (
     <>
+      {isGeneratingQuickAi && (
+        <NatyLoadingOverlay title="Naty está preparando..." subtitle="Generando opciones de comidas para tu entregable rápido" />
+      )}
       <ModuleLayout
         title="Entregable Rápido"
         description="Crea un entregable express de una sola hoja con horarios, indicaciones, alimentos a evitar, recursos y una guía breve de porciones."
-        rightNavItems={actionDockItems}
         className="max-w-[68rem]"
-        footer={
-          <ModuleFooter>
-            <div className="text-xs font-bold uppercase tracking-widest text-slate-400">
-              Formato resumido para consulta única
-            </div>
-            <div className="flex flex-col sm:flex-row items-center gap-4">
-              <Button variant="outline" className="h-11 rounded-2xl border-slate-200" onClick={() => setIsSaveCreationModalOpen(true)}>
-                <Save className="mr-2 h-4 w-4" />
-                Guardar
-              </Button>
-              <Button className="h-11 rounded-2xl bg-slate-900 px-6 text-white hover:bg-slate-800" onClick={handleExportPdf} disabled={isExportingPdf}>
-                <Download className="mr-2 h-4 w-4" />
-                {isExportingPdf ? "Generando..." : "Descargar PDF"}
-              </Button>
-            </div>
-          </ModuleFooter>
-        }
       >
         <WorkflowContextBanner
           projectName={currentProjectName}
@@ -1410,82 +1374,50 @@ export default function QuickDeliverableClient() {
           moduleLabel="Rápido"
         />
 
-        <div className="mt-10 space-y-8 xl:px-4">
-          <div className="rounded-3xl border border-amber-200 bg-amber-50/70 px-5 py-4 text-sm text-amber-900">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-              <p>
-                Este módulo está pensado para consultas express: se guarda como <strong>entregable rápido</strong> y el PDF sale en una sola hoja, sin portada.
-              </p>
+        <div className="mt-6 xl:px-4">
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 max-w-2xl">
+            <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+              <div className="flex-1 space-y-2">
+                <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Título</p>
+                <Input
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  className="h-12 rounded-2xl border-slate-200 bg-slate-50 text-base font-semibold"
+                  placeholder={DEFAULT_TITLE}
+                />
+              </div>
+              <div className="flex flex-col items-end gap-2">
+                <PlanPatientSelector
+                  patient={selectedPatient.fullName?.trim() ? {
+                    id: selectedPatient.id,
+                    fullName: selectedPatient.fullName,
+                    ageYears: selectedPatient.ageYears,
+                    weight: undefined,
+                    height: undefined,
+                    gender: selectedPatient.gender ?? undefined,
+                    nutritionalFocus: selectedPatient.nutritionalFocus ?? undefined,
+                    fitnessGoals: selectedPatient.fitnessGoals ?? undefined,
+                    restrictions: selectedPatient.restrictions,
+                    likes: selectedPatient.likes ?? undefined,
+                  } : null}
+                  onSelect={handleSelectPatient}
+                  onClear={clearSelectedPatient}
+                  fetchPatients={fetchPatients}
+                />
+                {!isManualPatientExpanded && (
+                  <button
+                    type="button"
+                    onClick={startManualPatientEntry}
+                    className="text-left text-xs font-semibold text-emerald-700 underline decoration-emerald-300 underline-offset-4 hover:text-emerald-800"
+                  >
+                    O completa manualmente
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4 text-xs font-medium text-slate-600 shadow-sm">
-            Los campos con <strong>*</strong> son obligatorios para generar el PDF. El paciente es opcional en este modo.
-          </div>
-
-          <WizardTabs steps={WIZARD_STEPS} currentStep={currentStep} onStepChange={goToStep} />
-
-          <div className="grid gap-7 xl:grid-cols-[1.35fr,0.8fr]">
-            <div className="space-y-8">
-              {currentStep === 0 && (
-              <section
-                ref={identitySectionRef}
-                className="rounded-3xl border border-slate-200 bg-white p-10 shadow-sm"
-              >
-                <div className="flex flex-col gap-6">
-                  <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-                  <div className="flex-1 space-y-2">
-                    <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">
-                      Identidad del entregable
-                    </p>
-                    <Input
-                      value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                      className="h-12 rounded-2xl border-slate-200 bg-slate-50 text-base font-semibold"
-                      placeholder={DEFAULT_TITLE}
-                    />
-                  </div>
-                  <div className="flex flex-col items-end gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={openPatientModal}
-                      className={cn(
-                        "rounded-2xl border font-bold",
-                        selectedPatient.fullName?.trim()
-                          ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                          : "border-slate-200 bg-white text-slate-700",
-                      )}
-                    >
-                      <User className="mr-2 h-4 w-4" />
-                      {selectedPatient.fullName?.trim()
-                        ? `Paciente: ${selectedPatient.fullName}`
-                        : "Sin paciente asignado"}
-                    </Button>
-                    {selectedPatient.fullName?.trim() && (
-                      <button
-                        type="button"
-                        onClick={clearSelectedPatient}
-                        className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 text-rose-600 transition-colors hover:bg-rose-100"
-                        title="Quitar paciente"
-                        aria-label="Quitar paciente"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={startManualPatientEntry}
-                      className="text-left text-xs font-semibold text-emerald-700 underline decoration-emerald-300 underline-offset-4 hover:text-emerald-800"
-                    >
-                      O completa manualmente sin reutilizar uno existente.
-                    </button>
-                  </div>
-                </div>
-
-                {isManualPatientExpanded && (
-                <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-5">
-                  <div className="grid gap-4 md:grid-cols-3">
+            {isManualPatientExpanded && (
+              <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/80 p-5">
+                <div className="grid gap-4 md:grid-cols-3">
                   <div className="space-y-1">
                     <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
                       Nombre
@@ -1545,8 +1477,7 @@ export default function QuickDeliverableClient() {
                     </select>
                   </div>
                 </div>
-
-                  <div className="mt-4 grid gap-4 md:grid-cols-2">
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
                   <div className="space-y-1">
                     <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
                       Objetivo / enfoque
@@ -1580,8 +1511,7 @@ export default function QuickDeliverableClient() {
                     />
                   </div>
                 </div>
-
-                  <div className="mt-4 grid gap-4 md:grid-cols-2">
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
                   <div className="space-y-1">
                     <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
                       Restricciones
@@ -1616,15 +1546,25 @@ export default function QuickDeliverableClient() {
                       }
                       placeholder="Ej: preparaciones saladas, frutas, yogurt..."
                     />
-                    </div>
                   </div>
                 </div>
-                )}
-                </div>
-              </section>
-              )}
+              </div>
+            )}
+          </div>
+        </div>
 
-              {currentStep === 1 && (
+        <div className="mt-10 space-y-8 xl:px-4">
+          <PlanWizardShell
+            steps={WIZARD_STEPS}
+            currentStep={currentStep}
+            completedSteps={completedSteps}
+            onStepClick={goToStep}
+            onBack={goBack}
+            onNext={goNext}
+            isLastStep={currentStep === WIZARD_STEPS.length - 1}
+            onReset={resetQuickDeliverable}
+          >
+              {currentStep === 0 && (
               <section
                 ref={mealsSectionRef}
                 className={cn(
@@ -1938,7 +1878,7 @@ export default function QuickDeliverableClient() {
               </section>
               )}
 
-              {currentStep === 2 && (
+              {currentStep === 1 && (
               <section
                 ref={avoidFoodsSectionRef}
                 className={cn(
@@ -2039,10 +1979,8 @@ export default function QuickDeliverableClient() {
                 </div>
               </section>
               )}
-            </div>
 
-            <div className="space-y-6">
-              {currentStep === 3 && (
+              {currentStep === 2 && (
               <section
                 ref={resourcesSectionRef}
                 className={cn(
@@ -2229,7 +2167,7 @@ export default function QuickDeliverableClient() {
               </section>
               )}
 
-              {currentStep === 4 && (
+              {currentStep === 3 && (
               <section ref={portionsSectionRef} className="rounded-3xl border border-slate-200 bg-white p-10 shadow-sm">
                 <div className="flex items-center justify-between gap-3">
                   <div>
@@ -2347,7 +2285,7 @@ export default function QuickDeliverableClient() {
               </section>
               )}
 
-              {currentStep === 5 && (
+              {currentStep === 4 && (
               <section ref={summarySectionRef} className="rounded-3xl border border-slate-200 bg-slate-900 p-10 text-white shadow-sm">
                 <p className="text-[11px] font-black uppercase tracking-[0.25em] text-slate-400">
                   Resumen express
@@ -2386,18 +2324,7 @@ export default function QuickDeliverableClient() {
                 </div>
               </section>
               )}
-            </div>
-          </div>
-          <div className="flex items-center justify-between gap-3 rounded-3xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-            <div className="min-w-0">
-              <p className="text-[11px] font-black uppercase tracking-[0.24em] text-slate-400">Navegación por etapas</p>
-              <p className="text-sm font-medium text-slate-600">Cambia entre secciones sin perder contexto.</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button type="button" variant="outline" onClick={goBack} disabled={currentStep === 0} className="h-10 rounded-xl border-slate-200 px-4 font-semibold text-slate-600 cursor-pointer">Anterior</Button>
-              <Button type="button" onClick={goNext} disabled={currentStep === WIZARD_STEPS.length - 1} className="h-10 rounded-xl bg-indigo-600 px-4 font-semibold text-white hover:bg-indigo-700 cursor-pointer">Siguiente</Button>
-            </div>
-          </div>
+        </PlanWizardShell>
         </div>
       </ModuleLayout>
 
@@ -2566,7 +2493,7 @@ export default function QuickDeliverableClient() {
                 quickAiMode === "ai" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500",
               )}
             >
-              Utilizar IA para generar
+              Pedirle a Naty que genere
             </button>
             <button
               type="button"
@@ -2584,7 +2511,7 @@ export default function QuickDeliverableClient() {
               <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-slate-700">
                 <p className="font-black text-slate-900">Generacion asistida</p>
                 <p className="mt-1 text-xs text-slate-600">
-                  La IA recibe categorias, espacios vacios y tus notas para completar solo la columna de alimentos.
+                  Naty recibe categorías, espacios vacíos y tus notas para completar solo la columna de alimentos.
                   Puedes seguir editando mientras trabaja.
                 </p>
               </div>
@@ -2636,19 +2563,7 @@ export default function QuickDeliverableClient() {
                   <X className="mr-2 h-4 w-4" />
                   Cerrar
                 </Button>
-                <Button
-                  className="rounded-2xl bg-emerald-600 text-white hover:bg-emerald-700"
-                  onClick={() => void generateMealsWithAi()}
-                  disabled={isGeneratingQuickAi || quickAiMealTargets.length === 0}
-                >
-                                    {isGeneratingQuickAi ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Sparkles className="mr-2 h-4 w-4" />
-                  )}
-                  {isGeneratingQuickAi ? "Generando..." : "Generar con IA"}
-
-                </Button>
+                <NatyButton onClick={() => void generateMealsWithAi()} isLoading={isGeneratingQuickAi} disabled={quickAiMealTargets.length === 0} label="Generar con Naty" />
               </div>
             </div>
           )}
