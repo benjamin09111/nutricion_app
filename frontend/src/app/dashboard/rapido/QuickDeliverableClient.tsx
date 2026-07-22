@@ -14,6 +14,7 @@ import {
   ChevronDown,
   User,
   RotateCcw,
+  FileText,
 } from "lucide-react";
 import Cookies from "js-cookie";
 import { useSearchParams } from "next/navigation";
@@ -1567,28 +1568,53 @@ export default function QuickDeliverableClient() {
           </details>
 
           {/* Paciente */}
-          <details className="group rounded-2xl border border-slate-200 bg-white [&[open]]:pb-6" open={selectedPatient.source === "imported" || isManualPatientExpanded}>
-            <summary className="flex cursor-pointer flex-wrap items-center gap-3 px-6 py-4 select-none">
-              <p className="text-[11px] font-black uppercase tracking-[0.25em] text-slate-400">PACIENTE</p>
-              <div className="h-px min-w-10 flex-1 bg-slate-200" />
-              <button
-                type="button"
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); void openPatientImportModal(); }}
-                className="cursor-pointer text-xs font-semibold text-emerald-700 underline decoration-emerald-300 underline-offset-4 transition-colors hover:text-emerald-800 hover:decoration-emerald-500"
-              >
-                IMPORTAR
-              </button>
-              <span className="text-xs font-semibold text-slate-400">o</span>
-              <button
-                type="button"
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); startManualPatientEntry(); }}
-                className="cursor-pointer text-xs font-semibold text-emerald-700 underline decoration-emerald-300 underline-offset-4 transition-colors hover:text-emerald-800 hover:decoration-emerald-500"
-              >
-                Rellenar manualmente
-              </button>
-            </summary>
+          <div className="rounded-2xl border border-slate-200 bg-white px-6 py-4">
+            {!selectedPatient.fullName?.trim() ? (
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-[11px] font-black uppercase tracking-[0.25em] text-slate-400">PACIENTE</p>
+                <div className="flex flex-wrap items-center gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => void openPatientImportModal()}
+                    className="h-9 rounded-xl border-emerald-200 bg-white px-4 text-sm text-emerald-700 font-semibold hover:bg-emerald-50 hover:border-emerald-300 transition-all"
+                  >
+                    <User className="mr-2 h-4 w-4" />
+                    Importar paciente
+                  </Button>
+                  <span className="text-xs font-semibold text-slate-400">o</span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={startManualPatientEntry}
+                    className="h-9 rounded-xl border-slate-200 bg-white px-4 text-sm text-slate-700 font-semibold hover:bg-slate-50 hover:border-slate-300 transition-all"
+                  >
+                    <FileText className="mr-2 h-4 w-4" />
+                    Rellenar manualmente
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-[11px] font-black uppercase tracking-[0.25em] text-slate-400">PACIENTE</p>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5">
+                    <User className="h-4 w-4 text-emerald-600" />
+                    <span className="text-sm font-semibold text-emerald-900">{selectedPatient.fullName}</span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => void openPatientImportModal()}
+                    className="h-9 rounded-xl border-emerald-200 bg-white px-3 text-sm text-emerald-700 font-semibold hover:bg-emerald-50 hover:border-emerald-300 transition-all"
+                  >
+                    Cambiar
+                  </Button>
+                </div>
+              </div>
+            )}
 
-            <div className="px-6 space-y-4">
+            <div className="mt-4 space-y-4">
               {selectedPatient.fullName?.trim() && (
                 <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4">
                   <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -1705,7 +1731,7 @@ export default function QuickDeliverableClient() {
                 </div>
               )}
             </div>
-          </details>
+          </div>
 
         </div>
 
