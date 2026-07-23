@@ -84,7 +84,12 @@ export default function AuthCallbackClient({ fallbackMessage }: Props = {}) {
         }
         setCurrentUser(data.user);
 
-        const postRutNext = data.user?.requiresPlanSelection ? "/plan" : next;
+        const isAdmin = ["ADMIN", "ADMIN_MASTER", "ADMIN_GENERAL"].includes(
+          data.user?.role || "",
+        );
+        const targetPath = next === "/dashboard" && isAdmin ? "/dashboard/admin" : next;
+        const postRutNext = data.user?.requiresPlanSelection ? "/plan" : targetPath;
+
         if (!data.user?.rut) {
           router.replace(
             `/onboarding/rut?next=${encodeURIComponent(postRutNext)}`,

@@ -104,9 +104,14 @@ export class AuthController {
       );
     const result = await this.authService.loginWithGoogle(callback.profile);
     const ticket = await this.authService.createOAuthSessionTicket(result);
+    const railwayUrl = process.env.RAILWAY_PUBLIC_DOMAIN
+      ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+      : undefined;
     const frontendUrl = resolveRequiredUrl(
       process.env.FRONTEND_URL,
       process.env.NEXT_PUBLIC_FRONTEND_URL,
+      process.env.API_URL,
+      railwayUrl,
     );
     const targetUrl = `${frontendUrl}/auth/callback?ticket=${encodeURIComponent(ticket)}&next=${encodeURIComponent(resolveSafePostAuthPath(callback.next))}`;
     return res.redirect(targetUrl);

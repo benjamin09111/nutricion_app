@@ -1,3 +1,5 @@
+import { InternalServerErrorException } from '@nestjs/common';
+
 export const normalizeUrl = (value: string) => value.replace(/\/$/, '');
 
 export const resolveRequiredUrl = (
@@ -8,7 +10,9 @@ export const resolveRequiredUrl = (
   );
 
   if (!value) {
-    throw new Error('Missing required URL configuration');
+    throw new InternalServerErrorException(
+      'Configuración de URL del servidor requerida no disponible en las variables de entorno',
+    );
   }
 
   return normalizeUrl(value.trim());

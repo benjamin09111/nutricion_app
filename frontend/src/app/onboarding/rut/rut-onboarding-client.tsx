@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/Button";
 import { fetchApi } from "@/lib/api-base";
 import { formatRut, validateRut } from "@/lib/rut-utils";
 import { getCurrentUser, setCurrentUser } from "@/lib/current-user";
+import { getAuthToken } from "@/lib/auth-token";
+import { persistAuthSession } from "@/features/auth/services/auth.service";
 
 const DEFAULT_NEXT = "/dashboard";
 
@@ -38,7 +40,9 @@ export function RutOnboardingClient() {
   useEffect(() => {
     const hydrate = async () => {
       try {
-        const response = await fetchApi("/auth/me");
+        const response = await fetchApi("/auth/me", {
+          headers: { Authorization: `Bearer ${getAuthToken()}` },
+        });
 
         if (!response.ok) {
           router.replace("/login");
@@ -79,7 +83,10 @@ export function RutOnboardingClient() {
     try {
       const response = await fetchApi("/auth/me/rut", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${getAuthToken()}`,
+        },
         body: JSON.stringify({ rut: normalizedRut }),
       });
 
@@ -89,7 +96,11 @@ export function RutOnboardingClient() {
         throw new Error(data?.message || "No pudimos registrar tu RUT");
       }
 
-      setCurrentUser(data.user);
+      if (data.access_token) {
+        persistAuthSession(data.access_token, data.user);
+      } else {
+        setCurrentUser(data.user);
+      }
       router.replace(next);
     } catch (submitError) {
       setError(

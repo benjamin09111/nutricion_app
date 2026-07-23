@@ -64,16 +64,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Sesión inválida');
     }
 
-    if (
-      account.lastLoginAt &&
-      typeof payload?.iat === 'number' &&
-      Math.floor(account.lastLoginAt.getTime() / 1000) > payload.iat
-    ) {
-      throw new UnauthorizedException(
-        `Su plan ha sido actualizado ${payload.email}, por favor, vuelva a iniciar sesión por seguridad.`,
-      );
-    }
-
     return {
       id: payload.sub,
       email: account.email,
