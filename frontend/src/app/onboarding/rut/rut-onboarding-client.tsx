@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { fetchApi } from "@/lib/api-base";
 import { formatRut, validateRut } from "@/lib/rut-utils";
 import { getCurrentUser, setCurrentUser } from "@/lib/current-user";
+import { getAuthToken } from "@/lib/auth-token";
 
 const DEFAULT_NEXT = "/dashboard";
 
@@ -38,7 +39,9 @@ export function RutOnboardingClient() {
   useEffect(() => {
     const hydrate = async () => {
       try {
-        const response = await fetchApi("/auth/me");
+        const response = await fetchApi("/auth/me", {
+          headers: { Authorization: `Bearer ${getAuthToken()}` },
+        });
 
         if (!response.ok) {
           router.replace("/login");
@@ -79,7 +82,10 @@ export function RutOnboardingClient() {
     try {
       const response = await fetchApi("/auth/me/rut", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${getAuthToken()}`,
+        },
         body: JSON.stringify({ rut: normalizedRut }),
       });
 

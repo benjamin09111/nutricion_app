@@ -73,21 +73,26 @@ export class GoogleIntegrationService {
   ) {}
 
   private getFrontendUrl() {
+    const railwayUrl = process.env.RAILWAY_PUBLIC_DOMAIN
+      ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+      : undefined;
     return resolveRequiredUrl(
       this.configService.get<string>('FRONTEND_URL'),
       this.configService.get<string>('NEXT_PUBLIC_FRONTEND_URL'),
+      this.configService.get<string>('API_URL'),
+      railwayUrl,
     );
   }
 
   private getAppSecret() {
     const secret =
       this.configService.get<string>('OAUTH_STATE_SECRET') ||
-      (process.env.NODE_ENV !== 'production'
-        ? this.configService.get<string>('JWT_SECRET')
-        : undefined);
+      this.configService.get<string>('JWT_SECRET');
 
     if (!secret) {
-      throw new Error('OAUTH_STATE_SECRET is required');
+      throw new BadRequestException(
+        'Configuración de seguridad incompleta en el servidor (OAUTH_STATE_SECRET / JWT_SECRET no configurado)',
+      );
     }
 
     return secret;
@@ -105,9 +110,14 @@ export class GoogleIntegrationService {
     const apiUrl = this.configService
       .get<string>('API_URL')
       ?.replace(/\/$/, '');
+    const railwayUrl = process.env.RAILWAY_PUBLIC_DOMAIN
+      ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+      : undefined;
+
     return resolveRequiredUrl(
       this.configService.get<string>('GOOGLE_AUTH_REDIRECT_URI'),
       apiUrl ? `${apiUrl}/auth/google/callback` : undefined,
+      railwayUrl ? `${railwayUrl}/auth/google/callback` : undefined,
     );
   }
 
@@ -115,9 +125,14 @@ export class GoogleIntegrationService {
     const apiUrl = this.configService
       .get<string>('API_URL')
       ?.replace(/\/$/, '');
+    const railwayUrl = process.env.RAILWAY_PUBLIC_DOMAIN
+      ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+      : undefined;
+
     return resolveRequiredUrl(
       this.configService.get<string>('GOOGLE_CALENDAR_REDIRECT_URI'),
       apiUrl ? `${apiUrl}/calendars/google/callback` : undefined,
+      railwayUrl ? `${railwayUrl}/calendars/google/callback` : undefined,
     );
   }
 
@@ -125,9 +140,6 @@ export class GoogleIntegrationService {
     const configuredKey = this.configService.get<string>(
       'GOOGLE_TOKEN_ENCRYPTION_KEY',
     );
-    if (!configuredKey && process.env.NODE_ENV === 'production') {
-      throw new Error('GOOGLE_TOKEN_ENCRYPTION_KEY is required');
-    }
 
     return createHash('sha256')
       .update(configuredKey || this.getAppSecret())
@@ -218,7 +230,13 @@ export class GoogleIntegrationService {
   }
 
   private verifyState(token: string) {
-    return jwt.verify(token, this.getAppSecret()) as GoogleState;
+    try {
+      return jwt.verify(token, this.getAppSecret()) as GoogleState;
+    } catch (err) {
+      throw new BadRequestException(
+        'La sesión de autenticación con Google expiró o es inválida. Intenta nuevamente.',
+      );
+    }
   }
 
   private buildGoogleAuthUrl(params: {
@@ -252,6 +270,13 @@ export class GoogleIntegrationService {
     browserBinding: string;
     codeChallenge: string;
   }) {
+    const clientId = this.getGoogleClientId();
+    if (!clientId) {
+      throw new BadRequestException(
+        'El inicio de sesión con Google no está configurado en el servidor (falta la variable GOOGLE_CLIENT_ID).',
+      );
+    }
+
     return this.buildGoogleAuthUrl({
       state: {
         mode: 'login',

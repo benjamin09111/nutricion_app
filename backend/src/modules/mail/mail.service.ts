@@ -32,10 +32,17 @@ export class MailService {
     DEFAULT_REPLY_TO ||
     process.env.ADMIN_EMAIL?.trim() ||
     'contacto@nutrinet.cl';
-  private readonly frontendUrl = resolveRequiredUrl(
-    process.env.FRONTEND_URL,
-    process.env.NEXT_PUBLIC_FRONTEND_URL,
-  );
+  private get frontendUrl() {
+    const railwayUrl = process.env.RAILWAY_PUBLIC_DOMAIN
+      ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+      : undefined;
+    return resolveRequiredUrl(
+      process.env.FRONTEND_URL,
+      process.env.NEXT_PUBLIC_FRONTEND_URL,
+      process.env.API_URL,
+      railwayUrl,
+    );
+  }
   private readonly adminEmail =
     process.env.ADMIN_EMAIL?.trim() || this.replyTo || 'contacto@nutrinet.cl';
 

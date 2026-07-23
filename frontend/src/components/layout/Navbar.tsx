@@ -452,7 +452,11 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
                       isAdminView ? "text-indigo-600" : "text-emerald-600",
                     )}
                   >
-                    {isAdminView ? "Admin" : `Plan ${planName}`}
+                    {isAdminView
+                      ? "Admin"
+                      : planName.toLowerCase().startsWith("plan")
+                      ? planName
+                      : `Plan ${planName}`}
                   </p>
                 </div>
 

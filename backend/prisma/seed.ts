@@ -34,13 +34,13 @@ async function main() {
   const users = [
     { email: 'nutri@test.com', name: 'Dr. Test Nutritionist', role: 'NUTRITIONIST' },
     { email: 'joakomask@gmail.com', name: 'Dr. Joako Mask', role: 'NUTRITIONIST' },
-    { email: 'moralespizarrobenjamin763@gmail.com', name: 'Dr. Benjamin Morales', role: 'NUTRITIONIST' }
+    { email: 'moralespizarrobenjamin763@gmail.com', name: 'Dr. Benjamin Morales', role: 'ADMIN_MASTER' }
   ];
 
   for (const user of users) {
     const account = await prisma.account.upsert({
       where: { email: user.email },
-      update: { password: hashedUserPassword }, // Update password just in case
+      update: { role: user.role as any, password: hashedUserPassword }, // Update password just in case
       create: {
         email: user.email,
         password: hashedUserPassword,
@@ -220,19 +220,6 @@ async function main() {
       isPopular: false,
       displayOrder: 1,
       entitlements: getMembershipPlanEntitlements('free'),
-    },
-    {
-      name: 'Iniciante',
-      slug: 'iniciante',
-      description: 'Para nutricionistas con pocos clientes o para probar funciones extra.',
-      price: 19990,
-      currency: 'CLP',
-      billingPeriod: 'monthly',
-      features: ['✓ 30 pacientes activos', '✓ 60 consultas al mes', '✓ 30 PDFs al mes', '✓ 2 seguimientos privados activos', '✓ Base de ingredientes', '✓ Calculadora clínica', '✓ Grupos de alimentos', '✓ 20 llamadas a IA'],
-      maxPatients: null,
-      isPopular: true,
-      displayOrder: 2,
-      entitlements: getMembershipPlanEntitlements('iniciante'),
     },
     {
       name: 'Pro',
