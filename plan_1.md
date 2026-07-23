@@ -1,1 +1,0 @@
-hace una revisión del módulo de pacientes, su CRUD e interfaces, incluyendo el seguimiento. Ves algún error o algo de mejora?
