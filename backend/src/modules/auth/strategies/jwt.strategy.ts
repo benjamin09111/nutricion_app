@@ -7,11 +7,17 @@ import type { Request } from 'express';
 import {
   AUTH_SESSION_COOKIE,
   LEGACY_AUTH_SESSION_COOKIE,
+  LEGACY_NUTRINET_SESSION_COOKIE,
 } from '../auth-cookie.constants';
 
 const extractTokenFromCookie = (request: Request) => {
   const cookieHeader = request.headers.cookie || '';
-  for (const cookieName of [AUTH_SESSION_COOKIE, LEGACY_AUTH_SESSION_COOKIE]) {
+  // Check current unified cookie first, then legacy names for backward compat
+  for (const cookieName of [
+    AUTH_SESSION_COOKIE,
+    LEGACY_NUTRINET_SESSION_COOKIE,
+    LEGACY_AUTH_SESSION_COOKIE,
+  ]) {
     const match = cookieHeader.match(
       new RegExp(`(?:^|;\\s*)${cookieName}=([^;]+)`),
     );

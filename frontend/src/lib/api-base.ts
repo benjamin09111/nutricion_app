@@ -46,15 +46,17 @@ export async function fetchApi(
       };
       const responseWithTenant = await fetch(`${origin}${path}`, requestInit);
 
-      const hasToken =
+      // Check for presence indicator instead of the actual JWT
+      // (the JWT is httpOnly and not accessible via document.cookie)
+      const hasSession =
         typeof document !== "undefined" &&
         document.cookie
           .split(";")
-          .some((item) => item.trim().startsWith("auth_token="));
+          .some((item) => item.trim().startsWith("auth_session_present="));
 
       if (
         responseWithTenant.status === 401 &&
-        hasToken &&
+        hasSession &&
         typeof window !== "undefined" &&
         window.location.pathname !== "/login"
       ) {
@@ -76,10 +78,14 @@ export async function fetchApi(
         if (!(window as any)._isRedirectingToLogin) {
           (window as any)._isRedirectingToLogin = true;
           import("js-cookie").then((m) => {
+            // Clear presence indicator – httpOnly JWT cleared by backend /logout
+            m.default.remove("auth_session_present");
+            // Clean up legacy cookies from old sessions
             m.default.remove("auth_token");
             m.default.remove("auth_token_http");
             m.default.remove("user");
           });
+          try { localStorage.removeItem("auth_token"); } catch { /* ignore */ }
           clearCurrentUser();
           import("sonner").then(({ toast }) => {
             toast.error(errorMessage, { id: "session-expired", duration: 3000 });

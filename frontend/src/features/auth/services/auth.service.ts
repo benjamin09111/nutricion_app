@@ -8,19 +8,17 @@ import {
 } from "@/lib/current-user";
 import Cookies from "js-cookie";
 
+/**
+ * Called after a successful login/OAuth exchange.
+ * The JWT is already set as an httpOnly cookie by the backend – we must NOT
+ * store it here. We only persist user metadata for display purposes.
+ */
 export function persistAuthSession(
-  accessToken: string,
+  _accessToken: string,
   user?: CurrentUser,
-  rememberMe = true,
 ) {
-  const cookieOptions = {
-    expires: rememberMe ? 30 : 1,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict" as const,
-  };
-
-  Cookies.set("auth_token", accessToken, cookieOptions);
-  localStorage.removeItem("auth_token");
+  // Do NOT store the JWT in localStorage or non-httpOnly cookie.
+  // The backend already set auth_session (httpOnly) and auth_session_present.
   if (user) setCurrentUser(user);
 }
 
@@ -44,13 +42,9 @@ export const authService = {
       throw new Error(message);
     }
 
-    if (data.access_token) {
-      persistAuthSession(
-        data.access_token,
-        data.user,
-        credentials.rememberMe,
-      );
-    }
+    // Backend already set httpOnly cookie + presence indicator via Set-Cookie.
+    // We only persist user display data.
+    if (data.user) setCurrentUser(data.user);
 
     return data;
   },
@@ -87,10 +81,12 @@ export const authService = {
     // Clear Supabase session if any (for future features like calendar integration)
     await supabase.auth.signOut();
     await fetchApi(`/auth/logout`, { method: "POST" }).catch(() => undefined);
-    // Clear cookies
+    // Clear presence indicator (httpOnly cookies are cleared by the backend /logout)
+    Cookies.remove("auth_session_present");
+    // Clean up any legacy cookies that might still exist in old sessions
     Cookies.remove("auth_token");
     Cookies.remove("auth_token_http");
-    localStorage.removeItem("auth_token");
+    try { localStorage.removeItem("auth_token"); } catch { /* ignore */ }
     clearCurrentUser();
   },
 };

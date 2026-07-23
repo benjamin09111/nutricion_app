@@ -40,7 +40,9 @@ const isAllowedWorkerAdminPath = (pathname: string) =>
   );
 
 export default function proxy(request: NextRequest) {
-  const token = request.cookies.get("auth_token")?.value;
+  // auth_session_present is a non-httpOnly cookie (value "1") set by the backend
+  // alongside the httpOnly JWT. It signals that a session exists without exposing the token.
+  const token = request.cookies.get("auth_session_present")?.value;
   const userData = request.cookies.get("user")?.value;
   const { pathname } = request.nextUrl;
 
@@ -89,7 +91,7 @@ export default function proxy(request: NextRequest) {
 
   if (userParseFailed) {
     const response = NextResponse.redirect(new URL("/login", request.url));
-    response.cookies.delete("auth_token");
+    response.cookies.delete("auth_session_present");
     response.cookies.delete("user");
     return response;
   }

@@ -29,8 +29,12 @@ import { ResendVerificationDto } from './dto/resend-verification.dto';
 import { resolveSafePostAuthPath } from '../../common/utils/safe-redirect.util';
 import {
   AUTH_SESSION_COOKIE,
+  AUTH_PRESENCE_COOKIE,
   LEGACY_AUTH_SESSION_COOKIE,
+  LEGACY_SENTINEL_COOKIE,
+  LEGACY_NUTRINET_SESSION_COOKIE,
   authSessionCookieOptions,
+  authPresenceCookieOptions,
 } from './auth-cookie.constants';
 import { RolesGuard } from './guards/roles.guard';
 import { Roles } from './guards/roles.decorator';
@@ -135,28 +139,34 @@ export class AuthController {
       throw new UnauthorizedException('Ticket inválido o expirado');
     }
 
-    res.cookie('auth_token', 'session', {
-      httpOnly: false,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-    });
-
+    // httpOnly JWT – never readable by JS (XSS-safe)
     res.cookie(
       AUTH_SESSION_COOKIE,
       session.access_token,
       authSessionCookieOptions(30 * 24 * 60 * 60 * 1000),
     );
 
-    return { user: session.user, access_token: session.access_token };
+    // Non-httpOnly presence indicator – only signals that a session exists
+    res.cookie(
+      AUTH_PRESENCE_COOKIE,
+      '1',
+      authPresenceCookieOptions(30 * 24 * 60 * 60 * 1000),
+    );
+
+    // Return user data only – JWT stays in httpOnly cookie, never in JS
+    return { user: session.user };
   }
 
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   logout(@Res({ passthrough: true }) res: Response) {
-    res.clearCookie('auth_token', { path: '/' });
+    // Current session cookies
     res.clearCookie(AUTH_SESSION_COOKIE, { path: '/' });
+    res.clearCookie(AUTH_PRESENCE_COOKIE, { path: '/' });
+    // Legacy cookie names (clean-up for existing sessions)
     res.clearCookie(LEGACY_AUTH_SESSION_COOKIE, { path: '/' });
+    res.clearCookie(LEGACY_SENTINEL_COOKIE, { path: '/' });
+    res.clearCookie(LEGACY_NUTRINET_SESSION_COOKIE, { path: '/' });
     res.clearCookie('auth_session', { path: '/' });
     return { success: true };
   }
@@ -181,14 +191,19 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const result = await this.authService.login(loginDto);
+    const maxAge = loginDto.rememberMe
+      ? 30 * 24 * 60 * 60 * 1000
+      : 24 * 60 * 60 * 1000;
 
+    // httpOnly JWT – never readable by JS (XSS-safe)
     res.cookie(
       AUTH_SESSION_COOKIE,
       result.access_token,
-      authSessionCookieOptions(
-        loginDto.rememberMe ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000,
-      ),
+      authSessionCookieOptions(maxAge),
     );
+
+    // Non-httpOnly presence indicator
+    res.cookie(AUTH_PRESENCE_COOKIE, '1', authPresenceCookieOptions(maxAge));
 
     return result;
   }
