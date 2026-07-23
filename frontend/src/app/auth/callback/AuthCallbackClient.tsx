@@ -63,35 +63,29 @@ export default function AuthCallbackClient({ fallbackMessage }: Props = {}) {
         if (!exchangedSession?.user) {
           throw new Error("Google no devolvió una sesión válida.");
         }
-        // JWT is already in the httpOnly cookie set by the backend.
-        // We only store user display data.
-        setCurrentUser(exchangedSession.user);
 
-        const response = await fetchApi("/auth/me");
+        const user = exchangedSession.user;
 
-        if (!response.ok) {
-          throw new Error("No pudimos completar la sesión.");
-        }
-
-        const data = await response.json();
+        // JWT is already in the httpOnly cookie (auth_session) set by the backend.
+        // oauth/exchange returns the full user payload – no need to call /auth/me separately.
         try {
           const previousUser = getCurrentUser();
-          if (previousUser?.id && previousUser.id !== data.user?.id) {
+          if (previousUser?.id && previousUser.id !== user?.id) {
             DRAFT_STORAGE_KEYS.forEach((key) => localStorage.removeItem(key));
             SESSION_DRAFT_KEYS.forEach((key) => sessionStorage.removeItem(key));
           }
         } catch (error) {
           console.error("Error clearing stale draft storage", error);
         }
-        setCurrentUser(data.user);
+        setCurrentUser(user);
 
         const isAdmin = ["ADMIN", "ADMIN_MASTER", "ADMIN_GENERAL"].includes(
-          data.user?.role || "",
+          user?.role || "",
         );
         const targetPath = next === "/dashboard" && isAdmin ? "/dashboard/admin" : next;
-        const postRutNext = data.user?.requiresPlanSelection ? "/plan" : targetPath;
+        const postRutNext = user?.requiresPlanSelection ? "/plan" : targetPath;
 
-        if (!data.user?.rut) {
+        if (!user?.rut) {
           router.replace(
             `/onboarding/rut?next=${encodeURIComponent(postRutNext)}`,
           );

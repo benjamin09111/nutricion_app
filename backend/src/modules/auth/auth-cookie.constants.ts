@@ -13,10 +13,17 @@ export const LEGACY_SENTINEL_COOKIE = 'auth_token';
 export const LEGACY_NUTRINET_SESSION_COOKIE = 'nutrinet_session';
 
 // ─── Cookie option factories ──────────────────────────────────────────────────
+// In production, frontend and backend are on different Railway domains.
+// SameSite=None is REQUIRED for httpOnly cookies to be sent in cross-origin
+// fetch requests with credentials:"include". SameSite=Lax only works for
+// same-site requests and top-level navigation.
+// SameSite=None mandates Secure=true (already enforced in production).
 export const authSessionCookieOptions = (maxAge?: number) => ({
   httpOnly: true as const,
   secure: process.env.NODE_ENV === 'production',
-  sameSite: 'lax' as const,
+  sameSite: (process.env.NODE_ENV === 'production' ? 'none' : 'lax') as
+    | 'none'
+    | 'lax',
   path: '/',
   ...(maxAge ? { maxAge } : {}),
 });
@@ -25,7 +32,9 @@ export const authSessionCookieOptions = (maxAge?: number) => ({
 export const authPresenceCookieOptions = (maxAge?: number) => ({
   httpOnly: false as const,
   secure: process.env.NODE_ENV === 'production',
-  sameSite: 'lax' as const,
+  sameSite: (process.env.NODE_ENV === 'production' ? 'none' : 'lax') as
+    | 'none'
+    | 'lax',
   path: '/',
   ...(maxAge ? { maxAge } : {}),
 });
