@@ -8,6 +8,7 @@ import { fetchApi } from "@/lib/api-base";
 import { formatRut, validateRut } from "@/lib/rut-utils";
 import { getCurrentUser, setCurrentUser } from "@/lib/current-user";
 import { getAuthToken } from "@/lib/auth-token";
+import { persistAuthSession } from "@/features/auth/services/auth.service";
 
 const DEFAULT_NEXT = "/dashboard";
 
@@ -95,7 +96,11 @@ export function RutOnboardingClient() {
         throw new Error(data?.message || "No pudimos registrar tu RUT");
       }
 
-      setCurrentUser(data.user);
+      if (data.access_token) {
+        persistAuthSession(data.access_token, data.user);
+      } else {
+        setCurrentUser(data.user);
+      }
       router.replace(next);
     } catch (submitError) {
       setError(

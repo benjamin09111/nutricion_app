@@ -1,6 +1,6 @@
 export const AUTH_SESSION_COOKIE =
   process.env.NODE_ENV === 'production'
-    ? '__Host-nutrinet_session'
+    ? 'nutrinet_session'
     : 'auth_token_http';
 
 export const LEGACY_AUTH_SESSION_COOKIE = 'auth_token_http';
