@@ -31,6 +31,7 @@ export type PatientAiContextSource = {
   clinicalSummary?: string | null;
   dietRestrictions?: unknown;
   likes?: string | null;
+  dislikedFoods?: unknown;
   customVariables?: unknown;
   clinicalRecord?: PatientAiClinicalRecord | null;
   consultations?: PatientAiConsultation[] | null;
@@ -74,7 +75,9 @@ function trimText(value: unknown, maxLength = 240) {
   if (typeof value !== 'string') return undefined;
   const trimmed = value.trim();
   if (!trimmed) return undefined;
-  return trimmed.length > maxLength ? `${trimmed.slice(0, maxLength - 1)}…` : trimmed;
+  return trimmed.length > maxLength
+    ? `${trimmed.slice(0, maxLength - 1)}…`
+    : trimmed;
 }
 
 function toPositiveNumber(value: unknown) {
@@ -82,7 +85,10 @@ function toPositiveNumber(value: unknown) {
   return Number.isFinite(number) && number > 0 ? number : undefined;
 }
 
-function calculateAgeYears(age?: number | null, birthDate?: Date | string | null) {
+function calculateAgeYears(
+  age?: number | null,
+  birthDate?: Date | string | null,
+) {
   const storedAge = toPositiveNumber(age);
   if (storedAge !== undefined) return Math.round(storedAge);
 
@@ -95,10 +101,7 @@ function calculateAgeYears(age?: number | null, birthDate?: Date | string | null
   let years = today.getFullYear() - date.getFullYear();
   const monthDiff = today.getMonth() - date.getMonth();
 
-  if (
-    monthDiff < 0 ||
-    (monthDiff === 0 && today.getDate() < date.getDate())
-  ) {
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < date.getDate())) {
     years -= 1;
   }
 
@@ -179,8 +182,19 @@ function normalizeDietRestrictions(dietRestrictions: unknown) {
   return items.length > 0 ? items : undefined;
 }
 
-function summarizeConsultations(consultations?: PatientAiConsultation[] | null) {
-  if (!Array.isArray(consultations) || consultations.length === 0) return undefined;
+function normalizeStringList(value: unknown, maxLength = 20) {
+  if (!Array.isArray(value)) return undefined;
+  const items = value
+    .map((item) => trimText(item, 120))
+    .filter((item): item is string => Boolean(item));
+  return items.length > 0 ? items.slice(0, maxLength) : undefined;
+}
+
+function summarizeConsultations(
+  consultations?: PatientAiConsultation[] | null,
+) {
+  if (!Array.isArray(consultations) || consultations.length === 0)
+    return undefined;
 
   return consultations.slice(0, 3).map((consultation) => ({
     date:
@@ -233,8 +247,10 @@ export function buildPatientAiContext(
   const criticalMissing: string[] = [];
   if (ageYears === undefined) criticalMissing.push('edad');
   if (!source.gender) criticalMissing.push('sexo');
-  if (toPositiveNumber(source.weight) === undefined) criticalMissing.push('peso');
-  if (toPositiveNumber(source.height) === undefined) criticalMissing.push('talla');
+  if (toPositiveNumber(source.weight) === undefined)
+    criticalMissing.push('peso');
+  if (toPositiveNumber(source.height) === undefined)
+    criticalMissing.push('talla');
   if (!source.activityLevel) criticalMissing.push('nivel de actividad');
 
   const clinicalSection = compactValue({
@@ -246,6 +262,7 @@ export function buildPatientAiContext(
   const nutritionSection = compactValue({
     dietRestrictions: normalizeDietRestrictions(source.dietRestrictions),
     likes: source.likes,
+    dislikedFoods: normalizeStringList(source.dislikedFoods),
     nutritionalFocus: source.nutritionalFocus,
     fitnessGoals: source.fitnessGoals,
     anamnesis: clinicalRecord?.nutritionalAnamnesis,

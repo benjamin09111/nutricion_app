@@ -1,6 +1,7 @@
 import { Type } from 'class-transformer';
 import {
   IsArray,
+  IsBoolean,
   IsIn,
   IsInt,
   IsObject,
@@ -50,6 +51,11 @@ class QuickAiPatientDto {
   @IsString({ each: true })
   @IsOptional()
   healthTags?: string[];
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  dislikedFoods?: string[];
 
   @IsString()
   @IsOptional()
@@ -180,6 +186,10 @@ class QuickAiFillPayloadDto {
   @IsString({ each: true })
   @IsOptional()
   resources?: string[];
+
+  @IsOptional()
+  @IsBoolean()
+  allowExternalFoods?: boolean;
 
   @IsArray()
   @IsString({ each: true })

@@ -31,7 +31,7 @@ import { SaveCreationModal } from "@/components/ui/SaveCreationModal";
 import { ImportCreationModal } from "@/components/shared/ImportCreationModal";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { WorkflowContextBanner } from "@/components/shared/WorkflowContextBanner";
-import { NatyLoadingOverlay, NatyButton, PlanWizardShell } from "@/components/plans";
+import { NatyLoadingOverlay, NatyButton, PlanWizardShell, PromptPreviewButton } from "@/components/plans";
 import { fetchApi } from "@/lib/api-base";
 import { DEFAULT_CONSTRAINTS } from "@/lib/constants";
 import { fetchCreation, fetchProject, saveCreation } from "@/lib/workflow";
@@ -47,6 +47,15 @@ type PautaPatient = {
   ageYears?: number | null;
   weight?: number | null;
   height?: number | null;
+  gender?: string | null;
+  clinicalSummary?: string | null;
+  likes?: string | null;
+  dislikedFoods?: string[];
+  restrictions?: string[];
+  primaryCondition?: string | null;
+  nutritionalFocus?: string | null;
+  fitnessGoals?: string | null;
+  get?: number | null;
   source?: "manual" | "imported";
 };
 
@@ -131,6 +140,13 @@ type ImportedPatient = {
   ageYears?: number | null;
   weight?: number | null;
   height?: number | null;
+  gender?: string | null;
+  dietRestrictions?: string[];
+  primaryCondition?: string | null;
+  nutritionalFocus?: string | null;
+  fitnessGoals?: string | null;
+  likes?: string | null;
+  dislikedFoods?: string[];
 };
 
 const DEFAULT_TITLE = "Pauta de alimentación";
@@ -287,6 +303,7 @@ export default function PautasAlimentacionClient() {
   const [aiAllowedFoods, setAiAllowedFoods] = useState("");
   const [aiRestrictedFoods, setAiRestrictedFoods] = useState("");
   const [aiSelectedCategories, setAiSelectedCategories] = useState<string[]>([]);
+  const [allowExternalFoods, setAllowExternalFoods] = useState(false);
 
   // Control de Cambios (Dirty Tracking)
   const [lastSavedState, setLastSavedState] = useState<string | null>(null);
@@ -738,6 +755,13 @@ export default function PautasAlimentacionClient() {
       ageYears: patient.ageYears ?? null,
       weight: patient.weight ?? null,
       height: patient.height ?? null,
+      gender: patient.gender ?? null,
+      restrictions: patient.dietRestrictions || [],
+      primaryCondition: patient.primaryCondition,
+      nutritionalFocus: patient.nutritionalFocus,
+      fitnessGoals: patient.fitnessGoals,
+      likes: patient.likes,
+      dislikedFoods: patient.dislikedFoods || [],
       source: "imported",
     });
     setIsManualPatientExpanded(false);
@@ -1125,12 +1149,22 @@ export default function PautasAlimentacionClient() {
             .split(",")
             .map((item) => item.trim())
             .filter(Boolean),
+          allowExternalFoods,
           categories: aiSelectedCategories,
           patient: {
             fullName: selectedPatient.fullName || "",
             ageYears: selectedPatient.ageYears ?? undefined,
             weight: selectedPatient.weight ?? undefined,
-            height: selectedPatient.height ?? undefined,
+              height: selectedPatient.height ?? undefined,
+              gender: selectedPatient.gender || undefined,
+              clinicalSummary: selectedPatient.clinicalSummary || undefined,
+              likes: selectedPatient.likes || undefined,
+              dislikedFoods: selectedPatient.dislikedFoods || [],
+              restrictions: selectedPatient.restrictions || [],
+              primaryCondition: selectedPatient.primaryCondition || undefined,
+              nutritionalFocus: selectedPatient.nutritionalFocus || undefined,
+              fitnessGoals: selectedPatient.fitnessGoals || undefined,
+              get: selectedPatient.get ?? undefined,
           },
         }),
       });
@@ -1313,6 +1347,20 @@ export default function PautasAlimentacionClient() {
     toast.success("Pautas reiniciadas.");
   };
 
+  const buildPautaPromptPayload = () => ({
+    restriction: selectedRestriction,
+    allowedFoods: aiAllowedFoods.split(",").map((item) => item.trim()).filter(Boolean),
+    restrictedFoods: aiRestrictedFoods.split(",").map((item) => item.trim()).filter(Boolean),
+    categories: aiSelectedCategories,
+    allowExternalFoods,
+    patient: {
+      fullName: selectedPatient.fullName || "",
+      ageYears: selectedPatient.ageYears ?? undefined,
+      weight: selectedPatient.weight ?? undefined,
+      height: selectedPatient.height ?? undefined,
+    },
+  });
+
   // Elementos de la barra de navegación flotante ActionDock
   const actionItems: ActionDockItem[] = [
       {
@@ -1395,6 +1443,14 @@ export default function PautasAlimentacionClient() {
         description="Crea guías alimenticias para restricciones clínicas en una sola hoja bien distribuida."
         className="max-w-[68rem]"
         rightNavItems={actionItems}
+        rightContent={
+          <PromptPreviewButton
+            moduleName="Pautas de Alimentación"
+            endpoint="/pautas/ai-generate"
+            buildPayload={buildPautaPromptPayload}
+            expectedOutput="JSON con paragraphs, cada uno con categoría, alternativa, porciones y alimentos con porción."
+          />
+        }
       >
         <WorkflowContextBanner
           projectName={currentProjectName}
@@ -1510,25 +1566,28 @@ export default function PautasAlimentacionClient() {
           >
             {!selectedPatient.fullName?.trim() || isManualPatientExpanded ? (
               <summary
-                className="flex items-center justify-between gap-3 px-6 py-4 select-none pointer-events-none"
+                className="flex select-none px-6 py-6 pointer-events-none"
                 onClick={(e) => {
                   e.preventDefault();
                 }}
               >
                 <div
-                  className="flex flex-wrap items-center justify-between gap-3 w-full pointer-events-auto"
+                  className="flex w-full flex-col items-center gap-5 text-center pointer-events-auto"
                   onClick={(e) => {
                     e.stopPropagation();
                   }}
                 >
-                  <p className="text-[11px] font-black uppercase tracking-[0.25em] text-slate-400">PACIENTE</p>
-                  <div className="flex flex-wrap items-center gap-3">
+                  <div className="max-w-2xl">
+                    <p className="text-sm font-bold leading-6 text-amber-900">Puedes crear tu pauta sin paciente o importar uno para personalizar mejor la atención.</p>
+                    <p className="mt-2 text-xs leading-5 text-slate-500">Si importas un paciente, Naty considerará sus restricciones, objetivos y contexto clínico. El PDF sigue requiriendo un paciente vinculado.</p>
+                  </div>
+                  <div className="flex w-full flex-col justify-center gap-3 sm:w-auto sm:flex-row">
                     <Button
                       type="button"
                       variant="outline"
                       onClick={() => void openPatientModal()}
                       disabled={isLoadingPatients}
-                      className="h-9 rounded-xl border-emerald-200 bg-white px-4 text-sm text-emerald-700 font-semibold hover:bg-emerald-50 hover:border-emerald-300 transition-all"
+                      className="h-10 min-w-48 justify-center rounded-xl border-emerald-200 bg-white px-4 text-sm text-emerald-700 font-semibold hover:bg-emerald-50 hover:border-emerald-300 transition-all"
                     >
                       {isLoadingPatients ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin text-emerald-600" />
@@ -1537,7 +1596,6 @@ export default function PautasAlimentacionClient() {
                       )}
                       Importar paciente
                     </Button>
-                    <span className="text-xs font-semibold text-slate-400">o</span>
                     <Button
                       type="button"
                       variant="outline"
@@ -1546,10 +1604,10 @@ export default function PautasAlimentacionClient() {
                         setIsManualPatientExpanded(true);
                       }}
                       disabled={isLoadingPatients}
-                      className="h-9 rounded-xl border-slate-200 bg-white px-4 text-sm text-slate-700 font-semibold hover:bg-slate-50 hover:border-slate-300 transition-all"
+                      className="h-10 min-w-48 justify-center rounded-xl border-slate-200 bg-white px-4 text-sm text-slate-700 font-semibold hover:bg-slate-50 hover:border-slate-300 transition-all"
                     >
                       <FileText className="mr-2 h-4 w-4" />
-                      Completar manualmente
+                      Rellenar manualmente
                     </Button>
                   </div>
                 </div>
@@ -2502,8 +2560,9 @@ export default function PautasAlimentacionClient() {
             <TagInput
               value={educationalResourceTags}
               onChange={setEducationalResourceTags}
-              suggestions={[...DEFAULT_CONSTRAINTS.map((constraint) => constraint.id), ...restrictions.map((tag) => tag.name)]}
-              placeholder="Ej: diabetes, glicemia"
+               suggestions={restrictions.map((tag) => tag.name)}
+               helperText="Selecciona una sugerencia o presiona Enter para usar uno personalizado."
+               placeholder="Ej: diabetes, glicemia"
             />
           </div>
           <div className="space-y-1">
@@ -2640,6 +2699,18 @@ export default function PautasAlimentacionClient() {
                 />
                 <p className="mt-1 text-xs text-slate-400">Separados por coma</p>
               </div>
+              <label className="col-span-2 flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={allowExternalFoods}
+                  onChange={(event) => setAllowExternalFoods(event.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                <span>
+                  <span className="font-bold">Permitir alimentos fuera de la lista</span>
+                  <span className="mt-0.5 block text-xs text-slate-500">Los condimentos básicos podrán marcarse como opcionales.</span>
+                </span>
+              </label>
             </div>
           </div>
 

@@ -568,22 +568,43 @@ export class UsersService {
 
     return this.prisma.$transaction(async (tx) => {
       if (normalizedPlan === 'free') {
-        const subscriptions = await tx.subscription.findMany({
-          where: { accountId: userId },
-          select: { id: true },
+        const freePlan = await tx.membershipPlan.findFirst({
+          where: {
+            isActive: true,
+            OR: [
+              { slug: { contains: 'free', mode: 'insensitive' } },
+              { price: 0 },
+            ],
+          },
+          orderBy: { displayOrder: 'asc' },
         });
 
-        if (subscriptions.length > 0) {
-          await tx.subscriptionEvent.deleteMany({
-            where: {
-              subscriptionId: {
-                in: subscriptions.map((subscription) => subscription.id),
-              },
-            },
-          });
+        if (!freePlan) {
+          throw new Error('Plan Freemium no encontrado o inactivo');
         }
 
-        await tx.subscription.deleteMany({ where: { accountId: userId } });
+        const startDate = new Date();
+        const endDate = new Date(startDate);
+        endDate.setMonth(endDate.getMonth() + 1);
+
+        await tx.subscription.upsert({
+          where: { accountId: userId },
+          update: {
+            planId: freePlan.id,
+            status: 'ACTIVE',
+            startDate,
+            endDate,
+            cancelAtPeriodEnd: false,
+            canceledAt: null,
+          },
+          create: {
+            accountId: userId,
+            planId: freePlan.id,
+            status: 'ACTIVE',
+            startDate,
+            endDate,
+          },
+        });
 
         if (accountForPayment?.email) {
           void this.mailService
@@ -609,7 +630,7 @@ export class UsersService {
           where: { id: userId },
           data: {
             plan: SubscriptionPlan.FREE,
-            subscriptionEndsAt: null,
+            subscriptionEndsAt: endDate,
             membershipSelectedAt: new Date(),
             lastLoginAt: new Date(),
           },

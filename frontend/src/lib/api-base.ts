@@ -93,7 +93,14 @@ export async function fetchApi(
           const isPortalRoute =
             typeof window !== "undefined" &&
             window.location.pathname.startsWith("/portal");
+          const isPlanSessionStale = errorMessage
+            .toLowerCase()
+            .includes("cambio de plan");
           setTimeout(() => {
+            if (isPlanSessionStale) {
+              window.location.href = "/sesion-actualizada";
+              return;
+            }
             window.location.href = isPortalRoute ? "/portal/login" : "/login";
           }, 2000);
         }

@@ -405,7 +405,10 @@ export class PatientsService {
     });
   }
 
-  async getAiContext(nutritionistId: string, patientId: string): Promise<PatientAiContext> {
+  async getAiContext(
+    nutritionistId: string,
+    patientId: string,
+  ): Promise<PatientAiContext> {
     await this.assertOwnership(nutritionistId, patientId);
 
     const patient = await this.prisma.patient.findUnique({
@@ -423,6 +426,7 @@ export class PatientsService {
         clinicalSummary: true,
         dietRestrictions: true,
         likes: true,
+        dislikedFoods: true,
         customVariables: true,
         clinicalRecord: true,
         consultations: {

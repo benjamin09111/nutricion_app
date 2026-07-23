@@ -23,6 +23,7 @@ interface TagInputProps {
   openDirection?: "up" | "down";
   singleSelect?: boolean;
   tagsAbsolute?: boolean;
+  helperText?: string;
 }
 
 export function TagInput({
@@ -38,6 +39,7 @@ export function TagInput({
   openDirection = "down",
   singleSelect = false,
   tagsAbsolute = false,
+  helperText,
 }: TagInputProps) {
   const { isDarkMode } = useTheme();
   const [inputValue, setInputValue] = useState("");
@@ -233,6 +235,12 @@ export function TagInput({
             )}
           </div>
         </div>
+
+        {helperText && (
+          <p className="mt-2 px-1 text-[11px] font-medium text-slate-400">
+            {helperText}
+          </p>
+        )}
 
         {/* Suggestions Dropdown */}
         {showSuggestions && allSuggestions.length > 0 && (

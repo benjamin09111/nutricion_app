@@ -223,6 +223,10 @@ class AiFillPayloadDto {
   @IsBoolean()
   generalSnackFlexAllowed: boolean;
 
+  @IsBoolean()
+  @IsOptional()
+  allowExternalFoods?: boolean;
+
   @ValidateNested()
   @Type(() => AiFillRulesDto)
   rules: AiFillRulesDto;

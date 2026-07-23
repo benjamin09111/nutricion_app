@@ -45,6 +45,49 @@ export interface PautaAlimentacionPdfData {
   generatedAt?: string;
 }
 
+type ResourceBlock = {
+  text: string;
+  kind: "paragraph" | "heading" | "bullet";
+};
+
+const decodeHtmlEntities = (value: string) =>
+  value
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#039;|&apos;/gi, "'")
+    .replace(/&#(\d+);/g, (_, code: string) => String.fromCharCode(Number(code)))
+    .replace(/&#x([\da-f]+);/gi, (_, code: string) => String.fromCharCode(parseInt(code, 16)));
+
+const parseResourceContent = (content: string): ResourceBlock[] => {
+  const normalized = content
+    .replace(/(<li[^>]*>)\s*<p[^>]*>/gi, "$1")
+    .replace(/<\/p>\s*(?=<\/li>)/gi, "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<h[1-6][^>]*>/gi, "\n__HEADING__")
+    .replace(/<\/h[1-6\s]*>/gi, "\n")
+    .replace(/<li[^>]*>/gi, "\n__BULLET__")
+    .replace(/<\/li\s*>/gi, "\n")
+    .replace(/<\/?(?:p|div|section|article|blockquote)[^>]*>/gi, "\n")
+    .replace(/<[^>]+>/g, "");
+
+  return decodeHtmlEntities(normalized)
+    .split(/\r?\n/)
+    .map((line) => line.replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .map((line) => {
+      if (line.startsWith("__HEADING__")) {
+        return { kind: "heading" as const, text: line.slice("__HEADING__".length).trim() };
+      }
+      if (line.startsWith("__BULLET__")) {
+        return { kind: "bullet" as const, text: line.slice("__BULLET__".length).trim() };
+      }
+      return { kind: "paragraph" as const, text: line };
+    });
+};
+
 const styles = StyleSheet.create({
   page: {
     paddingTop: 28,
@@ -220,6 +263,26 @@ const styles = StyleSheet.create({
     color: "#334155",
     lineHeight: 1.4,
   },
+  resourceHeading: {
+    fontSize: 9.5,
+    fontFamily: "Helvetica-Bold",
+    color: "#0f172a",
+    marginTop: 5,
+    marginBottom: 3,
+  },
+  resourceParagraph: {
+    fontSize: 8.5,
+    color: "#334155",
+    lineHeight: 1.4,
+    marginBottom: 5,
+  },
+  resourceBullet: {
+    fontSize: 8.5,
+    color: "#334155",
+    lineHeight: 1.4,
+    marginBottom: 3,
+    paddingLeft: 8,
+  },
   footer: {
     position: "absolute",
     bottom: 16,
@@ -351,9 +414,26 @@ export const PautaAlimentacionPdfDocument: React.FC<{ data: PautaAlimentacionPdf
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>{data.resource.title}</Text>
             <View style={styles.resourceCard}>
-              <Text style={styles.resourceContent}>
-                {data.resource.content.replace(/<[^>]+>/g, "").slice(0, 800)}
-              </Text>
+              {parseResourceContent(data.resource.content)
+                .reduce<ResourceBlock[]>((blocks, block) => {
+                  const remaining = 800 - blocks.reduce((total, item) => total + item.text.length, 0);
+                  if (remaining <= 0) return blocks;
+                  return [...blocks, { ...block, text: block.text.slice(0, remaining) }];
+                }, [])
+                .map((block, index) => (
+                  <Text
+                    key={`${block.kind}-${index}`}
+                    style={
+                      block.kind === "heading"
+                        ? styles.resourceHeading
+                        : block.kind === "bullet"
+                          ? styles.resourceBullet
+                          : styles.resourceParagraph
+                    }
+                  >
+                    {block.kind === "bullet" ? "• " : ""}{block.text}
+                  </Text>
+                ))}
             </View>
           </View>
         )}

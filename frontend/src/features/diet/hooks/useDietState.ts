@@ -395,13 +395,7 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
   const fetchPatientDetail = async (
     patientId: string,
   ): Promise<DietPatient | null> => {
-    const token = getAuthToken();
-    if (!token) {
-      throw new Error("No se encontró una sesión activa.");
-    }
-
     const response = await fetchApi(`/patients/${patientId}`, {
-      headers: { Authorization: `Bearer ${token}` },
       cache: "no-store",
     });
 
@@ -510,11 +504,6 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
     setIsLoadingPatients(true);
     setPatientsError(null);
     try {
-      const token = getAuthToken();
-      if (!token) {
-        throw new Error("No se encontró una sesión activa.");
-      }
-
       const queryParams = new URLSearchParams({
         page: "1",
         limit: "1000",
@@ -522,7 +511,6 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
       });
 
       const response = await fetchApi(`/patients?${queryParams}`, {
-        headers: { Authorization: `Bearer ${token}` },
         cache: "no-store",
       });
 
@@ -1595,19 +1583,12 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
   };
 
   const handleCreateManualFood = async () => {
-    const token = getAuthToken();
-    if (!token) {
-      toast.error("No se encontró una sesión activa.");
-      return;
-    }
-
     setIsCreatingManualFood(true);
     try {
       const response = await fetchApi("/foods", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           name: foodSearchQuery.trim(),
@@ -1680,19 +1661,12 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
   const handleSaveDraftFood = async () => {
     if (!draftFoodToEdit?.id) return;
 
-    const token = getAuthToken();
-    if (!token) {
-      toast.error("No se encontró una sesión activa.");
-      return;
-    }
-
     setIsSavingDraftFood(true);
     try {
       const response = await fetchApi(`/foods/${draftFoodToEdit.id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           amount: Number(draftFoodValues.amount || 0),

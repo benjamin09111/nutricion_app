@@ -183,6 +183,7 @@ model Patient {
   primaryCondition  String?                   @map("primary_condition")
   tags              String[]                  @default([])
   likes             String?
+  dislikedFoods     String[]                  @default([]) @map("disliked_foods")
   consultations     Consultation[]
   exams             PatientExam[]
   portalInvitations PatientPortalInvitation[]

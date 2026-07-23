@@ -750,6 +750,16 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
                 />
               </div>
               <div className="space-y-1.5">
+                <label className="text-xs font-medium text-slate-500">Alimentos que no consume</label>
+                <TagInput
+                  value={draft.dislikedFoods || []}
+                  onChange={(tags) => updateDraft({ dislikedFoods: tags })}
+                  fetchSuggestionsUrl={`${getApiUrl()}/tags`}
+                  placeholder="Ej: pescado, legumbres..."
+                  className="rounded-xl bg-slate-50 border-transparent min-h-10 text-sm"
+                />
+              </div>
+              <div className="space-y-1.5">
                 <label className="text-xs font-medium text-slate-500">Observaciones clínicas</label>
                 <textarea
                   placeholder="Ej: Ansiedad por dulces, insomnio..."

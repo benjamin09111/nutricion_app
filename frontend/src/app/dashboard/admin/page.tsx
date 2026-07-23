@@ -7,35 +7,22 @@ import {
   ArrowDownRight,
   Activity,
   DollarSign,
-  Loader2,
   RefreshCw,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/Button";
-import Cookies from "js-cookie";
 import { fetchApi } from "@/lib/api-base";
 
 // API Fetcher
 const fetchStats = async () => {
-  const token =
-    Cookies.get("auth_token") ||
-    (typeof window !== "undefined" ? localStorage.getItem("auth_token") : null);
-
   console.log(
     "[Dashboard] Fetching stats from:",
     `/metrics/admin/dashboard`,
   );
-  console.log("[Dashboard] Token detected:", !!token);
-
-  if (!token) {
-    console.error("[Dashboard] No auth_token found");
-    throw new Error("No se encontró sesión activa");
-  }
 
   try {
-    const res = await fetchApi(`/metrics/admin/dashboard`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    // fetchApi sends the httpOnly auth_session cookie automatically.
+    const res = await fetchApi(`/metrics/admin/dashboard`);
 
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({}));

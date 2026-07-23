@@ -6,21 +6,13 @@ import {
   Users,
   Stethoscope,
   FileText,
-  Folder,
   Loader2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
-import { Input } from "@/components/ui/Input";
-import { Modal } from "@/components/ui/Modal";
 import { formatDateOnlyForLocale } from "@/features/patients/utils/patient-helpers";
-import {
-  buildProjectAwarePath,
-  createProject,
-  getWorkflowAuthHeaders,
-  WorkflowProject,
-} from "@/lib/workflow";
+import { getWorkflowAuthHeaders } from "@/lib/workflow";
 import { fetchApi } from "@/lib/api-base";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -38,7 +30,14 @@ interface DashboardStats {
   };
   recentPatients: { id: string; fullName: string; updatedAt: string; email: string }[];
   recentConsultations: { id: string; title: string; date: string; patient: { id: string; fullName: string } | null }[];
-  recentProjects: WorkflowProject[];
+}
+
+interface RecentCreation {
+  id: string;
+  name: string;
+  type: string;
+  createdAt: string;
+  patientName?: string | null;
 }
 
 function PlanUsageRing({ percent, limits, usage }: { percent: number; limits: DashboardStats["planUsage"]["limits"]; usage: DashboardStats["planUsage"]["usage"] }) {
@@ -109,14 +108,8 @@ function PlanUsageRing({ percent, limits, usage }: { percent: number; limits: Da
 export default function DashboardHomeClient() {
   const router = useRouter();
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [recentCreations, setRecentCreations] = useState<RecentCreation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [projectName, setProjectName] = useState("");
-  const [projectMode, setProjectMode] = useState<"CLINICAL" | "GENERAL">("CLINICAL");
-  const [patientId, setPatientId] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [modalPatients, setModalPatients] = useState<any[]>([]);
-  const [isLoadingPatients, setIsLoadingPatients] = useState(false);
 
   const loadDashboardData = useCallback(async () => {
     setIsLoading(true);
@@ -130,6 +123,21 @@ export default function DashboardHomeClient() {
       } else {
         toast.error("No se pudo cargar la pantalla principal.");
       }
+      const creationsResponse = await fetchApi("/creations", {
+        headers: getWorkflowAuthHeaders(),
+      });
+      if (creationsResponse.ok) {
+        const creations = await creationsResponse.json();
+        setRecentCreations(
+          (Array.isArray(creations) ? creations : []).slice(0, 3).map((creation: any) => ({
+            id: creation.id,
+            name: creation.name,
+            type: creation.type,
+            createdAt: creation.createdAt,
+            patientName: creation.metadata?.patientName || creation.content?.patientMeta?.fullName || null,
+          })),
+        );
+      }
     } catch (error) {
       console.error("Error loading dashboard stats", error);
       toast.error("No se pudo cargar la pantalla principal.");
@@ -141,57 +149,6 @@ export default function DashboardHomeClient() {
   useEffect(() => {
     loadDashboardData();
   }, [loadDashboardData]);
-
-  const handleOpenCreateModal = async () => {
-    setIsCreateModalOpen(true);
-    if (modalPatients.length === 0) {
-      setIsLoadingPatients(true);
-      try {
-        const res = await fetchApi("/patients?limit=100", {
-          headers: getWorkflowAuthHeaders(),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setModalPatients(data.data || []);
-        }
-      } catch {
-        toast.error("No se pudieron cargar los pacientes.");
-      } finally {
-        setIsLoadingPatients(false);
-      }
-    }
-  };
-
-  const handleCreateProject = async () => {
-    if (!projectName.trim()) {
-      toast.error("Escribe un nombre para el proyecto.");
-      return;
-    }
-    setIsSubmitting(true);
-    try {
-      const created = await createProject({
-        name: projectName.trim(),
-        mode: projectMode,
-        patientId: projectMode === "CLINICAL" ? patientId || undefined : undefined,
-        metadata: { sourceModule: "dashboard-home" },
-      });
-      toast.success("Proyecto creado correctamente.");
-      setIsCreateModalOpen(false);
-      setProjectName("");
-      setPatientId("");
-      await loadDashboardData();
-      router.push(buildProjectAwarePath("/dashboard/dieta", created.id));
-    } catch (error: any) {
-      console.error("Error creating project", error);
-      toast.error(error?.message || "No se pudo crear el proyecto.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const openProject = (project: WorkflowProject) => {
-    router.push(buildProjectAwarePath("/dashboard/dieta", project.id));
-  };
 
   if (isLoading) {
     return (
@@ -209,7 +166,7 @@ export default function DashboardHomeClient() {
     );
   }
 
-  const { patients, consultations, pdfs, planUsage, recentPatients, recentConsultations, recentProjects } = stats;
+  const { patients, consultations, pdfs, planUsage, recentPatients, recentConsultations } = stats;
 
   return (
     <>
@@ -344,10 +301,10 @@ export default function DashboardHomeClient() {
 
         {/* Row 3: Recent Sections */}
         <section className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          {/* Recent Projects */}
+          {/* Recent Creations */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Proyectos recientes</h2>
+              <h2 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Mis creaciones</h2>
               <Button
                 variant="link"
                 className="text-xs font-semibold text-indigo-600 hover:text-indigo-700"
@@ -357,45 +314,38 @@ export default function DashboardHomeClient() {
               </Button>
             </div>
 
-            {recentProjects.length === 0 ? (
+            {recentCreations.length === 0 ? (
               <div className="rounded-[2rem] border border-dashed border-slate-200 bg-slate-50/50 p-8 text-center">
-                <Folder className="mx-auto h-6 w-6 text-slate-300" />
-                <p className="mt-2 text-sm font-medium text-slate-400">Sin proyectos</p>
+                <FileText className="mx-auto h-6 w-6 text-slate-300" />
+                <p className="mt-2 text-sm font-medium text-slate-400">Sin creaciones</p>
                 <Button
                   className="mt-4 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700"
                   size="sm"
-                  onClick={handleOpenCreateModal}
+                  onClick={() => router.push("/dashboard/creaciones")}
                 >
-                  Crear proyecto
+                  Ver creaciones
                 </Button>
               </div>
             ) : (
               <div className="space-y-3">
-                {recentProjects.map((project) => (
+                {recentCreations.map((creation) => (
                   <div
-                    key={project.id}
+                    key={creation.id}
                     className="flex items-center justify-between rounded-2xl border border-slate-100 bg-white p-4 shadow-sm transition-all hover:border-indigo-100 hover:shadow-md cursor-pointer"
-                    onClick={() => openProject(project)}
+                    onClick={() => router.push("/dashboard/creaciones")}
                   >
                     <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-50 text-slate-500">
-                        {project.mode === "CLINICAL" ? <Users className="h-4 w-4" /> : <Folder className="h-4 w-4" />}
+                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
+                        <FileText className="h-4 w-4" />
                       </div>
                       <div className="min-w-0">
-                        <h4 className="truncate text-sm font-semibold text-slate-900">{project.name}</h4>
+                        <h4 className="truncate text-sm font-semibold text-slate-900">{creation.name}</h4>
                         <p className="truncate text-xs font-medium text-slate-500">
-                          {(project.patient as any)?.fullName || "Proyecto General"} · {formatDateOnlyForLocale(project.updatedAt, { day: "2-digit", month: "short", year: "numeric" })}
+                          {creation.patientName || creation.type} · {formatDateOnlyForLocale(creation.createdAt, { day: "2-digit", month: "short", year: "numeric" })}
                         </p>
                       </div>
                     </div>
-                    <span
-                      className={cn(
-                        "ml-2 flex-shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider",
-                        project.status === "ACTIVE" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600",
-                      )}
-                    >
-                      {project.status === "ACTIVE" ? "Activo" : "Borrador"}
-                    </span>
+                    <ArrowRight className="ml-2 h-4 w-4 flex-shrink-0 text-slate-300" />
                   </div>
                 ))}
               </div>
@@ -498,65 +448,6 @@ export default function DashboardHomeClient() {
         </section>
       </div>
 
-      {/* Create Project Modal */}
-      <Modal
-        isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        title={projectMode === "CLINICAL" ? "Nuevo Proyecto Clínico" : "Nuevo Proyecto General"}
-      >
-        <div className="space-y-6 py-2">
-          <div className="space-y-2">
-            <label className="text-xs font-bold uppercase tracking-widest text-slate-400">Nombre del Proyecto</label>
-            <Input
-              value={projectName}
-              onChange={(event) => setProjectName(event.target.value)}
-              placeholder="Ej: Plan Antiinflamatorio María"
-              className="h-12 rounded-xl border-slate-200 focus:ring-indigo-500"
-            />
-          </div>
-
-          {projectMode === "CLINICAL" && (
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-widest text-slate-400">Paciente Vinculado</label>
-              {isLoadingPatients ? (
-                <div className="flex h-12 items-center justify-center rounded-xl border border-slate-200">
-                  <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
-                </div>
-              ) : (
-                <select
-                  value={patientId}
-                  onChange={(event) => setPatientId(event.target.value)}
-                  className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none transition-all focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                >
-                  <option value="">Seleccionar paciente...</option>
-                  {modalPatients.map((patient) => (
-                    <option key={patient.id} value={patient.id}>
-                      {patient.fullName}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-          )}
-
-          <div className="flex gap-3 pt-4">
-            <Button
-              className="h-12 flex-1 rounded-xl bg-indigo-600 font-semibold text-white hover:bg-indigo-700"
-              onClick={handleCreateProject}
-              isLoading={isSubmitting}
-            >
-              Comenzar Planificación
-            </Button>
-            <Button
-              variant="ghost"
-              className="h-12 rounded-xl px-6 font-semibold text-slate-500"
-              onClick={() => setIsCreateModalOpen(false)}
-            >
-              Cancelar
-            </Button>
-          </div>
-        </div>
-      </Modal>
     </>
   );
 }

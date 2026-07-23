@@ -10,10 +10,13 @@ import {
 import {
   ChefHat,
   Download,
+  FileText,
   Library,
   Loader2,
   Plus,
+  RotateCcw,
   Search,
+  Save,
   Trash2,
   User,
   X,
@@ -24,18 +27,19 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
+import { TagInput } from "@/components/ui/TagInput";
 import { Modal } from "@/components/ui/Modal";
 import { SaveCreationModal } from "@/components/ui/SaveCreationModal";
 import { ImportCreationModal } from "@/components/shared/ImportCreationModal";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
-import { SectionProgressNav, type SectionProgressStatus } from "@/components/shared/SectionProgressNav";
-import { NatyLoadingOverlay, NatyButton, PlanWizardShell } from "@/components/plans";
-import { FormStepCard } from "@/components/patient-form/FormStepCard";
-import { fetchApi } from "@/lib/api-base";
+import { NatyLoadingOverlay, NatyButton, PlanWizardShell, PromptPreviewButton } from "@/components/plans";
+import { ActionDockItem } from "@/components/ui/ActionDock";
+import { fetchApi, getApiUrl } from "@/lib/api-base";
 import { fetchCreation, saveCreation } from "@/lib/workflow";
 import { getAuthToken } from "@/lib/auth-token";
 import { useDashboardShell } from "@/context/DashboardShellContext";
 import { FeatureGate } from "@/components/memberships/FeatureGate";
+import { cn } from "@/lib/utils";
 
 type QuickIngredient = {
   id: string;
@@ -68,11 +72,13 @@ type QuickPatient = {
   phone?: string | null;
   documentId?: string | null;
   dietRestrictions?: string[];
+  dislikedFoods?: string[];
   likes?: string;
   tags?: string[];
   clinicalSummary?: string;
   weight?: number;
   height?: number;
+  ageYears?: number | null;
   gender?: string;
   birthDate?: string;
   nutritionalFocus?: string;
@@ -133,9 +139,10 @@ const MEAL_SECTIONS = [
   "Post entreno",
 ];
 
-const DEFAULT_TITLE = "Receta rápida";
+const DEFAULT_TITLE = "Entregable rápido";
 const DEFAULT_DIET_NAME = "Plan nutricional personalizado";
 const DRAFT_KEY = "nutri_quick_recipes_draft";
+const WIZARD_STEPS = ["Información general", "Instrucciones", "Generación", "Platos", "Resumen"];
 const DISHES_PER_CATEGORY_PAGE = 3;
 const WEEKLY_CORE_SECTIONS = ["Desayuno", "Almuerzo", "Once", "Cena"];
 const DEFAULT_DISH_IMAGE =
@@ -158,6 +165,19 @@ const DEFAULT_DISH_IMAGE =
   `);
 
 const createId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
+const createEmptyQuickPatient = (): QuickPatient => ({
+  fullName: "",
+  ageYears: null,
+  gender: "",
+  weight: undefined,
+  height: undefined,
+  nutritionalFocus: "",
+  fitnessGoals: "",
+  dietRestrictions: [],
+  likes: "",
+  clinicalSummary: "",
+});
 
 const createIngredient = (): QuickIngredient => ({
   id: createId(),
@@ -263,12 +283,6 @@ const buildQuickAiTargetBatches = (
   return batches;
 };
 
-type QuickRecipesSectionId =
-  | "general"
-  | "instructions"
-  | "generation"
-  | "dishes";
-
 const createDefaultGenerationTargets = (): MealGenerationTarget[] =>
   MEAL_SECTIONS.map((mealSection) => ({
     mealSection,
@@ -316,7 +330,7 @@ const buildQuickNutritionalTargets = (
   if (weight <= 0 || height <= 0) return null;
 
   const gender = normalizeQuickPatientGender(patient.gender);
-  const ageYears = calculateAge(patient.birthDate) ?? 30;
+  const ageYears = calculateAge(patient.birthDate) ?? patient.ageYears ?? 30;
   const activityLevel = "moderado" as NutritionActivityLevel;
   const get = calculateGET(
     gender,
@@ -416,7 +430,7 @@ const normalizeImportedDishes = (value: unknown): QuickDish[] => {
 };
 
 export default function QuickRecipesClient() {
-  const { setSidebarCollapsed, isSidebarCollapsed } = useDashboardShell();
+  const { setSidebarCollapsed } = useDashboardShell();
   const searchParams = useSearchParams();
   const creationId = searchParams.get("creationId");
   const generalSectionRef = useRef<HTMLDivElement | null>(null);
@@ -427,6 +441,9 @@ export default function QuickRecipesClient() {
   const [title, setTitle] = useState(DEFAULT_TITLE);
   const [dietName, setDietName] = useState(DEFAULT_DIET_NAME);
   const [nutritionistNotes, setNutritionistNotes] = useState("");
+  const [deliveryDate, setDeliveryDate] = useState(new Date().toISOString().slice(0, 10));
+  const [quickHashtags, setQuickHashtags] = useState("");
+  const [quickDescription, setQuickDescription] = useState("");
   const [allowedFoodsMainText, setAllowedFoodsMainText] = useState("");
   const [restrictedFoodsText, setRestrictedFoodsText] = useState("");
   const [specialConsiderations, setSpecialConsiderations] = useState("");
@@ -439,6 +456,10 @@ export default function QuickRecipesClient() {
   const [expandedDishId, setExpandedDishId] = useState<string | null>(null);
   const [showDishesSection, setShowDishesSection] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<QuickPatient | null>(null);
+  const [isManualPatientExpanded, setIsManualPatientExpanded] = useState(false);
+  const [hasGeneratedDishes, setHasGeneratedDishes] = useState(false);
+  const [skipInstructions, setSkipInstructions] = useState(false);
+  const [allowExternalFoods, setAllowExternalFoods] = useState(false);
 
   const missingGenerationFields = {
     allowedFoodsMain: parseLines(allowedFoodsMainText).length === 0,
@@ -448,12 +469,16 @@ export default function QuickRecipesClient() {
 
   const isExportDisabled = useMemo(() => {
     const hasAtLeastOneDish = dishes.some(d => d.title.trim().length > 0);
-    return !hasAtLeastOneDish || !selectedPatient;
-  }, [dishes, selectedPatient]);
+    return !hasAtLeastOneDish || !selectedPatient?.fullName?.trim() || !hasGeneratedDishes;
+  }, [dishes, hasGeneratedDishes, selectedPatient]);
 
   const meaningfulDishes = useMemo(
     () => dishes.filter((dish) => isDishMeaningful(dish)),
     [dishes],
+  );
+  const patientTargets = useMemo(
+    () => buildQuickNutritionalTargets(selectedPatient),
+    [selectedPatient],
   );
 
   const [isPatientModalOpen, setIsPatientModalOpen] = useState(false);
@@ -469,8 +494,7 @@ export default function QuickRecipesClient() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isGeneratingWeekly, setIsGeneratingWeekly] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
-  const [activeGuideSection, setActiveGuideSection] =
-    useState<QuickRecipesSectionId>("general");
+  const [currentStep, setCurrentStep] = useState(0);
 
   useEffect(() => {
     setSidebarCollapsed(true);
@@ -490,6 +514,13 @@ export default function QuickRecipesClient() {
       setNutritionistNotes(
         typeof parsed.nutritionistNotes === "string" ? parsed.nutritionistNotes : "",
       );
+      setDeliveryDate(
+        typeof parsed.deliveryDate === "string" && parsed.deliveryDate
+          ? parsed.deliveryDate
+          : new Date().toISOString().slice(0, 10),
+      );
+      setQuickHashtags(typeof parsed.quickHashtags === "string" ? parsed.quickHashtags : "");
+      setQuickDescription(typeof parsed.quickDescription === "string" ? parsed.quickDescription : "");
       setAllowedFoodsMainText(toTextAreaValue(parsed.allowedFoodsMain));
       setRestrictedFoodsText(toTextAreaValue(parsed.restrictedFoods));
       setSpecialConsiderations(
@@ -508,6 +539,10 @@ export default function QuickRecipesClient() {
           ? (parsed.selectedPatient as QuickPatient)
           : null,
       );
+      setIsManualPatientExpanded(parsed.isManualPatientExpanded === true);
+      setHasGeneratedDishes(parsed.hasGeneratedDishes === true);
+      setSkipInstructions(parsed.skipInstructions === true);
+      setAllowExternalFoods(parsed.allowExternalFoods === true);
     } catch (error) {
       console.error("Error loading quick recipes draft", error);
     }
@@ -520,6 +555,9 @@ export default function QuickRecipesClient() {
         title,
         dietName,
         nutritionistNotes,
+        deliveryDate,
+        quickHashtags,
+        quickDescription,
         allowedFoodsMain: parseLines(allowedFoodsMainText),
         restrictedFoods: parseLines(restrictedFoodsText),
         specialConsiderations,
@@ -528,20 +566,31 @@ export default function QuickRecipesClient() {
         activeMealSectionFilter,
         categoryPageMap,
         selectedPatient,
+        isManualPatientExpanded,
+        hasGeneratedDishes,
+        skipInstructions,
+        allowExternalFoods,
       }),
     );
   }, [
     title,
     dietName,
     nutritionistNotes,
+    deliveryDate,
+    quickHashtags,
+    quickDescription,
     allowedFoodsMainText,
     restrictedFoodsText,
     specialConsiderations,
     dishes,
+    hasGeneratedDishes,
     mealGenerationTargets,
     activeMealSectionFilter,
     categoryPageMap,
     selectedPatient,
+    isManualPatientExpanded,
+    skipInstructions,
+    allowExternalFoods,
   ]);
 
   useEffect(() => {
@@ -580,6 +629,13 @@ export default function QuickRecipesClient() {
         setNutritionistNotes(
           typeof content.nutritionistNotes === "string" ? content.nutritionistNotes : "",
         );
+        setDeliveryDate(
+          typeof content.deliveryDate === "string" && content.deliveryDate
+            ? content.deliveryDate
+            : new Date().toISOString().slice(0, 10),
+        );
+        setQuickHashtags(typeof content.quickHashtags === "string" ? content.quickHashtags : "");
+        setQuickDescription(typeof content.quickDescription === "string" ? content.quickDescription : "");
         setAllowedFoodsMainText(toTextAreaValue(content.allowedFoodsMain));
         setRestrictedFoodsText(toTextAreaValue(content.restrictedFoods));
         setSpecialConsiderations(
@@ -594,12 +650,18 @@ export default function QuickRecipesClient() {
             : createDefaultGenerationTargets(),
         );
 
-        if (creation.metadata?.patientName) {
+        if (content.selectedPatient && typeof content.selectedPatient === "object") {
+          setSelectedPatient(content.selectedPatient as QuickPatient);
+        } else if (creation.metadata?.patientName) {
           setSelectedPatient({
             id: creation.metadata.patientId as string | undefined,
             fullName: creation.metadata.patientName as string,
           });
         }
+        setIsManualPatientExpanded(false);
+        setHasGeneratedDishes(content.hasGeneratedDishes === true || normalizeImportedDishes(content.dishes).length > 0);
+        setSkipInstructions(content.skipInstructions === true);
+        setAllowExternalFoods(content.allowExternalFoods === true);
       } catch (error) {
         console.error(error);
         toast.error("No se pudo cargar la receta rápida.");
@@ -614,7 +676,7 @@ export default function QuickRecipesClient() {
     setIsPatientModalOpen(true);
     try {
       const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const response = await fetchApi("/patients", {
+       const response = await fetchApi("/patients?status=Activos", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
@@ -628,6 +690,11 @@ export default function QuickRecipesClient() {
     }
   };
 
+  const startManualPatientEntry = () => {
+    setSelectedPatient(createEmptyQuickPatient());
+    setIsManualPatientExpanded(true);
+  };
+
   const filteredPatients = useMemo(() => {
     if (!patientSearch.trim()) return patients;
     return patients.filter((patient) =>
@@ -637,6 +704,7 @@ export default function QuickRecipesClient() {
 
   const handleSelectPatient = (patient: QuickPatient) => {
     setSelectedPatient(patient);
+    setIsManualPatientExpanded(false);
     setIsPatientModalOpen(false);
     toast.success(
       `Paciente "${patient.fullName}" vinculado. Naty considerará restricciones y características del paciente (edad, sexo, objetivos y contexto clínico).`,
@@ -658,6 +726,7 @@ export default function QuickRecipesClient() {
       }
       if (next.length === 0) {
         setShowDishesSection(false);
+        setHasGeneratedDishes(false);
       }
       return next;
     });
@@ -735,6 +804,9 @@ export default function QuickRecipesClient() {
     setNutritionistNotes(
       typeof content.nutritionistNotes === "string" ? content.nutritionistNotes : "",
     );
+    setDeliveryDate(new Date().toISOString().slice(0, 10));
+    setQuickHashtags("");
+    setQuickDescription("");
     const dietFoodsText =
       toTextAreaValueFromFoods(content.foods) ||
       toTextAreaValueFromFoods(content.includedFoods) ||
@@ -751,6 +823,9 @@ export default function QuickRecipesClient() {
       typeof content.specialConsiderations === "string" ? content.specialConsiderations : "",
     );
     setDishes([]);
+    setHasGeneratedDishes(false);
+    setSkipInstructions(false);
+    setAllowExternalFoods(false);
     setMealGenerationTargets(createDefaultGenerationTargets());
 
     const patientName =
@@ -758,6 +833,7 @@ export default function QuickRecipesClient() {
     const patientId =
       typeof creation.metadata?.patientId === "string" ? creation.metadata.patientId : undefined;
     setSelectedPatient(patientName ? { id: patientId, fullName: patientName } : null);
+    setIsManualPatientExpanded(false);
     setIsImportCreationModalOpen(false);
     toast.success("Dieta importada. Los alimentos permitidos se cargaron en el borrador.");
   };
@@ -776,13 +852,13 @@ export default function QuickRecipesClient() {
         const nextCount = Number(value);
         return {
           ...target,
-          count: Number.isFinite(nextCount) ? Math.max(1, Math.min(14, nextCount)) : 1,
+          count: Number.isFinite(nextCount) ? Math.max(0, Math.min(14, nextCount)) : 0,
         };
       }),
     );
   };
 
-  const generateWithAi = async (mode: "single" | "weekly") => {
+  const generateWithAi = async (mode: "single" | "weekly"): Promise<boolean> => {
     if (mode === "single") {
       setIsGenerating(true);
     } else {
@@ -791,6 +867,13 @@ export default function QuickRecipesClient() {
 
     try {
       const token = getAuthToken();
+      const hasValidTarget = mealGenerationTargets.some(
+        (target) => target.enabled && target.count > 0,
+      );
+      if (!hasValidTarget) {
+        toast.error("Selecciona al menos una categoría y una cantidad mayor que cero.");
+        return false;
+      }
 
       const patientRestrictions = Array.isArray(selectedPatient?.dietRestrictions)
         ? selectedPatient?.dietRestrictions.filter(Boolean)
@@ -812,15 +895,15 @@ export default function QuickRecipesClient() {
       });
 
       const selectedTargets: QuickAiMealTargetPayload[] = effectiveTargets
-        .filter((target) => target.enabled)
+        .filter((target) => target.enabled && target.count > 0)
         .map((target) => ({
           mealSection: target.mealSection,
-          count: Math.max(1, Math.min(14, target.count || 1)),
+          count: Math.min(14, target.count),
         }));
 
       if (selectedTargets.length === 0) {
-        toast.error("Selecciona al menos una categoría para generar platos.");
-        return;
+        toast.error("Selecciona al menos una categoría y una cantidad mayor que cero.");
+        return false;
       }
 
       const targetBatches = buildQuickAiTargetBatches(selectedTargets);
@@ -834,7 +917,7 @@ export default function QuickRecipesClient() {
         : undefined;
       const patientAge = selectedPatient?.birthDate
         ? calculateAge(selectedPatient.birthDate) || undefined
-        : undefined;
+        : selectedPatient?.ageYears || undefined;
       const patientBmi =
         selectedPatient?.weight && selectedPatient?.height
           ? calculateBMI(Number(selectedPatient.weight) || 0, Number(selectedPatient.height) || 0, {
@@ -865,6 +948,7 @@ export default function QuickRecipesClient() {
                 new Set([...userRestricted, ...patientRestrictions, ...patientHealthTags]),
               ),
               specialConsiderations: specialConsiderations.trim(),
+              allowExternalFoods,
               desiredDishCount: batchTargets.reduce((sum, target) => sum + target.count, 0),
               mealSectionTargets: batchTargets,
               generationMode: mode,
@@ -879,7 +963,8 @@ export default function QuickRecipesClient() {
               patient: selectedPatient
                 ? {
                   fullName: selectedPatient.fullName,
-                  restrictions: patientRestrictions,
+            restrictions: patientRestrictions,
+            dislikedFoods: selectedPatient.dislikedFoods || [],
                   likes: selectedPatient.likes || "",
                   healthTags: patientHealthTags,
                   clinicalSummary: selectedPatient.clinicalSummary || "",
@@ -956,7 +1041,12 @@ export default function QuickRecipesClient() {
         };
       });
 
+      if (!mapped.some(isDishMeaningful)) {
+        throw new Error("La IA no devolvió platos completos para la selección indicada.");
+      }
+
       setDishes(mapped);
+      setHasGeneratedDishes(true);
       setShowDishesSection(mapped.length > 0);
       setExpandedDishId(mapped[0]?.id || null);
       if (mode === "weekly") {
@@ -969,6 +1059,8 @@ export default function QuickRecipesClient() {
           ? "Plan semanal generado con IA según categorías."
           : "Platos generados correctamente con IA.",
       );
+      setCurrentStep(3);
+      return true;
     } catch (error) {
       console.error("Quick AI generation error", error);
       toast.error(
@@ -976,6 +1068,7 @@ export default function QuickRecipesClient() {
           ? error.message
           : "No se pudo generar con IA. Revisa la conexión o la configuración de la IA.",
       );
+      return false;
 
     } finally {
       if (mode === "single") {
@@ -989,11 +1082,19 @@ export default function QuickRecipesClient() {
     title,
     dietName,
     nutritionistNotes,
+    deliveryDate,
+    quickHashtags,
+    quickDescription,
     allowedFoodsMain: parseLines(allowedFoodsMainText),
     restrictedFoods: parseLines(restrictedFoodsText),
     specialConsiderations,
     dishes,
+    hasGeneratedDishes,
     mealGenerationTargets,
+    selectedPatient,
+    isManualPatientExpanded,
+    skipInstructions,
+    allowExternalFoods,
     updatedAt: new Date().toISOString(),
   });
 
@@ -1073,6 +1174,10 @@ export default function QuickRecipesClient() {
       toast.error("Por favor ingresa un título antes de guardar.");
       return;
     }
+    if (!hasGeneratedDishes || meaningfulDishes.length === 0) {
+      toast.error("Genera los platos con Naty antes de guardar.");
+      return;
+    }
     setIsSaving(true);
     try {
       const savedCreation = await saveCreation({
@@ -1115,6 +1220,9 @@ export default function QuickRecipesClient() {
     setTitle(DEFAULT_TITLE);
     setDietName(DEFAULT_DIET_NAME);
     setNutritionistNotes("");
+    setDeliveryDate(new Date().toISOString().slice(0, 10));
+    setQuickHashtags("");
+    setQuickDescription("");
     setAllowedFoodsMainText("");
     setRestrictedFoodsText("");
     setSpecialConsiderations("");
@@ -1125,6 +1233,11 @@ export default function QuickRecipesClient() {
     setExpandedDishId(null);
     setShowDishesSection(false);
     setSelectedPatient(null);
+    setIsManualPatientExpanded(false);
+    setHasGeneratedDishes(false);
+    setSkipInstructions(false);
+    setAllowExternalFoods(false);
+    setCurrentStep(0);
     localStorage.removeItem(DRAFT_KEY);
     toast.success("Borrador reiniciado.");
   };
@@ -1229,7 +1342,7 @@ export default function QuickRecipesClient() {
   );
   const selectedGenerationTotal = mealGenerationTargets
     .filter((target) => target.enabled)
-    .reduce((sum, target) => sum + Math.max(1, target.count || 1), 0);
+    .reduce((sum, target) => sum + Math.max(0, target.count || 0), 0);
 
   useEffect(() => {
     if (mealSectionTabs.includes(activeMealSectionFilter)) return;
@@ -1245,99 +1358,127 @@ export default function QuickRecipesClient() {
     });
   }, [activeMealSectionFilter, totalCategoryPages]);
 
-  const getSectionStatus = (
-    enabled: boolean,
-    isComplete: boolean,
-  ): SectionProgressStatus => {
-    if (!enabled) return "hidden";
-    return isComplete ? "complete" : "pending";
-  };
-
-  const quickRecipeSections = useMemo(
-    () => [
-      {
-        id: "general" as QuickRecipesSectionId,
-        label: "Informacion general",
-        status: getSectionStatus(
-          true,
-          title.trim().length > 0,
-        ),
-        ref: generalSectionRef,
-      },
-      {
-        id: "instructions" as QuickRecipesSectionId,
-        label: "Instrucciones",
-        status: getSectionStatus(
-          true,
-          parseLines(allowedFoodsMainText).length > 0 &&
-            parseLines(restrictedFoodsText).length > 0 &&
-            specialConsiderations.trim().length > 0,
-        ),
-        ref: instructionsSectionRef,
-      },
-      {
-        id: "generation" as QuickRecipesSectionId,
-        label: "Generacion IA",
-        status: getSectionStatus(
-          true,
-          mealGenerationTargets.some((target) => target.enabled),
-        ),
-        ref: generationSectionRef,
-      },
-      {
-        id: "dishes" as QuickRecipesSectionId,
-        label: "Platos",
-        status: getSectionStatus(
-          true,
-          meaningfulDishes.length > 0,
-        ),
-        ref: dishesSectionRef,
-      },
-    ],
-    [
-      allowedFoodsMainText,
-      meaningfulDishes.length,
-      mealGenerationTargets,
-      restrictedFoodsText,
-      specialConsiderations,
-      title,
-    ],
+  const completedSteps = Array.from({ length: currentStep }, (_, index) => index);
+  const hasGenerationTarget = mealGenerationTargets.some(
+    (target) => target.enabled && target.count > 0,
   );
-
-  const scrollToGuideSection = (sectionId: QuickRecipesSectionId) => {
-    const targetSection = quickRecipeSections.find(
-      (section) => section.id === sectionId,
-    );
-    targetSection?.ref.current?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
+  const goBack = () => setCurrentStep((step) => Math.max(0, step - 1));
+  const goNext = () => setCurrentStep((step) => Math.min(WIZARD_STEPS.length - 1, step + 1));
+  const handleWizardNext = async () => {
+    if (currentStep === 2) {
+      await generateWithAi("single");
+      return;
+    }
+    if (currentStep === 3 && (!hasGeneratedDishes || meaningfulDishes.length === 0)) {
+      toast.error("Genera los platos con Naty antes de continuar.");
+      return;
+    }
+    goNext();
+  };
+  const handleStepClick = (step: number) => {
+    if (
+      step >= 2 &&
+      !skipInstructions &&
+      Object.values(missingGenerationFields).some(Boolean)
+    ) {
+      toast.error("Completa las instrucciones o selecciona el modo de omitirlas.");
+      return;
+    }
+    if (step >= 3 && (!hasGeneratedDishes || meaningfulDishes.length === 0)) {
+      toast.error("Genera los platos con Naty antes de avanzar a esta etapa.");
+      return;
+    }
+    setCurrentStep(step);
   };
 
-  useEffect(() => {
-    const updateActiveSection = () => {
-      const viewportOffset = 180;
-      let nextSection = quickRecipeSections[0]?.id ?? "general";
+  const buildRecipesPromptPayload = () => ({
+    payload: {
+      dietName: dietName.trim() || DEFAULT_DIET_NAME,
+      notes: skipInstructions ? "Naty debe completar las instrucciones con el contexto disponible." : "Ser creativo para que no se aburran.",
+      allowedFoodsMain: parseLines(allowedFoodsMainText),
+      restrictedFoods: Array.from(
+        new Set([
+          ...((selectedPatient?.dietRestrictions || []).filter(Boolean)),
+          ...((selectedPatient?.tags || []).filter(Boolean)),
+          ...parseLines(restrictedFoodsText),
+        ]),
+      ),
+      specialConsiderations: specialConsiderations.trim(),
+      allowExternalFoods,
+      desiredDishCount: selectedGenerationTotal,
+      mealSectionTargets: mealGenerationTargets
+        .filter((target) => target.enabled && target.count > 0)
+        .map((target) => ({ mealSection: target.mealSection, count: target.count })),
+      generationMode: "single",
+      nutritionalTargets: buildQuickNutritionalTargets(selectedPatient),
+      patient: selectedPatient
+        ? {
+            fullName: selectedPatient.fullName,
+            restrictions: selectedPatient.dietRestrictions || [],
+            dislikedFoods: selectedPatient.dislikedFoods || [],
+            likes: selectedPatient.likes || "",
+            healthTags: selectedPatient.tags || [],
+            clinicalSummary: selectedPatient.clinicalSummary || "",
+            nutritionalFocus: selectedPatient.nutritionalFocus || "",
+            fitnessGoals: selectedPatient.fitnessGoals || "",
+            weight: selectedPatient.weight,
+            height: selectedPatient.height,
+            gender: selectedPatient.gender,
+            birthDate: selectedPatient.birthDate,
+            ageYears: selectedPatient.ageYears,
+          }
+        : null,
+      patientId: selectedPatient?.id || undefined,
+      existingDishes: dishes
+        .filter((dish) => dish.title.trim())
+        .map((dish) => ({ title: dish.title.trim(), mealSection: dish.mealSection })),
+    },
+  });
 
-      quickRecipeSections.forEach((section) => {
-        const top = section.ref.current?.getBoundingClientRect().top;
-        if (typeof top === "number" && top - viewportOffset <= 0) {
-          nextSection = section.id;
-        }
-      });
-
-      setActiveGuideSection(nextSection);
-    };
-
-    updateActiveSection();
-    window.addEventListener("scroll", updateActiveSection, { passive: true });
-    window.addEventListener("resize", updateActiveSection);
-
-    return () => {
-      window.removeEventListener("scroll", updateActiveSection);
-      window.removeEventListener("resize", updateActiveSection);
-    };
-  }, [quickRecipeSections]);
+  const actionItems: ActionDockItem[] = [
+    {
+      id: "patient",
+      icon: isLoadingPatients ? Loader2 : User,
+      label: selectedPatient?.fullName || "Importar paciente",
+      description: selectedPatient ? "Cambiar paciente" : "Importar paciente",
+      variant: selectedPatient ? "emerald" : "slate",
+      disabled: isLoadingPatients,
+      onClick: () => void openPatientModal(),
+    },
+    {
+      id: "import",
+      icon: Library,
+      label: "Importar dieta",
+      variant: "indigo",
+      onClick: () => setIsImportCreationModalOpen(true),
+    },
+    { id: "separator", icon: ChefHat, label: "", isSeparator: true, onClick: () => undefined },
+    {
+      id: "pdf",
+      icon: isExportingPdf ? Loader2 : Download,
+      label: "Descargar PDF",
+      description: isExportDisabled ? "Agrega un paciente y al menos un plato" : "Descargar PDF",
+      variant: "indigo",
+      disabled: isExportingPdf || isExportDisabled,
+      onClick: () => void handleExportPdf(),
+    },
+    {
+      id: "save",
+      icon: Save,
+      label: "Guardar",
+      description: "Guardar en creaciones",
+      variant: "slate",
+      disabled: !title.trim() || !hasGeneratedDishes || meaningfulDishes.length === 0 || isSaving,
+      onClick: () => setIsSaveCreationModalOpen(true),
+    },
+    {
+      id: "reset",
+      icon: RotateCcw,
+      label: "Reiniciar",
+      variant: "rose",
+      onClick: handleReset,
+    },
+  ];
 
   return (
     <FeatureGate
@@ -1352,86 +1493,292 @@ export default function QuickRecipesClient() {
         title="Recetas"
         description="Genera recetas rápidas reutilizando contexto clínico, restricciones y preferencias."
         step={{ number: "Express", label: "Receta rápida", icon: ChefHat, color: "text-amber-600" }}
-        className="max-w-5xl"
+        rightNavItems={actionItems}
+        rightContent={
+          <PromptPreviewButton
+            moduleName="Recetas"
+            endpoint="/recipes/quick-ai-fill"
+            buildPayload={buildRecipesPromptPayload}
+            expectedOutput="JSON con un arreglo dishes, incluyendo título, sección, descripción, preparación, porción, macros e ingredientes."
+          />
+        }
+        className="max-w-[68rem]"
       >
-        {isSidebarCollapsed && (
-          <div className="fixed left-[max(6rem,calc(50%-48rem))] top-28 z-20 hidden xl:block">
-            <SectionProgressNav
-              items={quickRecipeSections.map((section) => ({
-                id: section.id,
-                label: section.label,
-                status: section.status,
-                active: activeGuideSection === section.id,
-                onClick: () => scrollToGuideSection(section.id),
-              }))}
-            />
-          </div>
-        )}
+        <PlanWizardShell
+          steps={WIZARD_STEPS}
+          currentStep={currentStep}
+          completedSteps={completedSteps}
+          onStepClick={handleStepClick}
+          onBack={goBack}
+          onNext={handleWizardNext}
+          isLastStep={currentStep === WIZARD_STEPS.length - 1}
+          nextDisabled={
+            (currentStep === 1 && !skipInstructions && Object.values(missingGenerationFields).some(Boolean)) ||
+            (currentStep === 2 && !hasGenerationTarget) ||
+            (currentStep === 3 && (!hasGeneratedDishes || meaningfulDishes.length === 0))
+          }
+          onReset={handleReset}
+        >
         <div className="space-y-6">
-          <div ref={generalSectionRef} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
-                  Título de la creación
-                </label>
+          {currentStep === 0 && <div ref={generalSectionRef} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_9rem_1fr]">
+              <div className="space-y-1">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Título <span className="text-rose-500">*</span></p>
                 <Input
                   value={title}
                   onChange={(event) => setTitle(event.target.value)}
-                  placeholder="Ej: Plantilla express para paciente"
+                  placeholder="Entregable rápido"
                   className="h-11 rounded-xl border-slate-200 bg-slate-50 text-sm font-semibold"
                   maxLength={120}
                 />
               </div>
-              <div>
-                <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
-                  Nombre de la dieta (PDF)
-                </label>
+              <div className="space-y-1">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Fecha</p>
                 <Input
-                  value={dietName}
-                  onChange={(event) => setDietName(event.target.value)}
-                  placeholder="Ej: Plan antiinflamatorio semanal"
-                  className="h-11 rounded-xl border-slate-200 bg-slate-50 text-sm font-semibold"
-                  maxLength={120}
+                  type="date"
+                  value={deliveryDate}
+                  onChange={(event) => setDeliveryDate(event.target.value)}
+                  className="h-11 appearance-none rounded-xl border-slate-200 bg-slate-50 text-sm [&::-webkit-calendar-picker-indicator]:hidden"
+                />
+              </div>
+              <div className="space-y-1">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Hashtags</p>
+                <TagInput
+                  value={quickHashtags.split(",").map((tag) => tag.trim()).filter(Boolean)}
+                  onChange={(tags) => setQuickHashtags(tags.join(", "))}
+                  fetchSuggestionsUrl={`${getApiUrl()}/tags`}
+                  helperText="Selecciona una sugerencia o presiona Enter para usar uno personalizado."
+                  placeholder="Ej: keto, hipertrofia"
                 />
               </div>
             </div>
-            {selectedPatient ? (
-              <div className="mt-4 flex items-center gap-2 rounded-xl border border-indigo-100 bg-indigo-50 px-3 py-2 text-sm font-bold text-indigo-700">
-                <User className="h-4 w-4" />
-                {selectedPatient.fullName}
-                <button
-                  onClick={() => setSelectedPatient(null)}
-                  className="ml-1 text-indigo-400 hover:text-indigo-700"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              </div>
+            <div className="mt-4 space-y-1">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Descripción</p>
+              <Textarea
+                value={quickDescription}
+                onChange={(event) => setQuickDescription(event.target.value)}
+                className="min-h-[72px] rounded-xl border-slate-200 bg-slate-50 text-sm"
+                placeholder="Notas internas sobre este entregable..."
+              />
+            </div>
+            {selectedPatient?.fullName?.trim() ? (
+              <details className="group mt-4 rounded-2xl border border-slate-200 bg-white" open>
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-2xl px-4 py-3 select-none [&::-webkit-details-marker]:hidden">
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-emerald-600" />
+                    <span className="text-sm font-bold text-slate-900">{selectedPatient.fullName}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        setSelectedPatient(null);
+                        setIsManualPatientExpanded(false);
+                      }}
+                      className="text-xs font-bold text-rose-600 hover:text-rose-700"
+                    >
+                      Quitar
+                    </button>
+                    <span className="text-xs font-bold text-slate-400 transition-transform group-open:rotate-180">⌄</span>
+                  </div>
+                </summary>
+                <div className="space-y-4 border-t border-slate-100 px-4 pb-4 pt-4">
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                    <div className="rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2">
+                      <p className="text-[10px] font-black uppercase text-slate-400">Edad</p>
+                      <p className="text-sm font-semibold text-slate-800">{selectedPatient.birthDate ? `${calculateAge(selectedPatient.birthDate) || "—"} años` : selectedPatient.ageYears ? `${selectedPatient.ageYears} años` : "—"}</p>
+                    </div>
+                    <div className="rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2">
+                      <p className="text-[10px] font-black uppercase text-slate-400">Sexo</p>
+                      <p className="text-sm font-semibold text-slate-800">{selectedPatient.gender || "—"}</p>
+                    </div>
+                    <div className="rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2">
+                      <p className="text-[10px] font-black uppercase text-slate-400">Peso / altura</p>
+                      <p className="text-sm font-semibold text-slate-800">{selectedPatient.weight ? `${selectedPatient.weight} kg` : "—"} · {selectedPatient.height ? `${selectedPatient.height} cm` : "—"}</p>
+                    </div>
+                    <div className="rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2">
+                      <p className="text-[10px] font-black uppercase text-slate-400">Objetivo</p>
+                      <p className="text-sm font-semibold text-slate-800">{selectedPatient.nutritionalFocus || selectedPatient.fitnessGoals || "Sin registro"}</p>
+                    </div>
+                    <div className="rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2">
+                      <p className="text-[10px] font-black uppercase text-slate-400">Calorías estimadas</p>
+                      <p className="text-sm font-semibold text-slate-800">{patientTargets?.dailyCalories ? `${patientTargets.dailyCalories} kcal` : "Sin cálculo"}</p>
+                    </div>
+                    <div className="rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2">
+                      <p className="text-[10px] font-black uppercase text-slate-400">IMC</p>
+                      <p className="text-sm font-semibold text-slate-800">{patientTargets?.bmi ? `${patientTargets.bmi} · ${patientTargets.bmiClassification || ""}` : "Sin cálculo"}</p>
+                    </div>
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2">
+                      <p className="text-[10px] font-black uppercase text-slate-400">Restricciones</p>
+                      <p className="text-sm font-semibold text-slate-800">{(selectedPatient.dietRestrictions || selectedPatient.tags || []).join(", ") || "Sin registro"}</p>
+                    </div>
+                    <div className="rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2">
+                      <p className="text-[10px] font-black uppercase text-slate-400">Gustos</p>
+                      <p className="text-sm font-semibold text-slate-800">{selectedPatient.likes || "Sin registro"}</p>
+                    </div>
+                    {selectedPatient.clinicalSummary ? (
+                      <div className="rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2 md:col-span-2">
+                        <p className="text-[10px] font-black uppercase text-slate-400">Contexto clínico</p>
+                        <p className="text-sm font-semibold text-slate-800">{selectedPatient.clinicalSummary}</p>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              </details>
             ) : (
-              <div className="mt-4 rounded-xl border border-dashed border-amber-200 bg-amber-50/60 p-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm font-bold text-amber-900">Puedes generar platos sin paciente o importar uno para personalizar mejor la IA.</p>
-                    <p className="mt-1 text-xs leading-5 text-amber-800/80">
+              <div className="mt-5 rounded-2xl border border-dashed border-amber-200 bg-amber-50/60 p-6">
+                <div className="flex flex-col items-center gap-5 text-center">
+                  <div className="max-w-2xl">
+                    <p className="text-sm font-bold leading-6 text-amber-900">Puedes generar platos sin paciente o importar uno para personalizar mejor la IA.</p>
+                    <p className="mt-2 text-xs leading-5 text-amber-800/80">
                       Si importas un paciente, Naty considerará sus restricciones, objetivos y contexto clínico. El PDF sigue requiriendo un paciente vinculado.
                     </p>
                   </div>
-                  <Button
-                    variant="outline"
-                    className="rounded-xl border-amber-200 bg-white text-amber-700 hover:bg-amber-100"
-                    onClick={openPatientModal}
-                  >
-                    <User className="mr-2 h-4 w-4" />
-                    Importar paciente
-                  </Button>
+                  <div className="flex w-full flex-col justify-center gap-3 sm:w-auto sm:flex-row">
+                    <Button
+                      variant="outline"
+                      className="h-10 min-w-48 justify-center rounded-xl border-amber-200 bg-white text-amber-700 hover:bg-amber-100"
+                      onClick={openPatientModal}
+                    >
+                      <User className="mr-2 h-4 w-4" />
+                      Importar paciente
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="h-10 min-w-48 justify-center rounded-xl border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                      onClick={startManualPatientEntry}
+                    >
+                      <FileText className="mr-2 h-4 w-4" />
+                      Rellenar manualmente
+                    </Button>
+                  </div>
                 </div>
               </div>
             )}
-          </div>
+            {isManualPatientExpanded && (
+              <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/80 p-5">
+                <div className="grid gap-4 md:grid-cols-3">
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Nombre</p>
+                    <Input
+                      value={selectedPatient?.fullName || ""}
+                      onChange={(event) => setSelectedPatient((current) => ({ ...(current || createEmptyQuickPatient()), fullName: event.target.value }))}
+                      placeholder="Nombre y apellido"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Edad</p>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={selectedPatient?.ageYears ?? ""}
+                      onChange={(event) => setSelectedPatient((current) => ({ ...(current || createEmptyQuickPatient()), ageYears: event.target.value === "" ? null : Math.max(0, Math.round(Number(event.target.value) || 0)) }))}
+                      placeholder="Ej: 42"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Sexo</p>
+                    <select
+                      value={selectedPatient?.gender || ""}
+                      onChange={(event) => setSelectedPatient((current) => ({ ...(current || createEmptyQuickPatient()), gender: event.target.value }))}
+                      className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900"
+                    >
+                      <option value="">Seleccionar</option>
+                      <option value="Femenino">Femenino</option>
+                      <option value="Masculino">Masculino</option>
+                      <option value="Otro">Otro</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Objetivo / enfoque</p>
+                    <Input
+                      value={selectedPatient?.nutritionalFocus || ""}
+                      onChange={(event) => setSelectedPatient((current) => ({ ...(current || createEmptyQuickPatient()), nutritionalFocus: event.target.value }))}
+                      placeholder="Ej: mejorar energía, ordenar horarios..."
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Metas</p>
+                    <Input
+                      value={selectedPatient?.fitnessGoals || ""}
+                      onChange={(event) => setSelectedPatient((current) => ({ ...(current || createEmptyQuickPatient()), fitnessGoals: event.target.value }))}
+                      placeholder="Ej: bajar grasa, ganar masa muscular..."
+                    />
+                  </div>
+                </div>
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Restricciones</p>
+                    <Input
+                      value={(selectedPatient?.dietRestrictions || []).join(", ")}
+                      onChange={(event) => setSelectedPatient((current) => ({ ...(current || createEmptyQuickPatient()), dietRestrictions: event.target.value.split(",").map((item) => item.trim()).filter(Boolean) }))}
+                      placeholder="Ej: sin gluten, evitar lactosa"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Gustos</p>
+                    <Input
+                      value={selectedPatient?.likes || ""}
+                      onChange={(event) => setSelectedPatient((current) => ({ ...(current || createEmptyQuickPatient()), likes: event.target.value }))}
+                      placeholder="Ej: preparaciones saladas, frutas, yogurt..."
+                    />
+                  </div>
+                </div>
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  <Input
+                    type="number"
+                    min={0}
+                    value={selectedPatient?.weight ?? ""}
+                    onChange={(event) => setSelectedPatient((current) => ({ ...(current || createEmptyQuickPatient()), weight: event.target.value === "" ? undefined : Number(event.target.value) }))}
+                    placeholder="Peso (kg)"
+                  />
+                  <Input
+                    type="number"
+                    min={0}
+                    value={selectedPatient?.height ?? ""}
+                    onChange={(event) => setSelectedPatient((current) => ({ ...(current || createEmptyQuickPatient()), height: event.target.value === "" ? undefined : Number(event.target.value) }))}
+                    placeholder="Altura (cm)"
+                  />
+                </div>
+              </div>
+            )}
+          </div>}
 
-          <div
+          {currentStep === 1 && <div
             ref={instructionsSectionRef}
             className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4"
           >
+            <div className={cn(
+              "flex flex-col gap-3 rounded-2xl border p-4 sm:flex-row sm:items-center sm:justify-between",
+              skipInstructions
+                ? "border-indigo-200 bg-indigo-50/70"
+                : "border-slate-200 bg-slate-50/80",
+            )}>
+              <div>
+                <p className="text-sm font-bold text-slate-800">¿Prefieres que Naty complete las instrucciones?</p>
+                <p className="mt-1 text-xs leading-5 text-slate-500">
+                  Usará la información disponible, incluyendo el paciente seleccionado y el contexto de la receta.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setSkipInstructions((current) => !current)}
+                className={cn(
+                  "shrink-0 rounded-xl font-bold",
+                  skipInstructions
+                    ? "border-indigo-300 bg-indigo-600 text-white hover:bg-indigo-700"
+                    : "border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50",
+                )}
+              >
+                {skipInstructions ? "Naty completará esta etapa" : "Omitir y dejárselo a Naty"}
+              </Button>
+            </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label
@@ -1495,9 +1842,21 @@ export default function QuickRecipesClient() {
             <p className="text-xs text-slate-500">
               Las instrucciones de arriba se usan directamente para generar con IA.
             </p>
-          </div>
+            <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/80 p-3 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={allowExternalFoods}
+                onChange={(event) => setAllowExternalFoods(event.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              <span>
+                <span className="font-bold">Permitir alimentos fuera de la lista</span>
+                <span className="mt-0.5 block text-xs text-slate-500">Los condimentos básicos podrán aparecer como opcionales.</span>
+              </span>
+            </label>
+          </div>}
 
-          <div ref={generationSectionRef} className="space-y-4">
+          {currentStep === 2 && <div ref={generationSectionRef} className="space-y-4">
             <div className="rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h3 className="text-sm font-black uppercase tracking-widest text-indigo-700">
@@ -1530,7 +1889,7 @@ export default function QuickRecipesClient() {
                     </span>
                     <Input
                       type="number"
-                      min="1"
+                       min="0"
                       max="14"
                       value={target.count}
                       disabled={!target.enabled}
@@ -1551,9 +1910,11 @@ export default function QuickRecipesClient() {
               </div>
             </div>
 
+          </div>}
+
+          {currentStep === 3 && <div ref={dishesSectionRef} className="space-y-4">
             {showDishesSection && meaningfulDishes.length > 0 ? (
               <>
-                <div ref={dishesSectionRef} />
                 <div className="flex flex-wrap items-center gap-2">
                   {mealSectionTabs.map((tab) => (
                     <button
@@ -1926,7 +2287,6 @@ export default function QuickRecipesClient() {
               </>
             ) : (
               <div
-                ref={dishesSectionRef}
                 className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-slate-200 bg-slate-50/50 py-16 text-center"
               >
                 <ChefHat className="mb-4 h-12 w-12 text-slate-300" />
@@ -1942,8 +2302,54 @@ export default function QuickRecipesClient() {
                 </Button>
               </div>
             )}
-          </div>
+          </div>}
+
+          {currentStep === 4 && (
+            <section className="space-y-5 rounded-3xl border border-slate-200 bg-white p-10 shadow-sm">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-600">Resumen del recetario</p>
+                <h2 className="mt-2 text-xl font-black text-slate-900">Revisa tu entrega antes de continuar</h2>
+                <p className="mt-1 text-sm text-slate-500">Puedes volver a cualquier etapa desde el indicador superior.</p>
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-indigo-600">Paciente</p>
+                  <p className="mt-1 text-sm font-bold text-slate-900">{selectedPatient?.fullName || "Sin paciente vinculado"}</p>
+                </div>
+                <div className="rounded-2xl border border-amber-100 bg-amber-50/60 p-4">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-amber-600">Platos</p>
+                  <p className="mt-1 text-sm font-bold text-slate-900">{meaningfulDishes.length} preparados</p>
+                </div>
+                <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4 md:col-span-2">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-emerald-600">Indicaciones</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-800">
+                    {skipInstructions
+                      ? "Naty completará las indicaciones con la información disponible."
+                      : `${parseLines(allowedFoodsMainText).length} alimentos permitidos · ${parseLines(restrictedFoodsText).length} restricciones`}
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2 pt-2">
+                <Button
+                  onClick={handleExportPdf}
+                  disabled={isExportingPdf || isExportDisabled}
+                  className="h-11 rounded-2xl bg-emerald-600 px-6 font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {isExportingPdf ? "Generando..." : "Descargar PDF"}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsSaveCreationModalOpen(true)}
+                  disabled={!title.trim() || !hasGeneratedDishes || meaningfulDishes.length === 0 || isSaving}
+                  className="h-11 rounded-2xl border-slate-200 font-bold disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Guardar
+                </Button>
+              </div>
+            </section>
+          )}
         </div>
+        </PlanWizardShell>
       </ModuleLayout>
 
       <Modal

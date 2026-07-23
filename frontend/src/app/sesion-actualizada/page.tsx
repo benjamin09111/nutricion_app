@@ -2,11 +2,11 @@ import Link from "next/link";
 import Image from "next/image";
 
 type Props = {
-  searchParams?: { email?: string };
+  searchParams?: Promise<{ email?: string }>;
 };
 
-export default function SessionUpdatedPage({ searchParams }: Props) {
-  const params = searchParams || {};
+export default async function SessionUpdatedPage({ searchParams }: Props) {
+  const params = (await searchParams) || {};
   const email = params.email || "tu correo";
 
   return (
