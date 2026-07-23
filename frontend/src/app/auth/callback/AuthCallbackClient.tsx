@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { fetchApi } from "@/lib/api-base";
-import { getCurrentUser, setCurrentUser } from "@/lib/current-user";
+import { getCurrentUser } from "@/lib/current-user";
 import { resolveSafePostAuthPath } from "@/lib/safe-redirect";
+import { persistAuthSession } from "@/features/auth/services/auth.service";
 
 const DRAFT_STORAGE_KEYS = [
   "nutri_active_draft",
@@ -77,7 +78,7 @@ export default function AuthCallbackClient({ fallbackMessage }: Props = {}) {
         } catch (error) {
           console.error("Error clearing stale draft storage", error);
         }
-        setCurrentUser(user);
+        persistAuthSession("", user);
 
         const isAdmin = ["ADMIN", "ADMIN_MASTER", "ADMIN_GENERAL"].includes(
           user?.role || "",

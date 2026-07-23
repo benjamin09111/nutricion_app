@@ -17,8 +17,13 @@ export function persistAuthSession(
   _accessToken: string,
   user?: CurrentUser,
 ) {
-  // Do NOT store the JWT in localStorage or non-httpOnly cookie.
-  // The backend already set auth_session (httpOnly) and auth_session_present.
+  // Set the presence indicator on the frontend domain so Next.js middleware and client code know session is active.
+  // The JWT itself is stored securely in the httpOnly 'auth_session' cookie set by the backend.
+  Cookies.set("auth_session_present", "1", {
+    expires: 30, // 30 days
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax" as const,
+  });
   if (user) setCurrentUser(user);
 }
 
@@ -42,9 +47,10 @@ export const authService = {
       throw new Error(message);
     }
 
-    // Backend already set httpOnly cookie + presence indicator via Set-Cookie.
-    // We only persist user display data.
-    if (data.user) setCurrentUser(data.user);
+    // Persist session presence on frontend domain and user metadata
+    if (data.user) {
+      persistAuthSession("", data.user);
+    }
 
     return data;
   },
