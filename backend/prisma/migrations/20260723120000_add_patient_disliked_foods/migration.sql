@@ -1,0 +1,2 @@
+ALTER TABLE "patients"
+ADD COLUMN IF NOT EXISTS "disliked_foods" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[];

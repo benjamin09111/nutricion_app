@@ -21,13 +21,16 @@ import {
   aiFillDayResponseSchema,
   aiFillWeekResponseSchema,
   quickAiFillResponseSchema,
-  quickAiDishSchema,
 } from './recipes-ai-schemas';
 import { isAdminRole } from '../permissions/permissions.constants';
 import { PlanUsageService } from '../permissions/plan-usage.service';
 import type { ZodTypeAny } from 'zod';
 import { z } from 'zod';
 import { buildPatientAiContext } from '../patients/patient-ai-context.builder';
+import {
+  buildPlanAiRequest,
+  stringifyPlanAiRequest,
+} from '../../common/services/plan-ai-contract';
 
 type AiRecipeOutput = {
   slotId: string;
@@ -79,6 +82,7 @@ type QuickAiIngredientOutput = {
   quantity?: string;
   amount?: number;
   unit?: string;
+  optional?: boolean;
 };
 
 type QuickAiDishOutput = {
@@ -137,20 +141,103 @@ export class RecipesService {
   }
 
   private buildAiPrompt(payload: AiFillPayload): string {
-    const scopePrompt =
-      payload.scope === 'week'
-        ? RECIPES_AI_PROMPTS.week
-        : RECIPES_AI_PROMPTS.day;
+    const request = buildPlanAiRequest({
+      patient: payload.patientContext || payload.patientProfile,
+      availableFoods: [
+        ...(payload.allowedFoodsByDiet || []),
+        ...(payload.preferredFoods || []),
+      ],
+      objective:
+        payload.nutritionistNotes ||
+        'Completar los espacios vacíos del plan alimentario.',
+      instruction: [
+        `Genera un plan ${payload.scope === 'week' ? 'semanal' : 'diario'}.`,
+        'Completa solo los espacios vacíos y conserva los existentes.',
+        `Respeta estas restricciones: ${(payload.dietRestrictions || []).join(', ') || 'ninguna registrada'}.`,
+        `Slots: ${JSON.stringify(payload.slots || payload.days || [])}.`,
+        `Asignaciones existentes: ${JSON.stringify(payload.existingAssignments || [])}.`,
+      ].join(' '),
+      allowExternalFoods: payload.allowExternalFoods === true,
+      rules: [
+        'Ajusta calorías y macronutrientes a targets.',
+        'Usa porciones clínicas realistas y preparación breve.',
+      ],
+      tools: {
+        scope: payload.scope,
+        targets: payload.targets,
+        patientGoals: payload.patientGoals,
+        rules: payload.rules,
+        recipeStyle: payload.recipeStyle,
+        timeStyle: payload.timeStyle,
+      },
+      outputSchema:
+        payload.scope === 'week'
+          ? {
+              days: [
+                {
+                  day: 'string',
+                  recipes: [
+                    {
+                      slotId: 'string',
+                      mealSection: 'string',
+                      title: 'string',
+                      description: 'string',
+                      preparation: 'string',
+                      recommendedPortion: 'string',
+                      complexity: 'simple',
+                      protein: 0,
+                      calories: 0,
+                      carbs: 0,
+                      fats: 0,
+                      ingredients: [
+                        {
+                          name: 'string',
+                          quantity: 'string',
+                          amount: 0,
+                          unit: 'g',
+                          optional: false,
+                        },
+                      ],
+                      mainIngredients: ['string'],
+                      extraIngredients: ['string'],
+                    },
+                  ],
+                },
+              ],
+              meta: { note: 'string', replacementGuide: [] },
+            }
+          : {
+              recipes: [
+                {
+                  slotId: 'string',
+                  mealSection: 'string',
+                  title: 'string',
+                  description: 'string',
+                  preparation: 'string',
+                  recommendedPortion: 'string',
+                  complexity: 'simple',
+                  protein: 0,
+                  calories: 0,
+                  carbs: 0,
+                  fats: 0,
+                  ingredients: [
+                    {
+                      name: 'string',
+                      quantity: 'string',
+                      amount: 0,
+                      unit: 'g',
+                      optional: false,
+                    },
+                  ],
+                  mainIngredients: ['string'],
+                  extraIngredients: ['string'],
+                },
+              ],
+              meta: { note: 'string', replacementGuide: [] },
+            },
+    });
 
-    const optimizedPayload = {
-      ...payload,
-      patientContext: payload.patientContext || null,
-      patientProfile:
-        payload.patientContext ||
-        this.aiService.formatPatientContext(payload.patientProfile),
-    };
-
-    return [scopePrompt, JSON.stringify(optimizedPayload)].join('\n');
+    return stringifyPlanAiRequest(request);
   }
 
   private async resolvePatientContext(
@@ -170,6 +257,7 @@ export class RecipesService {
         clinicalSummary?: string | null;
         restrictions?: string[] | null;
         likes?: string | null;
+        dislikedFoods?: string[] | null;
       };
     },
   ) {
@@ -191,6 +279,7 @@ export class RecipesService {
           clinicalSummary: true,
           dietRestrictions: true,
           likes: true,
+          dislikedFoods: true,
           customVariables: true,
           clinicalRecord: true,
           consultations: {
@@ -224,6 +313,7 @@ export class RecipesService {
         clinicalSummary: payload.patient.clinicalSummary ?? null,
         dietRestrictions: payload.patient.restrictions ?? [],
         likes: payload.patient.likes ?? null,
+        dislikedFoods: payload.patient.dislikedFoods ?? [],
       });
     }
 
@@ -657,7 +747,7 @@ export class RecipesService {
         if (typeof item === 'string') {
           const name = item.trim();
           if (!name) return null;
-          return { name, quantity: '' };
+          return { name, quantity: '', optional: false };
         }
 
         if (item && typeof item === 'object') {
@@ -670,7 +760,13 @@ export class RecipesService {
             : undefined;
           const unit =
             typeof item.unit === 'string' ? item.unit.trim() : undefined;
-          return { name, quantity, amount, unit };
+          return {
+            name,
+            quantity,
+            amount,
+            unit,
+            optional: item.optional === true,
+          };
         }
 
         return null;
@@ -775,8 +871,7 @@ export class RecipesService {
       ),
       resources: this.sanitizeStringList(payload.resources).slice(0, 12),
       patientContext: payload.patientContext || null,
-      patient:
-        payload.patientContext || this.aiService.formatPatientContext(payload.patient),
+      patient: payload.patientContext || payload.patient || null,
       nutritionalTargets: payload.nutritionalTargets || null,
       existingDishes: this.sanitizeQuickExistingDishes(payload.existingDishes),
       desiredDishCount,
@@ -784,27 +879,61 @@ export class RecipesService {
       mealSectionTargets,
     };
 
-    return [
-      'Objetivo: generar platos realistas para el modulo rapido de recetas.',
-      'Si patientContext existe, es la fuente de verdad compacta del paciente y debe usarse para decidir porciones, restricciones y nivel de detalle.',
-      'Responde solo JSON valido, sin markdown, sin texto extra y sin bloques vacios.',
-      'Respeta siempre las restricciones y evita ingredientes prohibidos.',
-      'Prioriza allowedFoodsMain, gustos del paciente y platos simples de cocina chilena/latam.',
-      'Si nutritionalTargets viene informado, ajusta las porciones y la densidad calórica para respetar esas metas.',
-      'Si el paciente trae IMC o clasificación nutricional, úsalo como referencia para la lógica clínica de las recetas.',
-      'Devuelve exactamente la cantidad pedida en desiredDishCount.',
-      'Si mealSectionTargets viene informado, respeta exactamente el count de cada mealSection y usa ese mismo texto en mealSection.',
-      'Si generationMode es weekly, evita repetir platos muy parecidos dentro de esta respuesta.',
-      'Cada plato debe traer title, mealSection, description, preparation, recommendedPortion, portions, protein, calories, carbs, fats, ingredients.',
-      'Los campos amount y unit deben representar la cantidad total para toda la receta cuando sea posible.',
-      'No dejes recommendedPortion vacio. Si no sabes el dato exacto, entrega una porcion clinica breve y util.',
-      'Usa 3 a 6 ingredientes principales por plato. description debe ser una frase corta y preparation debe ser breve, clara y de 2 a 4 pasos.',
-      'Salida exacta:',
-      '{"dishes":[{"title":"string","mealSection":"string","description":"string","preparation":"string","recommendedPortion":"string","portions":1,"protein":0,"calories":0,"carbs":0,"fats":0,"ingredients":[{"name":"string","quantity":"string","amount":0,"unit":"g"}]}],"meta":{"note":"string"}}',
-      'Si no sabes macros exactos, entrega una estimacion entera razonable.',
-      'No incluyas texto fuera del JSON.',
-      `CONTEXTO: ${JSON.stringify(safePayload)}`,
-    ].join('\n');
+    const request = buildPlanAiRequest({
+      patient: safePayload.patient,
+      availableFoods: safePayload.allowedFoodsMain,
+      objective:
+        safePayload.notes ||
+        'Crear recetas prácticas alineadas con el objetivo nutricional.',
+      instruction: [
+        'Genera platos realistas de cocina chilena/latinoamericana.',
+        `Devuelve exactamente ${safePayload.desiredDishCount} platos y respeta mealSectionTargets.`,
+        'Ajusta porciones y macros según nutritionalTargets cuando exista.',
+        `No repitas platos existentes: ${JSON.stringify(safePayload.existingDishes)}.`,
+        safePayload.specialConsiderations,
+      ]
+        .filter(Boolean)
+        .join(' '),
+      allowExternalFoods: Boolean((payload as any).allowExternalFoods),
+      rules: [
+        'Usa 3 a 6 ingredientes principales por plato.',
+        'ingredients debe incluir name, quantity, amount, unit y optional.',
+        'Los ingredientes externos deben ir en extraIngredients; si están prohibidos, no los uses.',
+      ],
+      tools: {
+        mealSectionTargets: safePayload.mealSectionTargets,
+        nutritionalTargets: safePayload.nutritionalTargets,
+        generationMode: safePayload.generationMode,
+      },
+      outputSchema: {
+        dishes: [
+          {
+            title: 'string',
+            mealSection: 'string',
+            description: 'string',
+            preparation: 'string',
+            recommendedPortion: 'string',
+            portions: 1,
+            protein: 0,
+            calories: 0,
+            carbs: 0,
+            fats: 0,
+            ingredients: [
+              {
+                name: 'string',
+                quantity: 'string',
+                amount: 0,
+                unit: 'g',
+                optional: false,
+              },
+            ],
+          },
+        ],
+        meta: { note: 'string' },
+      },
+    });
+
+    return stringifyPlanAiRequest(request);
   }
 
   async quickFillWithAi(userId: string, dto: QuickAiFillRecipesDto) {
@@ -815,7 +944,9 @@ export class RecipesService {
     const payloadWithContext = {
       ...payload,
       patientContext,
-    } as QuickAiFillPayload & { patientContext: Record<string, unknown> | null };
+    } as QuickAiFillPayload & {
+      patientContext: Record<string, unknown> | null;
+    };
     const structured = await this.callAiObject(
       userId,
       'recipes.quick-fill',
@@ -830,6 +961,27 @@ export class RecipesService {
       throw new BadRequestException(
         'La IA no devolvió platos para recetas rápidas.',
       );
+    }
+
+    const allowedFoods = this.sanitizeStringList(payload.allowedFoodsMain);
+    if (!payload.allowExternalFoods && allowedFoods.length > 0) {
+      const allowedNames = new Set(
+        allowedFoods.map((food) => this.normalizeFoodName(food)),
+      );
+      const unauthorizedIngredients = dishes.flatMap((dish: any) =>
+        (Array.isArray(dish.ingredients) ? dish.ingredients : [])
+          .filter((ingredient: any) => ingredient?.optional !== true)
+          .map((ingredient: any) => String(ingredient?.name || '').trim())
+          .filter(
+            (name: string) =>
+              name && !allowedNames.has(this.normalizeFoodName(name)),
+          ),
+      );
+      if (unauthorizedIngredients.length > 0) {
+        throw new BadRequestException(
+          'La IA devolvió alimentos fuera de la lista permitida.',
+        );
+      }
     }
 
     const normalizedDishes = dishes.map((dish: any) =>

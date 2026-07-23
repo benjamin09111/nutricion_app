@@ -1,9 +1,9 @@
 import React from "react";
 import { AlertCircle } from "lucide-react";
 import { Input } from "@/components/ui/Input";
+import { Textarea } from "@/components/ui/Textarea";
 import { TagInput } from "@/components/ui/TagInput";
 import { DEFAULT_CONSTRAINTS } from "@/lib/constants";
-import { cn } from "@/lib/utils";
 
 interface DietConstraintSectionProps {
   dietName: string;
@@ -21,6 +21,12 @@ interface DietConstraintSectionProps {
   normalizeConstraintList: (constraints: string[]) => string[];
   setPendingTagCreation: (creation: { name: string; type: "classification" | "constraint" } | null) => void;
   saveDraft: (overrides?: any) => void;
+  deliveryDate: string;
+  setDeliveryDate: (date: string) => void;
+  description: string;
+  setDescription: (description: string) => void;
+  showGeneralInfo?: boolean;
+  showClinicalRestriction?: boolean;
 }
 
 export const DietConstraintSection: React.FC<DietConstraintSectionProps> = ({
@@ -39,25 +45,37 @@ export const DietConstraintSection: React.FC<DietConstraintSectionProps> = ({
   normalizeConstraintList,
   setPendingTagCreation,
   saveDraft,
+  deliveryDate,
+  setDeliveryDate,
+  description,
+  setDescription,
+  showGeneralInfo = true,
+  showClinicalRestriction = true,
 }) => {
   return (
-    <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-200 space-y-8">
-      <div className="grid md:grid-cols-2 gap-8">
+    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
+      {showGeneralInfo && <>
+      <div className="grid gap-4 md:grid-cols-[1fr_9rem_1fr]">
         <div className="space-y-3">
-          <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">
-            Nombre de la Dieta <span className="text-rose-500">*</span>
-          </label>
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Título <span className="text-rose-500">*</span></p>
           <Input
-            placeholder="Ej: Protocolo Hipertrofia Avanzado"
+            placeholder="Nombre de la creación"
             value={dietName}
             onChange={(e) => setDietName(e.target.value)}
-            className="h-14 text-lg font-bold rounded-2xl border-slate-200 focus:border-emerald-500 bg-slate-50/80 shadow-sm"
+            className="h-11 rounded-xl border-slate-200 bg-slate-50 text-sm font-semibold"
           />
         </div>
         <div className="space-y-3">
-          <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">
-            Etiquetas de Clasificación
-          </label>
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Fecha</p>
+          <Input
+            type="date"
+            value={deliveryDate}
+            onChange={(e) => setDeliveryDate(e.target.value)}
+            className="h-11 appearance-none rounded-xl border-slate-200 bg-slate-50 text-sm [&::-webkit-calendar-picker-indicator]:hidden"
+          />
+        </div>
+        <div className="space-y-3">
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Hashtags</p>
           <TagInput
             value={dietTags}
             onChange={(newTags) => {
@@ -74,19 +92,31 @@ export const DietConstraintSection: React.FC<DietConstraintSectionProps> = ({
               }
               saveDraft({ dietTags: newTags });
             }}
-            placeholder="Añadir tags (Keto, Vegano...)"
+            placeholder="Ej: keto, hipertrofia"
             suggestions={availableClassificationTags}
             includeSystemSuggestions={false}
-            className="min-h-[56px] rounded-2xl border-slate-200 bg-slate-50/80 shadow-sm"
+            helperText="Selecciona una sugerencia o presiona Enter para usar uno personalizado."
+            className="min-h-[44px] rounded-xl border-slate-200 bg-slate-50 shadow-sm"
           />
         </div>
       </div>
 
-      <div className="space-y-6 pt-6 border-t border-slate-100">
+      <div className="space-y-2">
+        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Descripción</p>
+        <Textarea
+          value={description}
+          onChange={(event) => setDescription(event.target.value)}
+          placeholder="Notas internas sobre este plan..."
+          className="min-h-[72px] rounded-xl border-slate-200 bg-slate-50 text-sm"
+        />
+      </div>
+      </>}
+
+      {showClinicalRestriction && <div className="space-y-6 border-t border-slate-100 pt-6">
         <div className="flex items-center justify-between">
           <label className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
             <AlertCircle className="h-5 w-5 text-rose-500" />
-            Restricciones Clínicas del Plan
+            Restricción clínica
           </label>
         </div>
 
@@ -112,30 +142,14 @@ export const DietConstraintSection: React.FC<DietConstraintSectionProps> = ({
               }
               saveDraft({ activeConstraints: normalizedTags });
             }}
-            placeholder="Buscar o añadir restricción..."
+            placeholder="Buscar o escribir una restricción"
             suggestions={availableConstraintTags}
             disableDelete={true}
-          />
+            helperText="Selecciona una sugerencia o presiona Enter para usar una restricción personalizada."
+           />
 
-          <div className="flex flex-wrap gap-2">
-            {DEFAULT_CONSTRAINTS.filter(
-              (constraint) =>
-                !selectedDefaultConstraintIds.has(constraint.id),
-            ).map((constraint) => (
-              <button
-                key={constraint.id}
-                onClick={() => toggleConstraint(constraint.id)}
-                className={cn(
-                  "px-4 py-2 rounded-xl text-xs font-bold transition-all border cursor-pointer flex items-center gap-2",
-                  "bg-white border-slate-200 text-slate-500 hover:border-slate-300 shadow-sm",
-                )}
-              >
-                {constraint.label}
-              </button>
-            ))}
-          </div>
         </div>
-      </div>
+      </div>}
     </div>
   );
 };

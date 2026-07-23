@@ -304,6 +304,7 @@ export function ResourceEditor({ initialData, editingId }: ResourceEditorProps) 
                   value={formData.tags}
                   onChange={(tags) => setFormData((p) => ({ ...p, tags }))}
                   suggestions={availableTags}
+                  helperText="Selecciona una sugerencia o presiona Enter para usar uno personalizado."
                   placeholder="Ej. deporte, hidratacion..."
                 />
               </div>

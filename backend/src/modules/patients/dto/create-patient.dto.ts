@@ -80,6 +80,11 @@ export class CreatePatientDto {
   likes?: string;
 
   @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  dislikedFoods?: string[];
+
+  @IsOptional()
   @IsString()
   activityLevel?: string;
 

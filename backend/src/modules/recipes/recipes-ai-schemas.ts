@@ -6,6 +6,7 @@ export const aiIngredientSchema = z
     quantity: z.string().trim().optional().default(''),
     amount: z.number().optional(),
     unit: z.string().trim().optional(),
+    optional: z.boolean().default(false),
   })
   .strict();
 

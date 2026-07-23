@@ -12,7 +12,6 @@ import { toast } from "sonner";
 import { membershipService } from "@/features/memberships/services/membership.service";
 import { fetchApi } from "@/lib/api-base";
 import { authService } from "@/features/auth/services/auth.service";
-import { getAuthToken } from "@/lib/auth-token";
 import { getCurrentUser, setCurrentUser } from "@/lib/current-user";
 
 export type SubscriptionPlan = "free" | "trial" | "pro";
@@ -159,12 +158,6 @@ export function SubscriptionProvider({
   );
 
   const refreshSubscription = useCallback(async () => {
-    const token = getAuthToken();
-    if (!token) {
-      setIsLoading(false);
-      return;
-    }
-
     let resolvedRole: string | null = null;
     const previousUser = getCurrentUser();
 
@@ -201,12 +194,7 @@ export function SubscriptionProvider({
       setBilling(data.billing);
 
       try {
-        const token = getAuthToken();
-        if (!token) return;
-
-        const meResponse = await fetchApi("/auth/me", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const meResponse = await fetchApi("/auth/me");
         if (meResponse.ok) {
           const meData = await meResponse.json();
           const user = meData?.user || meData;
@@ -339,6 +327,22 @@ export function SubscriptionProvider({
     }
 
     refreshSubscription();
+  }, [refreshSubscription]);
+
+  useEffect(() => {
+    const refreshWhenReturningToApp = () => {
+      if (document.visibilityState === "visible") {
+        void refreshSubscription();
+      }
+    };
+
+    window.addEventListener("focus", refreshWhenReturningToApp);
+    document.addEventListener("visibilitychange", refreshWhenReturningToApp);
+
+    return () => {
+      window.removeEventListener("focus", refreshWhenReturningToApp);
+      document.removeEventListener("visibilitychange", refreshWhenReturningToApp);
+    };
   }, [refreshSubscription]);
 
   const forceUpdatePlan = (newPlan: SubscriptionPlan) => {

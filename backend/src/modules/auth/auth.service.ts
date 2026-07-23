@@ -250,6 +250,49 @@ export class AuthService {
     return SubscriptionPlan.PRO;
   }
 
+  private async findDefaultFreePlan(tx: Prisma.TransactionClient) {
+    return tx.membershipPlan.findFirst({
+      where: {
+        isActive: true,
+        OR: [{ slug: { contains: 'free', mode: 'insensitive' } }, { price: 0 }],
+      },
+      orderBy: { displayOrder: 'asc' },
+    });
+  }
+
+  private async ensureNutritionistMembership(
+    tx: Prisma.TransactionClient,
+    accountId: string,
+    hasSubscription: boolean,
+    plan: { id: string },
+    accountPlan: SubscriptionPlan,
+  ) {
+    if (hasSubscription) return;
+
+    const startDate = new Date();
+    const endDate = new Date(startDate);
+    endDate.setMonth(endDate.getMonth() + 1);
+
+    await tx.subscription.create({
+      data: {
+        accountId,
+        planId: plan.id,
+        status: 'ACTIVE',
+        startDate,
+        endDate,
+      },
+    });
+
+    await tx.account.update({
+      where: { id: accountId },
+      data: {
+        plan: accountPlan,
+        membershipSelectedAt: startDate,
+        subscriptionEndsAt: endDate,
+      },
+    });
+  }
+
   async createAccount(
     email: string,
     role: UserRole,
@@ -262,7 +305,10 @@ export class AuthService {
     const normalizedFullName = normalizeFullName(fullName);
     const existingAccount = await this.prisma.account.findUnique({
       where: { email: normalizedEmail },
-      include: { nutritionist: true },
+      include: {
+        nutritionist: true,
+        subscription: { include: { plan: true } },
+      },
     });
 
     if (existingAccount && existingAccount.role !== role && !forceRoleChange) {
@@ -275,6 +321,7 @@ export class AuthService {
       await this.prisma.$transaction(async (tx) => {
         const targetPlanId = planId;
         let subscriptionPlan: SubscriptionPlan = SubscriptionPlan.FREE;
+        let membershipPlan;
 
         const isNutritionist = [
           'NUTRITIONIST',
@@ -283,24 +330,28 @@ export class AuthService {
           'SUPPLEMENT_STORE',
           'SUPERMARKET',
         ].includes(role);
+        const needsDefaultMembership =
+          role === 'NUTRITIONIST' || role === 'NUTRITIONIST_DEVELOPER';
 
         if (isNutritionist) {
-          let membershipPlan;
-
           if (targetPlanId) {
             membershipPlan = await tx.membershipPlan.findUnique({
               where: { id: targetPlanId },
             });
+          } else if (needsDefaultMembership) {
+            membershipPlan = await this.findDefaultFreePlan(tx);
           }
 
-          if (targetPlanId && !membershipPlan) {
+          if ((targetPlanId || needsDefaultMembership) && !membershipPlan) {
             throw new BadRequestException('Plan no encontrado o inactivo');
           }
 
-          if (membershipPlan) {
+          if (membershipPlan?.isActive) {
             subscriptionPlan = this.mapMembershipPlanToAccountPlan(
               membershipPlan.slug,
             );
+          } else if (membershipPlan) {
+            throw new BadRequestException('Plan no encontrado o inactivo');
           }
         }
 
@@ -316,7 +367,11 @@ export class AuthService {
             role === 'NUTRITIONIST' || isNutritionist
               ? subscriptionPlan
               : SubscriptionPlan.ENTERPRISE,
-          membershipSelectedAt: targetPlanId ? new Date() : null,
+          membershipSelectedAt: needsDefaultMembership && membershipPlan
+            ? new Date()
+            : targetPlanId
+              ? new Date()
+              : null,
           status: 'ACTIVE' as AccountStatus,
           emailVerifiedAt: new Date(),
           emailVerificationToken: null,
@@ -349,17 +404,14 @@ export class AuthService {
           });
         }
 
-        // Only create a subscription when an explicit plan was provided.
-        if (!existingAccount && isNutritionist && targetPlanId) {
-          await tx.subscription.create({
-            data: {
-              accountId: savedAccount.id,
-              planId: targetPlanId,
-              status: 'ACTIVE', // Or TRIALING depending on business rules
-              startDate: new Date(),
-              endDate: new Date(new Date().setDate(new Date().getDate() + 30)), // 30 days default
-            },
-          });
+        if (needsDefaultMembership && membershipPlan) {
+          await this.ensureNutritionistMembership(
+            tx,
+            savedAccount.id,
+            Boolean(existingAccount?.subscription),
+            membershipPlan,
+            subscriptionPlan,
+          );
         }
       });
 
@@ -415,13 +467,24 @@ export class AuthService {
 
     try {
       const accountId = await this.prisma.$transaction(async (tx) => {
+        const freePlan = await this.findDefaultFreePlan(tx);
+        if (!freePlan) {
+          throw new BadRequestException(
+            'No existe un plan Freemium activo para la nueva cuenta',
+          );
+        }
+
+        const membershipStartDate = new Date();
+        const membershipEndDate = new Date(membershipStartDate);
+        membershipEndDate.setMonth(membershipEndDate.getMonth() + 1);
         const newAccount = await tx.account.create({
           data: {
             email: normalizedEmail,
             password: hashedPassword,
             role: 'NUTRITIONIST',
             plan: 'FREE',
-            membershipSelectedAt: null,
+            membershipSelectedAt: membershipStartDate,
+            subscriptionEndsAt: membershipEndDate,
             status: 'PENDING',
             emailVerificationToken: verificationTokenHash,
             emailVerificationSentAt: new Date(),
@@ -440,6 +503,16 @@ export class AuthService {
           where: { id: nutritionist.id },
           data: {
             publicSlug: buildPublicSlug(normalizedFullName, nutritionist.id),
+          },
+        });
+
+        await tx.subscription.create({
+          data: {
+            accountId: newAccount.id,
+            planId: freePlan.id,
+            status: 'ACTIVE',
+            startDate: membershipStartDate,
+            endDate: membershipEndDate,
           },
         });
 
@@ -617,7 +690,7 @@ export class AuthService {
       }
       const normalizedEmail = email.toLowerCase().trim();
       await this.ensureAccountLoginAllowed(normalizedEmail);
-      const account = await this.prisma.account.findUnique({
+      let account = await this.prisma.account.findUnique({
         where: { email: normalizedEmail },
         include: {
           nutritionist: true,
@@ -655,6 +728,37 @@ export class AuthService {
       }
       if (account.status === 'DELETED') {
         throw new UnauthorizedException('Credenciales inválidas');
+      }
+
+      if (
+        (account.role === 'NUTRITIONIST' ||
+          account.role === 'NUTRITIONIST_DEVELOPER') &&
+        !account.subscription
+      ) {
+        const accountId = account.id;
+        await this.prisma.$transaction(async (tx) => {
+          const freePlan = await this.findDefaultFreePlan(tx);
+          if (!freePlan) {
+            throw new ServiceUnavailableException(
+              'No existe un plan Freemium activo para la cuenta',
+            );
+          }
+          await this.ensureNutritionistMembership(
+            tx,
+            accountId,
+            false,
+            freePlan,
+            SubscriptionPlan.FREE,
+          );
+        });
+
+        account = await this.prisma.account.findUniqueOrThrow({
+          where: { id: accountId },
+          include: {
+            nutritionist: true,
+            subscription: { include: { plan: true } },
+          },
+        });
       }
 
       const updateData: any = { lastLoginAt: new Date() };
@@ -769,7 +873,7 @@ export class AuthService {
 
       if (existingByGoogle) {
         ensureGoogleLoginAllowed(existingByGoogle);
-        return tx.account.update({
+        const updated = await tx.account.update({
           where: { id: existingByGoogle.id },
           data: {
             googleEmail: normalizedEmail,
@@ -792,6 +896,35 @@ export class AuthService {
             subscription: { include: { plan: true } },
           },
         });
+
+        if (
+          (updated.role === 'NUTRITIONIST' ||
+            updated.role === 'NUTRITIONIST_DEVELOPER') &&
+          !existingByGoogle.subscription
+        ) {
+          const freePlan = await this.findDefaultFreePlan(tx);
+          if (!freePlan) {
+            throw new BadRequestException(
+              'No existe un plan Freemium activo para la cuenta',
+            );
+          }
+          await this.ensureNutritionistMembership(
+            tx,
+            updated.id,
+            false,
+            freePlan,
+            SubscriptionPlan.FREE,
+          );
+          return tx.account.findUniqueOrThrow({
+            where: { id: updated.id },
+            include: {
+              nutritionist: true,
+              subscription: { include: { plan: true } },
+            },
+          });
+        }
+
+        return updated;
       }
 
       const existingByEmail = await tx.account.findUnique({
@@ -856,6 +989,49 @@ export class AuthService {
             },
           });
 
+          if (!existingByEmail.subscription) {
+            const freePlan = await this.findDefaultFreePlan(tx);
+            if (!freePlan) {
+              throw new BadRequestException(
+                'No existe un plan Freemium activo para la cuenta',
+              );
+            }
+            await this.ensureNutritionistMembership(
+              tx,
+              updated.id,
+              false,
+              freePlan,
+              SubscriptionPlan.FREE,
+            );
+          }
+
+          return tx.account.findUniqueOrThrow({
+            where: { id: updated.id },
+            include: {
+              nutritionist: true,
+              subscription: { include: { plan: true } },
+            },
+          });
+        }
+
+        if (
+          (updated.role === 'NUTRITIONIST' ||
+            updated.role === 'NUTRITIONIST_DEVELOPER') &&
+          !existingByEmail.subscription
+        ) {
+          const freePlan = await this.findDefaultFreePlan(tx);
+          if (!freePlan) {
+            throw new BadRequestException(
+              'No existe un plan Freemium activo para la cuenta',
+            );
+          }
+          await this.ensureNutritionistMembership(
+            tx,
+            updated.id,
+            false,
+            freePlan,
+            SubscriptionPlan.FREE,
+          );
           return tx.account.findUniqueOrThrow({
             where: { id: updated.id },
             include: {
@@ -870,6 +1046,16 @@ export class AuthService {
 
       shouldSendWelcomeEmail = true;
 
+      const freePlan = await this.findDefaultFreePlan(tx);
+      if (!freePlan) {
+        throw new BadRequestException(
+          'No existe un plan Freemium activo para la nueva cuenta',
+        );
+      }
+      const membershipStartDate = new Date();
+      const membershipEndDate = new Date(membershipStartDate);
+      membershipEndDate.setMonth(membershipEndDate.getMonth() + 1);
+
       const newAccount = await tx.account.create({
         data: {
           email: normalizedEmail,
@@ -881,6 +1067,8 @@ export class AuthService {
           authProvider: 'google',
           role: 'NUTRITIONIST',
           plan: SubscriptionPlan.FREE,
+          membershipSelectedAt: membershipStartDate,
+          subscriptionEndsAt: membershipEndDate,
           status: 'ACTIVE',
           emailVerifiedAt: new Date(),
           emailVerificationToken: null,
@@ -906,6 +1094,16 @@ export class AuthService {
             profile.name || 'Usuario',
             nutritionist.id,
           ),
+        },
+      });
+
+      await tx.subscription.create({
+        data: {
+          accountId: newAccount.id,
+          planId: freePlan.id,
+          status: 'ACTIVE',
+          startDate: membershipStartDate,
+          endDate: membershipEndDate,
         },
       });
 

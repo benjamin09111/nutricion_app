@@ -25,6 +25,7 @@ export interface Patient {
   nutritionalFocus?: string;
   fitnessGoals?: string;
   likes?: string;
+  dislikedFoods?: string[];
   activityLevel?: ActivityLevel;
   primaryCondition?: string;
   clinicalRecord?: ClinicalRecord | null;

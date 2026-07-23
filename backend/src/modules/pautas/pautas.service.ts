@@ -5,10 +5,13 @@ import {
   Logger,
 } from '@nestjs/common';
 import { AiService } from '../../common/services/ai.service';
-import { PAUTAS_AI_PROMPTS } from './pautas-ai-prompts';
 import { AiGeneratePautasDto } from './dto/ai-generate-pautas.dto';
 import { PlanUsageService } from '../permissions/plan-usage.service';
 import { pautaAiResponseSchema } from './pautas-ai-schemas';
+import {
+  buildPlanAiRequest,
+  stringifyPlanAiRequest,
+} from '../../common/services/plan-ai-contract';
 
 type PautaParagraph = {
   category: string;
@@ -40,6 +43,7 @@ export class PautasService {
       allowedFoods = [],
       restrictedFoods = [],
       patient,
+      allowExternalFoods = false,
     } = dto;
 
     if (!restriction || !categories || categories.length === 0) {
@@ -48,15 +52,33 @@ export class PautasService {
       );
     }
 
-    const systemInstruction = PAUTAS_AI_PROMPTS.system;
-    const patientContext = this.aiService.formatPatientContext(patient);
-    const userPrompt = PAUTAS_AI_PROMPTS.userPrompt(
-      restriction,
-      categories,
-      allowedFoods,
-      restrictedFoods,
-      patientContext,
-    );
+    const systemInstruction =
+      'Eres un nutricionista clínico experto. Responde solo JSON válido.';
+    const request = buildPlanAiRequest({
+      patient,
+      availableFoods: allowedFoods,
+      objective: `Crear pautas alimentarias para la restricción clínica: ${restriction}.`,
+      instruction: `Genera un párrafo por categoría solicitada: ${categories.join(', ')}. Usa porciones realistas y alimentos habituales en Chile. Alimentos no permitidos: ${restrictedFoods.join(', ') || 'ninguno registrado'}.`,
+      allowExternalFoods,
+      rules: [
+        allowExternalFoods
+          ? 'Prioriza allowedFoods, pero puedes complementar con alimentos externos compatibles.'
+          : 'Prioriza allowedFoods y no uses alimentos fuera de la lista.',
+        'Cada alimento debe incluir portion y food.',
+      ],
+      tools: { categories, restriction },
+      outputSchema: {
+        paragraphs: [
+          {
+            category: 'string',
+            categoryOptional: 'string',
+            portionsPerDay: 'string',
+            foods: [{ portion: 'string', food: 'string' }],
+          },
+        ],
+      },
+    });
+    const userPrompt = stringifyPlanAiRequest(request);
 
     this.logger.log(
       `[AI] Generating pautas for restriction: ${restriction}, categories: ${categories.join(', ')}`,

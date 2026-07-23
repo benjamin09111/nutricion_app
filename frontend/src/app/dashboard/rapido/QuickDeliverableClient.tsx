@@ -29,7 +29,7 @@ import { Textarea } from "@/components/ui/Textarea";
 import { ImportCreationModal } from "@/components/shared/ImportCreationModal";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { WorkflowContextBanner } from "@/components/shared/WorkflowContextBanner";
-import { PlanWizardShell, NatyLoadingOverlay, NatyButton } from "@/components/plans";
+import { PlanWizardShell, NatyLoadingOverlay, NatyButton, PromptPreviewButton } from "@/components/plans";
 import { ActionDockItem } from "@/components/ui/ActionDock";
 import { CalculatedMetricsPanel } from "@/components/patient-form/CalculatedMetricsPanel";
 import { fetchApi, getApiUrl } from "@/lib/api-base";
@@ -112,6 +112,7 @@ type QuickPatient = {
   nutritionalFocus?: string | null;
   fitnessGoals?: string | null;
   restrictions?: string[];
+  dislikedFoods?: string[];
   likes?: string | null;
   clinicalSummary?: string | null;
   activityLevel?: ActivityLevel | null;
@@ -294,32 +295,67 @@ const normalizeQuickText = (value: string) =>
     .toLowerCase()
     .trim();
 
-function extractVariablesFromContent(content: string): string[] {
-  const regex = /\^([a-zA-Z0-9_\- ]+)\^/g;
-  const variables = new Set<string>();
-  let match = regex.exec(content || "");
-  while (match) {
-    variables.add(match[1].trim());
-    match = regex.exec(content || "");
-  }
-  return Array.from(variables);
-}
-
-function stripHtml(content: string): string {
-  return (content || "")
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/p>/gi, "\n")
-    .replace(/<\/div>/gi, "\n")
-    .replace(/<[^>]+>/g, " ")
+function decodeHtmlEntities(content: string): string {
+  return content
     .replace(/&nbsp;/gi, " ")
     .replace(/&amp;/gi, "&")
     .replace(/&lt;/gi, "<")
     .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#039;|&apos;/gi, "'")
+    .replace(/&#(\d+);/g, (_, code: string) => String.fromCharCode(Number(code)))
+    .replace(/&#x([\da-f]+);/gi, (_, code: string) => String.fromCharCode(parseInt(code, 16)));
+}
+
+function stripHtml(content: string): string {
+  return decodeHtmlEntities(content || "")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<li[^>]*>/gi, "\n• ")
+    .replace(/<\/li>/gi, "\n")
+    .replace(/<h[1-6][^>]*>/gi, "\n")
+    .replace(/<\/h[1-6]>/gi, "\n")
+    .replace(/<\/p>/gi, "\n")
+    .replace(/<\/div>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
     .replace(/\n\s*\n/g, "\n")
     .replace(/[ \t]+/g, " ")
     .trim();
+}
+
+function getPatientVariableValues(patient: QuickPatient): Record<string, string> {
+  const age = resolveQuickAgeYears(patient);
+  return {
+    NOMBRE_PACIENTE: patient.fullName?.trim() || "",
+    EDAD_PACIENTE: typeof age === "number" ? String(age) : "",
+    OBJETIVO_PRINCIPAL: (patient.nutritionalFocus || patient.fitnessGoals || "").trim(),
+  };
+}
+
+function replaceResourceVariables(
+  content: string,
+  patient: QuickPatient,
+  overrides: Record<string, string> = {},
+): { content: string; variables: Record<string, string>; missing: string[] } {
+  const variables: Record<string, string> = {};
+  const values = { ...getPatientVariableValues(patient), ...overrides };
+  const missing = new Set<string>();
+  const resolvedContent = stripHtml(content).replace(
+    /\^([a-zA-Z0-9_\- ]+)\^|\{([a-zA-Z0-9_\- ]+)\}/g,
+    (match, caretName: string | undefined, braceName: string | undefined) => {
+      const name = (caretName || braceName || "").trim();
+      const value = values[name] || "";
+      if (!value) {
+        missing.add(name);
+        return match;
+      }
+      variables[name] = value;
+      return value;
+    },
+  );
+
+  return { content: resolvedContent, variables, missing: Array.from(missing) };
 }
 
 function getResolvedResourceKey(resource: ResolvedResourcePage, index: number): string {
@@ -366,6 +402,10 @@ export default function QuickDeliverableClient() {
   const [currentProjectName, setCurrentProjectName] = useState<string | null>(null);
   const [currentProjectMode, setCurrentProjectMode] = useState<string | null>(null);
   const [isPatientModalOpen, setIsPatientModalOpen] = useState(false);
+  const [isResourceVariablesModalOpen, setIsResourceVariablesModalOpen] = useState(false);
+  const [pendingResourceIds, setPendingResourceIds] = useState<string[]>([]);
+  const [pendingResourceVariables, setPendingResourceVariables] = useState<string[]>([]);
+  const [resourceVariableValues, setResourceVariableValues] = useState<Record<string, string>>({});
   const [isLoadingPatients, setIsLoadingPatients] = useState(false);
   const [isLoadingResources, setIsLoadingResources] = useState(false);
   const [isResourceModalOpen, setIsResourceModalOpen] = useState(false);
@@ -380,6 +420,7 @@ export default function QuickDeliverableClient() {
   const [aiAllowedFoods, setAiAllowedFoods] = useState("");
   const [aiRestrictedFoods, setAiRestrictedFoods] = useState("");
   const [aiNotes, setAiNotes] = useState("");
+  const [allowExternalFoods, setAllowExternalFoods] = useState(false);
   const [isSaveCreationModalOpen, setIsSaveCreationModalOpen] = useState(false);
   const [lastSavedState, setLastSavedState] = useState<string | null>(null);
   const [isImportCreationModalOpen, setIsImportCreationModalOpen] = useState(false);
@@ -636,12 +677,7 @@ export default function QuickDeliverableClient() {
   );
 
   const simpleResources = useMemo(
-    () =>
-      resources.filter(
-        (resource) =>
-          !extractVariablesFromContent(resource.content || "").length &&
-          !(resource.variablePlaceholders?.length || 0),
-      ),
+    () => resources,
     [resources],
   );
 
@@ -1138,13 +1174,15 @@ export default function QuickDeliverableClient() {
               .split(",")
               .map((item) => item.trim())
               .filter(Boolean),
+            allowExternalFoods,
             mealSectionTargets: quickAiMealTargets,
             generationMode: planMode,
             patient: {
               fullName: selectedPatient.fullName || "",
               gender: selectedPatient.gender || "",
               ageYears: selectedPatient.ageYears ?? undefined,
-              restrictions: selectedPatient.restrictions || [],
+            restrictions: selectedPatient.restrictions || [],
+            dislikedFoods: selectedPatient.dislikedFoods || [],
               likes: selectedPatient.likes || "",
               fitnessGoals: selectedPatient.fitnessGoals || "",
               clinicalSummary: selectedPatient.nutritionalFocus || "",
@@ -1305,6 +1343,33 @@ export default function QuickDeliverableClient() {
     }
   };
 
+  const appendResolvedResources = (
+    resourcesToAdd: ResourceTemplate[],
+    patient: QuickPatient,
+    overrides: Record<string, string> = {},
+  ) => {
+    const nextResources = resourcesToAdd.map((resource) => {
+      const resolved = replaceResourceVariables(resource.content || "", patient, overrides);
+      return {
+        resourceId: resource.id,
+        title: resource.title,
+        content: resolved.content,
+        variables: resolved.variables,
+      };
+    });
+
+    setResolvedResourcePages((prev) => {
+      const next = [...prev, ...nextResources];
+      setSelectedResourceKeys((current) => [
+        ...current,
+        ...nextResources.map((resource, index) =>
+          getResolvedResourceKey(resource, prev.length + index),
+        ),
+      ]);
+      return next;
+    });
+  };
+
   const addResolvedResourcePage = async () => {
     if (selectedResourceIds.length === 0) {
       toast.error("Selecciona al menos un recurso.");
@@ -1312,28 +1377,27 @@ export default function QuickDeliverableClient() {
     }
 
     try {
-      const nextResources: ResolvedResourcePage[] = [];
-
-      for (const resourceId of selectedResourceIds) {
-        const resource = simpleResources.find((item) => item.id === resourceId);
-        if (!resource) continue;
-        nextResources.push({
-          resourceId: resource.id,
-          title: resource.title,
-          content: stripHtml(resource.content),
-          variables: {},
-        });
-      }
-      setResolvedResourcePages((prev) => {
-        const next = [...prev, ...nextResources];
-        setSelectedResourceKeys((current) => [
-          ...current,
-          ...nextResources.map((resource, index) =>
-            getResolvedResourceKey(resource, prev.length + index),
+      const resourcesToAdd = selectedResourceIds
+        .map((resourceId) => simpleResources.find((item) => item.id === resourceId))
+        .filter((resource): resource is ResourceTemplate => Boolean(resource));
+      const missingVariables = Array.from(
+        new Set(
+          resourcesToAdd.flatMap((resource) =>
+            replaceResourceVariables(resource.content || "", selectedPatient).missing,
           ),
-        ]);
-        return next;
-      });
+        ),
+      );
+
+      if (missingVariables.length > 0) {
+        setPendingResourceIds(resourcesToAdd.map((resource) => resource.id));
+        setPendingResourceVariables(missingVariables);
+        setResourceVariableValues({});
+        setIsResourceModalOpen(false);
+        setIsResourceVariablesModalOpen(true);
+        return;
+      }
+
+      appendResolvedResources(resourcesToAdd, selectedPatient);
       setSelectedResourceIds([]);
       setIsResourceModalOpen(false);
       toast.success("Recursos agregados al entregable rápido.");
@@ -1341,6 +1405,39 @@ export default function QuickDeliverableClient() {
       console.error(error);
       toast.error("No se pudo agregar el recurso.");
     }
+  };
+
+  const resolvePendingResourceVariables = () => {
+    const missingValues = pendingResourceVariables.filter(
+      (variable) => !resourceVariableValues[variable]?.trim(),
+    );
+    if (missingValues.length > 0) {
+      toast.error("Completa todos los datos solicitados para importar el recurso.");
+      return;
+    }
+
+    const manualPatient: QuickPatient = {
+      ...selectedPatient,
+      fullName: resourceVariableValues.NOMBRE_PACIENTE?.trim() || selectedPatient.fullName,
+      ageYears: resourceVariableValues.EDAD_PACIENTE
+        ? Math.max(0, Math.round(Number(resourceVariableValues.EDAD_PACIENTE) || 0))
+        : selectedPatient.ageYears,
+      nutritionalFocus:
+        resourceVariableValues.OBJETIVO_PRINCIPAL?.trim() || selectedPatient.nutritionalFocus,
+      source: selectedPatient.id ? selectedPatient.source : "manual",
+    };
+    const resourcesToAdd = pendingResourceIds
+      .map((resourceId) => simpleResources.find((resource) => resource.id === resourceId))
+      .filter((resource): resource is ResourceTemplate => Boolean(resource));
+
+    setSelectedPatient(manualPatient);
+    appendResolvedResources(resourcesToAdd, manualPatient, resourceVariableValues);
+    setSelectedResourceIds([]);
+    setPendingResourceIds([]);
+    setPendingResourceVariables([]);
+    setResourceVariableValues({});
+    setIsResourceVariablesModalOpen(false);
+    toast.success("Recursos agregados con los datos del paciente.");
   };
 
   const updateMeal = (
@@ -1489,6 +1586,39 @@ export default function QuickDeliverableClient() {
     };
   };
 
+  const buildQuickDeliverablePromptPayload = () => ({
+    payload: {
+      notes: aiNotes,
+      allowedFoodsMain: aiAllowedFoods.split(",").map((item) => item.trim()).filter(Boolean),
+      restrictedFoods: aiRestrictedFoods.split(",").map((item) => item.trim()).filter(Boolean),
+      allowExternalFoods,
+      mealSectionTargets: quickAiMealTargets,
+      generationMode: planMode,
+      patient: {
+        fullName: selectedPatient.fullName || "",
+        gender: selectedPatient.gender || "",
+        ageYears: selectedPatient.ageYears ?? undefined,
+        restrictions: selectedPatient.restrictions || [],
+        likes: selectedPatient.likes || "",
+        fitnessGoals: selectedPatient.fitnessGoals || "",
+        clinicalSummary: selectedPatient.nutritionalFocus || "",
+      },
+      patientId: selectedPatient.id || undefined,
+      existingDishes: meals.flatMap((meal) => {
+        if (!meal.section.trim()) return [];
+        if (planMode === "single") {
+          return meal.mealText.trim()
+            ? [{ title: meal.mealText.trim(), mealSection: meal.section }]
+            : [];
+        }
+        return QUICK_WEEK_DAYS
+          .map((day) => (meal.weeklyMealTexts?.[day] || "").trim())
+          .filter(Boolean)
+          .map((title) => ({ title, mealSection: meal.section }));
+      }),
+    },
+  });
+
   const handleExportPdf = async () => {
     if (!validateRequiredSections()) {
       toast.error("Completa las secciones marcadas para generar el PDF.");
@@ -1587,6 +1717,7 @@ export default function QuickDeliverableClient() {
     setIncludeResources(true);
     setIncludePortionGuide(true);
     setPortionGuideRows(QUICK_PORTION_GUIDE.map((row) => createPortionGuideRow(row)));
+    setCurrentStep(0);
     localStorage.removeItem("nutri_quick_deliverable_draft");
     toast.success("Entregable rápido reiniciado.");
   };
@@ -1671,6 +1802,14 @@ export default function QuickDeliverableClient() {
         description="Crea un entregable express de una sola hoja con horarios, indicaciones, alimentos a evitar, recursos y una guía breve de porciones."
         className="max-w-[68rem]"
         rightNavItems={actionItems}
+        rightContent={
+          <PromptPreviewButton
+            moduleName="Entregable Rápido"
+            endpoint="/recipes/quick-ai-fill"
+            buildPayload={buildQuickDeliverablePromptPayload}
+            expectedOutput="JSON con dishes para completar únicamente los espacios de alimentos solicitados."
+          />
+        }
       >
         <WorkflowContextBanner
           projectName={currentProjectName}
@@ -1710,6 +1849,7 @@ export default function QuickDeliverableClient() {
                     value={quickHashtags.split(",").map((t) => t.trim()).filter(Boolean)}
                     onChange={(tags) => setQuickHashtags(tags.join(", "))}
                     fetchSuggestionsUrl={`${getApiUrl()}/tags`}
+                    helperText="Selecciona una sugerencia o presiona Enter para usar uno personalizado."
                     placeholder="Ej: keto, hipertrofia"
                   />
                 </div>
@@ -1731,29 +1871,32 @@ export default function QuickDeliverableClient() {
             className={cn(
               "group rounded-2xl border border-slate-200 bg-white [&[open]]:pb-6"
             )}
-            open={!selectedPatient.fullName?.trim() ? true : undefined}
+            open={(!selectedPatient.fullName?.trim() || isManualPatientExpanded) ? true : undefined}
           >
-            {!selectedPatient.fullName?.trim() ? (
+            {!selectedPatient.fullName?.trim() || isManualPatientExpanded ? (
               <summary
-                className="flex items-center justify-between gap-3 px-6 py-4 select-none pointer-events-none"
+                className="flex select-none px-6 py-6 pointer-events-none"
                 onClick={(e) => {
                   e.preventDefault();
                 }}
               >
                 <div
-                  className="flex flex-wrap items-center justify-between gap-3 w-full pointer-events-auto"
+                  className="flex w-full flex-col items-center gap-5 text-center pointer-events-auto"
                   onClick={(e) => {
                     e.stopPropagation();
                   }}
                 >
-                  <p className="text-[11px] font-black uppercase tracking-[0.25em] text-slate-400">PACIENTE</p>
-                  <div className="flex flex-wrap items-center gap-3">
+                  <div className="max-w-2xl">
+                    <p className="text-sm font-bold leading-6 text-amber-900">Puedes generar platos sin paciente o importar uno para personalizar mejor la IA.</p>
+                    <p className="mt-2 text-xs leading-5 text-slate-500">Si importas un paciente, Naty considerará sus restricciones, objetivos y contexto clínico. El PDF sigue requiriendo un paciente vinculado.</p>
+                  </div>
+                  <div className="flex w-full flex-col justify-center gap-3 sm:w-auto sm:flex-row">
                     <Button
                       type="button"
                       variant="outline"
                       onClick={() => void openPatientImportModal()}
                       disabled={isLoadingPatients}
-                      className="h-9 rounded-xl border-emerald-200 bg-white px-4 text-sm text-emerald-700 font-semibold hover:bg-emerald-50 hover:border-emerald-300 transition-all"
+                      className="h-10 min-w-48 justify-center rounded-xl border-emerald-200 bg-white px-4 text-sm text-emerald-700 font-semibold hover:bg-emerald-50 hover:border-emerald-300 transition-all"
                     >
                       {isLoadingPatients ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin text-emerald-600" />
@@ -1762,13 +1905,12 @@ export default function QuickDeliverableClient() {
                       )}
                       {isLoadingPatients ? "Cargando..." : "Importar paciente"}
                     </Button>
-                    <span className="text-xs font-semibold text-slate-400">o</span>
                     <Button
                       type="button"
                       variant="outline"
                       onClick={startManualPatientEntry}
                       disabled={isLoadingPatients}
-                      className="h-9 rounded-xl border-slate-200 bg-white px-4 text-sm text-slate-700 font-semibold hover:bg-slate-50 hover:border-slate-300 transition-all"
+                      className="h-10 min-w-48 justify-center rounded-xl border-slate-200 bg-white px-4 text-sm text-slate-700 font-semibold hover:bg-slate-50 hover:border-slate-300 transition-all"
                     >
                       <FileText className="mr-2 h-4 w-4" />
                       Rellenar manualmente
@@ -2756,6 +2898,63 @@ export default function QuickDeliverableClient() {
       </ModuleLayout>
 
       <Modal
+        isOpen={isResourceVariablesModalOpen}
+        onClose={() => setIsResourceVariablesModalOpen(false)}
+        title="Completar datos del paciente"
+        className="max-w-lg"
+      >
+        <div className="space-y-4">
+          <p className="text-sm leading-6 text-slate-600">
+            El recurso usa datos que no están disponibles. Completa estos campos para importar el texto correctamente.
+          </p>
+          {pendingResourceVariables.map((variable) => {
+            const label =
+              variable === "NOMBRE_PACIENTE"
+                ? "Nombre del paciente"
+                : variable === "EDAD_PACIENTE"
+                  ? "Edad del paciente"
+                  : variable === "OBJETIVO_PRINCIPAL"
+                    ? "Objetivo principal"
+                    : variable.replace(/_/g, " ");
+            return (
+              <div key={variable} className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                  {label}
+                </label>
+                <Input
+                  type={variable === "EDAD_PACIENTE" ? "number" : "text"}
+                  min={variable === "EDAD_PACIENTE" ? 0 : undefined}
+                  value={resourceVariableValues[variable] || ""}
+                  onChange={(event) =>
+                    setResourceVariableValues((current) => ({
+                      ...current,
+                      [variable]: event.target.value,
+                    }))
+                  }
+                  className="h-11 rounded-xl border-slate-200 bg-slate-50"
+                />
+              </div>
+            );
+          })}
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              variant="outline"
+              className="rounded-xl border-slate-200"
+              onClick={() => setIsResourceVariablesModalOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              className="rounded-xl bg-emerald-600 text-white hover:bg-emerald-700"
+              onClick={resolvePendingResourceVariables}
+            >
+              Importar recurso
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
         isOpen={isPatientModalOpen}
         onClose={() => setIsPatientModalOpen(false)}
         title="Asignar paciente"
@@ -2837,7 +3036,7 @@ export default function QuickDeliverableClient() {
 
           <div className="space-y-2">
             <p className="text-xs font-black uppercase tracking-widest text-slate-400">
-              Solo recursos simples, sin variables
+              Recursos educativos disponibles
             </p>
             <div className="max-h-[360px] space-y-2 overflow-y-auto pr-1">
               {filteredSimpleResources.length > 0 ? filteredSimpleResources.map((resource) => {
@@ -2981,6 +3180,18 @@ export default function QuickDeliverableClient() {
                 Se detectaron <strong>{quickAiMealTargets.reduce((total, item) => total + item.count, 0)}</strong> espacios vacios
                 para rellenar {planMode === "weekly" ? "en la vista semanal" : "en la tabla actual"}.
               </div>
+              <label className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={allowExternalFoods}
+                  onChange={(event) => setAllowExternalFoods(event.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                <span>
+                  <span className="font-bold">Permitir alimentos fuera de la lista</span>
+                  <span className="mt-0.5 block text-xs text-slate-500">Los condimentos básicos podrán marcarse como opcionales.</span>
+                </span>
+              </label>
               <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                 <Button
                   variant="outline"
