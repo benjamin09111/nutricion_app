@@ -82,7 +82,7 @@ async function bootstrap() {
       origin && frontendOrigins.has(origin.replace(/\/$/, '')),
     );
 
-    if (crossSite || !originAllowed) {
+    if (crossSite && !originAllowed) {
       return res.status(403).json({
         statusCode: 403,
         message: 'Solicitud bloqueada por protección de seguridad.',
