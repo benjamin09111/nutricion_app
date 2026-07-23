@@ -21,6 +21,7 @@ import { useDashboardShell } from "@/context/DashboardShellContext";
 import { useTheme } from "@/context/ThemeContext";
 import { fetchApi } from "@/lib/api-base";
 import { useAdmin } from "@/context/AdminContext";
+import { getAuthToken } from "@/lib/auth-token";
 
 interface SidebarItem {
   name: string;
@@ -123,12 +124,13 @@ export function AdminSidebar() {
 
     const fetchInboxPendingCount = async () => {
       try {
-        const token = localStorage.getItem("auth_token");
-        if (!token) return;
+        const token = getAuthToken();
+        const headers: Record<string, string> = {};
+        if (token) {
+          headers["Authorization"] = `Bearer ${token}`;
+        }
 
-        const response = await fetchApi("/support", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const response = await fetchApi("/support", { headers });
 
         if (!response.ok) return;
 
@@ -150,12 +152,13 @@ export function AdminSidebar() {
 
     const fetchDeletionRequestsCount = async () => {
       try {
-        const token = localStorage.getItem("auth_token");
-        if (!token) return;
+        const token = getAuthToken();
+        const headers: Record<string, string> = {};
+        if (token) {
+          headers["Authorization"] = `Bearer ${token}`;
+        }
 
-        const response = await fetchApi("/users/deletion-requests/count", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const response = await fetchApi("/users/deletion-requests/count", { headers });
 
         if (!response.ok) return;
 

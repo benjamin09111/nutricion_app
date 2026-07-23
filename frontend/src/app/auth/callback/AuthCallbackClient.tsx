@@ -6,7 +6,6 @@ import { Loader2 } from "lucide-react";
 import { fetchApi } from "@/lib/api-base";
 import { getCurrentUser, setCurrentUser } from "@/lib/current-user";
 import { resolveSafePostAuthPath } from "@/lib/safe-redirect";
-import { persistAuthSession } from "@/features/auth/services/auth.service";
 
 const DRAFT_STORAGE_KEYS = [
   "nutri_active_draft",
@@ -61,10 +60,12 @@ export default function AuthCallbackClient({ fallbackMessage }: Props = {}) {
         const exchangedSession = sessionResponse
           ? await sessionResponse.json()
           : null;
-        if (!exchangedSession?.access_token) {
+        if (!exchangedSession?.user) {
           throw new Error("Google no devolvió una sesión válida.");
         }
-        persistAuthSession(exchangedSession.access_token);
+        // JWT is already in the httpOnly cookie set by the backend.
+        // We only store user display data.
+        setCurrentUser(exchangedSession.user);
 
         const response = await fetchApi("/auth/me");
 

@@ -20,6 +20,7 @@ import { Textarea } from "@/components/ui/Textarea";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { fetchApi } from "@/lib/api-base";
+import { getAuthToken } from "@/lib/auth-token";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -27,10 +28,8 @@ function cn(...inputs: ClassValue[]) {
 
 const feedbackSchema = z.object({
   type: z.enum(["feedback", "complaint", "idea", "testimonio", "reunion"]),
-  subject: z.string().min(5, "El asunto/motivo debe tener al menos 5 caracteres"),
-  message: z
-    .string()
-    .min(10, "El mensaje debe ser más detallado (mínimo 10 caracteres)"),
+  subject: z.string().min(3, "El asunto debe tener al menos 3 caracteres"),
+  message: z.string().min(10, "El mensaje debe tener al menos 10 caracteres"),
 });
 
 type FeedbackFormData = z.infer<typeof feedbackSchema>;
@@ -38,13 +37,14 @@ type FeedbackFormData = z.infer<typeof feedbackSchema>;
 export function FeedbackForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const {
     register,
     handleSubmit,
+    setValue,
     watch,
     reset,
-    setValue,
     formState: { errors },
   } = useForm<FeedbackFormData>({
     resolver: zodResolver(feedbackSchema),
@@ -60,20 +60,24 @@ export function FeedbackForm() {
   const onSubmit = async (data: FeedbackFormData) => {
     setIsSubmitting(true);
     try {
-      const token = localStorage.getItem("auth_token");
+      const token = getAuthToken();
       const payload = {
         ...data,
         type: data.type.toUpperCase(),
       };
 
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
       const response = await fetchApi(
         `/support/feedback`,
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
+          headers,
           body: JSON.stringify(payload),
         },
       );

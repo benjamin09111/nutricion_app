@@ -1,9 +1,9 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
-import Cookies from "js-cookie";
 import { toast } from "sonner";
 import { fetchApi } from "@/lib/api-base";
+import { hasActiveSession } from "@/lib/auth-token";
 
 export type NotificationType =
   | "info"
@@ -58,10 +58,6 @@ export function NotificationsProvider({
 }) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
-  const getToken = () => {
-    return Cookies.get("auth_token") || "";
-  };
-
   const persistNotifications = (value: Notification[]) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
   };
@@ -109,16 +105,14 @@ export function NotificationsProvider({
   };
 
   const loadFromServer = async () => {
-    const token = getToken();
-    if (!token) {
+    if (!hasActiveSession()) {
       loadFromStorage(true);
       return;
     }
 
     try {
-      const response = await fetchApi("/notifications/me", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      // fetchApi sends credentials:"include" automatically – httpOnly cookie handles auth
+      const response = await fetchApi("/notifications/me");
 
       if (!response.ok) {
         loadFromStorage(false);
@@ -201,11 +195,9 @@ export function NotificationsProvider({
       return updated;
     });
 
-    const token = getToken();
-    if (token) {
+    if (hasActiveSession()) {
       void fetchApi(`/notifications/${id}/read`, {
         method: "PATCH",
-        headers: { Authorization: `Bearer ${token}` },
       }).catch((error) => console.error("Error marking notification read", error));
     }
   };
@@ -217,11 +209,9 @@ export function NotificationsProvider({
       return updated;
     });
 
-    const token = getToken();
-    if (token) {
+    if (hasActiveSession()) {
       void fetchApi(`/notifications/read-all`, {
         method: "PATCH",
-        headers: { Authorization: `Bearer ${token}` },
       }).catch((error) => console.error("Error marking notifications read", error));
     }
   };
@@ -233,11 +223,9 @@ export function NotificationsProvider({
       return updated;
     });
 
-    const token = getToken();
-    if (token) {
+    if (hasActiveSession()) {
       void fetchApi(`/notifications/${id}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
       }).catch((error) => console.error("Error deleting notification", error));
     }
   };
