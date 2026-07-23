@@ -14,7 +14,7 @@ export interface PautaPatientData {
   weight: number | null;
   height: number | null;
   bmi: number | null;
-  bloodPressure: string | null;
+  bloodPressure?: string | null;
   nextControl: string | null;
 }
 
@@ -284,12 +284,6 @@ export const PautaAlimentacionPdfDocument: React.FC<{ data: PautaAlimentacionPdf
               <Text style={styles.patientMetaRow}>
                 <Text style={styles.patientMetaLabel}>IMC: </Text>
                 {bmiDisplay}
-              </Text>
-            )}
-            {bpDisplay && (
-              <Text style={styles.patientMetaRow}>
-                <Text style={styles.patientMetaLabel}>P. Arterial: </Text>
-                {bpDisplay}
               </Text>
             )}
           </View>

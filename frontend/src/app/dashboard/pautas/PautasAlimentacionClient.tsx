@@ -47,7 +47,6 @@ type PautaPatient = {
   ageYears?: number | null;
   weight?: number | null;
   height?: number | null;
-  bloodPressure?: string | null;
   source?: "manual" | "imported";
 };
 
@@ -141,7 +140,6 @@ const createEmptyPatient = (): PautaPatient => ({
   ageYears: null,
   weight: null,
   height: null,
-  bloodPressure: null,
   source: "manual",
 });
 
@@ -231,7 +229,7 @@ export default function PautasAlimentacionClient() {
   const creationId = searchParams.get("creationId");
   const projectId = searchParams.get("project");
 
-  const [title, setTitle] = useState(DEFAULT_TITLE);
+  const [title, setTitle] = useState("");
   const [selectedRestriction, setSelectedRestriction] = useState<string>("");
   const [restrictions, setRestrictions] = useState<ServerTag[]>([]);
   const [restrictionSearch, setRestrictionSearch] = useState("");
@@ -244,7 +242,6 @@ export default function PautasAlimentacionClient() {
     ageYears: "",
     weight: "",
     height: "",
-    bloodPressure: "",
   });
 
   const [paragraphs, setParagraphs] = useState<PautaParagraph[]>([createParagraph()]);
@@ -386,7 +383,7 @@ export default function PautasAlimentacionClient() {
     if (!draft) return;
     try {
       const parsed = JSON.parse(draft);
-      setTitle(parsed.title || DEFAULT_TITLE);
+      setTitle(parsed.title ?? "");
       setSelectedRestriction(parsed.selectedRestriction || "");
       setSelectedPatient(parsed.selectedPatient || createEmptyPatient());
       setIsManualPatientExpanded(parsed.isManualPatientExpanded === true);
@@ -396,7 +393,7 @@ export default function PautasAlimentacionClient() {
           : "auto",
       );
       setManualPatientData(
-        parsed.manualPatientData || { ageYears: "", weight: "", height: "", bloodPressure: "" },
+        parsed.manualPatientData || { ageYears: "", weight: "", height: "" },
       );
       setParagraphs(
         Array.isArray(parsed.paragraphs) && parsed.paragraphs.length > 0
@@ -718,7 +715,7 @@ export default function PautasAlimentacionClient() {
     setIsLoadingPatients(true);
     try {
       const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const response = await fetchApi(`/patients`, { headers: { Authorization: `Bearer ${token}` } });
+      const response = await fetchApi(`/patients?status=Activos&limit=100`, { headers: { Authorization: `Bearer ${token}` } });
       if (response.ok) {
         const data = await response.json();
         setPatients(data.data || []);
@@ -751,7 +748,7 @@ export default function PautasAlimentacionClient() {
   const clearSelectedPatient = () => {
     setSelectedPatient(createEmptyPatient());
     setIsManualPatientExpanded(false);
-    setManualPatientData({ ageYears: "", weight: "", height: "", bloodPressure: "" });
+    setManualPatientData({ ageYears: "", weight: "", height: "" });
     toast.info("Paciente quitado.");
   };
 
@@ -980,10 +977,6 @@ export default function PautasAlimentacionClient() {
             weight: patientWeight,
             height: patientHeight,
             bmi: calculatedBmi,
-            bloodPressure:
-              isManualPatientExpanded && manualPatientData.bloodPressure.trim()
-                ? manualPatientData.bloodPressure
-                : selectedPatient.bloodPressure ?? null,
             nextControl: null,
           }
         : null,
@@ -1263,7 +1256,7 @@ export default function PautasAlimentacionClient() {
     setIsSaving(true);
     try {
       await saveCreation({
-        name: `${title} - ${selectedRestriction}`,
+        name: `${title.trim() || DEFAULT_TITLE} - ${selectedRestriction}`,
         type: "PAUTAS",
         content: {
           title,
@@ -1301,11 +1294,11 @@ export default function PautasAlimentacionClient() {
   };
 
   const resetPauta = () => {
-    setTitle(DEFAULT_TITLE);
+    setTitle("");
     setSelectedRestriction("");
     setSelectedPatient(createEmptyPatient());
     setIsManualPatientExpanded(false);
-    setManualPatientData({ ageYears: "", weight: "", height: "", bloodPressure: "" });
+    setManualPatientData({ ageYears: "", weight: "", height: "" });
     setParagraphs([createParagraph()]);
     setPautaEditorMode("paragraphs");
     setMeals([createPautaMeal("Desayuno"), createPautaMeal("Almuerzo"), createPautaMeal("Cena")]);
@@ -1315,6 +1308,7 @@ export default function PautasAlimentacionClient() {
     setResourceSearch("");
     setResourceSource("system");
     setLastSavedState(null);
+    setCurrentStep(0);
     localStorage.removeItem("nutri_pauta_alimentacion_draft");
     toast.success("Pautas reiniciadas.");
   };
@@ -1512,9 +1506,9 @@ export default function PautasAlimentacionClient() {
           {/* Acordeón 2: Paciente */}
           <details
             className="group rounded-2xl border border-slate-200 bg-white [&[open]]:pb-6"
-            open={!selectedPatient.fullName?.trim() ? true : undefined}
+            open={(!selectedPatient.fullName?.trim() || isManualPatientExpanded) ? true : undefined}
           >
-            {!selectedPatient.fullName?.trim() ? (
+            {!selectedPatient.fullName?.trim() || isManualPatientExpanded ? (
               <summary
                 className="flex items-center justify-between gap-3 px-6 py-4 select-none pointer-events-none"
                 onClick={(e) => {
@@ -1628,10 +1622,6 @@ export default function PautasAlimentacionClient() {
                         {selectedPatient.height ? `${selectedPatient.height} cm` : "—"}
                       </p>
                     </div>
-                    <div className="rounded-lg border border-slate-100 bg-white px-3 py-2">
-                      <p className="text-[10px] font-black uppercase text-slate-400">P. Arterial</p>
-                      <p className="text-sm font-semibold text-slate-800">{selectedPatient.bloodPressure || "—"}</p>
-                    </div>
                     {calculatedBmi !== null && (
                       <div className="rounded-lg border border-slate-100 bg-white px-3 py-2">
                         <p className="text-[10px] font-black uppercase text-slate-400">IMC</p>
@@ -1685,15 +1675,6 @@ export default function PautasAlimentacionClient() {
                         value={manualPatientData.height}
                         onChange={(e) => setManualPatientData((d) => ({ ...d, height: e.target.value }))}
                         placeholder="Ej: 170"
-                        className="h-10 rounded-xl"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Presión Arterial</p>
-                      <Input
-                        value={manualPatientData.bloodPressure}
-                        onChange={(e) => setManualPatientData((d) => ({ ...d, bloodPressure: e.target.value }))}
-                        placeholder="Ej: 120/80"
                         className="h-10 rounded-xl"
                       />
                     </div>
@@ -1952,7 +1933,7 @@ export default function PautasAlimentacionClient() {
                   <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <div>
                       <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">
-                        Pauta alimentaria *
+                        Pauta alimentaria <span className="text-rose-600">*</span>
                       </p>
                       <p className="mt-1 text-xs text-slate-500">
                         Elige la forma de presentar las recomendaciones para esta restricción clínica.
@@ -2037,7 +2018,7 @@ export default function PautasAlimentacionClient() {
                         <div className="grid gap-4 md:grid-cols-3">
                           <div className="space-y-1">
                             <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                              Categoría 1 *
+                              Categoría 1 <span className="text-rose-600">*</span>
                             </p>
                             <div className="relative category-dropdown">
                               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -2508,7 +2489,7 @@ export default function PautasAlimentacionClient() {
             Se guardará en <span className="font-semibold text-slate-700">Restricciones alimenticias</span> para reutilizarlo cuando lo necesites.
           </p>
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-slate-600">Título *</label>
+             <label className="text-xs font-semibold text-slate-600">Título <span className="text-rose-600">*</span></label>
             <Input
               value={educationalResourceTitle}
               onChange={(e) => setEducationalResourceTitle(e.target.value)}
@@ -2517,7 +2498,7 @@ export default function PautasAlimentacionClient() {
             />
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-slate-600">Hashtags</label>
+             <label className="text-xs font-semibold text-slate-600">Hashtags <span className="text-slate-400 font-normal normal-case">(opcional)</span></label>
             <TagInput
               value={educationalResourceTags}
               onChange={setEducationalResourceTags}
@@ -2526,7 +2507,7 @@ export default function PautasAlimentacionClient() {
             />
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-slate-600">Fuente</label>
+             <label className="text-xs font-semibold text-slate-600">Fuente <span className="text-slate-400 font-normal normal-case">(opcional)</span></label>
             <Input
               value={educationalResourceSource}
               onChange={(e) => setEducationalResourceSource(e.target.value)}

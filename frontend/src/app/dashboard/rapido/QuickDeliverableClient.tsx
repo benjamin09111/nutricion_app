@@ -1587,6 +1587,7 @@ export default function QuickDeliverableClient() {
     setIncludeResources(true);
     setIncludePortionGuide(true);
     setPortionGuideRows(QUICK_PORTION_GUIDE.map((row) => createPortionGuideRow(row)));
+    setCurrentStep(0);
     localStorage.removeItem("nutri_quick_deliverable_draft");
     toast.success("Entregable rápido reiniciado.");
   };
@@ -1731,9 +1732,9 @@ export default function QuickDeliverableClient() {
             className={cn(
               "group rounded-2xl border border-slate-200 bg-white [&[open]]:pb-6"
             )}
-            open={!selectedPatient.fullName?.trim() ? true : undefined}
+            open={(!selectedPatient.fullName?.trim() || isManualPatientExpanded) ? true : undefined}
           >
-            {!selectedPatient.fullName?.trim() ? (
+            {!selectedPatient.fullName?.trim() || isManualPatientExpanded ? (
               <summary
                 className="flex items-center justify-between gap-3 px-6 py-4 select-none pointer-events-none"
                 onClick={(e) => {
