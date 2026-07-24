@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Loader2 } from "lucide-react";
 import GoogleButton from "@/components/auth/GoogleButton";
 import { resolveRequiredUrl } from "@/lib/runtime-url.util";
 import EmailLoginForm from "./EmailLoginForm";
@@ -49,6 +50,22 @@ export default function LoginForm({
   }, [autoStart, handleGoogleLogin, isGoogleSigningIn]);
 
   if (autoStart) return null;
+
+  if (isGoogleSigningIn) {
+    return (
+      <div className="fixed inset-0 z-50 flex min-h-screen items-center justify-center bg-white px-4">
+        <div className="flex flex-col items-center gap-4 rounded-3xl border border-slate-200 bg-white px-8 py-10 text-center shadow-sm">
+          <Loader2 className="h-8 w-8 animate-spin text-emerald-600" aria-hidden="true" />
+          <p className="text-sm font-bold text-slate-800" aria-live="polite">
+            Iniciando sesión con Google
+          </p>
+          <p className="max-w-xs text-sm leading-6 text-slate-600">
+            Te estamos redirigiendo de forma segura. No cierres esta ventana.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (verification) {
     return (

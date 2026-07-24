@@ -125,8 +125,6 @@ export default function DietClient({ initialFoods }: DietClientProps) {
           {currentStep === 1 && (
             <DietPlannerSection
               allGroupsToRender={state.allGroupsToRender}
-              isApplyingPreferences={state.isApplyingPreferences}
-              applyNutritionistPreferences={state.applyNutritionistPreferences}
               openAddModal={state.openAddModal}
               setGroupToDelete={state.setGroupToDelete}
               setIsDeleteGroupConfirmOpen={state.setIsDeleteGroupConfirmOpen}

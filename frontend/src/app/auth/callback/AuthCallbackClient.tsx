@@ -28,6 +28,7 @@ type Props = {
 export default function AuthCallbackClient({ fallbackMessage }: Props = {}) {
   const params = useSearchParams();
   const router = useRouter();
+  const [isRedirecting, setIsRedirecting] = useState(false);
   const [message, setMessage] = useState(fallbackMessage || "Finalizando inicio de sesión...");
 
   useEffect(() => {
@@ -86,14 +87,17 @@ export default function AuthCallbackClient({ fallbackMessage }: Props = {}) {
         const targetPath = next === "/dashboard" && isAdmin ? "/dashboard/admin" : next;
         const postRutNext = user?.requiresPlanSelection ? "/plan" : targetPath;
 
-        if (!user?.rut) {
-          router.replace(
-            `/onboarding/rut?next=${encodeURIComponent(postRutNext)}`,
-          );
-          return;
-        }
+        const destination = user?.rut
+          ? postRutNext
+          : `/onboarding/rut?next=${encodeURIComponent(postRutNext)}`;
 
-        router.replace(postRutNext);
+        setIsRedirecting(true);
+        setMessage("Inicio de sesión exitoso. Preparando tu espacio de trabajo...");
+
+        // Give the success state a brief paint while the destination is prefetched.
+        router.prefetch(destination);
+        await new Promise((resolve) => window.setTimeout(resolve, 250));
+        router.replace(destination);
       } catch (error) {
         console.error("Auth callback error:", error);
         setMessage("No pudimos completar el inicio de sesión con Google.");
@@ -107,8 +111,13 @@ export default function AuthCallbackClient({ fallbackMessage }: Props = {}) {
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
       <div className="flex flex-col items-center gap-4 rounded-3xl border border-slate-200 bg-white px-8 py-10 shadow-sm">
-        <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
-        <p className="text-sm font-medium text-slate-600">{message}</p>
+        <Loader2 className="h-8 w-8 animate-spin text-emerald-600" aria-hidden="true" />
+        <p className="text-sm font-bold text-slate-800" aria-live="polite">
+          {isRedirecting ? "Sesión lista" : "Iniciando sesión"}
+        </p>
+        <p className="max-w-xs text-center text-sm leading-6 text-slate-600" aria-live="polite">
+          {message}
+        </p>
       </div>
     </main>
   );
