@@ -17,8 +17,9 @@ import {
   FileText,
   Download,
   Save,
+  Lock,
+  Apple,
 } from "lucide-react";
-import Cookies from "js-cookie";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
@@ -41,6 +42,7 @@ import { fetchCreation, fetchProject, saveCreation } from "@/lib/workflow";
 import { downloadFastDeliverablePdf } from "@/features/pdf/fastDeliverablePdfExport";
 import { useDashboardShell } from "@/context/DashboardShellContext";
 import { getCurrentUser } from "@/lib/current-user";
+import { FoodReferenceBook } from "@/components/foods/FoodReferenceBook";
 
 type QuickSection =
   | "Desayuno"
@@ -112,6 +114,8 @@ type QuickPatient = {
   nutritionalFocus?: string | null;
   fitnessGoals?: string | null;
   restrictions?: string[];
+  dietRestrictions?: string[];
+  primaryCondition?: string | null;
   dislikedFoods?: string[];
   likes?: string | null;
   clinicalSummary?: string | null;
@@ -229,6 +233,19 @@ const createEmptyQuickPatient = (): QuickPatient => ({
   activityLevel: null,
   source: "manual",
 });
+
+const normalizeQuickPatient = (patient: QuickPatient): QuickPatient => {
+  const restrictions = [
+    ...(patient.restrictions || []),
+    ...(patient.dietRestrictions || []),
+    patient.primaryCondition || "",
+  ].filter((restriction): restriction is string => Boolean(restriction?.trim()));
+
+  return {
+    ...patient,
+    restrictions: [...new Set(restrictions.map((restriction) => restriction.trim()))],
+  };
+};
 
 const resolveQuickGender = (gender?: string | null): Gender | null => {
   if (gender === "Masculino" || gender === "Femenino") return gender;
@@ -418,9 +435,7 @@ export default function QuickDeliverableClient() {
   const [quickAiMode, setQuickAiMode] = useState<QuickAiMode>("ai");
   const [isGeneratingQuickAi, setIsGeneratingQuickAi] = useState(false);
   const [aiAllowedFoods, setAiAllowedFoods] = useState("");
-  const [aiRestrictedFoods, setAiRestrictedFoods] = useState("");
   const [aiNotes, setAiNotes] = useState("");
-  const [allowExternalFoods, setAllowExternalFoods] = useState(false);
   const [isSaveCreationModalOpen, setIsSaveCreationModalOpen] = useState(false);
   const [lastSavedState, setLastSavedState] = useState<string | null>(null);
   const [isImportCreationModalOpen, setIsImportCreationModalOpen] = useState(false);
@@ -428,6 +443,7 @@ export default function QuickDeliverableClient() {
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [showValidationHighlights, setShowValidationHighlights] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
+  const [isFoodReferenceBookOpen, setIsFoodReferenceBookOpen] = useState(false);
   const completedSteps = useMemo(() => Array.from({ length: currentStep }, (_, i) => i), [currentStep]);
   const identitySectionRef = useRef<HTMLElement | null>(null);
   const mealsSectionRef = useRef<HTMLElement | null>(null);
@@ -490,7 +506,11 @@ export default function QuickDeliverableClient() {
           ? parsed.portionGuideRows
           : QUICK_PORTION_GUIDE.map((row) => createPortionGuideRow(row)),
       );
-      setSelectedPatient(parsed.selectedPatient || createEmptyQuickPatient());
+       setSelectedPatient(
+         parsed.selectedPatient
+           ? normalizeQuickPatient(parsed.selectedPatient)
+           : createEmptyQuickPatient(),
+       );
       setIsManualPatientExpanded(parsed.isManualPatientExpanded === true);
     } catch (error) {
       console.error("Error loading quick draft", error);
@@ -650,10 +670,10 @@ export default function QuickDeliverableClient() {
         setCurrentProjectName(project.name || null);
         setCurrentProjectMode(project.mode || null);
         if (project.patient) {
-          setSelectedPatient((current) =>
+           setSelectedPatient((current) =>
             current.fullName?.trim()
               ? current
-              : { ...(project.patient as QuickPatient), source: "imported" },
+              : normalizeQuickPatient({ ...(project.patient as QuickPatient), source: "imported" }),
           );
         }
       } catch (error) {
@@ -1014,10 +1034,7 @@ export default function QuickDeliverableClient() {
   const loadCreatedRecipes = async () => {
     setIsLoadingCreatedRecipes(true);
     try {
-      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const response = await fetchApi("/recipes", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await fetchApi("/recipes");
       if (!response.ok) {
         throw new Error("No se pudieron cargar los platos creados.");
       }
@@ -1139,12 +1156,6 @@ export default function QuickDeliverableClient() {
       return;
     }
 
-    const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
-    if (!token) {
-      toast.error("No se encontro una sesion activa.");
-      return;
-    }
-
     const pendingRows = meals.map((meal) => ({
       id: meal.id,
       section: meal.section,
@@ -1161,7 +1172,6 @@ export default function QuickDeliverableClient() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           payload: {
@@ -1170,11 +1180,7 @@ export default function QuickDeliverableClient() {
               .split(",")
               .map((item) => item.trim())
               .filter(Boolean),
-            restrictedFoods: aiRestrictedFoods
-              .split(",")
-              .map((item) => item.trim())
-              .filter(Boolean),
-            allowExternalFoods,
+            allowExternalFoods: true,
             mealSectionTargets: quickAiMealTargets,
             generationMode: planMode,
             patient: {
@@ -1211,6 +1217,7 @@ export default function QuickDeliverableClient() {
       }
 
       const result = await response.json();
+      console.info("[Naty] Respuesta de generación rápida:", result);
       const dishes = Array.isArray(result?.dishes)
         ? result.dishes
             .map((dish: { title?: string; mealSection?: string }) => ({
@@ -1286,9 +1293,11 @@ export default function QuickDeliverableClient() {
 
   const fetchPatients = async (): Promise<QuickPatient[]> => {
     try {
-      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const response = await fetchApi("/patients?status=Activos", { headers: { Authorization: `Bearer ${token}` } });
-      if (response.ok) { const data = await response.json(); return data.data || []; }
+      const response = await fetchApi("/patients?status=Activos");
+       if (response.ok) {
+         const data = await response.json();
+         return (data.data || []).map((patient: QuickPatient) => normalizeQuickPatient(patient));
+       }
       return [];
     } catch { return []; }
   };
@@ -1315,10 +1324,7 @@ export default function QuickDeliverableClient() {
 
   const fetchResources = async () => {
     try {
-      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const response = await fetchApi(`/resources`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await fetchApi(`/resources`);
       if (!response.ok) return;
       const data = await response.json();
       setResources(data);
@@ -1590,8 +1596,7 @@ export default function QuickDeliverableClient() {
     payload: {
       notes: aiNotes,
       allowedFoodsMain: aiAllowedFoods.split(",").map((item) => item.trim()).filter(Boolean),
-      restrictedFoods: aiRestrictedFoods.split(",").map((item) => item.trim()).filter(Boolean),
-      allowExternalFoods,
+      allowExternalFoods: true,
       mealSectionTargets: quickAiMealTargets,
       generationMode: planMode,
       patient: {
@@ -1754,6 +1759,14 @@ export default function QuickDeliverableClient() {
         onClick: () => setIsCreatedRecipesModalOpen(true),
       },
       {
+        id: "food-reference-book",
+        icon: Apple,
+        label: "Manual de alimentos",
+        description: "Abrir manual de alimentos",
+        variant: "amber",
+        onClick: () => setIsFoodReferenceBookOpen(true),
+      },
+      {
         id: "pdf",
         icon: isExportingPdf ? Loader2 : Download,
         label: "Descargar PDF",
@@ -1797,6 +1810,7 @@ export default function QuickDeliverableClient() {
       {isGeneratingQuickAi && (
         <NatyLoadingOverlay title="Naty está preparando..." subtitle="Generando opciones de comidas para tu entregable rápido" />
       )}
+      <FoodReferenceBook isOpen={isFoodReferenceBookOpen} onClose={() => setIsFoodReferenceBookOpen(false)} />
       <ModuleLayout
         title="Entregable Rápido"
         description="Crea un entregable express de una sola hoja con horarios, indicaciones, alimentos a evitar, recursos y una guía breve de porciones."
@@ -2145,7 +2159,7 @@ export default function QuickDeliverableClient() {
                       <Sparkles className="mr-2 h-4 w-4 text-purple-600 fill-purple-600/10" />
                     )}
 
-                    Rellenar con IA / platos creados
+                    Rellenar con Naty
                   </Button>
                 </div>
 
@@ -3106,92 +3120,69 @@ export default function QuickDeliverableClient() {
       <Modal
         isOpen={isCreatedRecipesModalOpen}
         onClose={() => setIsCreatedRecipesModalOpen(false)}
-        title="Platos creados"
-        className="max-w-3xl"
+        title="Naty te ayuda con tu plan"
+        className="max-w-2xl"
       >
-        <div className="space-y-4">
-          <div className="grid gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-2 sm:grid-cols-2">
+        <div className="space-y-5">
+          <div className="flex border-b border-slate-200">
             <button
               type="button"
               onClick={() => setQuickAiMode("ai")}
               className={cn(
-                "rounded-2xl px-4 py-3 text-left text-sm font-black transition-colors",
-                quickAiMode === "ai" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500",
+                "border-b-2 px-1 pb-3 text-sm font-bold transition-colors",
+                quickAiMode === "ai"
+                  ? "border-emerald-500 text-slate-900"
+                  : "border-transparent text-slate-500",
               )}
             >
-              Pedirle a Naty que genere
+              Naty generará...
             </button>
             <button
               type="button"
-              onClick={() => setQuickAiMode("library")}
+              disabled
               className={cn(
-                "rounded-2xl px-4 py-3 text-left text-sm font-black transition-colors",
-                quickAiMode === "library" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500",
+                "ml-6 inline-flex cursor-not-allowed items-center gap-1.5 border-b-2 border-transparent px-1 pb-3 text-sm font-bold text-slate-400",
               )}
             >
-              Usar mis platos para rellenar
+              Usar mis platos
+              <Lock className="h-3.5 w-3.5" aria-label="Bloqueado" />
             </button>
           </div>
           {quickAiMode === "ai" && (
             <div className="space-y-4">
-              <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-slate-700">
-                <p className="font-black text-slate-900">Generacion asistida</p>
-                <p className="mt-1 text-xs text-slate-600">
-                  Naty recibe categorías, espacios vacíos y tus notas para completar solo la columna de alimentos.
-                  Puedes seguir editando mientras trabaja.
-                </p>
-              </div>
+              <p className="text-sm leading-5 text-slate-600">
+                Naty recibe categorías, espacios vacíos y tus notas para completar solo la columna de alimentos. Puedes seguir editando mientras trabaja. Recuerda que tú debes aprobar finalmente el plan.
+              </p>
+              <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs leading-4 text-amber-800">
+                La sugerencia puede contener errores. Revisa y aprueba siempre el plan antes de entregarlo.
+              </p>
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <label className="text-[11px] font-black uppercase tracking-widest text-slate-500">
-                    Alimentos a considerar
+                    Alimentos principales a utilizar
                   </label>
                   <Textarea
                     value={aiAllowedFoods}
                     onChange={(e) => setAiAllowedFoods(e.target.value)}
                     placeholder="Ej: avena, pollo, frutas, legumbres..."
-                    className="min-h-[96px] rounded-2xl border-slate-200 bg-white"
+                    className="min-h-24 rounded-xl border-slate-200 bg-white"
                   />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[11px] font-black uppercase tracking-widest text-slate-500">
-                    Restricciones para la IA
+                    Notas adicionales
                   </label>
                   <Textarea
-                    value={aiRestrictedFoods}
-                    onChange={(e) => setAiRestrictedFoods(e.target.value)}
-                    placeholder="Ej: sin lactosa, evitar frituras..."
-                    className="min-h-[96px] rounded-2xl border-slate-200 bg-white"
+                    value={aiNotes}
+                    onChange={(e) => setAiNotes(e.target.value)}
+                    placeholder="Ej: opciones rápidas, más salado, snacks simples..."
+                    className="min-h-24 rounded-xl border-slate-200 bg-white"
                   />
                 </div>
               </div>
-              <div className="space-y-2">
-                <label className="text-[11px] font-black uppercase tracking-widest text-slate-500">
-                  Notas adicionales
-                </label>
-                <Textarea
-                  value={aiNotes}
-                  onChange={(e) => setAiNotes(e.target.value)}
-                  placeholder="Ej: opciones rapidas, mas salado, snacks simples..."
-                  className="min-h-[96px] rounded-2xl border-slate-200 bg-white"
-                />
-              </div>
-              <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
-                Se detectaron <strong>{quickAiMealTargets.reduce((total, item) => total + item.count, 0)}</strong> espacios vacios
-                para rellenar {planMode === "weekly" ? "en la vista semanal" : "en la tabla actual"}.
-              </div>
-              <label className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
-                <input
-                  type="checkbox"
-                  checked={allowExternalFoods}
-                  onChange={(event) => setAllowExternalFoods(event.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                />
-                <span>
-                  <span className="font-bold">Permitir alimentos fuera de la lista</span>
-                  <span className="mt-0.5 block text-xs text-slate-500">Los condimentos básicos podrán marcarse como opcionales.</span>
-                </span>
-              </label>
+              <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-xs leading-4 text-slate-600">
+                Naty priorizará los alimentos principales ingresados, pero puede incluir ingredientes extra si son necesarios o si la lista es muy breve. Considerará alimentos comunes, como sal o mantequilla. Revisa siempre el resultado antes de aprobarlo.
+              </p>
               <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                 <Button
                   variant="outline"

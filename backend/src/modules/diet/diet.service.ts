@@ -15,7 +15,7 @@ type RestrictionConflict = {
 
 type VerifyResponse = {
   ok: boolean;
-  source: 'deepseek' | 'openai' | 'heuristic';
+  source: 'gemini' | 'deepseek' | 'openai' | 'heuristic';
   checkedFoods: number;
   checkedRestrictions: number;
   conflicts: RestrictionConflict[];
@@ -137,7 +137,7 @@ export class DietService {
     restrictions: string[],
   ): Promise<{
     conflicts: RestrictionConflict[];
-    provider: 'deepseek' | 'openai';
+    provider: 'gemini' | 'deepseek' | 'openai';
   } | null> {
     const prompt = [
       'Eres un validador nutricional estricto.',

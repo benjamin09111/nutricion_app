@@ -80,15 +80,25 @@ export default function LoginForm({
     );
   }
 
-  const handleLoginSuccess = (user: { role?: string }) => {
-    if (searchParams.get("callbackUrl")) {
-      router.push(callbackUrl);
-      return;
-    }
+  const handleLoginSuccess = (user: {
+    role?: string;
+    rut?: string | null;
+    requiresPlanSelection?: boolean;
+  }) => {
     const isAdmin = ["ADMIN", "ADMIN_MASTER", "ADMIN_GENERAL"].includes(
       user.role || "",
     );
-    router.push(isAdmin ? "/dashboard/admin" : "/dashboard");
+    const targetPath = searchParams.get("callbackUrl")
+      ? callbackUrl
+      : isAdmin
+        ? "/dashboard/admin"
+        : "/dashboard";
+    const postRutNext = user.requiresPlanSelection ? "/plan" : targetPath;
+    const destination = user.rut
+      ? postRutNext
+      : `/onboarding/rut?next=${encodeURIComponent(postRutNext)}`;
+
+    router.push(destination);
   };
 
   const bodyWidthClass = "mx-auto w-full max-w-md";

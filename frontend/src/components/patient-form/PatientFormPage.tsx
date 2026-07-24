@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
 import { toast } from "sonner";
@@ -23,7 +23,6 @@ import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { calculateBMI, calculateGET, getIdealWeightRange, calculateAge } from "@/lib/nutrition-formulas";
 import { formatRut, validateRut } from "@/lib/rut-utils";
 import { fetchApi, getApiUrl } from "@/lib/api-base";
-import { DEFAULT_CONSTRAINTS } from "@/lib/constants";
 
 const STEPS = [
   "Identificación",
@@ -85,7 +84,6 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [conditionTags, setConditionTags] = useState<string[]>([]);
 
   const customVariableMap = useMemo(
     () => new Map((draft.customVariables || []).map((item) => [item.key, item])),
@@ -112,27 +110,6 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
 
     updateDraft({ customVariables: next });
   };
-
-  useEffect(() => {
-    const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
-    if (!token) return;
-    fetchApi("/tags?limit=50", {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => res.json())
-      .then((data: any[]) => {
-        const names = Array.isArray(data)
-          ? data.map((t: any) => (typeof t === "string" ? t : t.name))
-          : [];
-        setConditionTags(names);
-      })
-      .catch(() => setConditionTags([]));
-  }, []);
-
-  const conditionOptions = useMemo(() => {
-    const defaults = DEFAULT_CONSTRAINTS.map((c) => c.id);
-    return [...new Set([...defaults, ...conditionTags])];
-  }, [conditionTags]);
 
   const calculatedAge = calculateAge(draft.birthDate || null);
 
@@ -224,7 +201,6 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
         height: draft.height ? Number(String(draft.height).replace(",", ".")) : undefined,
         weight: draft.weight ? Number(String(draft.weight).replace(",", ".")) : undefined,
         dietRestrictions: draft.dietRestrictions || [],
-        primaryCondition: draft.primaryCondition || undefined,
         clinicalSummary: draft.clinicalSummary || undefined,
         nutritionalFocus: draft.nutritionalFocus || undefined,
         fitnessGoals: draft.fitnessGoals || undefined,
@@ -714,19 +690,6 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
                   value={getCustomVariableValue("drugsSupplements") ?? ""}
                   onChange={(e) => setCustomVariableValue("drugsSupplements", "Drogas y suplementos", e.target.value)}
                 />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-slate-500">Condición clínica principal</label>
-                <select
-                  value={draft.primaryCondition || ""}
-                  onChange={(e) => updateDraft({ primaryCondition: e.target.value || undefined })}
-                  className="w-full h-10 rounded-xl bg-slate-50 border-transparent px-3 text-sm font-semibold text-slate-700 cursor-pointer appearance-none"
-                >
-                  <option value="">Seleccionar...</option>
-                  {conditionOptions.map((opt) => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
-                </select>
               </div>
             </div>
           </FormStepCard>

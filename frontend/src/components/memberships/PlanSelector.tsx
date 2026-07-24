@@ -67,6 +67,12 @@ export function PlanSelector() {
 
   const handlePaymentSuccess = async () => {
     localStorage.setItem(WELCOME_KEY, "true");
+    // A pending paid request does not activate the paid plan. Confirm Freemium
+    // so the user can continue working while the transfer is reviewed.
+    if (freePlan) {
+      await handleSelectFree(freePlan);
+      return;
+    }
     await refreshSubscription();
     goToDashboard();
   };
@@ -113,9 +119,15 @@ export function PlanSelector() {
             Elige cómo quieres comenzar
           </h1>
           <p className="mt-4 text-lg text-slate-500 max-w-xl mx-auto">
-            Todos los planes incluyen acceso completo por 30 días. Sin
-            compromiso, puedes cambiar o cancelar cuando quieras.
+            Comienza con Freemium sin costo y decide después si quieres
+            contratar un plan pagado. Puedes cambiar de plan cuando quieras.
           </p>
+        </div>
+
+        <div className="mx-auto mb-10 max-w-2xl rounded-2xl border border-emerald-100 bg-emerald-50/70 px-5 py-4 text-center text-sm leading-6 text-emerald-900">
+          <strong>Tu cuenta parte con Freemium.</strong> Si eliges un plan
+          pagado, te mostraremos los datos de transferencia y podrás solicitarlo
+          ahora o hacerlo más adelante desde Configuraciones.
         </div>
 
         {allPlans.length > 0 && (

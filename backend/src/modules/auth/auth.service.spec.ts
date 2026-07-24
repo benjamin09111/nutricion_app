@@ -102,7 +102,7 @@ describe('AuthService', () => {
   });
 
   it('sends a welcome email on first Google login', async () => {
-    await service.loginWithGoogle({
+    const result = await service.loginWithGoogle({
       sub: 'google-sub-1',
       email: 'nuevo@nutrinet.cl',
       email_verified: true,
@@ -115,6 +115,7 @@ describe('AuthService', () => {
       'Nueva Nutri',
       expect.stringContaining('/login'),
     );
+    expect(result.user.requiresPlanSelection).toBe(true);
   });
 
   it('keeps an existing password when the same account uses Google', async () => {

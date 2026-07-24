@@ -18,6 +18,7 @@ import {
   RotateCcw,
   ChevronDown,
   Filter,
+  Apple,
 } from "lucide-react";
 import Cookies from "js-cookie";
 import { useSearchParams } from "next/navigation";
@@ -39,6 +40,7 @@ import { downloadPautaAlimentacionPdf } from "@/features/pdf/pautaAlimentacionPd
 import { useDashboardShell } from "@/context/DashboardShellContext";
 import { cn } from "@/lib/utils";
 import { ActionDockItem } from "@/components/ui/ActionDock";
+import { FoodReferenceBook } from "@/components/foods/FoodReferenceBook";
 
 type PautaPatient = {
   id?: string;
@@ -304,6 +306,7 @@ export default function PautasAlimentacionClient() {
   const [aiRestrictedFoods, setAiRestrictedFoods] = useState("");
   const [aiSelectedCategories, setAiSelectedCategories] = useState<string[]>([]);
   const [allowExternalFoods, setAllowExternalFoods] = useState(false);
+  const [isFoodReferenceBookOpen, setIsFoodReferenceBookOpen] = useState(false);
 
   // Control de Cambios (Dirty Tracking)
   const [lastSavedState, setLastSavedState] = useState<string | null>(null);
@@ -1226,19 +1229,12 @@ export default function PautasAlimentacionClient() {
       return;
     }
 
-    const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
-    if (!token) {
-      toast.error("No se encontró una sesión activa.");
-      return;
-    }
-
     setIsGeneratingAi(true);
     try {
       const response = await fetchApi("/recipes/quick-ai-fill", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           payload: {
@@ -1393,6 +1389,14 @@ export default function PautasAlimentacionClient() {
         onClick: () => setIsAiModalOpen(true),
       },
       {
+        id: "food-reference-book",
+        icon: Apple,
+        label: "Manual de alimentos",
+        description: "Abrir manual de alimentos",
+        variant: "amber",
+        onClick: () => setIsFoodReferenceBookOpen(true),
+      },
+      {
         id: "pdf",
         icon: isExportingPdf ? Loader2 : Download,
         label: "Descargar PDF",
@@ -1437,6 +1441,8 @@ export default function PautasAlimentacionClient() {
           subtitle={pautaEditorMode === "table" ? "Rellenando la tabla de comidas" : "Generando los párrafos de pautas alimenticias"}
         />
       )}
+
+      <FoodReferenceBook isOpen={isFoodReferenceBookOpen} onClose={() => setIsFoodReferenceBookOpen(false)} />
 
       <ModuleLayout
         title="Pautas de Alimentación"
