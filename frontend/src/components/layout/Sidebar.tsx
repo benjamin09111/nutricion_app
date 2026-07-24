@@ -75,6 +75,7 @@ const groups: SidebarGroup[] = [
       { name: "Pautas de Alimentación", href: "/dashboard/pautas", icon: FileText },
       { name: "Recetas", href: "/dashboard/rapido/recetas", icon: ChefHat },
       { name: "Entregable Personalizado", href: "/dashboard/dieta", icon: Apple, tutorialPath: "/dashboard/dieta" },
+      { name: "Fitness", href: "/dashboard/fitness", icon: Dumbbell, locked: true },
       { name: "Alimentos", isSubHeader: true },
       { name: "Tabla de composición", href: "/dashboard/alimentos", icon: Apple, tutorialPath: "/dashboard/alimentos" },
       { name: "Platos", href: "/dashboard/platos", icon: ChefHat, tutorialPath: "/dashboard/platos", hidden: true },
