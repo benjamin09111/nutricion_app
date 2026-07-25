@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
+import { PatientSelectionModal } from "@/components/patients/PatientSelectionModal";
 import { SaveCreationModal } from "@/components/ui/SaveCreationModal";
 import { Textarea } from "@/components/ui/Textarea";
 import { ImportCreationModal } from "@/components/shared/ImportCreationModal";
@@ -2382,6 +2383,9 @@ export default function QuickDeliverableClient() {
             onBack={goBack}
             onNext={goNext}
             isLastStep={currentStep === WIZARD_STEPS.length - 1}
+            nextDisabled={
+              currentStep === 0 && (!title.trim() || (includeMeals && (!meals || meals.length === 0 || !meals.some((m) => m.mealText && m.mealText.trim().length > 0))))
+            }
             onReset={resetQuickDeliverable}
           >
               {currentStep === 0 && (
@@ -3245,58 +3249,20 @@ export default function QuickDeliverableClient() {
         </div>
       </Modal>
 
-      <Modal
+      <PatientSelectionModal
         isOpen={isPatientModalOpen}
         onClose={() => setIsPatientModalOpen(false)}
-        title="Asignar paciente"
-        className="max-w-2xl"
-      >
-        <div className="space-y-4">
-          <Input
-            value={patientSearch}
-            onChange={(e) => setPatientSearch(e.target.value)}
-            placeholder="Buscar paciente..."
-            className="h-11 rounded-xl border-slate-200 bg-slate-50"
-          />
-          <div className="max-h-[360px] space-y-2 overflow-y-auto pr-1">
-            {filteredPatients.length > 0 ? (
-              filteredPatients.map((patient) => (
-                <button
-                  key={patient.id}
-                  type="button"
-                  onClick={() => {
-                    setSelectedPatient({ ...patient, source: "imported" });
-                    setIsManualPatientExpanded(false);
-                    setIsPatientModalOpen(false);
-                    toast.success(`Paciente ${patient.fullName} asignado.`);
-                  }}
-                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left hover:border-emerald-200 hover:bg-emerald-50"
-                >
-                  <p className="font-bold text-slate-800">
-                    {patient.fullName}
-                  </p>
-                  <p className="text-sm text-slate-500">
-                    {patient.email || "Sin correo registrado"}
-                  </p>
-                </button>
-              ))
-            ) : (
-              <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
-                No hay pacientes disponibles para esta búsqueda.
-              </div>
-            )}
-          </div>
-          <div className="flex justify-end">
-            <Button
-              variant="outline"
-              className="rounded-xl border-slate-200"
-              onClick={() => setIsPatientModalOpen(false)}
-            >
-              Cerrar
-            </Button>
-          </div>
-        </div>
-      </Modal>
+        patients={patients}
+        onSelectPatient={(patient) => {
+          setSelectedPatient({ ...patient, source: "imported" });
+          setIsManualPatientExpanded(false);
+          setIsPatientModalOpen(false);
+          toast.success(`Paciente ${patient.fullName || patient.name} asignado.`);
+        }}
+        isLoading={isLoadingPatients}
+        selectedPatientId={selectedPatient.id}
+        title="Vincular Paciente"
+      />
 
       <Modal
         isOpen={isResourceModalOpen}

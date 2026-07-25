@@ -7,9 +7,5 @@ export const metadata = {
 };
 
 export default function QuickRecipesPage() {
-  return (
-    <div className="container mx-auto px-4 py-8">
-      <QuickRecipesClient />
-    </div>
-  );
+  return <QuickRecipesClient />;
 }

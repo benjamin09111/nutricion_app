@@ -17,6 +17,7 @@ import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { Modal } from "@/components/ui/Modal";
 import { SaveCreationModal } from "@/components/ui/SaveCreationModal";
 import { ImportCreationModal } from "@/components/shared/ImportCreationModal";
+import { PatientSelectionModal } from "@/components/patients/PatientSelectionModal";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
@@ -1033,86 +1034,19 @@ export const DietModals: React.FC<DietModalsProps> = ({
       </Modal>
 
       {/* Import Patient Modal */}
-      <Modal
+      <PatientSelectionModal
         isOpen={isImportPatientModalOpen}
         onClose={() => {
           setIsImportPatientModalOpen(false);
           setPatientSearchQuery("");
           setPatientsError(null);
         }}
+        patients={patients}
+        onSelectPatient={handleSelectPatient}
+        isLoading={isLoadingPatients}
+        error={patientsError}
         title="Vincular Paciente"
-      >
-        <div className="space-y-4">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <Input
-              placeholder="Buscar por nombre, email o Rut/ID..."
-              value={patientSearchQuery}
-              onChange={(e) => setPatientSearchQuery(e.target.value)}
-              className="pl-11 h-12 rounded-xl border-slate-200 focus:border-indigo-500"
-              autoFocus
-            />
-          </div>
-
-          {isLoadingPatients && (
-            <div className="flex justify-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
-            </div>
-          )}
-
-          <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1 text-left">
-            {filteredPatients.map((patient) => (
-              <div
-                key={patient.id}
-                onClick={() => void handleSelectPatient(patient)}
-                className="p-4 border-2 border-slate-200 rounded-2xl hover:border-emerald-400 hover:bg-emerald-50/30 transition-all cursor-pointer group flex items-center justify-between"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center border border-slate-200 group-hover:bg-emerald-100 group-hover:border-emerald-200 transition-colors">
-                    <User className="h-5 w-5 text-slate-400 group-hover:text-emerald-600" />
-                  </div>
-                  <div>
-                    <h3 className="font-black text-slate-900 text-sm">{patient.fullName}</h3>
-                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tight">
-                      {patient.email || "Sin email"} ·{" "}
-                      {patient.weight ? `${patient.weight}kg` : "Peso no reg."}
-                    </p>
-                  </div>
-                </div>
-                {patient.dietRestrictions &&
-                  Array.isArray(patient.dietRestrictions) &&
-                  patient.dietRestrictions.length > 0 && (
-                    <div className="flex items-center gap-1">
-                      <AlertCircle className="h-3 w-3 text-rose-400" />
-                      <span className="text-[10px] font-black text-rose-500 uppercase tracking-tighter">
-                        {patient.dietRestrictions.length}
-                      </span>
-                    </div>
-                  )}
-              </div>
-            ))}
-
-            {!isLoadingPatients && patientsError && (
-              <div className="py-12 text-center">
-                <AlertCircle className="h-10 w-10 text-rose-300 mx-auto mb-3" />
-                <p className="text-sm text-rose-500 font-bold">No pudimos cargar tus pacientes.</p>
-                <p className="text-xs text-slate-500 mt-2 max-w-xs mx-auto">{patientsError}</p>
-              </div>
-            )}
-
-            {!isLoadingPatients && !patientsError && filteredPatients.length === 0 && (
-              <div className="py-12 text-center">
-                <UserPlus className="h-10 w-10 text-slate-200 mx-auto mb-3" />
-                <p className="text-sm text-slate-400 font-bold">
-                  {patientSearchQuery.trim()
-                    ? "No encontrábamos pacientes con ese criterio."
-                    : "No se encontraron pacientes registrados."}
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-      </Modal>
+      />
 
       <ImportCreationModal
         isOpen={isImportCreationModalOpen}

@@ -1525,6 +1525,7 @@ export default function QuickRecipesClient() {
           onNext={handleWizardNext}
           isLastStep={currentStep === WIZARD_STEPS.length - 1}
           nextDisabled={
+            (currentStep === 0 && (!title.trim() || !dietName.trim())) ||
             (currentStep === 1 && !skipInstructions && Object.values(missingGenerationFields).some(Boolean)) ||
             (currentStep === 2 && !hasGenerationTarget) ||
             (currentStep === 3 && (!hasGeneratedDishes || meaningfulDishes.length === 0))

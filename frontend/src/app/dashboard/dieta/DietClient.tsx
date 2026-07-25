@@ -138,13 +138,13 @@ export default function DietClient({ initialFoods }: DietClientProps) {
   return (
     <>
       <ModuleLayout
-         title={state.flowMode === "quick" ? "Entregable Rápido" : "Estrategia: Pauta Nutricional Unificada"}
-         description={state.flowMode === "quick"
-           ? "Crea una pauta rápida con la misma base nutricional, sin pasar por recetas ni carrito. Puedes ampliarla después."
-           : "Diseña la pauta nutricional completa de tu paciente paso a paso: Información General, Dieta, Recetas & Porciones, Carrito de Compras y Plan Final."}
+        title={state.flowMode === "quick" ? "Entregable Rápido" : "Estrategia: Pauta Nutricional Unificada"}
+        description={state.flowMode === "quick"
+          ? "Crea una pauta rápida con la misma base nutricional, sin pasar por recetas ni carrito. Puedes ampliarla después."
+          : "Diseña la pauta nutricional completa de tu paciente paso a paso: Información General, Dieta, Recetas & Porciones, Carrito de Compras y Plan Final."}
         step={{
           number: currentStep + 1,
-           label: wizardSteps[currentStep],
+          label: wizardSteps[currentStep],
           icon: GraduationCap,
           color: "text-emerald-600",
         }}
@@ -166,14 +166,17 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         />
 
         <PlanWizardShell
-           steps={wizardSteps}
+          steps={wizardSteps}
           currentStep={currentStep}
           completedSteps={Array.from({ length: currentStep }, (_, index) => index)}
           onStepClick={handleStepClick}
           onBack={goBack}
           onNext={goNext}
-           isLastStep={currentStep === finalStepIndex}
-          nextDisabled={false}
+          isLastStep={currentStep === finalStepIndex}
+          nextDisabled={
+            (currentStep === 0 && !state.dietName.trim()) ||
+            (currentStep === 1 && !(Object.values(state.allGroupsToRender).some((foods) => foods.length > 0) || state.dietTags.length > 0))
+          }
         >
           {/* PASO 1: INFO GENERAL */}
           {currentStep === 0 && (
