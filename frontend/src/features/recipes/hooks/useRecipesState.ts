@@ -904,7 +904,7 @@ export function useRecipesState({ id }: UseRecipesStateProps = {}) {
     setIsLoadingPatients(true);
     try {
       const token = getAuthToken();
-      const response = await fetchApi(`/patients`, {
+      const response = await fetchApi(`/patients?status=Activos`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {

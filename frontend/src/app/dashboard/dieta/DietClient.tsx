@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { GraduationCap, ChevronDown, ChevronUp, Calculator, User, Filter, Sparkles, Download, Loader2 } from "lucide-react";
+import { GraduationCap, ChevronDown, ChevronUp, Calculator, User, Filter, Sparkles, Download, Loader2, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { ActionDockItem } from "@/components/ui/ActionDock";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
@@ -38,9 +38,13 @@ const WIZARD_STEPS = [
   "Plan final",
 ];
 
+const QUICK_WIZARD_STEPS = ["Info general", "Dieta", "Plan final"];
+
 export default function DietClient({ initialFoods }: DietClientProps) {
   const router = useRouter();
   const state = useDietState({ initialFoods });
+  const wizardSteps = state.flowMode === "quick" ? QUICK_WIZARD_STEPS : WIZARD_STEPS;
+  const finalStepIndex = wizardSteps.length - 1;
   const [currentStep, setCurrentStep] = useState(0);
   const [deliveryDate, setDeliveryDate] = useState(
     new Date().toISOString().slice(0, 10),
@@ -70,7 +74,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
 
   const goBack = () => setCurrentStep((step) => Math.max(0, step - 1));
   const goNext = () =>
-    setCurrentStep((step) => Math.min(WIZARD_STEPS.length - 1, step + 1));
+    setCurrentStep((step) => Math.min(finalStepIndex, step + 1));
   const handleStepClick = (step: number) => {
     setCurrentStep(step);
   };
@@ -119,6 +123,14 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         variant: "indigo",
         onClick: () => void state.performExportPdf(),
       },
+      {
+        id: "reset",
+        icon: RotateCcw,
+        label: "Reiniciar",
+        description: "Reiniciar plan",
+        variant: "rose",
+        onClick: () => state.setIsResetConfirmOpen(true),
+      },
     ],
     [state],
   );
@@ -126,11 +138,13 @@ export default function DietClient({ initialFoods }: DietClientProps) {
   return (
     <>
       <ModuleLayout
-        title="Estrategia: Pauta Nutricional Unificada"
-        description="Diseña la pauta nutricional completa de tu paciente paso a paso: Información General, Dieta, Recetas & Porciones, Carrito de Compras y Plan Final."
+         title={state.flowMode === "quick" ? "Entregable Rápido" : "Estrategia: Pauta Nutricional Unificada"}
+         description={state.flowMode === "quick"
+           ? "Crea una pauta rápida con la misma base nutricional, sin pasar por recetas ni carrito. Puedes ampliarla después."
+           : "Diseña la pauta nutricional completa de tu paciente paso a paso: Información General, Dieta, Recetas & Porciones, Carrito de Compras y Plan Final."}
         step={{
           number: currentStep + 1,
-          label: WIZARD_STEPS[currentStep],
+           label: wizardSteps[currentStep],
           icon: GraduationCap,
           color: "text-emerald-600",
         }}
@@ -152,13 +166,13 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         />
 
         <PlanWizardShell
-          steps={WIZARD_STEPS}
+           steps={wizardSteps}
           currentStep={currentStep}
           completedSteps={Array.from({ length: currentStep }, (_, index) => index)}
           onStepClick={handleStepClick}
           onBack={goBack}
           onNext={goNext}
-          isLastStep={currentStep === WIZARD_STEPS.length - 1}
+           isLastStep={currentStep === finalStepIndex}
           nextDisabled={false}
         >
           {/* PASO 1: INFO GENERAL */}
@@ -247,7 +261,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
           )}
 
           {/* PASO 3: RECETAS Y PORCIONES */}
-          {currentStep === 2 && (
+          {state.flowMode === "full" && currentStep === 2 && (
             <DietRecipesSection
               meals={meals}
               setMeals={setMeals}
@@ -257,7 +271,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
           )}
 
           {/* PASO 4: CARRITO */}
-          {currentStep === 3 && (
+          {state.flowMode === "full" && currentStep === 3 && (
             <DietCartSection
               cartItems={cartItems}
               setCartItems={setCartItems}
@@ -267,7 +281,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
           )}
 
           {/* PASO 5: PLAN FINAL */}
-          {currentStep === 4 && (
+          {currentStep === finalStepIndex && (
             <DietFinalPlanSection
               patientName={state.selectedPatient?.fullName}
               patientAge={typeof state.selectedPatient?.age === "number" ? state.selectedPatient.age : null}

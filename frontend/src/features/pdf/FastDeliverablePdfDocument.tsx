@@ -1,5 +1,5 @@
 import React from "react";
-import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { Document, Page, StyleSheet, Text, View, Image } from "@react-pdf/renderer";
 
 export interface FastMealPlanItem {
   id: string;
@@ -7,6 +7,13 @@ export interface FastMealPlanItem {
   time: string;
   mealText: string;
   portion?: string;
+}
+
+export interface FastDeliverableParagraphItem {
+  title: string;
+  subtitle?: string;
+  foods: string[];
+  imagePath?: string | null;
 }
 
 export interface FastDeliverableResourcePage {
@@ -24,7 +31,11 @@ export interface FastDeliverablePdfData {
     ageYears?: number | null;
     weight?: number | null;
     height?: number | null;
+    bmi?: number | null;
   } | null;
+  clinicalRestriction?: string | null;
+  contentMode?: "table" | "paragraphs";
+  paragraphs?: FastDeliverableParagraphItem[];
   nutritionistName?: string | null;
   nutritionistEmail?: string | null;
   meals: FastMealPlanItem[];
@@ -34,6 +45,49 @@ export interface FastDeliverablePdfData {
   supplementNote?: string;
   generatedAt?: string;
 }
+
+type ResourceBlock = {
+  text: string;
+  kind: "paragraph" | "heading" | "bullet";
+};
+
+const decodeHtmlEntities = (value: string) =>
+  value
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#039;|&apos;/gi, "'")
+    .replace(/&#(\d+);/g, (_, code: string) => String.fromCharCode(Number(code)))
+    .replace(/&#x([\da-f]+);/gi, (_, code: string) => String.fromCharCode(parseInt(code, 16)));
+
+const parseResourceContent = (content: string): ResourceBlock[] => {
+  const normalized = content
+    .replace(/(<li[^>]*>)\s*<p[^>]*>/gi, "$1")
+    .replace(/<\/p>\s*(?=<\/li>)/gi, "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<h[1-6][^>]*>/gi, "\n__HEADING__")
+    .replace(/<\/h[1-6\s]*>/gi, "\n")
+    .replace(/<li[^>]*>/gi, "\n__BULLET__")
+    .replace(/<\/li\s*>/gi, "\n")
+    .replace(/<\/?(?:p|div|section|article|blockquote)[^>]*>/gi, "\n")
+    .replace(/<[^>]+>/g, "");
+
+  return decodeHtmlEntities(normalized)
+    .split(/\r?\n/)
+    .map((line) => line.replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .map((line) => {
+      if (line.startsWith("__HEADING__")) {
+        return { kind: "heading" as const, text: line.slice("__HEADING__".length).trim() };
+      }
+      if (line.startsWith("__BULLET__")) {
+        return { kind: "bullet" as const, text: line.slice("__BULLET__".length).trim() };
+      }
+      return { kind: "paragraph" as const, text: line };
+    });
+};
 
 const styles = StyleSheet.create({
   page: {
@@ -98,6 +152,62 @@ const styles = StyleSheet.create({
     color: "#059669",
     marginBottom: 8,
     letterSpacing: 0.2,
+  },
+  paragraphContainer: {
+    marginTop: 8,
+    padding: 10,
+    border: "1px solid #e2e8f0",
+    borderRadius: 6,
+    backgroundColor: "#f8fafc",
+  },
+  paragraphTitle: {
+    fontSize: 10,
+    fontFamily: "Helvetica-Bold",
+    color: "#0f172a",
+    marginBottom: 4,
+    paddingBottom: 4,
+    borderBottom: "1px solid #e2e8f0",
+  },
+  paragraphSubtitle: {
+    fontSize: 8.5,
+    color: "#475569",
+    marginBottom: 6,
+  },
+  paragraphContent: {
+    flexDirection: "row",
+    gap: 12,
+    alignItems: "flex-start",
+  },
+  paragraphInfo: {
+    flex: 1,
+    backgroundColor: "#ffffff",
+    border: "1px solid #e2e8f0",
+    borderRadius: 4,
+    padding: 8,
+  },
+  foodList: {
+    flex: 1,
+  },
+  foodItem: {
+    fontSize: 8.5,
+    color: "#334155",
+    marginBottom: 2,
+    paddingLeft: 4,
+  },
+  imageContainer: {
+    width: 118,
+    minHeight: 104,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#ffffff",
+    border: "1px solid #e2e8f0",
+    borderRadius: 6,
+    padding: 4,
+  },
+  categoryImage: {
+    width: 104,
+    height: 96,
+    objectFit: "contain",
   },
   tableHeader: {
     flexDirection: "row",
@@ -201,10 +311,25 @@ const styles = StyleSheet.create({
     color: "#0f172a",
     marginBottom: 4,
   },
-  resourceContent: {
+  resourceHeading: {
+    fontSize: 9.5,
+    fontFamily: "Helvetica-Bold",
+    color: "#0f172a",
+    marginTop: 5,
+    marginBottom: 3,
+  },
+  resourceParagraph: {
     fontSize: 8.5,
     color: "#334155",
     lineHeight: 1.4,
+    marginBottom: 5,
+  },
+  resourceBullet: {
+    fontSize: 8.5,
+    color: "#334155",
+    lineHeight: 1.4,
+    marginBottom: 3,
+    paddingLeft: 8,
   },
   footer: {
     position: "absolute",
@@ -240,9 +365,11 @@ export function FastDeliverablePdfDocument({
   const heightDisplay = data.patient?.height
     ? `${data.patient.height} cm`
     : "No registrada";
+  const bmiDisplay = data.patient?.bmi ? `${data.patient.bmi}` : null;
 
   const nutritionistName = data.nutritionistName?.trim() || "Nutricionista";
   const nutritionistEmail = data.nutritionistEmail?.trim() || "";
+  const isParagraphsMode = data.contentMode === "paragraphs" && (data.paragraphs?.length || 0) > 0;
 
   return (
     <Document>
@@ -253,8 +380,9 @@ export function FastDeliverablePdfDocument({
             <Text style={styles.brand}>NutriNet</Text>
             <Text style={styles.title}>{data.name || "Entregable Rápido"}</Text>
             <Text style={styles.metaText}>
-              {patientName ? `Paciente: ${patientName}` : "Entregable Express"}{" "}
-              • {data.generatedAt || new Date().toLocaleDateString("es-CL")}
+              {patientName ? `Paciente: ${patientName}` : "Entregable Express"}
+              {data.clinicalRestriction ? ` • Restricción: ${data.clinicalRestriction}` : ""}
+              {" • "}{data.generatedAt || new Date().toLocaleDateString("es-CL")}
             </Text>
           </View>
 
@@ -271,60 +399,97 @@ export function FastDeliverablePdfDocument({
               <Text style={styles.patientMetaLabel}>Altura: </Text>
               {heightDisplay}
             </Text>
+            {bmiDisplay && (
+              <Text style={styles.patientMetaRow}>
+                <Text style={styles.patientMetaLabel}>IMC: </Text>
+                {bmiDisplay}
+              </Text>
+            )}
           </View>
         </View>
 
-        {/* Tabla de Comidas */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Plan de comidas</Text>
-          <View style={styles.tableHeader}>
-            <View style={styles.cellTime}>
-              <Text style={styles.cellHeaderText}>Hora</Text>
-            </View>
-            <View style={styles.cellSection}>
-              <Text style={styles.cellHeaderText}>Sección</Text>
-            </View>
-            <View style={styles.cellMeal}>
-              <Text style={styles.cellHeaderText}>Indicación / Alimentos</Text>
-            </View>
-            <View style={styles.cellPortion}>
-              <Text style={styles.cellHeaderText}>Porción</Text>
-            </View>
-          </View>
-          {data.meals.length > 0 ? (
-            data.meals.map((meal, index) => (
-              <View
-                key={meal.id || index}
-                style={[
-                  styles.tableRow,
-                  index % 2 === 1 ? styles.tableRowEven : {},
-                ]}
-              >
-                <View style={styles.cellTime}>
-                  <Text>{meal.time || "-"}</Text>
-                </View>
-                <View style={styles.cellSection}>
-                  <Text>{meal.section || "-"}</Text>
-                </View>
-                <View style={styles.cellMeal}>
-                  <Text>{meal.mealText || "-"}</Text>
-                </View>
-                <View style={styles.cellPortion}>
-                  <Text>{meal.portion || "-"}</Text>
+        {/* Pautas alimenticias en párrafos O Tabla de comidas */}
+        {isParagraphsMode ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Pautas alimenticias</Text>
+            {data.paragraphs!.map((paragraph, index) => (
+              <View key={index} style={styles.paragraphContainer}>
+                <Text style={styles.paragraphTitle}>{paragraph.title}</Text>
+                {paragraph.subtitle ? (
+                  <Text style={styles.paragraphSubtitle}>{paragraph.subtitle}</Text>
+                ) : null}
+                <View style={styles.paragraphContent}>
+                  <View style={styles.paragraphInfo}>
+                    <View style={styles.foodList}>
+                      {paragraph.foods.map((food, foodIndex) => (
+                        <Text key={foodIndex} style={styles.foodItem}>
+                          • {food}
+                        </Text>
+                      ))}
+                    </View>
+                  </View>
+                  {paragraph.imagePath && (
+                    <View style={styles.imageContainer}>
+                      {/* eslint-disable-next-line jsx-a11y/alt-text -- @react-pdf Image has no alt prop. */}
+                      <Image src={paragraph.imagePath} style={styles.categoryImage} />
+                    </View>
+                  )}
                 </View>
               </View>
-            ))
-          ) : (
-            <View style={styles.tableRow}>
-              <Text style={styles.mutedText}>Sin comidas configuradas.</Text>
+            ))}
+          </View>
+        ) : (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Plan de comidas</Text>
+            <View style={styles.tableHeader}>
+              <View style={styles.cellTime}>
+                <Text style={styles.cellHeaderText}>Hora</Text>
+              </View>
+              <View style={styles.cellSection}>
+                <Text style={styles.cellHeaderText}>Sección</Text>
+              </View>
+              <View style={styles.cellMeal}>
+                <Text style={styles.cellHeaderText}>Indicación / Alimentos</Text>
+              </View>
+              <View style={styles.cellPortion}>
+                <Text style={styles.cellHeaderText}>Porción</Text>
+              </View>
             </View>
-          )}
-        </View>
+            {data.meals && data.meals.length > 0 ? (
+              data.meals.map((meal, index) => (
+                <View
+                  key={meal.id || index}
+                  style={[
+                    styles.tableRow,
+                    index % 2 === 1 ? styles.tableRowEven : {},
+                  ]}
+                >
+                  <View style={styles.cellTime}>
+                    <Text>{meal.time || "-"}</Text>
+                  </View>
+                  <View style={styles.cellSection}>
+                    <Text>{meal.section || "-"}</Text>
+                  </View>
+                  <View style={styles.cellMeal}>
+                    <Text>{meal.mealText || "-"}</Text>
+                  </View>
+                  <View style={styles.cellPortion}>
+                    <Text>{meal.portion || "-"}</Text>
+                  </View>
+                </View>
+              ))
+            ) : (
+              <View style={styles.tableRow}>
+                <Text style={styles.mutedText}>Sin comidas configuradas.</Text>
+              </View>
+            )}
+          </View>
+        )}
 
         {/* Alimentos a evitar */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Alimentos a evitar</Text>
-          {data.avoidFoods.length > 0 ? (
+          {data.avoidFoods && data.avoidFoods.length > 0 ? (
             <View style={styles.chipWrap}>
               {data.avoidFoods.map((food, index) => (
                 <View key={`${food}-${index}`} style={styles.chip}>
@@ -345,7 +510,7 @@ export function FastDeliverablePdfDocument({
           </View>
         ) : null}
 
-        {/* Recursos (1 por fila hacia abajo, sin título 'RECURSOS ESPECÍFICOS') */}
+        {/* Recursos Educativos */}
         {data.resources && data.resources.length > 0 ? (
           <View style={styles.section}>
             {data.resources.map((resource, index) => (
@@ -354,7 +519,21 @@ export function FastDeliverablePdfDocument({
                 style={styles.resourceCard}
               >
                 <Text style={styles.resourceTitle}>{resource.title}</Text>
-                <Text style={styles.resourceContent}>{resource.content}</Text>
+                {parseResourceContent(resource.content)
+                  .map((block, blockIdx) => (
+                    <Text
+                      key={`${block.kind}-${blockIdx}`}
+                      style={
+                        block.kind === "heading"
+                          ? styles.resourceHeading
+                          : block.kind === "bullet"
+                            ? styles.resourceBullet
+                            : styles.resourceParagraph
+                      }
+                    >
+                      {block.kind === "bullet" ? "• " : ""}{block.text}
+                    </Text>
+                  ))}
               </View>
             ))}
           </View>
@@ -399,3 +578,4 @@ export function FastDeliverablePdfDocument({
     </Document>
   );
 }
+

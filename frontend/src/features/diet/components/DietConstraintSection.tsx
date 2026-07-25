@@ -143,9 +143,10 @@ export const DietConstraintSection: React.FC<DietConstraintSectionProps> = ({
               saveDraft({ activeConstraints: normalizedTags });
             }}
             placeholder="Buscar o escribir una restricción"
-            suggestions={availableConstraintTags}
-            disableDelete={true}
-            helperText="Selecciona una sugerencia o presiona Enter para usar una restricción personalizada."
+             suggestions={availableConstraintTags}
+             disableDelete={true}
+             openDirection="up"
+             helperText="Selecciona una sugerencia o presiona Enter para usar una restricción personalizada."
            />
 
         </div>

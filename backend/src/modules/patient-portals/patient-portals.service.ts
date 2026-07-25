@@ -1307,7 +1307,7 @@ export class PatientPortalsService {
                 id: { in: sharingInvitation.deliverableCreationIds },
                 nutritionistId,
                 type: {
-                  in: ['DIET', 'SHOPPING_LIST', 'RECIPE', 'FAST_DELIVERABLE'],
+                  in: ['DIET', 'SHOPPING_LIST', 'RECIPE', 'FAST_DELIVERABLE', 'PAUTAS'],
                 },
               },
               orderBy: { updatedAt: 'desc' },

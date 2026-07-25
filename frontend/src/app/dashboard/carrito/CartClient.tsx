@@ -1110,7 +1110,7 @@ export default function CartClient() {
     try {
       const token =
         Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const response = await fetchApi(`/patients`, {
+      const response = await fetchApi(`/patients?status=Activos`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {

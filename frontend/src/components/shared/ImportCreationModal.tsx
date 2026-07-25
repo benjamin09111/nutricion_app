@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { Loader2, Search, Library, Tag as TagIcon } from "lucide-react";
@@ -35,6 +35,7 @@ const CREATION_TYPE_OPTIONS = [
   { value: "RECIPE", label: "Recetas" },
   { value: "RECETARIO", label: "Recetarios" },
   { value: "FAST_DELIVERABLE", label: "Entregable rápido" },
+  { value: "PAUTAS", label: "Pauta de alimentación" },
 ] as const;
 
 export function ImportCreationModal({
@@ -129,6 +130,8 @@ export function ImportCreationModal({
         return "Recetario";
       case "FAST_DELIVERABLE":
         return "Entregable rápido";
+      case "PAUTAS":
+        return "Pauta de alimentación";
       default:
         return type;
     }
@@ -146,6 +149,8 @@ export function ImportCreationModal({
         return "bg-amber-100 text-amber-700";
       case "FAST_DELIVERABLE":
         return "bg-fuchsia-100 text-fuchsia-700";
+      case "PAUTAS":
+        return "bg-purple-100 text-purple-700";
       default:
         return "bg-slate-100 text-slate-700";
     }

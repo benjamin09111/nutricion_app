@@ -254,31 +254,58 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
     };
   };
 
-  const buildFastDeliverableData = (raw: any) => ({
-    name:
-      typeof raw.content?.title === "string"
-        ? raw.content.title
-        : typeof raw.name === "string" && raw.name.trim()
-          ? raw.name
-          : "Entregable",
-    patientName:
-      typeof raw.metadata?.patientName === "string"
-        ? raw.metadata.patientName
-        : null,
-    patient: raw.content?.patientMeta ?? undefined,
-    meals: Array.isArray(raw.content?.meals) ? raw.content.meals : [],
-    avoidFoods: Array.isArray(raw.content?.avoidFoods) ? raw.content.avoidFoods : [],
-    resources: Array.isArray(raw.content?.resources) ? raw.content.resources : [],
-    portionGuide: Array.isArray(raw.content?.portionGuide) ? raw.content.portionGuide : [],
-    supplementNote:
-      typeof raw.content?.supplementNote === "string"
-        ? raw.content.supplementNote
-        : undefined,
-    generatedAt:
-      typeof raw.content?.updatedAt === "string"
-        ? new Date(raw.content.updatedAt).toLocaleDateString("es-CL")
-        : new Date(raw.updatedAt || Date.now()).toLocaleDateString("es-CL"),
-  });
+  const buildFastDeliverableData = (raw: any) => {
+    const rawContent = raw.content || {};
+    const paragraphsRaw = Array.isArray(rawContent.paragraphs) ? rawContent.paragraphs : [];
+    const paragraphsFormatted = paragraphsRaw.map((p: any) => ({
+      title: typeof p.title === "string" ? p.title : (p.categoryOptional ? `${p.category} (${p.categoryOptional})` : p.category || "Pauta"),
+      subtitle: typeof p.subtitle === "string" ? p.subtitle : (p.portionsPerDay ? `${p.portionsPerDay} porciones al día` : undefined),
+      foods: Array.isArray(p.foods)
+        ? p.foods.map((f: any) => typeof f === "string" ? f : `${f.food || ""}${f.portion ? ` (${f.portion})` : ""}`)
+        : [],
+      imagePath: p.imagePath || null,
+    }));
+
+    const rawResource = rawContent.resource as { title?: string; content?: string } | undefined;
+    const resourcesList = Array.isArray(rawContent.resources)
+      ? rawContent.resources
+      : (rawResource && rawResource.title ? [{ resourceId: "hist", title: rawResource.title, content: rawResource.content || "" }] : []);
+
+    return {
+      name:
+        typeof rawContent.title === "string"
+          ? rawContent.title
+          : typeof raw.name === "string" && raw.name.trim()
+            ? raw.name
+            : "Entregable",
+      patientName:
+        typeof raw.metadata?.patientName === "string"
+          ? raw.metadata.patientName
+          : null,
+      patient: rawContent.patientMeta ?? undefined,
+      clinicalRestriction:
+        typeof rawContent.clinicalRestriction === "string"
+          ? rawContent.clinicalRestriction
+          : (typeof rawContent.restriction === "string" ? rawContent.restriction : null),
+      contentMode:
+        (rawContent.contentMode as any) ||
+        (rawContent.pautaEditorMode as any) ||
+        (paragraphsFormatted.length > 0 ? "paragraphs" : "table"),
+      paragraphs: paragraphsFormatted,
+      meals: Array.isArray(rawContent.meals) ? rawContent.meals : [],
+      avoidFoods: Array.isArray(rawContent.avoidFoods) ? rawContent.avoidFoods : [],
+      resources: resourcesList,
+      portionGuide: Array.isArray(rawContent.portionGuide) ? rawContent.portionGuide : [],
+      supplementNote:
+        typeof rawContent.supplementNote === "string"
+          ? rawContent.supplementNote
+          : undefined,
+      generatedAt:
+        typeof rawContent.updatedAt === "string"
+          ? new Date(rawContent.updatedAt).toLocaleDateString("es-CL")
+          : new Date(raw.updatedAt || Date.now()).toLocaleDateString("es-CL"),
+    };
+  };
 
   const buildQuickRecipesData = (raw: any) => ({
     title:
@@ -315,7 +342,7 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
         return;
       }
 
-      if (del.type === "FAST_DELIVERABLE") {
+      if (del.type === "FAST_DELIVERABLE" || del.type === "PAUTAS") {
         const { downloadFastDeliverablePdf } = await import("@/features/pdf/fastDeliverablePdfExport");
         await downloadFastDeliverablePdf(buildFastDeliverableData(del));
         toast.success("PDF descargado correctamente.");
@@ -841,7 +868,7 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
                   portalData.sharedDeliverables.map((del: any) => {
                     const isDiet = del.type === 'DIET';
                     const isRecipe = del.type === 'RECIPE' || del.type === 'RECIPES';
-                    const isFast = del.type === 'FAST_DELIVERABLE';
+                    const isFast = del.type === 'FAST_DELIVERABLE' || del.type === 'PAUTAS';
 
                     return (
                       <div key={del.id} className="bg-white rounded-[1.75rem] sm:rounded-[2rem] p-5 sm:p-6 border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-indigo-500/5 hover:border-indigo-100 transition-all group flex flex-col justify-between">
