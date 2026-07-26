@@ -31,7 +31,9 @@ import {
   Library,
   Lock,
   Plus,
+  Filter,
 } from "lucide-react";
+import { ActionDockItem } from "@/components/ui/ActionDock";
 import { ImportCreationModal } from "@/components/shared/ImportCreationModal";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
@@ -1685,7 +1687,7 @@ export default function DeliverableClient() {
     try {
       const token =
         Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const response = await fetchApi(`/patients`, {
+      const response = await fetchApi(`/patients?status=Activos`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
@@ -1937,6 +1939,58 @@ export default function DeliverableClient() {
         (resource) => resource.isMine && !isCoverResource(resource),
       ),
     [resources],
+  );
+
+  const actionItems: ActionDockItem[] = useMemo(
+    () => [
+      {
+        id: "patient",
+        icon: isLoadingPatients ? Loader2 : User,
+        label: isLoadingPatients
+          ? "Cargando..."
+          : selectedPatient.fullName?.trim()
+            ? selectedPatient.fullName
+            : "Importar paciente",
+        description: selectedPatient.fullName?.trim() ? "Cambiar paciente" : "Importar paciente",
+        variant: selectedPatient.fullName?.trim() ? "emerald" : "slate",
+        disabled: isLoadingPatients,
+        onClick: () => handlePatientLoad(),
+      },
+      {
+        id: "import",
+        icon: Filter,
+        label: "Importar creación",
+        variant: "indigo",
+        onClick: () => setIsImportCreationModalOpen(true),
+      },
+      {
+        id: "ai-nutri",
+        icon: Sparkles,
+        label: "IA Nutri & Recursos",
+        variant: "emerald",
+        onClick: () => void openResourceModal("extra"),
+      },
+      {
+        id: "pdf",
+        icon: isExporting ? Loader2 : Download,
+        label: "Descargar PDF",
+        description: isExporting ? "Generando PDF..." : "Descargar PDF",
+        variant: "indigo",
+        disabled: isExporting || isExportDisabled,
+        onClick: async () => {
+          await handleExportSingle();
+        },
+      },
+    ],
+    [
+      isLoadingPatients,
+      selectedPatient,
+      isExporting,
+      isExportDisabled,
+      handleExportSingle,
+      openResourceModal,
+      handlePatientLoad,
+    ],
   );
 
   return (
@@ -2366,7 +2420,7 @@ export default function DeliverableClient() {
         title="Producto Final: Entregable PDF"
         description={<div className="space-y-4"><p>Personaliza la presentación final para tu paciente. Añade recursos educativos, portadas y genera el PDF profesional con todo el plan consolidado.</p></div>}
         className="max-w-5xl"
-
+        rightNavItems={actionItems}
       >
         <WorkflowContextBanner
           projectName={currentProjectName}

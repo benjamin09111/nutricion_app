@@ -31,6 +31,8 @@ interface UseDietStateProps {
   initialFoods: MarketPrice[];
 }
 
+export type DietFlowMode = "quick" | "full";
+
 export type MacroSettings = {
   referenceWeightKg: number;
   proteinGPerKg: number;
@@ -104,6 +106,9 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const projectIdFromUrl = searchParams.get("project");
+  const creationIdFromUrl = searchParams.get("creationId");
+  const flowMode: DietFlowMode =
+    searchParams.get("mode") === "quick" ? "quick" : "full";
 
   // -- State --
   const [dietName, setDietName] = useState("");
@@ -335,6 +340,7 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
         includedFoods: finalizedFoods,
       },
       metadata: {
+        flowMode,
         ...(description?.trim() ? { description: description.trim() } : {}),
         foodSummary: finalizedFoods.map((f) => ({
           name: f.producto,
@@ -507,6 +513,7 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
       const queryParams = new URLSearchParams({
         page: "1",
         limit: "1000",
+        status: "Activos",
         ...(search.trim() && { search: search.trim() }),
       });
 
@@ -794,7 +801,7 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
       }
     };
 
-    const editId = localStorage.getItem("currentDietEditId");
+    const editId = creationIdFromUrl || localStorage.getItem("currentDietEditId");
     if (editId) {
       loadFromBackend(editId);
       return;
@@ -818,7 +825,7 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
       }
     }
     setFoodStatus(statuses);
-  }, [initialFoods, projectIdFromUrl]);
+  }, [initialFoods, projectIdFromUrl, creationIdFromUrl]);
 
   useEffect(() => {
     if (!projectIdFromUrl) return;
@@ -2198,6 +2205,7 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
     setCurrentProjectMode,
     editingCreationId,
     setEditingCreationId,
+    flowMode,
 
     isSidebarCollapsed,
     favoritesEnabled,

@@ -318,20 +318,25 @@ export class CopilotService {
                   'ai.calls.limit',
                 );
               }
-              const result = await this.aiService.callJson(
-                'Eres un nutricionista. Estima valores nutricionales por porcion. Responde solo JSON valido.',
-                `Estima los macros para:\n${names.join('\n')}\n\nResponde: {"calorias": numero, "proteinas": numero, "carbohidratos": numero, "grasas": numero}`,
+              const result = await this.aiService.generateStructuredObject(
+                'copilot.calculate-macros',
+                'Estima valores nutricionales por porción. Usa cero si faltan datos suficientes.',
+                `Estima los macros para:\n${names.join('\n')}`,
+                z
+                  .object({
+                    calorias: z.number(),
+                    proteinas: z.number(),
+                    carbohidratos: z.number(),
+                    grasas: z.number(),
+                  })
+                  .strict(),
               );
-              const parsed = JSON.parse(result);
+              const parsed = result.object;
               return {
-                calorias: Math.round(parsed.calorias || parsed.calories || 0),
-                proteinas: Math.round(parsed.proteinas || parsed.proteins || 0),
-                carbohidratos: Math.round(
-                  parsed.carbohidratos || parsed.carbs || 0,
-                ),
-                grasas: Math.round(
-                  parsed.grasas || parsed.fats || parsed.lipids || 0,
-                ),
+                calorias: Math.round(parsed.calorias || 0),
+                proteinas: Math.round(parsed.proteinas || 0),
+                carbohidratos: Math.round(parsed.carbohidratos || 0),
+                grasas: Math.round(parsed.grasas || 0),
               };
             } catch {
               return {
@@ -379,11 +384,35 @@ export class CopilotService {
                   'ai.calls.limit',
                 );
               }
-              const result = await this.aiService.callJson(
-                'Eres un nutricionista chileno experto en crear recetas. Responde solo JSON valido.',
-                `Genera una receta para ${tipoComida}. ${restriccionesStr}${preferenciasStr}Max ${maxIngredientes} ingredientes principales. Plato simple, casero, chileno.\n\nResponde: {"titulo":"string","descripcion":"string","preparacion":"string","porcionRecomendada":"string","calorias":0,"proteinas":0,"carbohidratos":0,"grasas":0,"ingredientes":[{"nombre":"string","cantidad":"string"}]}`,
+              const result = await this.aiService.generateStructuredObject(
+                'copilot.generate-recipe',
+                'Genera una receta simple y clínicamente compatible.',
+                `Genera una receta para ${tipoComida}. ${restriccionesStr}${preferenciasStr}Máximo ${maxIngredientes} ingredientes principales.`,
+                z
+                  .object({
+                    titulo: z.string(),
+                    descripcion: z.string(),
+                    preparacion: z.string(),
+                    porcionRecomendada: z.string(),
+                    calorias: z.number(),
+                    proteinas: z.number(),
+                    carbohidratos: z.number(),
+                    grasas: z.number(),
+                    ingredientes: z
+                      .array(
+                        z
+                          .object({
+                            nombre: z.string(),
+                            cantidad: z.string(),
+                            optional: z.boolean().default(false),
+                          })
+                          .strict(),
+                      )
+                      .max(maxIngredientes),
+                  })
+                  .strict(),
               );
-              return JSON.parse(result);
+              return result.object;
             } catch {
               return { error: 'No se pudo generar la receta' };
             }

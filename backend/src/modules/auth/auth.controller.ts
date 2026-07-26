@@ -86,28 +86,6 @@ export class AuthController {
     @Req() req: ExpressRequest,
     @Res() res: Response,
   ) {
-    if (!code || !state) {
-      throw new BadRequestException('Callback de Google incompleto');
-    }
-
-    const transaction = readCookie(req, GOOGLE_OAUTH_COOKIE);
-    res.clearCookie(GOOGLE_OAUTH_COOKIE, { path: GOOGLE_OAUTH_COOKIE_PATH });
-    const [browserBinding, codeVerifier] = (transaction || '').split('.');
-    if (!browserBinding || !codeVerifier) {
-      throw new BadRequestException(
-        'La sesión de Google expiró. Intenta nuevamente.',
-      );
-    }
-
-    const callback =
-      await this.googleIntegrationService.handleGoogleLoginCallback(
-        code,
-        state,
-        browserBinding,
-        codeVerifier,
-      );
-    const result = await this.authService.loginWithGoogle(callback.profile);
-    const ticket = await this.authService.createOAuthSessionTicket(result);
     const railwayUrl = process.env.RAILWAY_PUBLIC_DOMAIN
       ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
       : undefined;
@@ -117,8 +95,42 @@ export class AuthController {
       process.env.API_URL,
       railwayUrl,
     );
-    const targetUrl = `${frontendUrl}/auth/callback?ticket=${encodeURIComponent(ticket)}&next=${encodeURIComponent(resolveSafePostAuthPath(callback.next))}`;
-    return res.redirect(targetUrl);
+
+    try {
+      if (!code || !state) {
+        throw new BadRequestException('Callback de Google incompleto');
+      }
+
+      const transaction = readCookie(req, GOOGLE_OAUTH_COOKIE);
+      res.clearCookie(GOOGLE_OAUTH_COOKIE, { path: GOOGLE_OAUTH_COOKIE_PATH });
+      const [browserBinding, codeVerifier] = (transaction || '').split('.');
+      if (!browserBinding || !codeVerifier) {
+        throw new BadRequestException(
+          'La sesión de Google expiró. Intenta nuevamente.',
+        );
+      }
+
+      const callback =
+        await this.googleIntegrationService.handleGoogleLoginCallback(
+          code,
+          state,
+          browserBinding,
+          codeVerifier,
+        );
+      const result = await this.authService.loginWithGoogle(callback.profile);
+      const ticket = await this.authService.createOAuthSessionTicket(result);
+      const targetUrl = `${frontendUrl}/auth/callback?ticket=${encodeURIComponent(ticket)}&next=${encodeURIComponent(resolveSafePostAuthPath(callback.next))}`;
+      return res.redirect(targetUrl);
+    } catch (error: any) {
+      const rawMsg =
+        error?.response?.message ||
+        error?.message ||
+        'No fue posible iniciar sesión con Google. Intenta nuevamente.';
+      const formattedMsg = Array.isArray(rawMsg) ? rawMsg[0] : rawMsg;
+      return res.redirect(
+        `${frontendUrl}/login?error=${encodeURIComponent(formattedMsg)}`,
+      );
+    }
   }
 
   @Post('oauth/exchange')

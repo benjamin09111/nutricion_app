@@ -72,9 +72,9 @@ const groups: SidebarGroup[] = [
     items: [
       { name: "Principal", isSubHeader: true },
       { name: "Entregable Rápido", href: "/dashboard/rapido", icon: NotebookText },
-      { name: "Pautas de Alimentación", href: "/dashboard/pautas", icon: FileText },
       { name: "Recetas", href: "/dashboard/rapido/recetas", icon: ChefHat },
       { name: "Entregable Personalizado", href: "/dashboard/dieta", icon: Apple, tutorialPath: "/dashboard/dieta" },
+      { name: "Fitness", href: "/dashboard/fitness", icon: Dumbbell, locked: true },
       { name: "Alimentos", isSubHeader: true },
       { name: "Tabla de composición", href: "/dashboard/alimentos", icon: Apple, tutorialPath: "/dashboard/alimentos" },
       { name: "Platos", href: "/dashboard/platos", icon: ChefHat, tutorialPath: "/dashboard/platos", hidden: true },
@@ -120,7 +120,11 @@ const groups: SidebarGroup[] = [
   },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  onItemClick?: () => void;
+}
+
+export function Sidebar({ onItemClick }: SidebarProps = {}) {
   const pathname = usePathname();
   const { isSidebarCollapsed, toggleSidebarCollapsed, isSidebarToggleHighlighted } = useDashboardShell();
   const { isDarkMode } = useTheme();
@@ -184,7 +188,6 @@ export function Sidebar() {
         "sidebar-scroll dashboard-sidebar-bg flex h-full grow flex-col gap-y-4 overflow-y-auto overflow-x-hidden border-r pb-4 transition-all duration-300",
         isSidebarCollapsed ? "px-2" : "px-3",
       )}
-      style={{ scrollbarWidth: "thin" }}
     >
       <div
         className={cn(
@@ -284,6 +287,8 @@ export function Sidebar() {
                                 toast.info("Próximamente", {
                                   description: desc,
                                 });
+                              } else {
+                                onItemClick?.();
                               }
                             }}
                             className={cn(

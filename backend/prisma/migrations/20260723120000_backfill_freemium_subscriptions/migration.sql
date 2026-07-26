@@ -24,8 +24,8 @@ INSERT INTO "subscriptions" (
     "status",
     "start_date",
     "end_date",
-    "createdAt",
-    "updatedAt"
+    "created_at",
+    "updated_at"
 )
 SELECT
     gen_random_uuid()::text,

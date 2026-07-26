@@ -1,5 +1,5 @@
 import React from "react";
-import { Check } from "lucide-react";
+import { Check, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface WizardStepperProps {
@@ -8,6 +8,7 @@ interface WizardStepperProps {
   completedSteps: number[];
   className?: string;
   onStepClick?: (stepIndex: number) => void;
+  nextDisabled?: boolean;
 }
 
 export function WizardStepper({
@@ -16,23 +17,39 @@ export function WizardStepper({
   completedSteps,
   className,
   onStepClick,
+  nextDisabled = false,
 }: WizardStepperProps) {
   return (
     <div className={cn("flex flex-wrap items-center gap-x-2 gap-y-3 mb-6 pb-2", className)}>
       {steps.map((step, index) => {
         const isCompleted = completedSteps.includes(index);
         const isActive = currentStep === index;
-        const isPending = !isCompleted && !isActive;
+        const isPrevious = index < currentStep;
+        const isNextImmediate = index === currentStep + 1;
+
+        // Accessible ONLY if reached/completed or next immediate when current step is valid
+        const isAccessible = isPrevious || isActive || isCompleted || (isNextImmediate && !nextDisabled);
+        const isLocked = !isAccessible;
 
         return (
           <React.Fragment key={index}>
             <button
               type="button"
-              onClick={() => onStepClick?.(index)}
+              disabled={isLocked}
+              onClick={() => {
+                if (!isLocked) {
+                  onStepClick?.(index);
+                }
+              }}
               className={cn(
-                "flex items-center gap-2",
-                onStepClick && "cursor-pointer hover:opacity-80 transition-opacity"
+                "flex items-center gap-2 transition-all",
+                isLocked
+                  ? "cursor-not-allowed opacity-45 select-none"
+                  : onStepClick
+                  ? "cursor-pointer hover:opacity-90"
+                  : ""
               )}
+              title={isLocked ? "Debes completar la fase actual antes de ver este paso" : step}
             >
               <div
                 className={cn(
@@ -40,13 +57,17 @@ export function WizardStepper({
                   isCompleted &&
                     "bg-emerald-100 text-emerald-700 border border-emerald-200",
                   isActive &&
-                    "border-2 border-indigo-600 bg-indigo-50 text-indigo-600",
-                  isPending &&
+                    "border-2 border-indigo-600 bg-indigo-50 text-indigo-600 font-bold shadow-sm",
+                  isLocked &&
+                    "border border-slate-200 text-slate-300 bg-slate-100/70",
+                  !isCompleted && !isActive && !isLocked &&
                     "border-2 border-slate-200 text-slate-400 bg-slate-50"
                 )}
               >
                 {isCompleted ? (
                   <Check className="w-4 h-4" />
+                ) : isLocked ? (
+                  <Lock className="w-3.5 h-3.5 text-slate-400" />
                 ) : (
                   <span>{index + 1}</span>
                 )}
@@ -56,7 +77,8 @@ export function WizardStepper({
                   "text-xs font-medium whitespace-nowrap hidden sm:block",
                   isActive && "text-indigo-600 font-semibold",
                   isCompleted && "text-slate-500",
-                  isPending && "text-slate-400"
+                  isLocked && "text-slate-300",
+                  !isActive && !isCompleted && !isLocked && "text-slate-400"
                 )}
               >
                 {step}
@@ -78,3 +100,4 @@ export function WizardStepper({
     </div>
   );
 }
+

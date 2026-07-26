@@ -29,7 +29,7 @@ interface SidebarItem {
   icon: React.ElementType;
   disabled?: boolean;
   locked?: boolean;
-  badge?: "inboxPending" | "deletionRequests";
+  badge?: "inboxPending" | "deletionRequests" | "feedbackPending";
 }
 
 interface SidebarGroup {
@@ -74,7 +74,12 @@ const groups: SidebarGroup[] = [
         icon: Inbox,
         badge: "inboxPending",
       },
-      { name: "Feedback", href: "/dashboard/admin/feedback", icon: MessageSquare },
+      {
+        name: "Feedback",
+        href: "/dashboard/admin/feedback",
+        icon: MessageSquare,
+        badge: "feedbackPending",
+      },
       {
         name: "Licencias",
         href: "/dashboard/admin/organizaciones",
@@ -112,17 +117,22 @@ const WORKER_ALLOWED_PATHS = new Set([
   "/dashboard/admin/cupones",
 ]);
 
-export function AdminSidebar() {
+interface AdminSidebarProps {
+  onItemClick?: () => void;
+}
+
+export function AdminSidebar({ onItemClick }: AdminSidebarProps = {}) {
   const pathname = usePathname();
   const { isSidebarCollapsed } = useDashboardShell();
   const { isDarkMode } = useTheme();
   const [inboxPendingCount, setInboxPendingCount] = useState(0);
+  const [feedbackPendingCount, setFeedbackPendingCount] = useState(0);
   const [deletionRequestsCount, setDeletionRequestsCount] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
 
-    const fetchInboxPendingCount = async () => {
+    const fetchSupportCounts = async () => {
       try {
         const token = getAuthToken();
         const headers: Record<string, string> = {};
@@ -138,15 +148,19 @@ export function AdminSidebar() {
           type: string;
           status: string;
         }>;
-        const pendingCount = data.filter(
+        const inboxCount = data.filter(
           (item) => item.type === "CONTACT" && item.status === "PENDING",
+        ).length;
+        const feedbackCount = data.filter(
+          (item) => item.type !== "CONTACT" && item.status === "PENDING",
         ).length;
 
         if (isMounted) {
-          setInboxPendingCount(pendingCount);
+          setInboxPendingCount(inboxCount);
+          setFeedbackPendingCount(feedbackCount);
         }
       } catch (error) {
-        console.error("Error fetching inbox pending count:", error);
+        console.error("Error fetching support counts:", error);
       }
     };
 
@@ -173,24 +187,26 @@ export function AdminSidebar() {
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
-        fetchInboxPendingCount();
+        fetchSupportCounts();
         fetchDeletionRequestsCount();
       }
     };
 
-    fetchInboxPendingCount();
+    fetchSupportCounts();
     fetchDeletionRequestsCount();
-    window.addEventListener("admin-inbox-updated", fetchInboxPendingCount);
+    window.addEventListener("admin-inbox-updated", fetchSupportCounts);
+    window.addEventListener("admin-feedback-updated", fetchSupportCounts);
     window.addEventListener("admin-deletion-request-accepted", fetchDeletionRequestsCount);
     document.addEventListener("visibilitychange", handleVisibilityChange);
     const interval = window.setInterval(() => {
-      fetchInboxPendingCount();
+      fetchSupportCounts();
       fetchDeletionRequestsCount();
     }, 60000);
 
     return () => {
       isMounted = false;
-      window.removeEventListener("admin-inbox-updated", fetchInboxPendingCount);
+      window.removeEventListener("admin-inbox-updated", fetchSupportCounts);
+      window.removeEventListener("admin-feedback-updated", fetchSupportCounts);
       window.removeEventListener("admin-deletion-request-accepted", fetchDeletionRequestsCount);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.clearInterval(interval);
@@ -200,6 +216,9 @@ export function AdminSidebar() {
   const getItemBadge = (item: SidebarItem) => {
     if (item.badge === "inboxPending" && inboxPendingCount > 0) {
       return inboxPendingCount > 99 ? "99+" : String(inboxPendingCount);
+    }
+    if (item.badge === "feedbackPending" && feedbackPendingCount > 0) {
+      return feedbackPendingCount > 99 ? "99+" : String(feedbackPendingCount);
     }
     if (item.badge === "deletionRequests" && deletionRequestsCount > 0) {
       return deletionRequestsCount > 99 ? "99+" : String(deletionRequestsCount);
@@ -268,6 +287,7 @@ export function AdminSidebar() {
                     <li key={item.name}>
                       <Link
                         href={item.href}
+                        onClick={() => onItemClick?.()}
                         className={cn(
                           isActive
                             ? isDarkMode

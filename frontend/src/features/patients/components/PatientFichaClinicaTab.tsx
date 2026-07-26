@@ -207,6 +207,10 @@ export function PatientFichaClinicaTab({
       ? calculateGestationalData(gestWeek, w, h, preGestWeight)
       : null;
 
+  const primaryCondition = isEditing
+    ? (editForm.primaryCondition ?? patient.primaryCondition)
+    : patient.primaryCondition;
+
   const dietRestrictions: string[] = (isEditing ? editForm.dietRestrictions : patient.dietRestrictions) ?? [];
   const displayedDietRestrictions = dietRestrictions.filter(
     (r) => r.toLowerCase() !== (primaryCondition || "").toLowerCase()
@@ -255,10 +259,6 @@ export function PatientFichaClinicaTab({
     const defaults = DEFAULT_CONSTRAINTS.map((c) => c.id);
     return [...new Set([...defaults, ...conditionTags])];
   }, [conditionTags]);
-
-  const primaryCondition = isEditing
-    ? (editForm.primaryCondition ?? patient.primaryCondition)
-    : patient.primaryCondition;
 
   const isFemale = g === "Femenino";
 

@@ -23,6 +23,7 @@ import {
   membershipService,
   type MembershipPlan,
 } from "@/features/memberships/services/membership.service";
+import { sortPlansWithPopularInCenter } from "@/features/memberships/utils/sort-plans";
 import { cn } from "@/lib/utils";
 import { TransferPaymentModal } from "./TransferPaymentModal";
 import { goToDashboard } from "@/lib/membership-navigation";
@@ -256,7 +257,7 @@ export function OnboardingWizard({ nutritionistEmail, nutritionistName }: Onboar
                   </div>
                 )}
 
-                {paidPlans.map((plan) => {
+                {sortPlansWithPopularInCenter(paidPlans).map((plan) => {
                   const isPopular = plan.isPopular;
                   const isSelected = selectedPaidPlan?.id === plan.id;
                   return (

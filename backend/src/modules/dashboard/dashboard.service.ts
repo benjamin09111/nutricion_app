@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import {
   getMembershipPlanEntitlements,
   getMembershipPlanKey,
+  normalizeMembershipPlanKey,
 } from '../memberships/plan-entitlements';
 
 const LIFETIME_PERIOD_KEY = 'lifetime';
@@ -91,10 +92,20 @@ export class DashboardService {
       // Table may not exist yet — plan usage will show zeros
     }
 
-    const plan = account?.subscription?.plan ?? null;
-    const planKey = getMembershipPlanKey(
-      plan || { slug: account?.plan || 'free' },
-    );
+    const subscription = account?.subscription;
+    const isSubscriptionActive =
+      subscription &&
+      subscription.endDate &&
+      new Date(subscription.endDate).getTime() > Date.now() &&
+      ['ACTIVE', 'TRIALING'].includes(subscription.status);
+
+    const activePlan = isSubscriptionActive ? subscription.plan : null;
+    const rawSlug =
+      activePlan?.slug ||
+      activePlan?.name ||
+      (account?.plan !== 'FREE' ? account?.plan : 'free') ||
+      'free';
+    const planKey = normalizeMembershipPlanKey(rawSlug);
     const entitlements = getMembershipPlanEntitlements(planKey);
 
     const usageMap: Record<string, number> = {};
@@ -107,7 +118,10 @@ export class DashboardService {
       Number(entitlements['consultations.monthly.limit']) || 0;
     const pdfLimit = Number(entitlements['pdf.monthly.limit']) || 0;
 
-    const isFree = planKey === 'free';
+    const isFree =
+      planKey === 'free' &&
+      (!activePlan || Number(activePlan.price || 0) === 0) &&
+      account?.plan === 'FREE';
 
     let planUsagePercent = 0;
     if (isFree) {

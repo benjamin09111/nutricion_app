@@ -116,8 +116,8 @@ export function SubscriptionProvider({
     setRole(typeof user?.role === "string" ? user.role : null);
     if (user.plan || user.currentPlan?.key || user.currentPlan?.slug) {
       const backendPlan = String(user.currentPlan?.key || user.currentPlan?.slug || user.plan).toLowerCase();
-      if (backendPlan === "free") setPlan("free");
-      else if (backendPlan === "pro" || backendPlan === "premium" || backendPlan === "enterprise" || backendPlan === "iniciante") setPlan("pro");
+      if (backendPlan === "free" || backendPlan === "freemium") setPlan("free");
+      else setPlan("pro");
     }
     if (user.planName) setPlanName(user.planName);
     if (user.currentPlan) setCurrentPlan(user.currentPlan as MembershipState["currentPlan"]);
@@ -142,12 +142,13 @@ export function SubscriptionProvider({
       const slug = (planData?.key || planData?.slug || accPlan || "").toLowerCase();
 
       if (slug.includes("trial")) return "trial";
-      if (slug.includes("free")) return "free";
+      if (slug.includes("free") || slug.includes("gratis") || slug.includes("freemium")) return "free";
       if (
         slug.includes("pro") ||
         slug.includes("premium") ||
         slug.includes("starter") ||
-        slug.includes("enterprise")
+        slug.includes("enterprise") ||
+        slug.includes("plus")
       ) {
         return "pro";
       }
@@ -219,162 +220,64 @@ export function SubscriptionProvider({
         user.billing = data.billing || null;
         setCurrentUser(user);
       }
-    } catch {
-      // Fallback to localStorage
-      setEntitlements({});
-      setRequiresPlanSelection(true);
+    } catch (error) {
+      console.error("Error al obtener estado de suscripción:", error);
       applyStoredUserSnapshot();
     } finally {
       setIsLoading(false);
     }
   }, [applyStoredUserSnapshot, computePlan]);
 
+  useEffect(() => {
+    applyStoredUserSnapshot();
+    refreshSubscription();
+  }, [applyStoredUserSnapshot, refreshSubscription]);
+
+  const forceUpdatePlan = useCallback((newPlan: SubscriptionPlan) => {
+    setPlan(newPlan);
+  }, []);
+
   const can = useCallback(
     (featureKey: string) => {
-      const user = getCurrentUser();
-      if (user) {
-        const role = String(user?.role || "").toUpperCase();
-        if (
-          role === "ADMIN" ||
-          role === "ADMIN_MASTER" ||
-          role === "ADMIN_GENERAL" ||
-          role === "WORKER"
-        ) {
-          return true;
-        }
-      }
-
-      if (featureKey === "membership.selected") {
-        return !requiresPlanSelection;
-      }
-
-      if (featureKey === "clinical_calculator.access") {
-        if (currentPlan?.key) {
-          return currentPlan.key === "free" || currentPlan.key === "pro";
-        }
-        return Boolean(entitlements[featureKey]);
-      }
-
-      if (featureKey === "food_groups.access") {
-        return currentPlan?.key !== "free";
-      }
-
-      if (featureKey === "appointments.access") {
-        return currentPlan?.key === "pro";
-      }
-
-      if (featureKey === "google_calendar.sync") {
-        return currentPlan?.key === "pro";
-      }
-
-      if (featureKey === "ai.autofill.access") {
-        if (currentPlan?.key) {
-          return currentPlan.key === "free" || currentPlan.key === "pro";
-        }
-        return Boolean(entitlements[featureKey]);
-      }
-
-      if (featureKey === "nutritionist_portal.access") {
-        return currentPlan?.key === "pro";
-      }
-
-      if (featureKey === "sii_invoices.access") {
-        return currentPlan?.key === "pro";
-      }
-
-      if (featureKey === "canGenerateDiet") {
-        return planFeatures.canGenerateDiet;
-      }
-
-      if (featureKey === "canExportPDF") {
-        return planFeatures.canExportPDF;
-      }
-
-      if (featureKey === "patientLimit") {
-        return planFeatures.patientLimit > 0;
-      }
-
-      if (featureKey === "hasBranding") {
-        return planFeatures.hasBranding;
-      }
-
-      const value = entitlements[featureKey];
-      return value === true || (typeof value === "number" && value > 0);
+      if (isDeveloper) return true;
+      return Boolean(entitlements[featureKey]);
     },
-    [currentPlan, entitlements, planFeatures, requiresPlanSelection],
+    [entitlements, isDeveloper],
   );
 
   const limit = useCallback(
     (limitKey: string) => {
-      const value = entitlements[limitKey];
-      if (typeof value === "number") {
-        return value < 0 ? Number.POSITIVE_INFINITY : value;
-      }
-
-      if (limitKey === "patientLimit") {
-        return planFeatures.patientLimit;
-      }
-
-      return 0;
+      if (isDeveloper) return Number.POSITIVE_INFINITY;
+      return getLimitValue(limitKey);
     },
-    [entitlements, planFeatures.patientLimit],
+    [getLimitValue, isDeveloper],
   );
 
-  useEffect(() => {
-    const user = getCurrentUser();
-    if (user?.membershipSelected === true || user?.requiresPlanSelection === false) {
-      setRequiresPlanSelection(false);
-    }
-
-    refreshSubscription();
-  }, [refreshSubscription]);
-
-  useEffect(() => {
-    const refreshWhenReturningToApp = () => {
-      if (document.visibilityState === "visible") {
-        void refreshSubscription();
-      }
-    };
-
-    window.addEventListener("focus", refreshWhenReturningToApp);
-    document.addEventListener("visibilitychange", refreshWhenReturningToApp);
-
-    return () => {
-      window.removeEventListener("focus", refreshWhenReturningToApp);
-      document.removeEventListener("visibilitychange", refreshWhenReturningToApp);
-    };
-  }, [refreshSubscription]);
-
-  const forceUpdatePlan = (newPlan: SubscriptionPlan) => {
-    setPlan(newPlan);
-    toast.info(`[DEV] Plan cambiado a: ${newPlan.toUpperCase()}`);
-  };
-
-  const value = {
-    plan,
-    planName,
-    status,
-    subscriptionEndsAt,
-    cancelAtPeriodEnd,
-    daysRemaining,
-    requiresPlanSelection,
-    hasPendingTransfer,
-    entitlements,
-    currentPlan,
-    usage,
-    billing,
-    role,
-    refreshSubscription,
-    forceUpdatePlan,
-    isLoading,
-    features: planFeatures,
-    isDeveloper,
-    can,
-    limit,
-  };
-
   return (
-    <SubscriptionContext.Provider value={value}>
+    <SubscriptionContext.Provider
+      value={{
+        plan,
+        planName,
+        role,
+        status,
+        subscriptionEndsAt,
+        cancelAtPeriodEnd,
+        daysRemaining,
+        requiresPlanSelection,
+        hasPendingTransfer,
+        entitlements,
+        currentPlan,
+        usage,
+        billing,
+        refreshSubscription,
+        forceUpdatePlan,
+        isLoading,
+        isDeveloper,
+        features: planFeatures,
+        can,
+        limit,
+      }}
+    >
       {children}
     </SubscriptionContext.Provider>
   );
@@ -382,9 +285,9 @@ export function SubscriptionProvider({
 
 export function useSubscription() {
   const context = useContext(SubscriptionContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error(
-      "useSubscription must be used within a SubscriptionProvider",
+      "useSubscription debe ser usado dentro de SubscriptionProvider",
     );
   }
   return context;

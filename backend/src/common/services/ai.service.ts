@@ -1,13 +1,23 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
-import { generateObject, generateText } from 'ai';
+import { generateObject, type LanguageModel } from 'ai';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOpenAI } from '@ai-sdk/openai';
 import type { ZodTypeAny } from 'zod';
 
-type AiProvider = 'deepseek' | 'openai';
+export type AiProvider = 'gemini' | 'deepseek' | 'openai';
+
+const STRICT_CLINICAL_SYSTEM_PROMPT = [
+  'Actúa exclusivamente como un nutricionista clínico experto.',
+  'Aplica de forma estricta y prioritaria todas las restricciones médicas, alergias, intolerancias y contraindicaciones indicadas en el contexto.',
+  'Nunca inventes, sustituyas ni agregues alimentos que contradigan una restricción médica.',
+  'Respeta la lista de alimentos permitidos y la política de alimentos externos definida en el pedido.',
+  'Si existe conflicto entre objetivo, preferencias y seguridad clínica, siempre gana la seguridad clínica.',
+  'La respuesta debe cumplir exactamente el esquema estructurado recibido; no agregues campos ni texto libre.',
+].join(' ');
 
 interface AiModelConfig {
   provider: AiProvider;
-  model: ReturnType<ReturnType<typeof createOpenAI>>;
+  model: LanguageModel;
   modelId: string;
 }
 
@@ -16,6 +26,15 @@ export class AiService {
   private readonly logger = new Logger(AiService.name);
 
   resolveModelConfig(provider: AiProvider): AiModelConfig | null {
+    if (provider === 'gemini') {
+      const apiKey =
+        process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+      if (!apiKey) return null;
+      const modelId = process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite';
+      const google = createGoogleGenerativeAI({ apiKey });
+      return { provider, model: google(modelId), modelId };
+    }
+
     if (provider === 'deepseek') {
       const apiKey = process.env.DEEPSEEK_API_KEY;
       if (!apiKey) return null;
@@ -35,7 +54,7 @@ export class AiService {
   }
 
   resolvePreferredModelConfig(
-    providers: AiProvider[] = ['deepseek', 'openai'],
+    providers: AiProvider[] = ['gemini', 'deepseek', 'openai'],
   ): AiModelConfig | null {
     for (const provider of providers) {
       const config = this.resolveModelConfig(provider);
@@ -48,7 +67,7 @@ export class AiService {
   private async runWithFallback<T>(
     taskName: string,
     runner: (config: AiModelConfig) => Promise<T>,
-    providers: AiProvider[] = ['deepseek', 'openai'],
+    providers: AiProvider[] = ['gemini', 'deepseek', 'openai'],
   ): Promise<{ provider: AiProvider; modelId: string; result: T }> {
     const errors: string[] = [];
 
@@ -98,7 +117,7 @@ export class AiService {
     object: TSchema['_output'];
   }> {
     const temperature = options?.temperature ?? 0.2;
-    const providers = options?.providers ?? ['deepseek', 'openai'];
+    const providers = options?.providers ?? ['gemini', 'deepseek', 'openai'];
 
     return this.runWithFallback(
       taskName,
@@ -106,9 +125,15 @@ export class AiService {
         const { object } = await generateObject({
           model: config.model,
           schema,
-          system: systemInstruction,
+          system: [STRICT_CLINICAL_SYSTEM_PROMPT, systemInstruction]
+            .filter(Boolean)
+            .join('\n'),
           prompt: userPrompt,
           temperature,
+          providerOptions:
+            config.provider === 'gemini'
+              ? { google: { structuredOutputs: true } }
+              : undefined,
         });
 
         return object;
@@ -119,56 +144,6 @@ export class AiService {
       modelId,
       object: result,
     }));
-  }
-
-  async callJson(
-    systemInstruction: string,
-    userPrompt: string,
-  ): Promise<string> {
-    const providers: AiProvider[] = ['deepseek', 'openai'];
-    const errors: string[] = [];
-
-    for (const provider of providers) {
-      const config = this.resolveModelConfig(provider);
-      if (!config) {
-        errors.push(`${provider}: sin credenciales`);
-        continue;
-      }
-
-      try {
-        this.logger.log(
-          `[AI:${config.provider}] Request model=${config.modelId} promptChars=${userPrompt.length}`,
-        );
-
-        const { text } = await generateText({
-          model: config.model,
-          system: systemInstruction,
-          prompt: userPrompt,
-          temperature: 0.2,
-          providerOptions: {
-            openai: { responseFormat: { type: 'json_object' } },
-          },
-        });
-
-        if (!text) {
-          throw new BadRequestException('Empty response from AI provider');
-        }
-
-        return text;
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        errors.push(`${provider}: ${message}`);
-        this.logger.warn(
-          `[AI:${config.provider}] Fallback triggered: ${message}`,
-        );
-      }
-    }
-
-    const errorSummary = errors.join(' | ');
-    this.logger.error(`[AI] All providers failed: ${errorSummary}`);
-    throw new BadRequestException(
-      `No se pudo completar la solicitud de IA. Detalles: ${errorSummary}`,
-    );
   }
 
   formatPatientContext(patient?: any): string | null {

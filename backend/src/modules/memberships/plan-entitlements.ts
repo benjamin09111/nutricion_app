@@ -68,6 +68,22 @@ export const MEMBERSHIP_PLAN_ENTITLEMENTS: Record<string, PlanEntitlements> = {
     [PLAN_ENTITLEMENT_KEYS.NUTRITIONIST_PORTAL_ACCESS]: true,
     [PLAN_ENTITLEMENT_KEYS.SII_INVOICES_ACCESS]: true,
   },
+  plus: {
+    [PLAN_ENTITLEMENT_KEYS.PATIENTS_ACTIVE_LIMIT]: -1,
+    [PLAN_ENTITLEMENT_KEYS.CONSULTATIONS_MONTHLY_LIMIT]: -1,
+    [PLAN_ENTITLEMENT_KEYS.PDF_MONTHLY_LIMIT]: -1,
+    [PLAN_ENTITLEMENT_KEYS.FOLLOWUPS_PRIVATE_ACTIVE_LIMIT]: -1,
+    [PLAN_ENTITLEMENT_KEYS.INGREDIENTS_BASE_READ]: true,
+    [PLAN_ENTITLEMENT_KEYS.CLINICAL_CALCULATOR_ACCESS]: true,
+    [PLAN_ENTITLEMENT_KEYS.CLINICAL_CALCULATOR_LIMIT]: -1,
+    [PLAN_ENTITLEMENT_KEYS.FOOD_GROUPS_ACCESS]: true,
+    [PLAN_ENTITLEMENT_KEYS.AI_CALLS_LIMIT]: -1,
+    [PLAN_ENTITLEMENT_KEYS.AI_AUTOFILL_ACCESS]: true,
+    [PLAN_ENTITLEMENT_KEYS.APPOINTMENTS_ACCESS]: true,
+    [PLAN_ENTITLEMENT_KEYS.GOOGLE_CALENDAR_SYNC]: true,
+    [PLAN_ENTITLEMENT_KEYS.NUTRITIONIST_PORTAL_ACCESS]: true,
+    [PLAN_ENTITLEMENT_KEYS.SII_INVOICES_ACCESS]: true,
+  },
 };
 
 export const getMembershipPlanEntitlements = (slug: string) =>
@@ -76,11 +92,16 @@ export const getMembershipPlanEntitlements = (slug: string) =>
 export const normalizeMembershipPlanKey = (value: string) => {
   const normalized = value.trim().toLowerCase();
 
-  if (normalized.includes('free') || normalized.includes('gratis'))
+  if (normalized.includes('free') || normalized.includes('gratis') || normalized.includes('freemium'))
     return 'free';
   if (normalized.includes('iniciante') || normalized.includes('starter'))
     return 'iniciante';
-  if (normalized.includes('pro') || normalized.includes('premium'))
+  if (
+    normalized.includes('pro') ||
+    normalized.includes('premium') ||
+    normalized.includes('plus') ||
+    normalized.includes('enterprise')
+  )
     return 'pro';
 
   return normalized;

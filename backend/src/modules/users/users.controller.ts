@@ -267,6 +267,32 @@ export class UsersController {
     return this.usersService.hardDelete(id);
   }
 
+  @Patch(':id/suspend')
+  @UseGuards(AuthGuard, PermissionsGuard)
+  async suspendAccount(@Param('id') id: string, @Request() req: any) {
+    const requesterRole = req.user.role;
+    if (!isAdminRole(requesterRole)) {
+      throw new UnauthorizedException(
+        'Solo personal autorizado puede realizar esta acción',
+      );
+    }
+
+    return this.usersService.suspendAccount(id);
+  }
+
+  @Patch(':id/unsuspend')
+  @UseGuards(AuthGuard, PermissionsGuard)
+  async unsuspendAccount(@Param('id') id: string, @Request() req: any) {
+    const requesterRole = req.user.role;
+    if (!isAdminRole(requesterRole)) {
+      throw new UnauthorizedException(
+        'Solo personal autorizado puede realizar esta acción',
+      );
+    }
+
+    return this.usersService.unsuspendAccount(id);
+  }
+
   @Post('me/deletion-request')
   @UseGuards(AuthGuard)
   async createDeletionRequest(@Request() req: any) {
@@ -302,7 +328,6 @@ export class UsersController {
 
   @Get('deletion-requests')
   @UseGuards(AuthGuard, PermissionsGuard)
-  @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
   async getDeletionRequests(@Request() req: any) {
     const requesterRole = req.user.role;
     if (!isAdminRole(requesterRole)) {
@@ -316,7 +341,6 @@ export class UsersController {
 
   @Get('deletion-requests/count')
   @UseGuards(AuthGuard, PermissionsGuard)
-  @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
   async countDeletionRequests(@Request() req: any) {
     const requesterRole = req.user.role;
     if (!isAdminRole(requesterRole)) {
@@ -331,7 +355,6 @@ export class UsersController {
 
   @Post('deletion-requests/:id/accept')
   @UseGuards(AuthGuard, PermissionsGuard)
-  @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
   async acceptDeletionRequest(
     @Param('id') id: string,
     @Body() body: { notes?: string },

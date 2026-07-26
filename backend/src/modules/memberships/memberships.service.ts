@@ -26,8 +26,9 @@ const asStringArray = (value: Prisma.JsonValue): string[] => {
 
 type PlanRow = MembershipPlan;
 
-const normalizeMembershipPlan = (plan: PlanRow) => ({
+const normalizeMembershipPlan = (plan: any) => ({
   ...plan,
+  isComingSoon: Boolean(plan.isComingSoon),
   price: Number(plan.price),
   features: asStringArray(plan.features).map(normalizeMembershipFeature),
 });
@@ -70,6 +71,7 @@ export class MembershipsService {
     maxPatients?: number;
     maxStorage?: number;
     isPopular?: boolean;
+    isComingSoon?: boolean;
     isActive?: boolean;
     displayOrder?: number;
   }) {
@@ -94,6 +96,7 @@ export class MembershipsService {
       maxPatients?: number;
       maxStorage?: number;
       isPopular?: boolean;
+      isComingSoon?: boolean;
       isActive?: boolean;
       displayOrder?: number;
     },

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Loader2 } from "lucide-react";
 import GoogleButton from "@/components/auth/GoogleButton";
 import { resolveRequiredUrl } from "@/lib/runtime-url.util";
 import EmailLoginForm from "./EmailLoginForm";
@@ -50,6 +51,22 @@ export default function LoginForm({
 
   if (autoStart) return null;
 
+  if (isGoogleSigningIn) {
+    return (
+      <div className="fixed inset-0 z-50 flex min-h-screen items-center justify-center bg-white px-4">
+        <div className="flex flex-col items-center gap-4 rounded-3xl border border-slate-200 bg-white px-8 py-10 text-center shadow-sm">
+          <Loader2 className="h-8 w-8 animate-spin text-emerald-600" aria-hidden="true" />
+          <p className="text-sm font-bold text-slate-800" aria-live="polite">
+            Iniciando sesión con Google
+          </p>
+          <p className="max-w-xs text-sm leading-6 text-slate-600">
+            Te estamos redirigiendo de forma segura. No cierres esta ventana.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (verification) {
     return (
       <VerificationNotice
@@ -63,15 +80,25 @@ export default function LoginForm({
     );
   }
 
-  const handleLoginSuccess = (user: { role?: string }) => {
-    if (searchParams.get("callbackUrl")) {
-      router.push(callbackUrl);
-      return;
-    }
+  const handleLoginSuccess = (user: {
+    role?: string;
+    rut?: string | null;
+    requiresPlanSelection?: boolean;
+  }) => {
     const isAdmin = ["ADMIN", "ADMIN_MASTER", "ADMIN_GENERAL"].includes(
       user.role || "",
     );
-    router.push(isAdmin ? "/dashboard/admin" : "/dashboard");
+    const targetPath = searchParams.get("callbackUrl")
+      ? callbackUrl
+      : isAdmin
+        ? "/dashboard/admin"
+        : "/dashboard";
+    const postRutNext = user.requiresPlanSelection ? "/plan" : targetPath;
+    const destination = user.rut
+      ? postRutNext
+      : `/onboarding/rut?next=${encodeURIComponent(postRutNext)}`;
+
+    router.push(destination);
   };
 
   const bodyWidthClass = "mx-auto w-full max-w-md";

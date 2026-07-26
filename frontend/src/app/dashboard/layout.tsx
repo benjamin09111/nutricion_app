@@ -24,10 +24,24 @@ import { FreemiumUpgradeModal } from "@/components/memberships/FreemiumUpgradeMo
 function DashboardContent({ children }: { children: React.ReactNode }) {
   const { isAdminView, isLoading } = useAdmin();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { isSidebarCollapsed } = useDashboardShell();
+  const { isSidebarCollapsed, setSidebarCollapsed } = useDashboardShell();
   const { isDarkMode } = useTheme();
   const pathname = usePathname();
   const isRecipesModule = pathname.startsWith("/dashboard/recetas");
+
+  useEffect(() => {
+    const isPlanRoute =
+      pathname.startsWith("/dashboard/rapido") ||
+      pathname.startsWith("/dashboard/dieta") ||
+      pathname.startsWith("/dashboard/pautas") ||
+      pathname.startsWith("/dashboard/entregable");
+
+    if (isPlanRoute) {
+      setSidebarCollapsed(true);
+    } else {
+      setSidebarCollapsed(false);
+    }
+  }, [pathname, setSidebarCollapsed]);
 
   const [freemiumModalData, setFreemiumModalData] = useState<{
     isOpen: boolean;
@@ -82,14 +96,18 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
           </div>
 
           <div className="h-full overflow-y-auto pt-10">
-             {isAdminView ? <AdminSidebar /> : <Sidebar />}
+             {isAdminView ? (
+               <AdminSidebar onItemClick={() => setSidebarOpen(false)} />
+             ) : (
+               <Sidebar onItemClick={() => setSidebarOpen(false)} />
+             )}
           </div>
         </div>
       </div>
 
       <div
         className={`hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:flex-col transition-all duration-300 ${
-          isSidebarCollapsed ? "lg:w-20" : "lg:w-60"
+          isSidebarCollapsed ? "lg:w-20" : "lg:w-[17rem]"
         }`}
       >
         {isAdminView ? <AdminSidebar /> : <Sidebar />}
@@ -97,7 +115,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
 
       <div
         className={`h-full min-h-screen flex flex-col transition-all duration-300 ${
-          isSidebarCollapsed ? "lg:pl-20" : "lg:pl-60"
+          isSidebarCollapsed ? "lg:pl-20" : "lg:pl-[17rem]"
         }`}
       >
         <Navbar onMenuClick={() => setSidebarOpen(true)} />
@@ -113,7 +131,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
                 ? "max-w-[96rem] px-3 sm:px-4 lg:px-4 xl:px-6"
                 : isRecipesModule
                 ? "max-w-[120rem] px-3 sm:px-5 lg:px-4 xl:px-6"
-                : "max-w-7xl px-4 sm:px-4 lg:px-4 xl:px-8"
+                : "max-w-[88rem] px-3 sm:px-4 lg:px-6 xl:px-8"
             }`}
           >
             {children}

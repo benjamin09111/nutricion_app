@@ -1,10 +1,9 @@
 "use client";
 
-import React from "react";
-import { RotateCcw } from "lucide-react";
+import React, { useEffect } from "react";
+import { toast } from "sonner";
 import { WizardStepper } from "@/components/patient-form/WizardStepper";
 import { FormNavigationFooter } from "@/components/patient-form/FormNavigationFooter";
-import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 
 interface PlanWizardShellProps {
@@ -36,6 +35,44 @@ export function PlanWizardShell({
   children,
   className,
 }: PlanWizardShellProps) {
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [currentStep]);
+
+  const handleStepClick = (targetStep: number) => {
+    if (targetStep === currentStep) return;
+
+    if (targetStep < currentStep) {
+      onStepClick(targetStep);
+      return;
+    }
+
+    if (nextDisabled) {
+      toast.error("Por favor completa los campos requeridos de la fase actual antes de continuar.");
+      return;
+    }
+
+    const isNextImmediate = targetStep === currentStep + 1;
+    const isAccessible = isNextImmediate || completedSteps.includes(targetStep);
+
+    if (!isAccessible) {
+      toast.error("Debes completar la fase actual para desbloquear este paso.");
+      return;
+    }
+
+    onStepClick(targetStep);
+  };
+
+  const handleNext = () => {
+    if (nextDisabled) {
+      toast.error("Por favor completa los campos requeridos de la fase actual antes de continuar.");
+      return;
+    }
+    onNext();
+  };
+
   return (
     <div className={cn("space-y-6 flex-1", className)}>
       {/* Control Superior */}
@@ -44,12 +81,13 @@ export function PlanWizardShell({
           steps={steps}
           currentStep={currentStep}
           completedSteps={completedSteps}
-          onStepClick={onStepClick}
+          onStepClick={handleStepClick}
+          nextDisabled={nextDisabled}
           className="mb-0 pb-0"
         />
         <FormNavigationFooter
           onBack={onBack}
-          onNext={onNext}
+          onNext={handleNext}
           isFirstStep={currentStep === 0}
           nextDisabled={nextDisabled}
           nextLabel={
@@ -66,7 +104,7 @@ export function PlanWizardShell({
       <div className="flex justify-center pt-4 border-t border-slate-100 w-full">
         <FormNavigationFooter
           onBack={onBack}
-          onNext={onNext}
+          onNext={handleNext}
           isFirstStep={currentStep === 0}
           nextDisabled={nextDisabled}
           nextLabel={
@@ -79,3 +117,4 @@ export function PlanWizardShell({
     </div>
   );
 }
+

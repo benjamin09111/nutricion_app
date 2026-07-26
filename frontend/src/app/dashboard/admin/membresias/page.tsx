@@ -23,6 +23,7 @@ interface MembershipPlan {
   maxPatients: number | null;
   maxStorage: number | null;
   isPopular: boolean;
+  isComingSoon?: boolean;
   isActive: boolean;
   displayOrder: number;
 }
@@ -287,6 +288,7 @@ export default function MembershipsPage() {
       maxPatients: null,
       maxStorage: null,
       isPopular: false,
+      isComingSoon: false,
       isActive: true,
       displayOrder: plans.length,
     };
@@ -352,7 +354,14 @@ export default function MembershipsPage() {
                   }`}
               >
 {/* Popular Badge */}
-                  {plan.isPopular && (
+                  {plan.isComingSoon && (
+                    <div className="bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-white text-center py-1.5 text-xs font-bold uppercase tracking-wider shadow-sm">
+                      🚀 Próximamente
+                    </div>
+                  )}
+
+                  {/* Popular Badge */}
+                  {plan.isPopular && !plan.isComingSoon && (
                     <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-center py-1.5 text-xs font-semibold">
                       ⭐ Más Popular
                     </div>
@@ -581,6 +590,25 @@ export default function MembershipsPage() {
                           Marcar como &quot;Más Popular&quot;
                         </span>
                         <Star className="h-4 w-4 text-amber-500" />
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={currentData.isComingSoon || false}
+                          onChange={(e) =>
+                            setEditForm({
+                              ...editForm,
+                              isComingSoon: e.target.checked,
+                            })
+                          }
+                          className="w-4 h-4 text-amber-600 border-slate-300 rounded focus:ring-amber-500 cursor-pointer"
+                        />
+                        <span className="text-sm text-slate-700 font-medium">
+                          Marcar como &quot;Próximamente&quot;
+                        </span>
+                        <span className="text-[10px] font-extrabold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
+                          🚀 Próximamente
+                        </span>
                       </label>
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input

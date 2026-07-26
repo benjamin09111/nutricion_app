@@ -17,6 +17,7 @@ import {
   type MembershipPlan,
 } from "@/features/memberships/services/membership.service";
 import { getMembershipFeatureDisplay } from "@/features/memberships/utils/feature-format";
+import { sortPlansWithPopularInCenter } from "@/features/memberships/utils/sort-plans";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { cn } from "@/lib/utils";
 import { goToDashboard } from "@/lib/membership-navigation";
@@ -44,6 +45,9 @@ export function PlanSelector() {
   const user = getCurrentUser();
   const email = user?.email || "";
   const fullName = user?.nutritionist?.fullName || "";
+
+  const freePlan = plans.find((p) => Number(p.price) === 0);
+  const allPlans = sortPlansWithPopularInCenter(plans);
 
   const handleSelectFree = async (plan: MembershipPlan) => {
     setSubmittingId(plan.id);
@@ -84,10 +88,6 @@ export function PlanSelector() {
     );
   }
 
-  const freePlan = plans.find((p) => Number(p.price) === 0);
-  const paidPlans = plans.filter((p) => Number(p.price) > 0);
-  const allPlans = [...(freePlan ? [freePlan] : []), ...paidPlans];
-
   return (
     <div className="min-h-screen bg-white">
       <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:py-20">
@@ -113,9 +113,15 @@ export function PlanSelector() {
             Elige cómo quieres comenzar
           </h1>
           <p className="mt-4 text-lg text-slate-500 max-w-xl mx-auto">
-            Todos los planes incluyen acceso completo por 30 días. Sin
-            compromiso, puedes cambiar o cancelar cuando quieras.
+            Comienza con Freemium sin costo y decide después si quieres
+            contratar un plan pagado. Puedes cambiar de plan cuando quieras.
           </p>
+        </div>
+
+        <div className="mx-auto mb-10 max-w-2xl rounded-2xl border border-emerald-100 bg-emerald-50/70 px-5 py-4 text-center text-sm leading-6 text-emerald-900">
+          <strong>Tu cuenta parte con Freemium.</strong> Si eliges un plan
+          pagado, te mostraremos los datos de transferencia y podrás solicitarlo
+          ahora o hacerlo más adelante desde Configuraciones.
         </div>
 
         {allPlans.length > 0 && (
@@ -199,7 +205,12 @@ export function PlanSelector() {
                       : "border border-slate-200 shadow-sm hover:shadow-md"
                   }`}
                 >
-                  {isPopular && (
+                  {plan.isComingSoon ? (
+                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold px-5 py-1.5 rounded-full shadow-lg flex items-center gap-1.5 uppercase tracking-wider">
+                      <span>🚀</span>
+                      <span>Próximamente</span>
+                    </div>
+                  ) : isPopular && (
                     <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-xs font-bold px-5 py-1.5 rounded-full shadow-lg flex items-center gap-1">
                       <Crown className="h-3 w-3" />
                       Más Popular
@@ -207,7 +218,7 @@ export function PlanSelector() {
                   )}
                   <div
                     className={`flex flex-col flex-1 p-6 sm:p-8 ${
-                      isPopular ? "pt-10" : "pt-6"
+                      isPopular || plan.isComingSoon ? "pt-10" : "pt-6"
                     }`}
                   >
                     <div className="mb-6 text-center">
@@ -266,23 +277,32 @@ export function PlanSelector() {
                       })}
                     </ul>
 
-                    <Button
-                      onClick={() => handleSelectPaidPlan(plan)}
-                      className={`w-full cursor-pointer text-base font-semibold py-3 rounded-2xl transition-all duration-300 ${
-                        isPopular
-                          ? "bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl hover:scale-[1.02]"
-                          : "bg-slate-900 hover:bg-slate-800 text-white"
-                      }`}
-                    >
-                      {isPopular ? (
-                        <>
-                          <ShieldCheck className="h-4 w-4 mr-2" />
-                          Obtener {plan.name}
-                        </>
-                      ) : (
-                        `Obtener ${plan.name}`
-                      )}
-                    </Button>
+                    {plan.isComingSoon ? (
+                      <Button
+                        disabled
+                        className="w-full text-sm font-bold py-3 rounded-2xl bg-amber-100 text-amber-900 border border-amber-300 cursor-not-allowed opacity-90"
+                      >
+                        🚀 Próximamente
+                      </Button>
+                    ) : (
+                      <Button
+                        onClick={() => handleSelectPaidPlan(plan)}
+                        className={`w-full cursor-pointer text-base font-semibold py-3 rounded-2xl transition-all duration-300 ${
+                          isPopular
+                            ? "bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl hover:scale-[1.02]"
+                            : "bg-slate-900 hover:bg-slate-800 text-white"
+                        }`}
+                      >
+                        {isPopular ? (
+                          <>
+                            <ShieldCheck className="h-4 w-4 mr-2" />
+                            Obtener {plan.name}
+                          </>
+                        ) : (
+                          `Obtener ${plan.name}`
+                        )}
+                      </Button>
+                    )}
                   </div>
                 </div>
               );

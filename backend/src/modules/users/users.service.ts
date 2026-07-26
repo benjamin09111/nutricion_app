@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { resolveRequiredUrl } from '../../common/utils/runtime-url.util';
 const normalizeCalendarTimeZone = (timeZone?: string | null) =>
@@ -16,6 +21,7 @@ import { ADMIN_ROLES } from '../permissions/permissions.constants';
 import { normalizeMembershipPlanKey } from '../memberships/plan-entitlements';
 import { resolveAccountPlanFromMembershipPlan } from '../memberships/account-plan';
 
+const isAdminRole = (role: string) => ADMIN_ROLES.includes(role as any);
 const NUTRITIONIST_ROLES = ['NUTRITIONIST', 'NUTRITIONIST_DEVELOPER'] as const;
 
 @Injectable()
@@ -26,7 +32,7 @@ export class UsersService {
     private prisma: PrismaService,
     private readonly mailService: MailService,
     private readonly discountCodesService: DiscountCodesService,
-  ) {}
+  ) { }
 
   /**
    * RULE: The backend must handle all heavy logic, filtering, and calculations.
@@ -50,9 +56,9 @@ export class UsersService {
     const normalizedRole =
       typeof role === 'string' && role.includes(',')
         ? role
-            .split(',')
-            .map((value) => value.trim())
-            .filter(Boolean)
+          .split(',')
+          .map((value) => value.trim())
+          .filter(Boolean)
         : role;
 
     if (normalizedRole) {
@@ -278,13 +284,13 @@ export class UsersService {
       paymentState,
       membershipPlan: subscriptionPlan
         ? {
-            id: subscriptionPlan.id,
-            name: subscriptionPlan.name,
-            slug: subscriptionPlan.slug,
-            price: Number(subscriptionPlan.price),
-            billingPeriod: subscriptionPlan.billingPeriod,
-            isActive: subscriptionPlan.isActive,
-          }
+          id: subscriptionPlan.id,
+          name: subscriptionPlan.name,
+          slug: subscriptionPlan.slug,
+          price: Number(subscriptionPlan.price),
+          billingPeriod: subscriptionPlan.billingPeriod,
+          isActive: subscriptionPlan.isActive,
+        }
         : null,
       fullName:
         acc.nutritionist?.fullName ||
@@ -425,10 +431,10 @@ export class UsersService {
     const publicProfileEnabled = settingsData.publicProfileEnabled === true;
     const publicSlug =
       typeof settingsData.publicSlug === 'string' &&
-      settingsData.publicSlug.trim()
+        settingsData.publicSlug.trim()
         ? settingsData.publicSlug.trim()
         : nutritionist.publicSlug ||
-          this.generateSlug(nutritionist.fullName, nutritionist.id);
+        this.generateSlug(nutritionist.fullName, nutritionist.id);
 
     return this.prisma.nutritionist.update({
       where: { accountId },
@@ -446,7 +452,7 @@ export class UsersService {
             : nutritionist.bio,
         consultationMode:
           typeof settingsData.consultationMode === 'string' &&
-          settingsData.consultationMode.trim()
+            settingsData.consultationMode.trim()
             ? settingsData.consultationMode.trim()
             : nutritionist.consultationMode || 'online',
         location:
@@ -988,7 +994,14 @@ export class UsersService {
 
     const { accountId } = request;
 
-    return this.prisma.$transaction(async (tx) => {
+    const targetAccount = await this.prisma.account.findUnique({
+      where: { id: accountId },
+      include: { nutritionist: true },
+    });
+    const targetEmail = targetAccount?.email;
+    const targetName = targetAccount?.nutritionist?.fullName || 'Nutricionista';
+
+    const result = await this.prisma.$transaction(async (tx) => {
       await tx.accountDeletionRequest.update({
         where: { id: requestId },
         data: {
@@ -1011,7 +1024,6 @@ export class UsersService {
           subscription: { select: { id: true } },
           notifications: { select: { id: true } },
           googleCalendarConnections: { select: { id: true } },
-          planUsageCounters: { select: { id: true } },
         },
       });
 
@@ -1027,17 +1039,10 @@ export class UsersService {
       const calendarConnectionIds = account.googleCalendarConnections.map(
         (c) => c.id,
       );
-      const planUsageCounterIds = account.planUsageCounters.map((p) => p.id);
 
       if (notificationIds.length > 0) {
         await tx.notification.deleteMany({
           where: { id: { in: notificationIds } },
-        });
-      }
-
-      if (planUsageCounterIds.length > 0) {
-        await tx.planUsageCounter.deleteMany({
-          where: { id: { in: planUsageCounterIds } },
         });
       }
 
@@ -1103,10 +1108,24 @@ export class UsersService {
         await tx.nutritionist.delete({ where: { id: nutritionistId } });
       }
 
+      await tx.accountDeletionRequest.deleteMany({ where: { accountId } });
       await tx.account.delete({ where: { id: accountId } });
 
       return { success: true, message: 'Cuenta eliminada permanentemente' };
     });
+
+    if (targetEmail) {
+      this.mailService
+        .sendAccountDeletedEmail(targetEmail, targetName)
+        .catch((err) =>
+          this.logger.error(
+            `Error al enviar correo de cuenta eliminada a ${targetEmail}`,
+            err,
+          ),
+        );
+    }
+
+    return result;
   }
 
   /**
@@ -1116,7 +1135,7 @@ export class UsersService {
   async softDelete(id: string) {
     const account = await this.prisma.account.findUnique({
       where: { id },
-      select: { id: true },
+      include: { nutritionist: true },
     });
 
     if (!account) {
@@ -1128,7 +1147,81 @@ export class UsersService {
       data: { status: 'DELETED' as AccountStatus },
     });
 
+    if (account.email) {
+      this.mailService
+        .sendAccountDeletedEmail(
+          account.email,
+          account.nutritionist?.fullName || 'Nutricionista',
+        )
+        .catch((err) =>
+          this.logger.error(
+            `Error al enviar correo de cuenta eliminada a ${account.email}`,
+            err,
+          ),
+        );
+    }
+
     return { success: true, message: 'Usuario marcado como eliminado' };
+  }
+
+  /**
+   * Suspend (block) account
+   */
+  async suspendAccount(id: string) {
+    const account = await this.prisma.account.findUnique({
+      where: { id },
+      include: { nutritionist: true },
+    });
+
+    if (!account) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+
+    if (isAdminRole(account.role)) {
+      throw new BadRequestException('No es posible suspender cuentas administradoras');
+    }
+
+    await this.prisma.account.update({
+      where: { id },
+      data: { status: 'SUSPENDED' as AccountStatus },
+    });
+
+    if (account.email) {
+      this.mailService
+        .sendAccountBlockedEmail(
+          account.email,
+          account.nutritionist?.fullName || 'Nutricionista',
+        )
+        .catch((err) =>
+          this.logger.error(
+            `Error al enviar correo de suspensión a ${account.email}`,
+            err,
+          ),
+        );
+    }
+
+    return { success: true, message: 'Cuenta suspendida/bloqueada correctamente' };
+  }
+
+  /**
+   * Unsuspend (unblock) account
+   */
+  async unsuspendAccount(id: string) {
+    const account = await this.prisma.account.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+
+    if (!account) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+
+    await this.prisma.account.update({
+      where: { id },
+      data: { status: 'ACTIVE' as AccountStatus },
+    });
+
+    return { success: true, message: 'Cuenta desbloqueada correctamente' };
   }
 
   /**

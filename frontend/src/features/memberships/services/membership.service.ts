@@ -68,6 +68,7 @@ export interface MembershipPlan {
   features: string[];
   entitlements?: Record<string, boolean | number>;
   isPopular: boolean;
+  isComingSoon?: boolean;
   isActive: boolean;
   displayOrder?: number;
 }

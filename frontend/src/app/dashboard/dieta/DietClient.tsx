@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { GraduationCap } from "lucide-react";
+import { useState, useMemo } from "react";
+import { GraduationCap, ChevronDown, ChevronUp, Calculator, User, Filter, Sparkles, Download, Loader2, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { ActionDockItem } from "@/components/ui/ActionDock";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { WorkflowContextBanner } from "@/components/shared/WorkflowContextBanner";
 import { PlanWizardShell, PromptPreviewButton } from "@/components/plans";
@@ -13,6 +14,9 @@ import { DietPatientSection } from "@/features/diet/components/DietPatientSectio
 import { DietConstraintSection } from "@/features/diet/components/DietConstraintSection";
 import { DietMacroSection } from "@/features/diet/components/DietMacroSection";
 import { DietPlannerSection } from "@/features/diet/components/DietPlannerSection";
+import { DietRecipesSection, DietMealBlock } from "@/features/diet/components/DietRecipesSection";
+import { DietCartSection, DietCartItem, DEFAULT_CART_ITEMS } from "@/features/diet/components/DietCartSection";
+import { DietFinalPlanSection } from "@/features/diet/components/DietFinalPlanSection";
 import { DietModals } from "@/features/diet/components/DietModals";
 import {
   findNewlyAddedTag,
@@ -20,17 +24,36 @@ import {
   normalizeConstraintList,
   buildFoodInfoPreview,
 } from "@/features/diet/utils/diet-helpers";
+import { useRouter } from "next/navigation";
 
 interface DietClientProps {
   initialFoods: MarketPrice[];
 }
 
-const WIZARD_STEPS = ["Información general", "Estrategia", "Cuantificación", "Logística", "Plan final"];
+const WIZARD_STEPS = [
+  "Info general",
+  "Dieta",
+  "Recetas y porciones",
+  "Carrito",
+  "Plan final",
+];
+
+const QUICK_WIZARD_STEPS = ["Info general", "Dieta", "Plan final"];
 
 export default function DietClient({ initialFoods }: DietClientProps) {
+  const router = useRouter();
   const state = useDietState({ initialFoods });
+  const wizardSteps = state.flowMode === "quick" ? QUICK_WIZARD_STEPS : WIZARD_STEPS;
+  const finalStepIndex = wizardSteps.length - 1;
   const [currentStep, setCurrentStep] = useState(0);
-  const [deliveryDate, setDeliveryDate] = useState(new Date().toISOString().slice(0, 10));
+  const [deliveryDate, setDeliveryDate] = useState(
+    new Date().toISOString().slice(0, 10),
+  );
+  const [showMacroCalculator, setShowMacroCalculator] = useState(false);
+
+  // Local state for Step 3 (Recetas y porciones) & Step 4 (Carrito)
+  const [meals, setMeals] = useState<DietMealBlock[]>([]);
+  const [cartItems, setCartItems] = useState<DietCartItem[]>(() => DEFAULT_CART_ITEMS);
 
   const buildMainPromptPayload = () => ({
     context: {
@@ -40,34 +63,98 @@ export default function DietClient({ initialFoods }: DietClientProps) {
       tags: state.dietTags,
       macroTargets: state.macroTargets,
       foodGroups: state.allGroupsToRender,
+      mealsCount: meals.length,
+      cartItemsCount: cartItems.length,
     },
-    instruction: "Construir la estrategia nutricional base respetando el contexto clínico del paciente y las restricciones seleccionadas.",
-    expectedOutput: "JSON con estrategia, restricciones aplicadas, alimentos permitidos y recomendaciones base.",
+    instruction:
+      "Construir la estrategia nutricional unificada respetando el contexto clínico del paciente, las recetas y el carrito de compras.",
+    expectedOutput:
+      "JSON con pauta consolidada, restricciones aplicadas, recetas por horario y lista de víveres del carrito.",
   });
 
   const goBack = () => setCurrentStep((step) => Math.max(0, step - 1));
-  const goNext = () => setCurrentStep((step) => Math.min(WIZARD_STEPS.length - 1, step + 1));
+  const goNext = () =>
+    setCurrentStep((step) => Math.min(finalStepIndex, step + 1));
   const handleStepClick = (step: number) => {
     setCurrentStep(step);
   };
 
+  // Helper counts
+  const totalFoodGroups = Object.keys(state.allGroupsToRender).length;
+  const totalSelectedFoods = Object.values(state.allGroupsToRender).reduce(
+    (total, foods) => total + foods.length,
+    0,
+  );
+
+  const actionItems: ActionDockItem[] = useMemo(
+    () => [
+      {
+        id: "patient",
+        icon: state.isLoadingPatients ? Loader2 : User,
+        label: state.isLoadingPatients
+          ? "Cargando..."
+          : state.selectedPatient?.fullName?.trim()
+            ? state.selectedPatient.fullName
+            : "Importar paciente",
+        description: state.selectedPatient?.fullName?.trim() ? "Cambiar paciente" : "Importar paciente",
+        variant: state.selectedPatient?.fullName?.trim() ? "emerald" : "slate",
+        disabled: state.isLoadingPatients,
+        onClick: () => state.setIsImportPatientModalOpen(true),
+      },
+      {
+        id: "import",
+        icon: Filter,
+        label: "Importar pauta",
+        variant: "indigo",
+        onClick: () => state.setIsImportCreationModalOpen(true),
+      },
+      {
+        id: "ai-nutri",
+        icon: Sparkles,
+        label: "IA Nutri",
+        variant: "emerald",
+        onClick: () => state.setIsSmartModalOpen(true),
+      },
+      {
+        id: "pdf",
+        icon: Download,
+        label: "Descargar PDF",
+        description: "Descargar PDF de la pauta",
+        variant: "indigo",
+        onClick: () => void state.performExportPdf(),
+      },
+      {
+        id: "reset",
+        icon: RotateCcw,
+        label: "Reiniciar",
+        description: "Reiniciar plan",
+        variant: "rose",
+        onClick: () => state.setIsResetConfirmOpen(true),
+      },
+    ],
+    [state],
+  );
+
   return (
     <>
       <ModuleLayout
-        title="Estrategia: Dieta Base"
-        description="Construye la estrategia nutricional de tu paciente paso a paso, desde el contexto clínico hasta el plan final."
+        title={state.flowMode === "quick" ? "Entregable Rápido" : "Estrategia: Pauta Nutricional Unificada"}
+        description={state.flowMode === "quick"
+          ? "Crea una pauta rápida con la misma base nutricional, sin pasar por recetas ni carrito. Puedes ampliarla después."
+          : "Diseña la pauta nutricional completa de tu paciente paso a paso: Información General, Dieta, Recetas & Porciones, Carrito de Compras y Plan Final."}
         step={{
           number: currentStep + 1,
-          label: WIZARD_STEPS[currentStep],
+          label: wizardSteps[currentStep],
           icon: GraduationCap,
           color: "text-emerald-600",
         }}
+        rightNavItems={actionItems}
         rightContent={
           <PromptPreviewButton
             moduleName="Principal"
             endpoint="Principal: referencia de prompt (sin envío activo)"
             buildPayload={buildMainPromptPayload}
-            expectedOutput="JSON con estrategia nutricional base, restricciones, alimentos permitidos y recomendaciones."
+            expectedOutput="JSON con estrategia nutricional base, restricciones, recetas, carrito y plan final."
           />
         }
       >
@@ -79,15 +166,19 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         />
 
         <PlanWizardShell
-          steps={WIZARD_STEPS}
+          steps={wizardSteps}
           currentStep={currentStep}
           completedSteps={Array.from({ length: currentStep }, (_, index) => index)}
           onStepClick={handleStepClick}
           onBack={goBack}
           onNext={goNext}
-          isLastStep={currentStep === WIZARD_STEPS.length - 1}
-          nextDisabled={false}
+          isLastStep={currentStep === finalStepIndex}
+          nextDisabled={
+            (currentStep === 0 && !state.dietName.trim()) ||
+            (currentStep === 1 && !(Object.values(state.allGroupsToRender).some((foods) => foods.length > 0) || state.dietTags.length > 0))
+          }
         >
+          {/* PASO 1: INFO GENERAL */}
           {currentStep === 0 && (
             <div className="space-y-6">
               <DietPatientSection
@@ -122,79 +213,93 @@ export default function DietClient({ initialFoods }: DietClientProps) {
             </div>
           )}
 
+          {/* PASO 2: DIETA */}
           {currentStep === 1 && (
-            <DietPlannerSection
-              allGroupsToRender={state.allGroupsToRender}
-              isApplyingPreferences={state.isApplyingPreferences}
-              applyNutritionistPreferences={state.applyNutritionistPreferences}
-              openAddModal={state.openAddModal}
-              setGroupToDelete={state.setGroupToDelete}
-              setIsDeleteGroupConfirmOpen={state.setIsDeleteGroupConfirmOpen}
-              openDraftFoodEditor={state.openDraftFoodEditor}
-              setSelectedFoodForInfo={state.setSelectedFoodForInfo}
-              setIsFoodInfoModalOpen={state.setIsFoodInfoModalOpen}
-              removeFood={state.removeFood}
-              setIsAddGroupModalOpen={state.setIsAddGroupModalOpen}
+            <div className="space-y-6">
+              <DietPlannerSection
+                allGroupsToRender={state.allGroupsToRender}
+                openAddModal={state.openAddModal}
+                setGroupToDelete={state.setGroupToDelete}
+                setIsDeleteGroupConfirmOpen={state.setIsDeleteGroupConfirmOpen}
+                openDraftFoodEditor={state.openDraftFoodEditor}
+                setSelectedFoodForInfo={state.setSelectedFoodForInfo}
+                setIsFoodInfoModalOpen={state.setIsFoodInfoModalOpen}
+                removeFood={state.removeFood}
+                setIsAddGroupModalOpen={state.setIsAddGroupModalOpen}
+              />
+
+              {/* Collapsible Macro Target Calculator */}
+              <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div
+                  onClick={() => setShowMacroCalculator(!showMacroCalculator)}
+                  className="flex cursor-pointer items-center justify-between"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                      <Calculator className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-black text-slate-900">Calculadora de Metas Calóricas y Macronutrientes</h3>
+                      <p className="text-xs text-slate-500">Configura el GET, déficit calórico y distribución de macros (opcional)</p>
+                    </div>
+                  </div>
+
+                  <Button type="button" variant="ghost" className="h-8 w-8 rounded-xl p-0 text-slate-500">
+                    {showMacroCalculator ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+                  </Button>
+                </div>
+
+                {showMacroCalculator && (
+                  <div className="mt-6 border-t border-slate-100 pt-6">
+                    <DietMacroSection
+                      macroSettings={state.macroSettings}
+                      macroTargets={state.macroTargets}
+                      setMacroSettings={state.setMacroSettings}
+                      saveDraft={state.saveDraft}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* PASO 3: RECETAS Y PORCIONES */}
+          {state.flowMode === "full" && currentStep === 2 && (
+            <DietRecipesSection
+              meals={meals}
+              setMeals={setMeals}
+              patientName={state.selectedPatient?.fullName}
+              onOpenAdvancedRecipes={() => void state.continueToRecipes()}
             />
           )}
 
-          {currentStep === 2 && (
-            <DietMacroSection
-              macroSettings={state.macroSettings}
-              macroTargets={state.macroTargets}
-              setMacroSettings={state.setMacroSettings}
-              saveDraft={state.saveDraft}
+          {/* PASO 4: CARRITO */}
+          {state.flowMode === "full" && currentStep === 3 && (
+            <DietCartSection
+              cartItems={cartItems}
+              setCartItems={setCartItems}
+              patientName={state.selectedPatient?.fullName}
+              onOpenAdvancedCart={() => router.push("/dashboard/carrito")}
             />
           )}
 
-          {currentStep === 3 && (
-            <section className="space-y-5 rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600">Logística</p>
-                <h2 className="mt-2 text-xl font-black text-slate-900">Prepara los siguientes pasos del plan</h2>
-                <p className="mt-1 text-sm text-slate-500">La dieta seleccionada alimentará el carrito, las recetas y el entregable final.</p>
-              </div>
-              <div className="grid gap-3 md:grid-cols-2">
-                <div className="rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-indigo-600">Alimentos seleccionados</p>
-                  <p className="mt-1 text-sm font-bold text-slate-900">{Object.values(state.allGroupsToRender).reduce((total, foods) => total + foods.length, 0)} alimentos en {Object.keys(state.allGroupsToRender).length} grupos</p>
-                </div>
-                <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-emerald-600">Siguiente módulo</p>
-                  <p className="mt-1 text-sm font-bold text-slate-900">Recetas y carrito de compras</p>
-                </div>
-              </div>
-              <Button type="button" variant="outline" onClick={() => void state.continueToRecipes()} className="h-11 rounded-xl border-indigo-200 font-bold text-indigo-700">Continuar a recetas</Button>
-            </section>
-          )}
-
-          {currentStep === 4 && (
-            <section className="space-y-5 rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600">Plan final</p>
-                <h2 className="mt-2 text-xl font-black text-slate-900">Revisa tu estrategia antes de entregar</h2>
-                <p className="mt-1 text-sm text-slate-500">La pauta queda lista para exportar o continuar con recetas.</p>
-              </div>
-              <div className="grid gap-3 md:grid-cols-3">
-                <div className="rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-indigo-600">Paciente</p>
-                  <p className="mt-1 text-sm font-bold text-slate-900">{state.selectedPatient?.fullName || "Sin paciente"}</p>
-                </div>
-                <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-emerald-600">Objetivo energético</p>
-                  <p className="mt-1 text-sm font-bold text-slate-900">{state.macroTargets.calories} kcal</p>
-                </div>
-                <div className="rounded-2xl border border-amber-100 bg-amber-50/60 p-4">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-amber-600">Categorías</p>
-                  <p className="mt-1 text-sm font-bold text-slate-900">{Object.keys(state.allGroupsToRender).length} grupos</p>
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Button type="button" onClick={() => void state.performExportPdf()} className="h-11 rounded-xl bg-emerald-600 px-5 font-bold text-white hover:bg-emerald-700">Descargar PDF</Button>
-                <Button type="button" variant="outline" onClick={() => state.setIsSaveCreationModalOpen(true)} className="h-11 rounded-xl border-slate-200 font-bold">Guardar</Button>
-                <Button type="button" variant="outline" onClick={() => void state.continueToRecipes()} className="h-11 rounded-xl border-indigo-200 font-bold text-indigo-700">Continuar a recetas</Button>
-              </div>
-            </section>
+          {/* PASO 5: PLAN FINAL */}
+          {currentStep === finalStepIndex && (
+            <DietFinalPlanSection
+              patientName={state.selectedPatient?.fullName}
+              patientAge={typeof state.selectedPatient?.age === "number" ? state.selectedPatient.age : null}
+              patientGender={state.selectedPatient?.gender}
+              patientFocus={state.selectedPatient?.nutritionalFocus}
+              dietName={state.dietName}
+              totalFoodGroups={totalFoodGroups}
+              totalSelectedFoods={totalSelectedFoods}
+              totalMeals={meals.length}
+              totalCartItems={cartItems.length}
+              calorieTarget={state.macroTargets.calories}
+              onExportPdf={() => void state.performExportPdf()}
+              onSaveCreation={() => state.setIsSaveCreationModalOpen(true)}
+              onContinueToDeliverable={() => void state.continueToRecipes()}
+            />
           )}
         </PlanWizardShell>
 

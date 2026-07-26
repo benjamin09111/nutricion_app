@@ -1,12 +1,10 @@
 import React from "react";
-import { Sparkles, Loader2, Filter, Plus, Trash2, Pencil, Info } from "lucide-react";
+import { ChevronDown, Sparkles, Plus, Trash2, Pencil, Info } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { MarketPrice } from "@/features/foods";
 
 interface DietPlannerSectionProps {
   allGroupsToRender: Record<string, MarketPrice[]>;
-  isApplyingPreferences: boolean;
-  applyNutritionistPreferences: () => Promise<void>;
   openAddModal: (groupName: string) => void;
   setGroupToDelete: (groupName: string) => void;
   setIsDeleteGroupConfirmOpen: (open: boolean) => void;
@@ -19,8 +17,6 @@ interface DietPlannerSectionProps {
 
 export const DietPlannerSection: React.FC<DietPlannerSectionProps> = ({
   allGroupsToRender,
-  isApplyingPreferences,
-  applyNutritionistPreferences,
   openAddModal,
   setGroupToDelete,
   setIsDeleteGroupConfirmOpen,
@@ -30,6 +26,12 @@ export const DietPlannerSection: React.FC<DietPlannerSectionProps> = ({
   removeFood,
   setIsAddGroupModalOpen,
 }) => {
+  const groups = Object.entries(allGroupsToRender);
+  const [openGroups, setOpenGroups] = React.useState<string[] | null>(null);
+  const firstLacteosIndex = groups.findIndex(([name]) =>
+    name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase().includes("lacteos"),
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -38,50 +40,79 @@ export const DietPlannerSection: React.FC<DietPlannerSectionProps> = ({
           Dieta Base Generada
         </h2>
         <Button
-          onClick={applyNutritionistPreferences}
-          disabled={isApplyingPreferences}
+          onClick={() => setIsAddGroupModalOpen(true)}
           className="h-10 px-6 bg-slate-900 text-white hover:bg-slate-800 border-none font-black text-sm rounded-xl gap-2 transition-all active:scale-95 shadow-lg shadow-slate-200"
         >
-          {isApplyingPreferences ? (
-            <Loader2 className="h-5 w-5 animate-spin" />
-          ) : (
-            <Filter className="h-5 w-5" />
-          )}
-          Añadir favoritos y quitar no recomendados
+          <Plus className="h-5 w-5" />
+          Nueva categoría
         </Button>
       </div>
 
       <div className="grid gap-6">
-        {Object.entries(allGroupsToRender).map(([name, foods]) => (
-          <div
+        {groups.map(([name, foods], groupIndex) => (
+          <details
             key={name}
-            className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm"
+            className="group bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm"
+            open={openGroups ? openGroups.includes(name) : groupIndex === firstLacteosIndex}
+            onToggle={(event) => {
+              const isOpen = event.currentTarget.open;
+              setOpenGroups((current) => {
+                const next = new Set(
+                  current ||
+                    groups
+                      .filter((_, index) => index === firstLacteosIndex)
+                      .map(([groupName]) => groupName),
+                );
+                if (isOpen) next.add(name);
+                else next.delete(name);
+                return Array.from(next);
+              });
+            }}
           >
-            <div className="bg-slate-50/80 p-4 border-b border-slate-100 flex justify-between items-center">
-              <h3 className="font-bold text-slate-700 uppercase tracking-tight text-sm flex items-center gap-2">
-                {name}
-                <span className="bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded text-[10px] font-black">
-                  {foods.length}
+            <summary className="list-none cursor-pointer select-none bg-slate-50/80 p-4 border-b border-slate-100 flex justify-between items-center [&::-webkit-details-marker]:hidden">
+              <div className="flex items-center gap-3">
+                <ChevronDown className="h-4 w-4 text-emerald-600 transition-transform group-open:rotate-180" />
+                <h3 className="font-bold text-slate-700 uppercase tracking-tight text-sm flex items-center gap-2">
+                  {name}
+                  <span className="bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded text-[10px] font-black">
+                    {foods.length}
+                  </span>
+                </h3>
+                <span className="hidden text-[10px] font-bold uppercase tracking-wider text-slate-400 group-open:inline">
+                  Ocultar alimentos
                 </span>
-              </h3>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 group-open:hidden">
+                  Ver alimentos
+                </span>
+              </div>
               <div className="flex gap-2">
                 <button
-                  onClick={() => openAddModal(name)}
+                  type="button"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    openAddModal(name);
+                  }}
                   className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg cursor-pointer"
+                  title={`Añadir alimento a ${name}`}
                 >
                   <Plus className="h-4 w-4" />
                 </button>
                 <button
-                  onClick={() => {
+                  type="button"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
                     setGroupToDelete(name);
                     setIsDeleteGroupConfirmOpen(true);
                   }}
                   className="p-1.5 text-slate-300 hover:text-rose-500 rounded-lg cursor-pointer"
+                  title={`Eliminar categoría ${name}`}
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
               </div>
-            </div>
+            </summary>
             <div className="divide-y divide-slate-100">
               {foods.map((food, idx) => (
                 <div
@@ -182,7 +213,7 @@ export const DietPlannerSection: React.FC<DietPlannerSectionProps> = ({
                 Añadir alimento a {name}
               </button>
             </div>
-          </div>
+          </details>
         ))}
 
         <button

@@ -76,6 +76,8 @@ export default function CreationsClient({
         return CreationType.RECIPE;
       case "FAST_DELIVERABLE":
         return CreationType.FAST_DELIVERABLE;
+      case "PAUTAS":
+        return CreationType.PAUTAS;
       default:
         return CreationType.OTHER;
     }
@@ -153,25 +155,52 @@ export default function CreationsClient({
     name?: string;
     content?: Record<string, unknown>;
     metadata?: Record<string, unknown>;
-  }) => ({
-    name:
-      typeof raw.content?.title === "string"
-        ? raw.content.title
-        : typeof raw.name === "string" && raw.name.trim()
-          ? raw.name
-          : "Entregable",
-    patientName:
-      typeof raw.metadata?.patientName === "string"
-        ? raw.metadata.patientName
-        : null,
-    meals: Array.isArray(raw.content?.meals) ? raw.content.meals : [],
-    avoidFoods: Array.isArray(raw.content?.avoidFoods) ? raw.content.avoidFoods : [],
-    resources: Array.isArray(raw.content?.resources) ? raw.content.resources : [],
-    portionGuide: Array.isArray(raw.content?.portionGuide) ? raw.content.portionGuide : [],
-    generatedAt: typeof raw.content?.updatedAt === "string"
-      ? new Date(raw.content.updatedAt).toLocaleDateString("es-CL")
-      : new Date().toLocaleDateString("es-CL"),
-  });
+  }) => {
+    const rawContent = raw.content || {};
+    const paragraphsRaw = Array.isArray(rawContent.paragraphs) ? rawContent.paragraphs : [];
+    const paragraphsFormatted = paragraphsRaw.map((p: any) => ({
+      title: typeof p.title === "string" ? p.title : (p.categoryOptional ? `${p.category} (${p.categoryOptional})` : p.category || "Pauta"),
+      subtitle: typeof p.subtitle === "string" ? p.subtitle : (p.portionsPerDay ? `${p.portionsPerDay} porciones al día` : undefined),
+      foods: Array.isArray(p.foods)
+        ? p.foods.map((f: any) => typeof f === "string" ? f : `${f.food || ""}${f.portion ? ` (${f.portion})` : ""}`)
+        : [],
+      imagePath: p.imagePath || null,
+    }));
+
+    const rawResource = rawContent.resource as { title?: string; content?: string } | undefined;
+    const resourcesList = Array.isArray(rawContent.resources)
+      ? rawContent.resources
+      : (rawResource && rawResource.title ? [{ resourceId: "hist", title: rawResource.title, content: rawResource.content || "" }] : []);
+
+    return {
+      name:
+        typeof rawContent.title === "string"
+          ? rawContent.title
+          : typeof raw.name === "string" && raw.name.trim()
+            ? raw.name
+            : "Entregable",
+      patientName:
+        typeof raw.metadata?.patientName === "string"
+          ? raw.metadata.patientName
+          : (rawContent.patient as any)?.name || null,
+      clinicalRestriction:
+        typeof rawContent.clinicalRestriction === "string"
+          ? rawContent.clinicalRestriction
+          : (typeof rawContent.restriction === "string" ? rawContent.restriction : null),
+      contentMode:
+        (rawContent.contentMode as any) ||
+        (rawContent.pautaEditorMode as any) ||
+        (paragraphsFormatted.length > 0 ? "paragraphs" : "table"),
+      paragraphs: paragraphsFormatted,
+      meals: Array.isArray(rawContent.meals) ? rawContent.meals : [],
+      avoidFoods: Array.isArray(rawContent.avoidFoods) ? rawContent.avoidFoods : [],
+      resources: resourcesList,
+      portionGuide: Array.isArray(rawContent.portionGuide) ? rawContent.portionGuide : [],
+      generatedAt: typeof rawContent.updatedAt === "string"
+        ? new Date(rawContent.updatedAt).toLocaleDateString("es-CL")
+        : new Date().toLocaleDateString("es-CL"),
+    };
+  };
 
   const buildQuickRecipesData = (raw: any) => ({
     title: typeof raw.content?.title === "string" ? raw.content.title : raw.name || "Recetas",
@@ -193,7 +222,10 @@ export default function CreationsClient({
         const { downloadDietPdf } = await import("@/features/pdf/pdfExport");
         await downloadDietPdf(buildDietData(raw));
         toast.success("PDF descargado correctamente.");
-      } else if (item.type === CreationType.FAST_DELIVERABLE) {
+      } else if (
+        item.type === CreationType.FAST_DELIVERABLE ||
+        item.type === CreationType.PAUTAS
+      ) {
         const { downloadFastDeliverablePdf } = await import("@/features/pdf/fastDeliverablePdfExport");
         await downloadFastDeliverablePdf(buildFastDeliverableData(raw));
         toast.success("PDF descargado correctamente.");
@@ -365,6 +397,8 @@ export default function CreationsClient({
         return <ChefHat className="w-4 h-4 text-amber-500" />;
       case CreationType.FAST_DELIVERABLE:
         return <NotebookText className="w-4 h-4 text-fuchsia-500" />;
+      case CreationType.PAUTAS:
+        return <NotebookText className="w-4 h-4 text-purple-500" />;
       default:
         return <Folder className="w-4 h-4 text-slate-400" />;
     }
@@ -380,6 +414,8 @@ export default function CreationsClient({
         return "bg-amber-50 text-amber-700 ring-amber-600/20";
       case CreationType.FAST_DELIVERABLE:
         return "bg-fuchsia-50 text-fuchsia-700 ring-fuchsia-600/20";
+      case CreationType.PAUTAS:
+        return "bg-purple-50 text-purple-700 ring-purple-600/20";
       default:
         return "bg-slate-50 text-slate-600 ring-slate-500/10";
     }
@@ -415,6 +451,7 @@ export default function CreationsClient({
         break;
       }
       case CreationType.FAST_DELIVERABLE:
+      case CreationType.PAUTAS:
         router.push(`/dashboard/rapido?creationId=${item.id}`);
         break;
       default:

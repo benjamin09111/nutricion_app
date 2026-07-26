@@ -12,7 +12,11 @@ import PasswordField from "./PasswordField";
 const SUPPORT_EMAIL = "contacto@nutrinet.cl";
 
 type EmailLoginFormProps = {
-  onSuccess: (user: { role?: string }) => void;
+  onSuccess: (user: {
+    role?: string;
+    rut?: string | null;
+    requiresPlanSelection?: boolean;
+  }) => void;
   onVerificationRequired: (email: string) => void;
 };
 

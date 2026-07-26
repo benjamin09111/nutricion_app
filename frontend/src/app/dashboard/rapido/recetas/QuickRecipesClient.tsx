@@ -20,6 +20,7 @@ import {
   Trash2,
   User,
   X,
+  Apple,
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import Cookies from "js-cookie";
@@ -40,6 +41,7 @@ import { getAuthToken } from "@/lib/auth-token";
 import { useDashboardShell } from "@/context/DashboardShellContext";
 import { FeatureGate } from "@/components/memberships/FeatureGate";
 import { cn } from "@/lib/utils";
+import { FoodReferenceBook } from "@/components/foods/FoodReferenceBook";
 
 type QuickIngredient = {
   id: string;
@@ -495,6 +497,7 @@ export default function QuickRecipesClient() {
   const [isGeneratingWeekly, setIsGeneratingWeekly] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
+  const [isFoodReferenceBookOpen, setIsFoodReferenceBookOpen] = useState(false);
 
   useEffect(() => {
     setSidebarCollapsed(true);
@@ -1452,6 +1455,14 @@ export default function QuickRecipesClient() {
       variant: "indigo",
       onClick: () => setIsImportCreationModalOpen(true),
     },
+    {
+      id: "food-reference-book",
+      icon: Apple,
+      label: "Manual de alimentos",
+      description: "Abrir manual de alimentos",
+      variant: "amber",
+      onClick: () => setIsFoodReferenceBookOpen(true),
+    },
     { id: "separator", icon: ChefHat, label: "", isSeparator: true, onClick: () => undefined },
     {
       id: "pdf",
@@ -1489,6 +1500,7 @@ export default function QuickRecipesClient() {
       <NatyLoadingOverlay title="Naty está cocinando..." subtitle="Generando recetas basadas en tus instrucciones y contexto del paciente" />
     )}
     <>
+      <FoodReferenceBook isOpen={isFoodReferenceBookOpen} onClose={() => setIsFoodReferenceBookOpen(false)} />
       <ModuleLayout
         title="Recetas"
         description="Genera recetas rápidas reutilizando contexto clínico, restricciones y preferencias."
@@ -1513,6 +1525,7 @@ export default function QuickRecipesClient() {
           onNext={handleWizardNext}
           isLastStep={currentStep === WIZARD_STEPS.length - 1}
           nextDisabled={
+            (currentStep === 0 && (!title.trim() || !dietName.trim())) ||
             (currentStep === 1 && !skipInstructions && Object.values(missingGenerationFields).some(Boolean)) ||
             (currentStep === 2 && !hasGenerationTarget) ||
             (currentStep === 3 && (!hasGeneratedDishes || meaningfulDishes.length === 0))

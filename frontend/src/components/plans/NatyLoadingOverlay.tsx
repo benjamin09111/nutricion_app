@@ -17,11 +17,11 @@ export function NatyLoadingOverlay({
     <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/45 backdrop-blur-sm">
       <div className="mx-4 flex max-w-sm flex-col items-center rounded-3xl bg-white px-8 py-7 text-center shadow-2xl">
         <Image
-          src="/nutria.webp"
-          alt="Naty la nutria"
+          src="/cooking.png"
+          alt="Naty cocinera"
           width={112}
           height={112}
-          className="h-28 w-28 animate-pulse object-contain"
+          className="h-28 w-28 object-contain"
         />
         <p className="mt-4 text-[11px] font-black uppercase tracking-[0.28em] text-emerald-600">
           {title}

@@ -93,6 +93,39 @@ export class PautasService {
         userPrompt,
         pautaAiResponseSchema,
       );
+
+      if (
+        restrictedFoods.length > 0 ||
+        (!allowExternalFoods && allowedFoods.length > 0)
+      ) {
+        const normalize = (value: string) =>
+          value
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .trim();
+        const allowed = allowedFoods.map(normalize);
+        const restricted = restrictedFoods.map(normalize);
+        const foods = structured.object.paragraphs.flatMap((paragraph) =>
+          paragraph.foods.map((food) => normalize(food.food)),
+        );
+        const hasUnauthorizedFood =
+          !allowExternalFoods && allowed.length > 0
+            ? foods.some(
+                (food) =>
+                  !allowed.some((allowedFood) => food.includes(allowedFood)),
+              )
+            : false;
+        const hasRestrictedFood = foods.some((food) =>
+          restricted.some((restrictedFood) => food.includes(restrictedFood)),
+        );
+        if (hasUnauthorizedFood || hasRestrictedFood) {
+          throw new BadRequestException(
+            'La IA devolvió alimentos fuera de la lista o incompatibles con las restricciones.',
+          );
+        }
+      }
+
       return structured.object;
     } catch (error) {
       if (error instanceof ForbiddenException) {

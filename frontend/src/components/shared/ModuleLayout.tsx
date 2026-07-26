@@ -37,7 +37,7 @@ export function ModuleLayout({
 
   return (
     <div
-      className={cn("w-full max-w-5xl mx-auto space-y-6 lg:space-y-8 pb-32 relative", className)}
+      className={cn("w-full space-y-6 lg:space-y-8 pb-32 relative", className)}
     >
       <div className="space-y-4">
         <div className="space-y-2">
@@ -77,7 +77,7 @@ export function ModuleLayout({
         <div
           className={cn(
             "fixed bottom-0 left-0 right-0 z-40",
-            isSidebarCollapsed ? "lg:left-20" : "lg:left-72",
+            isSidebarCollapsed ? "lg:left-20" : "lg:left-[17rem]",
           )}
         >
           {footer}

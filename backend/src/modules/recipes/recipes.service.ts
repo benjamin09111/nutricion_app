@@ -345,27 +345,6 @@ export class RecipesService {
     return upstreamMessage || 'No se pudo completar recetas con IA.';
   }
 
-  private async callAiJson(
-    accountId: string,
-    systemInstruction: string,
-    userPrompt: string,
-  ): Promise<string> {
-    try {
-      await this.planUsageService.consumeQuota(accountId, 'ai.calls.limit');
-
-      const text = await this.aiService.callJson(systemInstruction, userPrompt);
-      this.logger.log(`[AI] Response ok chars=${text.length}`);
-      return text;
-    } catch (error) {
-      if (error instanceof ForbiddenException) {
-        throw error;
-      }
-      const message = error instanceof Error ? error.message : String(error);
-      this.logger.error(`[AI] Request failed: ${message}`);
-      throw new BadRequestException(this.mapAiErrorMessage(message));
-    }
-  }
-
   private async callAiObject(
     accountId: string,
     taskName: string,
@@ -373,7 +352,7 @@ export class RecipesService {
     userPrompt: string,
     schema: ZodTypeAny,
   ): Promise<{
-    provider: 'deepseek' | 'openai';
+    provider: 'gemini' | 'deepseek' | 'openai';
     modelId: string;
     object: any;
   }> {
@@ -390,7 +369,7 @@ export class RecipesService {
         `[AI] Response ok provider=${result.provider} model=${result.modelId}`,
       );
       return result as {
-        provider: 'deepseek' | 'openai';
+        provider: 'gemini' | 'deepseek' | 'openai';
         modelId: string;
         object: any;
       };
@@ -874,6 +853,7 @@ export class RecipesService {
       patient: payload.patientContext || payload.patient || null,
       nutritionalTargets: payload.nutritionalTargets || null,
       existingDishes: this.sanitizeQuickExistingDishes(payload.existingDishes),
+      allowExternalFoods: Boolean((payload as any).allowExternalFoods),
       desiredDishCount,
       generationMode: (payload as any).generationMode || 'single',
       mealSectionTargets,
@@ -889,12 +869,20 @@ export class RecipesService {
         'Genera platos realistas de cocina chilena/latinoamericana.',
         `Devuelve exactamente ${safePayload.desiredDishCount} platos y respeta mealSectionTargets.`,
         'Ajusta porciones y macros según nutritionalTargets cuando exista.',
+        'Estas comidas se repetirán como una guía general durante la semana, no como recetas exactas para un día específico.',
+        'Entrega nombres amplios y prácticos con alternativas usando "/" entre opciones equivalentes, por ejemplo: "Salmón/Pollo cocido con Ensalada/Arroz".',
+        'Incluye sustitutos razonables para la proteína, el acompañamiento y los vegetales cuando corresponda; evita nombres demasiado específicos o preparaciones únicas.',
+        'Interpreta availableFoods como una guía de alimentos y categorías que el nutricionista desea utilizar, no como coincidencias literales. Por ejemplo, interpreta "ensaladas verdes" como ingredientes concretos apropiados, como lechuga, apio u otras hojas verdes.',
+        'Prioriza y representa esas categorías en los platos con ingredientes concretos adecuados; si una indicación es amplia, decide tú la composición más razonable.',
+        safePayload.allowExternalFoods
+          ? 'Si los alimentos principales son insuficientes, puedes complementar con ingredientes simples y generales disponibles para una familia promedio en Chile o en supermercados comunes.'
+          : 'No reemplaces, ignores ni complementes los alimentos principales entregados con alimentos fuera de esa lista.',
         `No repitas platos existentes: ${JSON.stringify(safePayload.existingDishes)}.`,
         safePayload.specialConsiderations,
       ]
         .filter(Boolean)
         .join(' '),
-      allowExternalFoods: Boolean((payload as any).allowExternalFoods),
+       allowExternalFoods: safePayload.allowExternalFoods,
       rules: [
         'Usa 3 a 6 ingredientes principales por plato.',
         'ingredients debe incluir name, quantity, amount, unit y optional.',
@@ -961,27 +949,6 @@ export class RecipesService {
       throw new BadRequestException(
         'La IA no devolvió platos para recetas rápidas.',
       );
-    }
-
-    const allowedFoods = this.sanitizeStringList(payload.allowedFoodsMain);
-    if (!payload.allowExternalFoods && allowedFoods.length > 0) {
-      const allowedNames = new Set(
-        allowedFoods.map((food) => this.normalizeFoodName(food)),
-      );
-      const unauthorizedIngredients = dishes.flatMap((dish: any) =>
-        (Array.isArray(dish.ingredients) ? dish.ingredients : [])
-          .filter((ingredient: any) => ingredient?.optional !== true)
-          .map((ingredient: any) => String(ingredient?.name || '').trim())
-          .filter(
-            (name: string) =>
-              name && !allowedNames.has(this.normalizeFoodName(name)),
-          ),
-      );
-      if (unauthorizedIngredients.length > 0) {
-        throw new BadRequestException(
-          'La IA devolvió alimentos fuera de la lista permitida.',
-        );
-      }
     }
 
     const normalizedDishes = dishes.map((dish: any) =>
@@ -1464,7 +1431,7 @@ export class RecipesService {
     } catch (err) {
       if (err instanceof BadRequestException) throw err;
       throw new BadRequestException(
-        'No se pudo estimar macros con IA. Verifica DEEPSEEK_API_KEY.',
+        'No se pudo estimar macros con IA. Verifica GEMINI_API_KEY o las credenciales del proveedor configurado.',
       );
     }
   }
