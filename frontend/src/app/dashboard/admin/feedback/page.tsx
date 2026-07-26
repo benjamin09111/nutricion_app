@@ -111,6 +111,7 @@ export default function AdminFeedbackPage() {
       setSelectedFeedback(null);
       setResolutionNote("");
       fetchFeedback();
+      window.dispatchEvent(new CustomEvent("admin-feedback-updated"));
     } catch (error) {
       console.error(error);
       toast.error("Error al actualizar el estado");
@@ -137,6 +138,7 @@ export default function AdminFeedbackPage() {
       setFeedbackList((prev) =>
         prev.filter((item) => item.id !== feedbackToDelete),
       );
+      window.dispatchEvent(new CustomEvent("admin-feedback-updated"));
     } catch (error) {
       console.error(error);
       toast.error("Error al eliminar");
@@ -166,6 +168,7 @@ export default function AdminFeedbackPage() {
           : "No había feedback resueltos para eliminar",
       );
       fetchFeedback();
+      window.dispatchEvent(new CustomEvent("admin-feedback-updated"));
     } catch (error) {
       console.error(error);
       toast.error("Error al limpiar feedback resueltos");

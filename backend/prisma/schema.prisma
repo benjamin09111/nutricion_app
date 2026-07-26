@@ -586,6 +586,7 @@ model MembershipPlan {
   maxPatients           Int?
   maxStorage            Int?
   isPopular             Boolean             @default(false)
+  isComingSoon          Boolean             @default(false) @map("is_coming_soon")
   isActive              Boolean             @default(true)
   displayOrder          Int                 @default(0)
   createdAt             DateTime            @default(now()) @map("created_at")

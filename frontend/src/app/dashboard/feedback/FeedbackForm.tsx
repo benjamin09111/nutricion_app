@@ -89,6 +89,7 @@ export function FeedbackForm() {
       console.log("Feedback submitted:", data);
       setIsSuccess(true);
       reset();
+      window.dispatchEvent(new CustomEvent("admin-feedback-updated"));
 
       // Reset success message after 3 seconds
       setTimeout(() => setIsSuccess(false), 3000);

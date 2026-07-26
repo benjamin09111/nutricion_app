@@ -89,7 +89,9 @@ const ensureGoogleLoginAllowed = (account: { status: AccountStatus }) => {
   }
 
   if (account.status === 'DELETED') {
-    throw new UnauthorizedException('No fue posible iniciar sesión.');
+    throw new UnauthorizedException(
+      'Tu cuenta figura como eliminada. Puedes registrarte nuevamente o contactar a soporte.',
+    );
   }
 };
 
@@ -443,6 +445,45 @@ export class AuthService {
     }
   }
 
+  private async purgeDeletedAccount(accountId: string) {
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        await tx.accountDeletionRequest.deleteMany({ where: { accountId } });
+        const nutritionist = await tx.nutritionist.findUnique({
+          where: { accountId },
+          select: { id: true },
+        });
+
+        if (nutritionist) {
+          const nutritionistId = nutritionist.id;
+          const patients = await tx.patient.findMany({
+            where: { nutritionistId },
+            select: { id: true },
+          });
+          const patientIds = patients.map((p) => p.id);
+
+          for (const patientId of patientIds) {
+            await tx.clinicalRecord.deleteMany({ where: { patientId } });
+            await tx.patientExam.deleteMany({ where: { patientId } });
+            await tx.consultation.deleteMany({ where: { patientId } });
+          }
+          await tx.patient.deleteMany({ where: { nutritionistId } });
+          await tx.project.deleteMany({ where: { nutritionistId } });
+          await tx.creation.deleteMany({ where: { nutritionistId } });
+          await tx.recipe.deleteMany({ where: { nutritionistId } });
+          await tx.nutritionist.delete({ where: { id: nutritionistId } });
+        }
+
+        await tx.notification.deleteMany({ where: { accountId } });
+        await tx.payment.deleteMany({ where: { accountId } }).catch(() => null);
+        await tx.subscription.deleteMany({ where: { accountId } }).catch(() => null);
+        await tx.account.delete({ where: { id: accountId } });
+      });
+    } catch (e) {
+      console.error('Error purging deleted account:', e);
+    }
+  }
+
   async register(data: RegisterDto) {
     const { email, password, fullName } = data;
     const normalizedEmail = email.toLowerCase().trim();
@@ -454,7 +495,11 @@ export class AuthService {
     });
 
     if (existingAccount) {
-      throw new BadRequestException('Este correo ya está registrado.');
+      if (existingAccount.status === 'DELETED') {
+        await this.purgeDeletedAccount(existingAccount.id);
+      } else {
+        throw new BadRequestException('Este correo ya está registrado.');
+      }
     }
 
     const finalPassword = password || crypto.randomBytes(8).toString('hex');

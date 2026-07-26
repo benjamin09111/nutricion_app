@@ -357,15 +357,21 @@ export class PaymentsService {
         },
       }),
     ]);
-    const daysRemaining = subscription?.endDate
-      ? Math.ceil(
-          (new Date(subscription.endDate).getTime() - Date.now()) /
-            (1000 * 60 * 60 * 24),
-        )
-      : null;
+    const isFreePlan =
+      !snapshot.currentPlan ||
+      Number(snapshot.currentPlan.price || 0) === 0 ||
+      snapshot.accountPlan === 'FREE';
+
+    const daysRemaining =
+      !isFreePlan && subscription?.endDate
+        ? Math.ceil(
+            (new Date(subscription.endDate).getTime() - Date.now()) /
+              (1000 * 60 * 60 * 24),
+          )
+        : null;
 
     const nextPaymentAt =
-      subscription?.endDate && Number(snapshot.currentPlan?.price || 0) > 0
+      !isFreePlan && subscription?.endDate
         ? new Date(subscription.endDate).toISOString()
         : null;
 
@@ -433,8 +439,6 @@ export class PaymentsService {
     }
 
     const startDate = new Date();
-    const endDate = new Date();
-    endDate.setMonth(endDate.getMonth() + 1);
 
     return this.prisma.$transaction(async (tx) => {
       const payment = await tx.payment.create({
@@ -455,8 +459,8 @@ export class PaymentsService {
         },
       });
 
-      await this.upsertSubscription(tx, accountId, plan, startDate, endDate);
-      await this.updateAccountPlan(tx, accountId, plan, endDate);
+      await this.upsertSubscription(tx, accountId, plan, startDate, null);
+      await this.updateAccountPlan(tx, accountId, plan, null);
       await this.createSubscriptionEvent(
         tx,
         accountId,
@@ -940,33 +944,35 @@ export class PaymentsService {
       nutritionistName || account.nutritionist?.fullName || 'No especificado';
     const emailForNotification = nutritionistEmail || account.email;
 
-    this.whatsappService
-      .notifyOwnerOfTransfer({
-        nutritionistName: nameForNotification,
-        nutritionistEmail: emailForNotification,
-        planName: plan.name,
-        amount: paymentAmount,
-        paymentId: payment.id,
-      })
-      .catch((err) => {
-        this.logger.error(
-          '[Payments] Error enviando notificación WhatsApp:',
-          err,
-        );
-      });
+    setImmediate(() => {
+      this.whatsappService
+        .notifyOwnerOfTransfer({
+          nutritionistName: nameForNotification,
+          nutritionistEmail: emailForNotification,
+          planName: plan.name,
+          amount: paymentAmount,
+          paymentId: payment.id,
+        })
+        .catch((err) => {
+          this.logger.error(
+            '[Payments] Error enviando notificación WhatsApp:',
+            err,
+          );
+        });
 
-    this.mailService
-      .sendTransferNotification({
-        nutritionistName: nameForNotification,
-        nutritionistEmail: emailForNotification,
-        planName: plan.name,
-        amount: paymentAmount,
-        paymentId: payment.id,
-        source: 'payments.manual-transfer',
-      })
-      .catch((err) => {
-        this.logger.error('[Payments] Error enviando notificación email:', err);
-      });
+      this.mailService
+        .sendTransferNotification({
+          nutritionistName: nameForNotification,
+          nutritionistEmail: emailForNotification,
+          planName: plan.name,
+          amount: paymentAmount,
+          paymentId: payment.id,
+          source: 'payments.manual-transfer',
+        })
+        .catch((err) => {
+          this.logger.error('[Payments] Error enviando notificación email:', err);
+        });
+    });
 
     return {
       paymentId: payment.id,
@@ -1183,25 +1189,19 @@ export class PaymentsService {
     const fullName = recipient.nutritionist?.fullName || undefined;
 
     if (status === 'approved') {
-      await this.mailService.sendAnnouncementEmail({
-        email: recipient.email,
-        name: fullName,
-        title: `Tu plan fue actualizado a ${planName}`,
-        message:
-          `Tu pago fue aprobado y tu plan ya quedó activo en NutriNet.\n\n` +
-          `Cierra sesión y vuelve a ingresar para ver los cambios.`,
-      });
+      await this.mailService.sendPaymentApprovedEmail(
+        recipient.email,
+        fullName || 'Nutricionista',
+        planName,
+      );
       return;
     }
 
-    await this.mailService.sendAnnouncementEmail({
-      email: recipient.email,
-      name: fullName,
-      title: 'Tu pago fue rechazado',
-      message:
-        `No pudimos aprobar tu pago para ${planName}.\n\n` +
-        `Si crees que esto es un error, vuelve a registrar la transferencia o contacta al equipo de soporte.`,
-    });
+    await this.mailService.sendPaymentRejectedEmail(
+      recipient.email,
+      fullName || 'Nutricionista',
+      planName,
+    );
   }
 
   // ─── Private Helpers ──────────────────────────────────────────────
@@ -1211,15 +1211,18 @@ export class PaymentsService {
     accountId: string,
     plan: any,
     startDate: Date,
-    endDate: Date,
+    endDate: Date | null,
   ) {
+    const isFree = Number(plan?.price || 0) === 0 || (plan?.slug || '').toLowerCase().includes('free');
+    const finalEndDate = isFree ? null : endDate;
+
     return tx.subscription.upsert({
       where: { accountId },
       update: {
         planId: plan.id,
         status: SubscriptionStatus.ACTIVE,
         startDate,
-        endDate,
+        endDate: finalEndDate,
         cancelAtPeriodEnd: false,
         canceledAt: null,
         updatedAt: startDate,
@@ -1229,7 +1232,7 @@ export class PaymentsService {
         planId: plan.id,
         status: SubscriptionStatus.ACTIVE,
         startDate,
-        endDate,
+        endDate: finalEndDate,
       },
     });
   }
@@ -1238,17 +1241,19 @@ export class PaymentsService {
     tx: any,
     accountId: string,
     plan: any,
-    endDate: Date,
+    endDate: Date | null,
   ) {
     const accountPlan = resolveAccountPlanFromMembershipPlan(
       plan.slug || plan.name,
     );
+    const isFree = Number(plan?.price || 0) === 0 || (plan?.slug || '').toLowerCase().includes('free');
+    const finalEndDate = isFree ? null : endDate;
 
     return tx.account.update({
       where: { id: accountId },
       data: {
         plan: accountPlan,
-        subscriptionEndsAt: endDate,
+        subscriptionEndsAt: finalEndDate,
         membershipSelectedAt: new Date(),
       },
     });

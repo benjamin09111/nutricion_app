@@ -19,6 +19,7 @@ import {
   X,
   Trash2,
   UserX,
+  ShieldAlert,
 } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -44,6 +45,7 @@ interface MembershipPlan {
 
 type ClientTab =
   | "Nutricionistas"
+  | "Bloqueados"
   | "Organizaciones"
   | "Suplementos fitness"
   | "Supermercados"
@@ -68,6 +70,8 @@ export default function AdminClientsPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showPaymentConfirmModal, setShowPaymentConfirmModal] = useState(false);
   const [showAcceptDeletionModal, setShowAcceptDeletionModal] = useState(false);
+  const [showSuspendModal, setShowSuspendModal] = useState(false);
+  const [showUnsuspendModal, setShowUnsuspendModal] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const [durationDays, setDurationDays] = useState<number>(30);
@@ -258,6 +262,9 @@ export default function AdminClientsPage() {
       });
 
       switch (activeTab) {
+        case "Bloqueados":
+          params.set("status", "SUSPENDED");
+          break;
         case "Organizaciones":
           params.set("role", "ORGANIZATION");
           break;
@@ -377,6 +384,66 @@ export default function AdminClientsPage() {
     } catch (error) {
       console.error(error);
       toast.error("Error al procesar la solicitud de eliminación");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleSuspendAccount = async () => {
+    if (!selectedUser) return;
+    setIsUpdating(true);
+    try {
+      const token =
+        Cookies.get("auth_token") || localStorage.getItem("auth_token");
+      const response = await fetchApi(`/users/${selectedUser.id}/suspend`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.message || "Error al bloquear la cuenta");
+      }
+
+      toast.success(
+        `La cuenta de ${selectedUser.fullName || selectedUser.email} ha sido suspendida/bloqueada.`,
+      );
+      setShowSuspendModal(false);
+      setSelectedUser(null);
+      void fetchClients(currentPage);
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.message || "Error al bloquear la cuenta");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleUnsuspendAccount = async () => {
+    if (!selectedUser) return;
+    setIsUpdating(true);
+    try {
+      const token =
+        Cookies.get("auth_token") || localStorage.getItem("auth_token");
+      const response = await fetchApi(`/users/${selectedUser.id}/unsuspend`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.message || "Error al desbloquear la cuenta");
+      }
+
+      toast.success(
+        `La cuenta de ${selectedUser.fullName || selectedUser.email} ha sido desbloqueada correctamente.`,
+      );
+      setShowUnsuspendModal(false);
+      setSelectedUser(null);
+      void fetchClients(currentPage);
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error.message || "Error al desbloquear la cuenta");
     } finally {
       setIsUpdating(false);
     }
@@ -519,6 +586,7 @@ export default function AdminClientsPage() {
 
   const tabs: { label: ClientTab; icon: any }[] = [
     { label: "Nutricionistas", icon: GraduationCap },
+    { label: "Bloqueados", icon: ShieldAlert },
     { label: "Organizaciones", icon: Building2 },
     { label: "Suplementos fitness", icon: Pill },
     { label: "Supermercados", icon: ShoppingCart },
@@ -1046,6 +1114,33 @@ export default function AdminClientsPage() {
                         <Settings className="h-3.5 w-3.5" />
                         Configurar
                       </button>
+                      {client.status === "SUSPENDED" ? (
+                        <button
+                          onClick={() => {
+                            setSelectedUser(client);
+                            setShowUnsuspendModal(true);
+                            setOpenMenuId(null);
+                            setMenuPosition(null);
+                          }}
+                          className="flex items-center gap-2 w-full text-left px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 rounded-lg transition-colors cursor-pointer"
+                        >
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          Desbloquear
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            setSelectedUser(client);
+                            setShowSuspendModal(true);
+                            setOpenMenuId(null);
+                            setMenuPosition(null);
+                          }}
+                          className="flex items-center gap-2 w-full text-left px-3 py-2 text-xs font-bold text-amber-700 hover:bg-amber-50 hover:text-amber-800 rounded-lg transition-colors cursor-pointer"
+                        >
+                          <UserX className="h-3.5 w-3.5" />
+                          Bloquear
+                        </button>
+                      )}
                       <button
                         onClick={() => {
                           setSelectedUser(client);
@@ -1339,6 +1434,30 @@ export default function AdminClientsPage() {
         confirmText="Sí, eliminar cuenta"
         cancelText="Cancelar"
         variant="danger"
+        isLoading={isUpdating}
+      />
+
+      <ConfirmModal
+        isOpen={showSuspendModal}
+        onClose={() => setShowSuspendModal(false)}
+        onConfirm={() => void handleSuspendAccount()}
+        title="Bloquear cuenta de nutricionista"
+        message={`¿Estás seguro de que deseas bloquear a ${selectedUser?.fullName || selectedUser?.email}? El usuario no podrá acceder a la plataforma y recibirá un correo notificándole sobre la suspensión.`}
+        confirmText="Sí, bloquear cuenta"
+        cancelText="Cancelar"
+        variant="warning"
+        isLoading={isUpdating}
+      />
+
+      <ConfirmModal
+        isOpen={showUnsuspendModal}
+        onClose={() => setShowUnsuspendModal(false)}
+        onConfirm={() => void handleUnsuspendAccount()}
+        title="Desbloquear cuenta de nutricionista"
+        message={`¿Deseas desbloquear la cuenta de ${selectedUser?.fullName || selectedUser?.email}? Se restablecerá su acceso inmediato a la plataforma.`}
+        confirmText="Desbloquear cuenta"
+        cancelText="Cancelar"
+        variant="info"
         isLoading={isUpdating}
       />
     </div>

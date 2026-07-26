@@ -2,15 +2,21 @@
 
 import Image from "next/image";
 import { Suspense, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { Loader2, HelpCircle, AlertCircle, MessageSquare } from "lucide-react";
 import LoginForm from "@/components/auth/LoginForm";
+import { Modal } from "@/components/ui/Modal";
+import LandingContactForm from "@/components/landing/LandingContactForm";
 
 type Props = {
   autoStart?: boolean;
 };
 
-export default function LoginPageClient({ autoStart = false }: Props) {
+function LoginPageContent({ autoStart = false }: Props) {
   const [activeTab, setActiveTab] = useState<"login" | "register">("login");
+  const [isSupportModalOpen, setIsSupportModalOpen] = useState(false);
+  const searchParams = useSearchParams();
+  const errorMessage = searchParams.get("error");
 
   if (autoStart) {
     return (
@@ -38,13 +44,14 @@ export default function LoginPageClient({ autoStart = false }: Props) {
   }
 
   return (
-    <main className="min-h-screen w-full bg-gradient-to-b from-slate-50 via-white to-emerald-50/30 lg:flex">
-      <section className="relative flex items-center justify-center overflow-hidden bg-linear-to-br from-indigo-900 via-slate-950 to-emerald-900 px-6 py-8 text-white lg:w-1/2 lg:items-start lg:px-0 lg:py-0">
+    <main className="min-h-screen w-full bg-white lg:flex">
+      {/* Hero Banner - Solo visible en pantallas grandes (Desktop / Tablet lg) */}
+      <section className="hidden lg:flex relative items-start justify-start min-h-screen overflow-hidden bg-linear-to-br from-indigo-900 via-slate-950 to-emerald-900 text-white lg:w-1/2">
         <div className="absolute top-0 -left-10 h-72 w-72 rounded-full bg-emerald-500/20 blur-3xl lg:h-96 lg:w-96"></div>
         <div className="absolute top-0 -right-10 h-72 w-72 rounded-full bg-indigo-500/20 blur-3xl lg:h-96 lg:w-96"></div>
         <div className="absolute -bottom-32 left-20 h-72 w-72 rounded-full bg-purple-500/20 blur-3xl lg:h-96 lg:w-96"></div>
 
-        <div className="relative z-10 flex min-h-[42vh] w-full max-w-2xl flex-col justify-center py-8 lg:min-h-screen lg:px-14 lg:py-20">
+        <div className="relative z-10 flex w-full max-w-xl flex-col justify-start pt-10 sm:pt-16 lg:pt-24 pb-12 px-8 lg:px-16 mx-auto">
           <div className="mb-8 lg:mb-12">
             <Image
               src="/logo_2.webp"
@@ -60,27 +67,62 @@ export default function LoginPageClient({ autoStart = false }: Props) {
             Acceso profesional
           </div>
           <h1 className="mb-4 mt-4 text-3xl font-extrabold leading-tight tracking-tight text-white sm:text-4xl lg:text-5xl">
-            Tu consulta, siempre a mano
+            Ingresa a la plataforma creada para nutricionistas
           </h1>
           <p className="max-w-lg text-base leading-relaxed text-slate-200/90 sm:text-lg lg:text-xl">
-            Ingresa con tu correo profesional y mantén pacientes, agenda y
-            planificación nutricional en un solo lugar.
+            Ingresa con tu correo profesional y gestiona tus pacientes, planes y actividades diarias en un solo lugar.
           </p>
+
+          <div className="mt-8">
+            <button
+              type="button"
+              onClick={() => setIsSupportModalOpen(true)}
+              className="inline-flex items-center gap-2.5 rounded-2xl border border-white/20 bg-white/10 px-5 py-3 text-xs font-bold text-white shadow-sm backdrop-blur-md hover:bg-white/20 transition-all cursor-pointer"
+            >
+              <HelpCircle className="h-4 w-4 text-emerald-400" />
+              Contactar a soporte
+            </button>
+          </div>
         </div>
       </section>
 
-      <section className="flex w-full flex-col justify-center px-6 py-12 lg:w-1/2 lg:px-16 lg:bg-white">
+      {/* Form Area - Vista única simplificada en móviles y panel derecho en Desktop */}
+      <section className="flex w-full flex-col justify-start min-h-screen px-6 pt-10 sm:pt-16 lg:pt-24 pb-12 lg:w-1/2 lg:px-16 bg-white">
         <div className="mx-auto w-full max-w-md">
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
+            {/* Logo para Celulares */}
+            <div className="mb-6 block lg:hidden">
+              <Image
+                src="/logo_2.webp"
+                alt="NutriNet"
+                width={200}
+                height={48}
+                style={{ width: "auto", height: "auto" }}
+                className="h-auto w-[160px] object-contain"
+                priority
+              />
+            </div>
+
+            {/* Error Message Alert */}
+            {errorMessage && (
+              <div className="mb-6 flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-800 shadow-sm animate-in fade-in duration-300">
+                <AlertCircle className="h-5 w-5 shrink-0 text-rose-600 mt-0.5" />
+                <div className="flex-1">
+                  <p className="font-bold text-rose-900 mb-0.5">Atención</p>
+                  <p>{errorMessage}</p>
+                </div>
+              </div>
+            )}
+
             {/* Header */}
-            <div className="mb-8">
+            <div className="mb-8 mt-18">
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600">
                 NutriNet
               </p>
-              <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-900">
+              <h2 className="mt-1.5 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
                 {activeTab === "login" ? "Iniciar sesión" : "Crear cuenta"}
               </h2>
-              <p className="mt-2 text-sm text-slate-500">
+              <p className="mt-1.5 text-sm text-slate-500">
                 {activeTab === "login"
                   ? "Ingresa con tus credenciales profesionales."
                   : "Regístrate como nutricionista e inicia tu prueba gratuita."}
@@ -102,11 +144,10 @@ export default function LoginPageClient({ autoStart = false }: Props) {
                     role="tab"
                     aria-selected={selected}
                     onClick={() => setActiveTab(tab)}
-                    className={`rounded-xl py-2.5 text-xs font-black uppercase tracking-wider transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 ${
-                      selected
+                    className={`rounded-xl py-2.5 text-xs font-black uppercase tracking-wider transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 ${selected
                         ? "bg-white text-slate-900 shadow-xs"
                         : "text-slate-500 hover:text-slate-800"
-                    }`}
+                      }`}
                   >
                     {tab === "login" ? "Iniciar sesión" : "Registrarse"}
                   </button>
@@ -118,9 +159,44 @@ export default function LoginPageClient({ autoStart = false }: Props) {
             <Suspense fallback={null}>
               <LoginForm activeTab={activeTab} onTabChange={setActiveTab} />
             </Suspense>
+
+            {/* Support Link for Mobile */}
+            <div className="mt-8 pt-6 border-t border-slate-100 text-center lg:hidden">
+              <button
+                type="button"
+                onClick={() => setIsSupportModalOpen(true)}
+                className="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-emerald-600 transition-colors cursor-pointer"
+              >
+                <MessageSquare className="h-4 w-4 text-slate-400" />
+                ¿Problemas para acceder? Contactar a soporte
+              </button>
+            </div>
           </div>
         </div>
       </section>
+
+      {/* Modal de Soporte */}
+      <Modal
+        isOpen={isSupportModalOpen}
+        onClose={() => setIsSupportModalOpen(false)}
+        title="Soporte NutriNet"
+        className="max-w-md p-6 rounded-3xl"
+      >
+        <div className="mb-4">
+          <p className="text-xs font-medium text-slate-500">
+            Si estás teniendo problemas para acceder o necesitas ayuda con tu cuenta, envíanos un mensaje y te responderemos lo antes posible.
+          </p>
+        </div>
+        <LandingContactForm />
+      </Modal>
     </main>
+  );
+}
+
+export default function LoginPageClient({ autoStart = false }: Props) {
+  return (
+    <Suspense fallback={null}>
+      <LoginPageContent autoStart={autoStart} />
+    </Suspense>
   );
 }

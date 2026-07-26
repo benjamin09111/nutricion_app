@@ -21,6 +21,7 @@ import { useInView } from "@/hooks/useInView";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { getMembershipFeatureDisplay } from "@/features/memberships/utils/feature-format";
 import { type MembershipPlan } from "@/features/memberships/services/membership.service";
+import { sortPlansWithPopularInCenter } from "@/features/memberships/utils/sort-plans";
 import LandingContactForm from "@/components/landing/LandingContactForm";
 
 const toMembershipPlanArray = (value: unknown): MembershipPlan[] => {
@@ -55,20 +56,7 @@ export default function LandingPage() {
     threshold: 0.1,
   });
   const visiblePlans = plans.filter((plan) => plan.isActive);
-  const sortedPlans = [...visiblePlans].sort((a, b) => {
-    const aFree = Number(a.price) === 0;
-    const bFree = Number(b.price) === 0;
-
-    if (aFree !== bFree) {
-      return aFree ? -1 : 1;
-    }
-
-    if (a.isPopular !== b.isPopular) {
-      return a.isPopular ? -1 : 1;
-    }
-
-    return (a.displayOrder ?? 0) - (b.displayOrder ?? 0);
-  });
+  const sortedPlans = sortPlansWithPopularInCenter(visiblePlans);
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -395,7 +383,11 @@ export default function LandingPage() {
                         : "border border-slate-200 shadow-sm hover:shadow-lg hover:-translate-y-1",
                     )}
                   >
-                    {isPopular && (
+                    {plan.isComingSoon ? (
+                      <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold px-6 py-2 rounded-full shadow-lg uppercase tracking-wider">
+                        🚀 Próximamente
+                      </div>
+                    ) : isPopular && (
                       <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-xs font-bold px-6 py-2 rounded-full shadow-lg">
                         ⭐ Más Popular
                       </div>
@@ -403,7 +395,7 @@ export default function LandingPage() {
                     <div
                       className={cn(
                         "flex flex-col flex-1 p-6 sm:p-8",
-                        isPopular ? "pt-10" : "pt-6",
+                        isPopular || plan.isComingSoon ? "pt-10" : "pt-6",
                       )}
                     >
                       <div className="mb-6">
@@ -475,6 +467,24 @@ export default function LandingPage() {
                           );
                         })}
                       </ul>
+
+                      {plan.isComingSoon ? (
+                        <div className="w-full text-center cursor-not-allowed rounded-full bg-amber-100 py-3 text-sm font-bold text-amber-900 border border-amber-300">
+                          🚀 Próximamente
+                        </div>
+                      ) : (
+                        <Link
+                          href="/login"
+                          className={cn(
+                            "block w-full text-center cursor-pointer rounded-full py-3 text-sm font-bold shadow-md transition-all duration-300 hover:scale-105",
+                            isPopular
+                              ? "bg-indigo-600 text-white hover:bg-indigo-700"
+                              : "bg-slate-900 text-white hover:bg-slate-800",
+                          )}
+                        >
+                          Comenzar con {plan.name}
+                        </Link>
+                      )}
                     </div>
                   </div>
                 );

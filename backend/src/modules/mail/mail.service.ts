@@ -692,4 +692,72 @@ export class MailService {
       channel: 'notifications',
     });
   }
+
+  async sendAccountBlockedEmail(to: string, fullName: string) {
+    const title = 'Tu cuenta en NutriNet ha sido suspendida';
+    const body = `
+      <p style="font-size:16px;font-weight:700;color:#0f172a;margin-bottom:12px">Hola ${this.escapeHtml(fullName)},</p>
+      <p style="color:#334155;margin-bottom:16px">Te informamos que tu cuenta profesional en NutriNet ha sido <strong>suspendida/bloqueada</strong> por el equipo de administración.</p>
+      <p style="color:#334155;margin-bottom:16px">Durante la suspensión no podrás acceder a la plataforma ni a tus datos de pacientes.</p>
+      <p style="color:#334155;margin-bottom:24px">Si consideras que se trata de un error o deseas resolver esta situación, puedes ponerte en contacto con nuestro equipo de soporte.</p>
+    `;
+
+    await this.sendEmail({
+      to,
+      subject: 'NutriNet — Tu cuenta ha sido suspendida',
+      html: this.wrapHtml(title, body, 'Contactar a soporte', `${this.frontendUrl}/login`),
+      channel: 'support',
+    });
+  }
+
+  async sendAccountDeletedEmail(to: string, fullName: string) {
+    const title = 'Confirmación de eliminación de cuenta';
+    const body = `
+      <p style="font-size:16px;font-weight:700;color:#0f172a;margin-bottom:12px">Hola ${this.escapeHtml(fullName)},</p>
+      <p style="color:#334155;margin-bottom:16px">Te notificamos que la solicitud de eliminación de tu cuenta en NutriNet ha sido procesada exitosamente.</p>
+      <p style="color:#334155;margin-bottom:16px">Tu cuenta y los datos asociados han sido eliminados de nuestros sistemas de acuerdo con nuestras políticas de privacidad.</p>
+      <p style="color:#334155;margin-bottom:24px">Gracias por formar parte de la comunidad NutriNet.</p>
+    `;
+
+    await this.sendEmail({
+      to,
+      subject: 'NutriNet — Cuenta eliminada permanentemente',
+      html: this.wrapHtml(title, body),
+      channel: 'support',
+    });
+  }
+
+  async sendPaymentApprovedEmail(to: string, fullName: string, planName: string) {
+    const title = '¡Pago Aprobado y Plan Activado!';
+    const body = `
+      <p style="font-size:16px;font-weight:700;color:#0f172a;margin-bottom:12px">Hola ${this.escapeHtml(fullName)},</p>
+      <p style="color:#334155;margin-bottom:16px">¡Excelentes noticias! Tu transferencia bancaria para el plan <strong>${this.escapeHtml(planName)}</strong> ha sido verificada y aprobada con éxito.</p>
+      <p style="color:#334155;margin-bottom:16px">Tu nueva suscripción ya se encuentra activa en NutriNet. Puedes comenzar a disfrutar de todos los beneficios y herramientas de tu plan ahora mismo.</p>
+      <p style="color:#334155;margin-bottom:24px">Si tienes la sesión abierta, te recomendamos cerrar sesión e ingresar nuevamente para ver reflejados todos los cambios.</p>
+    `;
+
+    await this.sendEmail({
+      to,
+      subject: `¡Tu pago ha sido aprobado! — ${planName} activado`,
+      html: this.wrapHtml(title, body, 'Ir a NutriNet', `${this.frontendUrl}/login`),
+      channel: 'notifications',
+    });
+  }
+
+  async sendPaymentRejectedEmail(to: string, fullName: string, planName: string) {
+    const title = 'Actualización sobre tu comprobante de pago';
+    const body = `
+      <p style="font-size:16px;font-weight:700;color:#0f172a;margin-bottom:12px">Hola ${this.escapeHtml(fullName)},</p>
+      <p style="color:#334155;margin-bottom:16px">Te informamos que no pudimos validar el comprobante de transferencia bancaria asociado a tu solicitud para el plan <strong>${this.escapeHtml(planName)}</strong>.</p>
+      <p style="color:#334155;margin-bottom:16px">Por este motivo, tu solicitud ha sido rechazada y tu cuenta continuará en el plan actual.</p>
+      <p style="color:#334155;margin-bottom:24px">Si crees que se trata de un error o deseas volver a intentar el pago, puedes realizar una nueva solicitud desde tu panel o ponerte en contacto con soporte.</p>
+    `;
+
+    await this.sendEmail({
+      to,
+      subject: `NutriNet — Información sobre tu solicitud de pago`,
+      html: this.wrapHtml(title, body, 'Ver mis planes', `${this.frontendUrl}/dashboard/configuraciones`),
+      channel: 'notifications',
+    });
+  }
 }

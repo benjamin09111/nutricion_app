@@ -120,7 +120,11 @@ const groups: SidebarGroup[] = [
   },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  onItemClick?: () => void;
+}
+
+export function Sidebar({ onItemClick }: SidebarProps = {}) {
   const pathname = usePathname();
   const { isSidebarCollapsed, toggleSidebarCollapsed, isSidebarToggleHighlighted } = useDashboardShell();
   const { isDarkMode } = useTheme();
@@ -283,6 +287,8 @@ export function Sidebar() {
                                 toast.info("Próximamente", {
                                   description: desc,
                                 });
+                              } else {
+                                onItemClick?.();
                               }
                             }}
                             className={cn(

@@ -12,6 +12,7 @@ import { getMembershipFeatureDisplay } from "@/features/memberships/utils/featur
 import { syncMembershipToStoredUser } from "@/lib/membership-session";
 import { goToDashboard } from "@/lib/membership-navigation";
 import { getCurrentUser } from "@/lib/current-user";
+import { sortPlansWithPopularInCenter } from "@/features/memberships/utils/sort-plans";
 import { cn } from "@/lib/utils";
 
 type AttributeRow = {
@@ -231,20 +232,26 @@ export function MembershipPlanSection({
             </div>
           </div>
 
-          <div className="flex items-stretch gap-3">
-            <div className="flex-1 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Días restantes</p>
-              <p className="mt-2 text-2xl font-bold text-slate-900">{daysRemaining ?? "-"}</p>
+          {currentPrice > 0 ? (
+            <div className="flex items-stretch gap-3">
+              <div className="flex-1 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Días restantes</p>
+                <p className="mt-2 text-2xl font-bold text-slate-900">{daysRemaining ?? "-"}</p>
+              </div>
+              <div className="flex-1 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Vence</p>
+                <p className="mt-2 text-sm font-semibold text-slate-900">{formatDate(subscriptionEndsAt?.toISOString() || null)}</p>
+              </div>
+              <div className="flex-1 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Monto próximo</p>
+                <p className="mt-2 text-sm font-semibold text-slate-900">{renewalText}</p>
+              </div>
             </div>
-            <div className="flex-1 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Vence</p>
-              <p className="mt-2 text-sm font-semibold text-slate-900">{formatDate(subscriptionEndsAt?.toISOString() || null)}</p>
+          ) : (
+            <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4 text-xs font-semibold text-emerald-800">
+              ✨ <strong className="font-bold">Plan Freemium (Gratuito):</strong> Este plan no requiere pagos, es de uso permanente y no posee fecha de vencimiento ni días de cortesía.
             </div>
-            <div className="flex-1 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Monto próximo</p>
-              <p className="mt-2 text-sm font-semibold text-slate-900">{renewalText}</p>
-            </div>
-          </div>
+          )}
         </div>
       </div>
 
@@ -439,7 +446,7 @@ export function MembershipPlanSection({
                 </div>
               </div>
 
-              {availablePlans.map((plan) => {
+              {sortPlansWithPopularInCenter(availablePlans).map((plan) => {
                 const isPopular = plan.isPopular;
                 const planFeatureRows = getPlanAttributeRows(plan);
 
@@ -447,13 +454,17 @@ export function MembershipPlanSection({
                   <div
                     key={plan.id}
                     className={cn(
-                      "rounded-2xl border-2 p-6 transition-all",
+                      "rounded-2xl border-2 p-6 transition-all relative",
                       isPopular
                         ? "border-indigo-500 shadow-[0_10px_40px_rgba(99,102,241,0.15)] bg-white"
                         : "border-indigo-200 bg-indigo-50/50"
                     )}
                   >
-                    {isPopular && (
+                    {plan.isComingSoon ? (
+                      <div className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[10px] font-bold px-3 py-1 mb-4 uppercase tracking-wider">
+                        🚀 Próximamente
+                      </div>
+                    ) : isPopular && (
                       <div className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-[10px] font-bold px-3 py-1 mb-4">
                         <Sparkles className="h-3 w-3" />
                         Más Popular
@@ -492,32 +503,40 @@ export function MembershipPlanSection({
                         </div>
                       ))}
                     </div>
-                    <button
-                      onClick={async () => {
-                        const targetPrice = Number(plan.price || 0);
-
-                        if (targetPrice === 0) {
-                          try {
-                            const result = await membershipService.selectFreePlan(plan.id);
-                            syncMembershipToStoredUser(result.membershipStatus, plan);
-                            toast.success(`Cambiado a ${plan.name}`);
-                            await refreshSubscription();
-                            setIsChangingPlan(false);
-                            setSelectedPlan(null);
-                            goToDashboard();
-                          } catch (e: any) {
-                            toast.error(e?.message || "Error al cambiar plan");
+                    {plan.isComingSoon ? (
+                      <button
+                        disabled
+                        className="w-full h-12 rounded-xl font-bold bg-amber-100 text-amber-900 border border-amber-300 cursor-not-allowed opacity-90 text-sm"
+                      >
+                        🚀 Próximamente
+                      </button>
+                    ) : (
+                      <button
+                        onClick={async () => {
+                          const isFree = Number(plan.price) === 0;
+                          if (isFree) {
+                            try {
+                              const result = await membershipService.selectFreePlan(plan.id);
+                              syncMembershipToStoredUser(result.membershipStatus, plan);
+                              await refreshSubscription();
+                              toast.success("Plan cambiado a Freemium correctamente");
+                              setIsChangingPlan(false);
+                              setSelectedPlan(null);
+                              goToDashboard();
+                            } catch (e: any) {
+                              toast.error(e?.message || "Error al cambiar plan");
+                            }
+                            return;
                           }
-                          return;
-                        }
 
-                        setIsChangingPlan(false);
-                        setPendingPaidPlan(plan);
-                      }}
-                      className="w-full h-12 rounded-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-lg transition-all cursor-pointer"
-                    >
-                      Cambiar mi plan mensual
-                    </button>
+                          setIsChangingPlan(false);
+                          setPendingPaidPlan(plan);
+                        }}
+                        className="w-full h-12 rounded-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-lg transition-all cursor-pointer"
+                      >
+                        Cambiar mi plan mensual
+                      </button>
+                    )}
                   </div>
                 );
               })}

@@ -96,7 +96,11 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
           </div>
 
           <div className="h-full overflow-y-auto pt-10">
-             {isAdminView ? <AdminSidebar /> : <Sidebar />}
+             {isAdminView ? (
+               <AdminSidebar onItemClick={() => setSidebarOpen(false)} />
+             ) : (
+               <Sidebar onItemClick={() => setSidebarOpen(false)} />
+             )}
           </div>
         </div>
       </div>
