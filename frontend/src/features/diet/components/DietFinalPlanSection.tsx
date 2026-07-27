@@ -66,11 +66,11 @@ export function DietFinalPlanSection({
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           <Button
             type="button"
             onClick={onExportPdf}
-            className="h-11 rounded-xl bg-emerald-600 px-5 font-bold text-white shadow-md hover:bg-emerald-700"
+            className="h-11 rounded-xl bg-emerald-600 px-5 font-bold text-white shadow-md hover:bg-emerald-700 w-full sm:w-auto justify-center"
           >
             <Download className="mr-2 h-4 w-4" />
             Descargar PDF
@@ -80,7 +80,7 @@ export function DietFinalPlanSection({
             type="button"
             variant="outline"
             onClick={onSaveCreation}
-            className="h-11 rounded-xl border-slate-200 bg-white font-bold text-slate-700 hover:bg-slate-50"
+            className="h-11 rounded-xl border-slate-200 bg-white font-bold text-slate-700 hover:bg-slate-50 w-full sm:w-auto justify-center"
           >
             <Save className="mr-2 h-4 w-4" />
             Guardar Pauta

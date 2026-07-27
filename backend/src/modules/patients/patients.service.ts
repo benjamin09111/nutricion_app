@@ -278,9 +278,17 @@ export class PatientsService {
     nutritionistId: string,
     id: string,
     updatePatientDto: UpdatePatientDto,
+    accountId?: string,
   ) {
     // Lightweight ownership check — does NOT load consultations, exams, or projects
     await this.assertOwnership(nutritionistId, id);
+
+    if (accountId) {
+      await this.permissionsService.ensureAccess(
+        accountId,
+        'patients.edit.access',
+      );
+    }
 
     const current = await this.prisma.patient.findUnique({
       where: { id },

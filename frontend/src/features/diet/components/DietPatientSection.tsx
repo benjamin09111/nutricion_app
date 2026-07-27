@@ -36,7 +36,7 @@ export const DietPatientSection: React.FC<DietPatientSectionProps> = ({
             variant="outline"
             onClick={onImportPatient}
             disabled={isLoadingPatients}
-            className="h-10 min-w-48 justify-center rounded-xl border-emerald-200 bg-white px-4 text-sm font-semibold text-emerald-700 hover:border-emerald-300 hover:bg-emerald-50"
+            className="h-10 w-full sm:w-auto min-w-0 sm:min-w-48 justify-center rounded-xl border-emerald-200 bg-white px-4 text-sm font-semibold text-emerald-700 hover:border-emerald-300 hover:bg-emerald-50"
           >
             {isLoadingPatients ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <User className="mr-2 h-4 w-4" />}
             {isLoadingPatients ? "Cargando..." : "Importar paciente"}

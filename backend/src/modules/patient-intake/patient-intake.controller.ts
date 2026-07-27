@@ -9,6 +9,7 @@ import {
   UseGuards,
   Request,
   BadRequestException,
+  UseInterceptors,
 } from '@nestjs/common';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { PermissionsGuard } from '../permissions/permissions.guard';
@@ -16,10 +17,13 @@ import { RequireFeatures } from '../permissions/permissions.decorator';
 import { SPECIAL_FEATURES } from '../permissions/permissions.constants';
 import { PatientIntakeService } from './patient-intake.service';
 import { ReviewIntakeSubmissionDto } from './dto/review-intake-submission.dto';
+import { Audit } from '../../common/audit/audit.decorator';
+import { AuditInterceptor } from '../../common/audit/audit.interceptor';
 
 @Controller('patient-intake')
 @UseGuards(AuthGuard, PermissionsGuard)
 @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
+@UseInterceptors(AuditInterceptor)
 export class PatientIntakeController {
   constructor(private readonly intakeService: PatientIntakeService) {}
 
@@ -65,6 +69,7 @@ export class PatientIntakeController {
   }
 
   @Get('submissions')
+  @Audit({ action: 'READ', resourceType: 'PATIENT_INTAKE' })
   async getMySubmissions(
     @Request() req: any,
     @Query('status') status?: string,
@@ -85,6 +90,7 @@ export class PatientIntakeController {
   }
 
   @Get('submissions/:id')
+  @Audit({ action: 'READ', resourceType: 'PATIENT_INTAKE' })
   async getMySubmission(@Request() req: any, @Param('id') id: string) {
     return this.intakeService.getSubmission(req.user.nutritionistId, id);
   }

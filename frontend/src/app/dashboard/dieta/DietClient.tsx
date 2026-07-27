@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { ActionDockItem } from "@/components/ui/ActionDock";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { WorkflowContextBanner } from "@/components/shared/WorkflowContextBanner";
-import { PlanWizardShell, PromptPreviewButton } from "@/components/plans";
+import { PlanWizardShell } from "@/components/plans";
 import { MarketPrice } from "@/features/foods";
 
 import { useDietState } from "@/features/diet/hooks/useDietState";
@@ -149,14 +149,6 @@ export default function DietClient({ initialFoods }: DietClientProps) {
           color: "text-emerald-600",
         }}
         rightNavItems={actionItems}
-        rightContent={
-          <PromptPreviewButton
-            moduleName="Principal"
-            endpoint="Principal: referencia de prompt (sin envío activo)"
-            buildPayload={buildMainPromptPayload}
-            expectedOutput="JSON con estrategia nutricional base, restricciones, recetas, carrito y plan final."
-          />
-        }
       >
         <WorkflowContextBanner
           projectName={state.currentProjectName}

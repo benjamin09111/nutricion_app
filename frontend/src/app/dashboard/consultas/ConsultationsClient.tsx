@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect } from "react";
 import {
@@ -144,7 +144,7 @@ export default function ConsultationsClient() {
 
       <div className="space-y-4 mb-6">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-1 items-center gap-3 min-w-0">
+          <div className="flex flex-1 items-center gap-2.5 min-w-0">
             <div className="pl-2 shrink-0">
               <Search className="h-5 w-5 text-slate-400" />
             </div>
@@ -160,38 +160,38 @@ export default function ConsultationsClient() {
             />
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-            <div className="flex items-center gap-1.5">
-              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Desde</span>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 lg:justify-end">
+            <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full sm:w-auto">
               <div className="relative">
                 <CalendarDays className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
                 <input
                   type="date"
                   value={dateFrom}
                   onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
-                  className="h-10 w-[9rem] pl-9 pr-2 rounded-xl border border-slate-200 bg-white text-xs font-medium text-slate-600 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/10 outline-none cursor-pointer transition-all"
+                  className="h-10 w-full sm:w-[9rem] pl-9 pr-2 rounded-xl border border-slate-200 bg-white text-xs font-medium text-slate-600 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/10 outline-none cursor-pointer transition-all"
+                  title="Desde"
                 />
               </div>
-              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Hasta</span>
               <div className="relative">
                 <CalendarDays className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
                 <input
                   type="date"
                   value={dateTo}
                   onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
-                  className="h-10 w-[9rem] pl-9 pr-2 rounded-xl border border-slate-200 bg-white text-xs font-medium text-slate-600 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/10 outline-none cursor-pointer transition-all"
+                  className="h-10 w-full sm:w-[9rem] pl-9 pr-2 rounded-xl border border-slate-200 bg-white text-xs font-medium text-slate-600 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/10 outline-none cursor-pointer transition-all"
+                  title="Hasta"
                 />
               </div>
             </div>
-            <div className="hidden md:flex items-center rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-semibold text-slate-500">
+            <div className="hidden md:flex items-center rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-semibold text-slate-500 shrink-0">
               Límite mensual: {Number.isFinite(consultationLimit) ? consultationLimit : "Ilimitado"}
             </div>
             <button
               onClick={() => router.push("/dashboard/consultas/nueva")}
-              className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition-all shadow-sm active:scale-95 cursor-pointer"
+              className="flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm rounded-xl transition-all shadow-sm active:scale-95 cursor-pointer w-full sm:w-auto shrink-0"
             >
-              <Plus className="w-5 h-5" />
-              Nueva Consulta
+              <Plus className="w-4 h-4 shrink-0" />
+              <span>Nueva Consulta</span>
             </button>
           </div>
         </div>

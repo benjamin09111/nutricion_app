@@ -235,12 +235,12 @@ export default function DetailsClient() {
     onlyMine?: boolean;
     onToggleMine?: () => void;
   }) => (
-    <div className="flex items-center justify-between px-8 pb-4">
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 sm:px-8 pb-4">
       {onToggleMine ? (
         <button
           onClick={() => { onToggleMine(); onPageChange(1); }}
           className={cn(
-            "text-xs font-semibold px-3 py-1.5 rounded-xl border transition-colors",
+            "text-xs font-semibold px-3 py-1.5 rounded-xl border transition-colors w-full sm:w-auto text-center",
             onlyMine
               ? "bg-indigo-50 border-indigo-200 text-indigo-600"
               : "border-slate-200 text-slate-500 hover:bg-slate-50",
@@ -455,11 +455,11 @@ export default function DetailsClient() {
         />
 
         {activeDetailsTab === "restricciones" && (
-          <div className="bg-white shadow-xl shadow-slate-200/50 border border-slate-200/60 rounded-[2rem] overflow-hidden relative mb-8">
-            <div className="p-8 pb-4 flex items-center justify-between">
+          <div className="bg-white shadow-xl shadow-slate-200/50 border border-slate-200/60 rounded-2xl overflow-hidden relative mb-8">
+            <div className="p-4 sm:p-8 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <h3 className="text-slate-800 font-semibold text-lg mb-2 flex items-center gap-2">
-                  <Tag className="w-5 h-5 text-indigo-500" />
+                <h3 className="text-slate-800 font-semibold text-lg mb-1 sm:mb-2 flex items-center gap-2">
+                  <Tag className="w-5 h-5 text-indigo-500 shrink-0" />
                   Restricciones Clínicas
                 </h3>
                 <p className="text-slate-500 text-sm font-medium">
@@ -468,7 +468,7 @@ export default function DetailsClient() {
               </div>
               <Button
                 variant="outline"
-                className="rounded-2xl font-semibold border-slate-200 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200"
+                className="rounded-2xl font-semibold border-slate-200 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 w-full sm:w-auto shrink-0 justify-center"
                 onClick={() => {
                   if (currentPlan?.key === "free") {
                     window.dispatchEvent(
@@ -489,8 +489,8 @@ export default function DetailsClient() {
               </Button>
             </div>
 
-            <div className="px-8 mb-4">
-              <div className="relative w-full max-w-xs group">
+            <div className="px-4 sm:px-8 mb-4">
+              <div className="relative w-full sm:max-w-xs group">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-hover:text-indigo-500 transition-colors" />
                 <Input
                   placeholder="Buscar restricciones..."
@@ -507,7 +507,7 @@ export default function DetailsClient() {
               </div>
             ) : (
               <>
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-8 pt-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4 sm:p-8 pt-4">
                 {paginatedHealthTags.map((tag) => {
                   const isSystem = DEFAULT_CONSTRAINTS.some((c) => c.id === tag);
                   const backendTag = serverTags.find((t) => t.name === tag);
@@ -522,7 +522,7 @@ export default function DetailsClient() {
                       <div className="flex items-center gap-3">
                         <div
                           className={cn(
-                            "h-10 w-10 rounded-full flex items-center justify-center",
+                            "h-10 w-10 rounded-full flex items-center justify-center shrink-0",
                             isSystem ? "bg-rose-100/50" : "bg-slate-100/50",
                           )}
                         >
@@ -532,8 +532,8 @@ export default function DetailsClient() {
                             <Activity className="w-4 h-4 text-slate-500" />
                           )}
                         </div>
-                        <div>
-                          <p className="font-semibold text-slate-700">{tag}</p>
+                        <div className="min-w-0">
+                          <p className="font-semibold text-slate-700 truncate">{tag}</p>
                           <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-400">
                             {isSystem
                               ? "Sistema / Global"
@@ -546,7 +546,7 @@ export default function DetailsClient() {
                       {(isOwner || isAdmin) && !isSystem && (
                         <button
                           onClick={() => openDeleteConfirm(tag)}
-                          className="p-2 hover:bg-rose-100 text-slate-400 hover:text-rose-500 rounded-lg transition-colors"
+                          className="p-2 hover:bg-rose-100 text-slate-400 hover:text-rose-500 rounded-lg transition-colors shrink-0"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -564,11 +564,11 @@ export default function DetailsClient() {
         {activeDetailsTab === "hashtags" && (
           <>
             {/* Classification Tags Section */}
-            <div className="bg-white shadow-xl shadow-slate-200/50 border border-slate-200/60 rounded-[2rem] overflow-hidden relative mb-8">
-              <div className="p-8 pb-4 flex items-center justify-between">
+            <div className="bg-white shadow-xl shadow-slate-200/50 border border-slate-200/60 rounded-2xl overflow-hidden relative mb-8">
+              <div className="p-4 sm:p-8 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                  <h3 className="text-slate-800 font-semibold text-lg mb-2 flex items-center gap-2">
-                    <Hash className="w-5 h-5 text-indigo-500" />
+                  <h3 className="text-slate-800 font-semibold text-lg mb-1 sm:mb-2 flex items-center gap-2">
+                    <Hash className="w-5 h-5 text-indigo-500 shrink-0" />
                     Etiquetas de Clasificación
                   </h3>
                   <p className="text-slate-500 text-sm font-medium">
@@ -577,7 +577,7 @@ export default function DetailsClient() {
                 </div>
                 <Button
                   variant="outline"
-                  className="rounded-2xl font-semibold border-indigo-100 text-indigo-600 hover:bg-indigo-50"
+                  className="rounded-2xl font-semibold border-indigo-100 text-indigo-600 hover:bg-indigo-50 w-full sm:w-auto shrink-0 justify-center"
                   onClick={() => {
                     if (currentPlan?.key === "free") {
                       window.dispatchEvent(
@@ -600,14 +600,14 @@ export default function DetailsClient() {
               </div>
 
               {!isLoading && hashTags.length === 0 && searchQuery === "" ? (
-                <div className="p-12 flex flex-col items-center justify-center text-slate-300 bg-slate-50/30 m-8 rounded-2xl border border-dashed border-slate-200">
+                <div className="p-12 flex flex-col items-center justify-center text-slate-300 bg-slate-50/30 m-4 sm:m-8 rounded-2xl border border-dashed border-slate-200">
                   <Hash className="w-12 h-12 mb-4 opacity-20" />
-                  <p className="text-sm font-semibold uppercase tracking-widest">No hay etiquetas creadas</p>
-                  <p className="text-xs font-medium mt-1">Crea etiquetas con # para organizar tus pacientes</p>
+                  <p className="text-sm font-semibold uppercase tracking-widest text-center">No hay etiquetas creadas</p>
+                  <p className="text-xs font-medium mt-1 text-center">Crea etiquetas con # para organizar tus pacientes</p>
                 </div>
               ) : (
                 <>
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-8 pt-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4 sm:p-8 pt-4">
                   {paginatedHashTags.map((tag) => {
                     const backendTag = serverTags.find((t) => t.name === tag);
                     const isOwner = backendTag !== undefined;
@@ -618,12 +618,12 @@ export default function DetailsClient() {
                         key={tag}
                         className="flex items-center justify-between p-4 rounded-xl border border-emerald-50 bg-emerald-50/10 hover:bg-emerald-50/30 transition-colors group"
                       >
-                        <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-full bg-indigo-100/50 flex items-center justify-center">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="h-10 w-10 rounded-full bg-indigo-100/50 flex items-center justify-center shrink-0">
                             <Hash className="w-4 h-4 text-indigo-600" />
                           </div>
-                          <div>
-                            <p className="font-semibold text-slate-700">{tag}</p>
+                          <div className="min-w-0">
+                            <p className="font-semibold text-slate-700 truncate">{tag}</p>
                             <p className="text-[10px] uppercase tracking-wider font-semibold text-indigo-400">
                               {isOwner ? "Tu etiqueta" : "Compartida"}
                             </p>
@@ -632,7 +632,7 @@ export default function DetailsClient() {
                         {(isOwner || isAdmin) && (
                           <button
                             onClick={() => openDeleteConfirm(tag)}
-                            className="p-2 hover:bg-rose-100 text-slate-400 hover:text-rose-500 rounded-lg transition-colors"
+                            className="p-2 hover:bg-rose-100 text-slate-400 hover:text-rose-500 rounded-lg transition-colors shrink-0"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -649,11 +649,11 @@ export default function DetailsClient() {
         )}
 
         {activeDetailsTab === "metricas" && (
-          <div className="bg-white shadow-xl shadow-slate-200/50 border border-slate-200/60 rounded-[2rem] overflow-hidden relative">
-            <div className="p-8 pb-4 flex items-center justify-between">
+          <div className="bg-white shadow-xl shadow-slate-200/50 border border-slate-200/60 rounded-2xl overflow-hidden relative">
+            <div className="p-4 sm:p-8 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h3 className="text-slate-800 font-semibold text-lg mb-2 flex items-center gap-2">
-                <Activity className="w-5 h-5 text-indigo-500" />
+              <h3 className="text-slate-800 font-semibold text-lg mb-1 sm:mb-2 flex items-center gap-2">
+                <Activity className="w-5 h-5 text-indigo-500 shrink-0" />
                 Métricas de Seguimiento
               </h3>
               <p className="text-slate-500 text-sm font-medium">
@@ -663,7 +663,7 @@ export default function DetailsClient() {
             </div>
             <Button
               variant="outline"
-              className="rounded-2xl font-semibold border-slate-200 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200"
+              className="rounded-2xl font-semibold border-slate-200 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 w-full sm:w-auto shrink-0 justify-center"
               onClick={() => {
                 if (currentPlan?.key === "free") {
                   window.dispatchEvent(
@@ -684,8 +684,8 @@ export default function DetailsClient() {
             </Button>
           </div>
 
-          <div className="px-8 mb-4">
-            <div className="relative w-full max-w-xs group">
+          <div className="px-4 sm:px-8 mb-4">
+            <div className="relative w-full sm:max-w-xs group">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-hover:text-indigo-500 transition-colors" />
               <Input
                 placeholder="Buscar métricas..."
@@ -702,7 +702,7 @@ export default function DetailsClient() {
             </div>
           ) : (
             <>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-8 pt-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4 sm:p-8 pt-4">
               {paginatedMetrics.map((metric) => {
                 const isSystem = metric.isSystem === true;
                 const isOwner = !isSystem;
@@ -713,10 +713,10 @@ export default function DetailsClient() {
                     key={metric.id || metric.key}
                     className="flex items-center justify-between p-4 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-colors group"
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
                       <div
                         className={cn(
-                          "h-10 w-10 rounded-full flex items-center justify-center",
+                          "h-10 w-10 rounded-full flex items-center justify-center shrink-0",
                           isSystem ? "bg-blue-100/50" : "bg-indigo-100/50",
                         )}
                       >
@@ -726,8 +726,8 @@ export default function DetailsClient() {
                           <UserIcon className="w-4 h-4 text-indigo-500" />
                         )}
                       </div>
-                      <div>
-                        <p className="font-semibold text-slate-700">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-slate-700 truncate">
                           {metric.name}
                         </p>
                         <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-400">
@@ -745,7 +745,7 @@ export default function DetailsClient() {
                           setMetricToDelete(metric);
                           setIsDeleteMetricConfirmOpen(true);
                         }}
-                        className="p-2 hover:bg-rose-100 text-slate-400 hover:text-rose-500 rounded-lg transition-colors"
+                        className="p-2 hover:bg-rose-100 text-slate-400 hover:text-rose-500 rounded-lg transition-colors shrink-0"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>

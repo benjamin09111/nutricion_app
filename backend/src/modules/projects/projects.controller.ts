@@ -57,6 +57,12 @@ export class ProjectsController {
     @Param('id') id: string,
     @Body() dto: UpdateProjectDto,
   ) {
-    return this.projectsService.update(req.user.nutritionistId, id, dto);
+    const accountId = req.user?.id || req.user?.sub || req.user?.accountId;
+    return this.projectsService.update(
+      req.user.nutritionistId,
+      id,
+      dto,
+      accountId,
+    );
   }
 }

@@ -112,7 +112,7 @@ export const DietMacroSection: React.FC<DietMacroSectionProps> = ({
   ] as const;
 
   return (
-    <div className="space-y-6 rounded-[2.5rem] border border-slate-200 bg-white p-8 shadow-sm">
+    <div className="space-y-6 rounded-2xl border border-slate-200 bg-white p-4 sm:p-8 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-2">
           <p className="ml-1 text-xs font-black uppercase tracking-widest text-slate-400">

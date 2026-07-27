@@ -9,11 +9,14 @@ import { CacheService } from '../../common/services/cache.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 
+import { PermissionsService } from '../permissions/permissions.service';
+
 @Injectable()
 export class ProjectsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly cacheService: CacheService,
+    private readonly permissionsService: PermissionsService,
   ) {}
 
   private readonly projectInclude = {
@@ -188,9 +191,21 @@ export class ProjectsService {
     return project;
   }
 
-  async update(nutritionistId: string, id: string, dto: UpdateProjectDto) {
+  async update(
+    nutritionistId: string,
+    id: string,
+    dto: UpdateProjectDto,
+    accountId?: string,
+  ) {
     await this.findOne(nutritionistId, id);
     await this.validateOwnerships(nutritionistId, dto);
+
+    if (accountId) {
+      await this.permissionsService.ensureAccess(
+        accountId,
+        'plans.edit.access',
+      );
+    }
 
     const data: Prisma.ProjectUncheckedUpdateInput = {
       ...(dto.name !== undefined ? { name: dto.name } : {}),

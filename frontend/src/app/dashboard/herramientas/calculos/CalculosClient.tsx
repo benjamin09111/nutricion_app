@@ -284,24 +284,24 @@ export default function CalculosClient() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setIsMNAModalOpen(true)}
-              className="text-xs border-indigo-200 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 font-semibold h-8 rounded-xl"
+              className="text-xs border-indigo-200 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 font-semibold h-8 rounded-xl flex-1 sm:flex-none justify-center"
             >
-              <FileText className="w-3.5 h-3.5 mr-1 text-indigo-600" />
-              {mnaResult ? `MNA®: ${mnaResult.score}/30 pts` : "Cuestionario MNA®"}
+              <FileText className="w-3.5 h-3.5 mr-1 text-indigo-600 shrink-0" />
+              <span>{mnaResult ? `MNA®: ${mnaResult.score}/30 pts` : "Cuestionario MNA®"}</span>
             </Button>
 
             <Button
               variant="outline"
               size="sm"
               onClick={handleQuickValues}
-              className="text-xs border-slate-200 text-slate-600 bg-white hover:bg-slate-50 h-8 rounded-xl"
+              className="text-xs border-slate-200 text-slate-600 bg-white hover:bg-slate-50 h-8 rounded-xl flex-1 sm:flex-none justify-center"
             >
-              Cargar Caso Ejemplo
+              <span>Cargar Caso Ejemplo</span>
             </Button>
           </div>
         </div>
@@ -311,10 +311,10 @@ export default function CalculosClient() {
           <button
             type="button"
             onClick={() => setShowGlossary(!showGlossary)}
-            className="text-[11px] font-bold text-slate-500 hover:text-slate-800 flex items-center gap-1.5 cursor-pointer"
+            className="text-[11px] font-bold text-slate-500 hover:text-slate-800 flex items-center gap-1.5 cursor-pointer text-left"
           >
             <span>ℹ️ Normas clínicas aplicadas (OMS 2006/2007, Lipschitz, MINSAL, Blackburn, Chumlea)</span>
-            <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", showGlossary && "rotate-180")} />
+            <ChevronDown className={cn("w-3.5 h-3.5 shrink-0 transition-transform", showGlossary && "rotate-180")} />
           </button>
           {showGlossary && (
             <div className="mt-2 grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px] text-slate-600 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
@@ -349,7 +349,7 @@ export default function CalculosClient() {
               <div className="flex items-center gap-2.5">
                 <span
                   className={cn(
-                    "p-2 rounded-xl border",
+                    "p-2 rounded-xl border shrink-0",
                     isCriticalAlert
                       ? "bg-rose-500/20 text-rose-300 border-rose-500/30"
                       : isModerateAlert
@@ -366,7 +366,7 @@ export default function CalculosClient() {
                   )}
                 </span>
                 <div>
-                  <h2 className="text-sm font-black uppercase text-white tracking-wide">
+                  <h2 className="text-xs sm:text-sm font-black uppercase text-white tracking-wide leading-tight">
                     {isCriticalAlert
                       ? "🚨 RIESGO NUTRICIONAL ALTO — PÉRDIDA AGUDA GRAVE / DESNUTRICIÓN"
                       : isModerateAlert
@@ -389,7 +389,7 @@ export default function CalculosClient() {
                 onClick={executeCalculation}
                 disabled={loading}
                 className={cn(
-                  "font-bold rounded-xl text-xs h-8 px-4 shadow-sm flex items-center gap-1.5 cursor-pointer self-start sm:self-auto text-white",
+                  "font-bold rounded-xl text-xs h-8 px-4 shadow-sm flex items-center justify-center gap-1.5 cursor-pointer w-full sm:w-auto text-white",
                   isCriticalAlert
                     ? "bg-rose-600 hover:bg-rose-500"
                     : isModerateAlert
@@ -573,41 +573,41 @@ export default function CalculosClient() {
               </div>
 
               {/* Peso, Talla, Edad */}
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Peso (kg)</label>
+                  <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase truncate">Peso (kg)</label>
                   <Input
                     value={weight}
                     onChange={(e) => setWeight(e.target.value)}
-                    placeholder="Ej: 70"
+                    placeholder="70"
                     type="number"
                     min="0"
                     step="0.1"
-                    className="h-9 rounded-xl text-xs font-semibold"
+                    className="h-9 rounded-xl text-xs font-semibold px-2 sm:px-3"
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Talla (cm)</label>
+                  <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase truncate">Talla (cm)</label>
                   <Input
                     value={height}
                     onChange={(e) => setHeight(e.target.value)}
-                    placeholder="Ej: 165"
+                    placeholder="165"
                     type="number"
                     min="0"
                     step="0.1"
-                    className="h-9 rounded-xl text-xs font-semibold"
+                    className="h-9 rounded-xl text-xs font-semibold px-2 sm:px-3"
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Edad (años)</label>
+                  <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase truncate">Edad (años)</label>
                   <Input
                     value={age}
                     onChange={(e) => setAge(e.target.value)}
-                    placeholder="Ej: 30"
+                    placeholder="30"
                     type="number"
                     min="0"
                     max="120"
-                    className="h-9 rounded-xl text-xs font-semibold"
+                    className="h-9 rounded-xl text-xs font-semibold px-2 sm:px-3"
                   />
                 </div>
               </div>
@@ -726,7 +726,7 @@ export default function CalculosClient() {
                       <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider block">
                         Antropometría & Composición
                       </span>
-                      <div className="grid grid-cols-2 gap-2 text-[11px]">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
                         {result.estimatedHeight && (
                           <div className="bg-white p-2 rounded-lg border border-slate-100">
                             <span className="text-[9px] text-slate-400 uppercase font-bold block">Talla Est. Chumlea</span>
@@ -938,7 +938,7 @@ export default function CalculosClient() {
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Altura Rodilla AR (cm)</label>
                       <Input
@@ -965,7 +965,7 @@ export default function CalculosClient() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Circ. Braquial CB (cm)</label>
                       <Input
@@ -1029,7 +1029,7 @@ export default function CalculosClient() {
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Pliegue Tricipital (mm)</label>
                       <Input
@@ -1092,7 +1092,7 @@ export default function CalculosClient() {
                       <X className="w-4.5 h-4.5" />
                     </button>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Circ. Cintura (cm)</label>
                       <Input
@@ -1123,7 +1123,7 @@ export default function CalculosClient() {
                 <button
                   type="button"
                   onClick={() => toggleModule("icc")}
-                  className="w-full h-full flex items-center justify-between p-4 bg-white hover:bg-emerald-50/50 rounded-2xl border border-dashed border-slate-200 hover:border-emerald-300 text-xs font-bold text-slate-700 hover:text-emerald-700 transition-all cursor-pointer text-left shadow-xs hover:shadow-sm gap-3"
+                  className="w-full h-full flex items-center justify-between p-4 bg-white hover:bg-emerald-50/50 rounded-2xl border border-dashed border-slate-200 hover:border-emerald-300 text-xs font-bold text-slate-700 hover:border-emerald-700 transition-all cursor-pointer text-left shadow-xs hover:shadow-sm gap-3"
                 >
                   <span className="flex items-center gap-2.5">
                     <span className="p-2 rounded-xl bg-emerald-50 text-emerald-600">

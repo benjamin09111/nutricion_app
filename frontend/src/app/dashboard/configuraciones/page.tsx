@@ -835,94 +835,93 @@ export default function SettingsPage() {
         </p>
       </div>
 
-      <div className="flex w-full overflow-hidden border border-slate-200 bg-slate-50 shadow-sm">
+      <div className="grid grid-cols-2 sm:flex sm:w-full sm:items-center rounded-2xl border border-slate-200 bg-slate-100/80 p-1.5 shadow-sm gap-1.5 sm:gap-1">
         <button
           type="button"
           onClick={() => setActiveTab("profile")}
-          className={`flex flex-1 items-center justify-center gap-2 px-4 py-3 text-sm font-bold transition-all ${
+          className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-xs sm:text-sm font-bold transition-all ${
             activeTab === "profile"
-              ? "bg-white text-emerald-700"
-              : "text-slate-500 hover:bg-white/70 hover:text-slate-900"
+              ? "bg-white text-emerald-700 shadow-sm"
+              : "text-slate-600 hover:bg-white/60 hover:text-slate-900"
           }`}
         >
-          <User className="h-4 w-4" />
-          Mi perfil
+          <User className="h-4 w-4 shrink-0 text-emerald-600" />
+          <span>Mi perfil</span>
         </button>
         <button
           type="button"
           onClick={() => setActiveTab("account")}
-          className={`flex flex-1 items-center justify-center gap-2 px-4 py-3 text-sm font-bold transition-all ${
+          className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-xs sm:text-sm font-bold transition-all ${
             activeTab === "account"
-              ? "bg-white text-emerald-700"
-              : "text-slate-500 hover:bg-white/70 hover:text-slate-900"
+              ? "bg-white text-emerald-700 shadow-sm"
+              : "text-slate-600 hover:bg-white/60 hover:text-slate-900"
           }`}
         >
-          <Lock className="h-4 w-4" />
-          Cuenta
+          <Lock className="h-4 w-4 shrink-0 text-emerald-600" />
+          <span>Cuenta</span>
         </button>
         <button
           type="button"
           onClick={() => setActiveTab("membership")}
-          className={`flex flex-1 items-center justify-center gap-2 px-4 py-3 text-sm font-bold transition-all ${
+          className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-xs sm:text-sm font-bold transition-all ${
             activeTab === "membership"
-              ? "bg-white text-emerald-700"
-              : "text-slate-500 hover:bg-white/70 hover:text-slate-900"
+              ? "bg-white text-emerald-700 shadow-sm"
+              : "text-slate-600 hover:bg-white/60 hover:text-slate-900"
           }`}
         >
-          <Crown className="h-4 w-4" />
-          Mi plan actual
+          <Crown className="h-4 w-4 shrink-0 text-amber-500" />
+          <span>Mi plan actual</span>
         </button>
         <button
           type="button"
           onClick={() => setActiveTab("compliance")}
-          className={`flex flex-1 items-center justify-center gap-2 px-4 py-3 text-sm font-bold transition-all ${
+          className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-xs sm:text-sm font-bold transition-all ${
             activeTab === "compliance"
-              ? "bg-white text-emerald-700"
-              : "text-slate-500 hover:bg-white/70 hover:text-slate-900"
+              ? "bg-white text-emerald-700 shadow-sm"
+              : "text-slate-600 hover:bg-white/60 hover:text-slate-900"
           }`}
         >
-          <ShieldAlert className="h-4 w-4" />
-          Privacidad y Cumplimiento
+          <ShieldAlert className="h-4 w-4 shrink-0 text-indigo-600" />
+          <span className="hidden lg:inline">Privacidad y Cumplimiento</span>
+          <span className="lg:hidden">Privacidad</span>
         </button>
       </div>
 
       <form onSubmit={handleSaveProfile} className="space-y-6">
         <div className="grid items-stretch gap-6 xl:grid-cols-2">
           {/* Profile Information */}
-          <div className={`relative flex h-full flex-col rounded-xl border border-slate-200 bg-white shadow-sm font-medium ${activeTab === "profile" ? "" : "hidden"}`}>
-            <div className="relative flex min-h-[76px] items-start justify-between border-b border-slate-200 px-6 py-4">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-center gap-x-2">
-                  <User className="h-5 w-5 text-emerald-600" />
-                  <h2 className="font-semibold text-slate-900">
-                    Información del Perfil
-                  </h2>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setIsProfileEditing((value) => !value)}
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:border-emerald-200 hover:text-emerald-700 cursor-pointer"
-                    aria-label="Editar columna de perfil"
+          <div className={`relative flex h-full flex-col rounded-2xl border border-slate-200 bg-white shadow-sm font-medium ${activeTab === "profile" ? "" : "hidden"}`}>
+            <div className="relative flex min-h-[64px] flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 px-4 py-4 sm:px-6 gap-3">
+              <div className="flex items-center gap-x-2">
+                <User className="h-5 w-5 text-emerald-600 shrink-0" />
+                <h2 className="font-semibold text-slate-900">
+                  Información del Perfil
+                </h2>
+              </div>
+              <div className="flex items-center gap-2 self-end sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setIsProfileEditing((value) => !value)}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:border-emerald-200 hover:text-emerald-700 cursor-pointer shrink-0"
+                  aria-label="Editar columna de perfil"
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
+                {isProfileEditing && (
+                  <Button
+                    type="submit"
+                    isLoading={isSavingProfile}
+                    disabled={!hasProfileChanges || hasProfileErrors}
+                    className="h-9 px-4 text-xs font-bold"
                   >
-                    <Pencil className="h-4 w-4" />
-                  </button>
-                  {isProfileEditing && (
-                    <Button
-                      type="submit"
-                      isLoading={isSavingProfile}
-                      disabled={!hasProfileChanges || hasProfileErrors}
-                      className="h-9 px-4 text-xs font-bold"
-                    >
-                      {!isSavingProfile && <Save className="h-4 w-4" />}
-                      Guardar cambios
-                    </Button>
-                  )}
-                </div>
+                    {!isSavingProfile && <Save className="h-4 w-4" />}
+                    Guardar cambios
+                  </Button>
+                )}
               </div>
             </div>
-            <div className="space-y-6 p-6">
-              <div className="flex items-center gap-x-4 font-bold">
+            <div className="space-y-6 p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 font-bold">
                 {userData?.googleAvatarUrl ? (
                   <Image
                     src={userData.googleAvatarUrl}
@@ -930,18 +929,18 @@ export default function SettingsPage() {
                     width={64}
                     height={64}
                     referrerPolicy="no-referrer"
-                    className="h-16 w-16 rounded-full border-2 border-emerald-200 object-cover"
+                    className="h-16 w-16 rounded-full border-2 border-emerald-200 object-cover shrink-0"
                   />
                 ) : (
-                  <div className="h-16 w-16 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 border border-emerald-200 text-2xl font-bold">
+                  <div className="h-16 w-16 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 border border-emerald-200 text-2xl font-bold shrink-0">
                     {userData?.fullName?.charAt(0) || "U"}
                   </div>
                 )}
-                <div>
-                  <h3 className="font-bold text-slate-900">
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-bold text-slate-900 truncate">
                     {userData?.fullName || "Cargando..."}
                   </h3>
-                  <p className="text-sm font-medium text-slate-500">
+                  <p className="text-sm font-medium text-slate-500 truncate">
                     {userData?.email || "..."}
                   </p>
                   <div className="mt-2 flex flex-wrap items-center gap-2">

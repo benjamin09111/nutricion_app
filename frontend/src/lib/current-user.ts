@@ -23,6 +23,18 @@ export type CurrentUser = {
   requiresPlanSelection?: boolean;
 };
 
+// SEGURIDAD: la cookie "user" es escribible desde el navegador, así que NUNCA
+// puede contener datos de autorización. El rol se elimina al guardar y al leer;
+// la única fuente válida del rol es el backend (`/auth/me`, `/auth/session-role`).
+const stripAuthorizationFields = (user: CurrentUser): CurrentUser => {
+  const { role, entitlements, ...safe } = user as CurrentUser & {
+    entitlements?: unknown;
+  };
+  void role;
+  void entitlements;
+  return safe;
+};
+
 export const getCurrentUser = (): CurrentUser | null => {
   const raw = Cookies.get("user");
 
@@ -31,14 +43,14 @@ export const getCurrentUser = (): CurrentUser | null => {
   }
 
   try {
-    return JSON.parse(raw) as CurrentUser;
+    return stripAuthorizationFields(JSON.parse(raw) as CurrentUser);
   } catch {
     return null;
   }
 };
 
 export const setCurrentUser = (user: CurrentUser) => {
-  Cookies.set("user", JSON.stringify(user), {
+  Cookies.set("user", JSON.stringify(stripAuthorizationFields(user)), {
     expires: 30,
     secure: process.env.NODE_ENV === "production",
     sameSite: "strict",

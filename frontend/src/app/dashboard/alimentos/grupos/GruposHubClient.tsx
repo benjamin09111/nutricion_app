@@ -72,7 +72,7 @@ export default function GruposHubClient({ ingredients, recipes }: GruposHubClien
   const totalGroupsCount = ingredientGroupsCount + recipeGroupsCount;
 
   const hubTabs = (
-    <div className="inline-flex rounded-2xl border border-slate-200/80 bg-slate-100/80 p-1">
+    <div className="grid grid-cols-2 sm:flex w-full sm:w-auto rounded-2xl border border-slate-200/80 bg-slate-100/80 p-1 gap-1">
       {(["Ingredientes", "Recetas"] as const).map((tab) => {
         const locked = tab === "Recetas";
 
@@ -86,7 +86,7 @@ export default function GruposHubClient({ ingredients, recipes }: GruposHubClien
               setActiveTab(tab);
             }}
             className={cn(
-              "flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all",
+              "flex items-center justify-center gap-2 rounded-xl px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold transition-all",
               activeTab === tab
                 ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200/70"
                 : locked

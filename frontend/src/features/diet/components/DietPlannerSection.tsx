@@ -34,14 +34,14 @@ export const DietPlannerSection: React.FC<DietPlannerSectionProps> = ({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <h2 className="text-lg sm:text-xl font-black text-slate-800 flex items-center gap-2">
           <Sparkles className="h-5 w-5 text-amber-500" />
           Dieta Base Generada
         </h2>
         <Button
           onClick={() => setIsAddGroupModalOpen(true)}
-          className="h-10 px-6 bg-slate-900 text-white hover:bg-slate-800 border-none font-black text-sm rounded-xl gap-2 transition-all active:scale-95 shadow-lg shadow-slate-200"
+          className="h-10 px-5 bg-slate-900 text-white hover:bg-slate-800 border-none font-black text-sm rounded-xl gap-2 transition-all active:scale-95 shadow-lg shadow-slate-200 w-full sm:w-auto justify-center"
         >
           <Plus className="h-5 w-5" />
           Nueva categoría

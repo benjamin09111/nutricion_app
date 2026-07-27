@@ -51,9 +51,18 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: any) {
+    // IMPORTANTE (seguridad): del token sólo se usa `sub` (id de cuenta) e `iat`.
+    // Cualquier otro claim (role, nutritionistId, email...) que venga dentro del
+    // JWT se ignora deliberadamente. El rol y los permisos se leen SIEMPRE desde
+    // la base de datos, por lo que editar el token a mano no otorga privilegios.
+    const accountId = typeof payload?.sub === 'string' ? payload.sub : null;
+    if (!accountId) {
+      throw new UnauthorizedException('Sesión inválida');
+    }
+
     // Verify the account still exists and is active in the database
     const account = await this.prisma.account.findUnique({
-      where: { id: payload.sub },
+      where: { id: accountId },
       select: {
         status: true,
         role: true,
@@ -81,8 +90,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     }
 
     return {
-      id: payload.sub,
+      id: accountId,
       email: account.email,
+      // Rol autoritativo: viene de la BD, no del JWT.
       role: account.role,
       rut: account.rut,
       nutritionistId: account.nutritionist?.id,

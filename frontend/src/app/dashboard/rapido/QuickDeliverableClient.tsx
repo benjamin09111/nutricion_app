@@ -31,7 +31,7 @@ import { Textarea } from "@/components/ui/Textarea";
 import { ImportCreationModal } from "@/components/shared/ImportCreationModal";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { WorkflowContextBanner } from "@/components/shared/WorkflowContextBanner";
-import { PlanWizardShell, NatyLoadingOverlay, NatyButton, PromptPreviewButton } from "@/components/plans";
+import { PlanWizardShell, NatyLoadingOverlay, NatyButton } from "@/components/plans";
 import { ActionDockItem } from "@/components/ui/ActionDock";
 import { CalculatedMetricsPanel } from "@/components/patient-form/CalculatedMetricsPanel";
 import { fetchApi, getApiUrl } from "@/lib/api-base";
@@ -2095,14 +2095,6 @@ export default function QuickDeliverableClient() {
         description="Crea un entregable express de una sola hoja con horarios, indicaciones, alimentos a evitar, recursos y una guía breve de porciones."
         className="max-w-[68rem]"
         rightNavItems={actionItems}
-        rightContent={
-          <PromptPreviewButton
-            moduleName="Entregable Rápido"
-            endpoint="/recipes/quick-ai-fill"
-            buildPayload={buildQuickDeliverablePromptPayload}
-            expectedOutput="JSON con dishes para completar únicamente los espacios de alimentos solicitados."
-          />
-        }
       >
         <WorkflowContextBanner
           projectName={currentProjectName}
@@ -2392,7 +2384,7 @@ export default function QuickDeliverableClient() {
               <section
                 ref={mealsSectionRef}
                 className={cn(
-                  "rounded-3xl border border-slate-200 bg-white p-10 shadow-sm",
+                  "rounded-3xl border border-slate-200 bg-white p-4 sm:p-10 shadow-sm",
                   shouldHighlightMealsSection && "border-rose-400 ring-4 ring-rose-100",
                   !includeMeals && "opacity-55",
                 )}
@@ -2401,14 +2393,14 @@ export default function QuickDeliverableClient() {
                   <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                   <div>
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                      <h2 className="text-xl font-black text-slate-900">
+                      <h2 className="text-lg sm:text-xl font-black text-slate-900">
                         Tabla de comidas <span className="text-rose-600">*</span>
                       </h2>
                       <button
                         type="button"
                         onClick={() => setIncludeMeals((current) => !current)}
                         className={cn(
-                          "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[11px] font-black uppercase tracking-widest transition-colors",
+                          "inline-flex items-center justify-center gap-2 rounded-full border px-4 py-2 text-[11px] font-black uppercase tracking-widest transition-colors w-fit",
                           includeMeals
                             ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                             : "border-slate-200 bg-white text-slate-500",
@@ -2420,18 +2412,17 @@ export default function QuickDeliverableClient() {
                             includeMeals ? "bg-emerald-500" : "bg-slate-300",
                           )}
                         />
-                        {includeMeals ? "Ocultar seccion" : "Incluir seccion"}
+                        {includeMeals ? "Ocultar sección" : "Incluir sección"}
                       </button>
                     </div>
-                    <p className="mt-1 text-sm text-slate-500">
-                      Arrastra los bloques para ordenar el día y completa hora,
-                      indicación y porción.
+                    <p className="mt-1 text-xs sm:text-sm text-slate-500">
+                      Arrastra los bloques para ordenar el día y completa hora, indicación y porción.
                     </p>
                   </div>
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-11 rounded-2xl border-purple-200 bg-purple-50 px-4 text-purple-700 hover:bg-purple-100 hover:border-purple-300 hover:text-purple-800 transition-all font-semibold shadow-sm md:self-start"
+                    className="h-11 rounded-2xl border-purple-200 bg-purple-50 px-4 text-purple-700 hover:bg-purple-100 hover:border-purple-300 hover:text-purple-800 transition-all font-semibold shadow-sm w-full md:w-auto md:self-start justify-center"
                     onClick={() => setIsCreatedRecipesModalOpen(true)}
                     title="Rellenar con platos creados"
                   >
@@ -2463,7 +2454,7 @@ export default function QuickDeliverableClient() {
                             "h-2.5 w-2.5 rounded-full",
                             includeMeals ? "bg-emerald-500" : "bg-slate-300",
                           )} />
-                          {includeMeals ? "Seccion visible" : "Seccion oculta"}
+                          {includeMeals ? "Sección visible" : "Sección oculta"}
                         </button>
                         <button
                           type="button"
@@ -2479,14 +2470,87 @@ export default function QuickDeliverableClient() {
                         </button>
                       </div>
                       <p className="text-xs text-slate-500">
-                        Categoria, hora y porcion se editan una vez; alimentos cambian por dia.
+                        Categoría, hora y porción se editan una vez; alimentos cambian por día.
                       </p>
                     </div>
                   </div>
                 )}
 
+                {/* Tarjetas Móviles (Móviles < 768px) */}
+                <div className={cn("block md:hidden space-y-3", planMode === "weekly" && "hidden")}>
+                  {meals.map((meal) => (
+                    <div key={meal.id} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3.5 space-y-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <select
+                          value={meal.section}
+                          onChange={(e) => updateMeal(meal.id, "section", e.target.value)}
+                          className="h-10 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-900"
+                          disabled={!includeMeals}
+                        >
+                          <option value="">Seleccionar sección</option>
+                          {QUICK_SECTIONS.map((section) => (
+                            <option key={section} value={section}>
+                              {section}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => removeMeal(meal.id)}
+                          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 text-rose-600"
+                          disabled={!includeMeals}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                      <div>
+                        <label className="text-[9px] font-black uppercase text-slate-400 block mb-1">Alimentos / Preparación</label>
+                        <Input
+                          value={meal.mealText}
+                          onChange={(e) => updateMeal(meal.id, "mealText", e.target.value)}
+                          className="h-10 rounded-xl border-slate-200 bg-white text-xs font-semibold"
+                          placeholder="Nombre del plato o preparación"
+                          disabled={!includeMeals}
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[9px] font-black uppercase text-slate-400 block mb-1">Hora</label>
+                          <Input
+                            value={meal.time}
+                            onChange={(e) => updateMeal(meal.id, "time", e.target.value)}
+                            className="h-10 rounded-xl border-slate-200 bg-white text-xs font-semibold"
+                            placeholder="07:30"
+                            disabled={!includeMeals}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-black uppercase text-slate-400 block mb-1">Porciones</label>
+                          <Input
+                            value={meal.portion}
+                            onChange={(e) => updateMeal(meal.id, "portion", e.target.value)}
+                            className="h-10 rounded-xl border-slate-200 bg-white text-xs font-semibold"
+                            placeholder="2 porciones"
+                            disabled={!includeMeals}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={addMeal}
+                    className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-xs font-bold text-slate-600 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
+                    disabled={!includeMeals}
+                  >
+                    <Plus className="h-4 w-4" />
+                    Agregar fila
+                  </button>
+                </div>
+
+                {/* Tabla Desktop (>= 768px) */}
                 <div className={cn(
-                  "overflow-x-auto rounded-3xl border border-slate-200",
+                  "hidden md:block overflow-x-auto rounded-3xl border border-slate-200",
                   planMode === "weekly" && "hidden",
                 )}>
                   <table className="w-full min-w-[860px] bg-white">
@@ -2687,23 +2751,17 @@ export default function QuickDeliverableClient() {
               )}
 
               {currentStep === 1 && (
-              <section
-                ref={avoidFoodsSectionRef}
-                className={cn(
-                  "rounded-3xl border border-slate-200 bg-white p-10 shadow-sm",
-                  shouldHighlightAvoidFoodsSection && "border-rose-400 ring-4 ring-rose-100",
-                  !includeAvoidFoods && "opacity-55",
-                )}>
-                <div className="flex items-center justify-between">
+              <section ref={avoidFoodsSectionRef} className="rounded-3xl border border-slate-200 bg-white p-4 sm:p-10 shadow-sm">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
-                    <h2 className="text-xl font-black text-slate-900">
-                      Alimentos a evitar <span className="text-rose-600">*</span>
+                    <h2 className="text-lg font-black text-slate-900">
+                      Alimentos a evitar / Indicaciones
                     </h2>
                     <button
                       type="button"
                       onClick={() => setIncludeAvoidFoods((current) => !current)}
                       className={cn(
-                        "mt-3 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[11px] font-black uppercase tracking-widest transition-colors",
+                        "mt-2 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[11px] font-black uppercase tracking-widest transition-colors w-fit",
                         includeAvoidFoods
                           ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                           : "border-slate-200 bg-white text-slate-500",
@@ -2715,26 +2773,16 @@ export default function QuickDeliverableClient() {
                           includeAvoidFoods ? "bg-emerald-500" : "bg-slate-300",
                         )}
                       />
-                      {includeAvoidFoods ? "Ocultar seccion" : "Incluir seccion"}
+                      {includeAvoidFoods ? "Ocultar sección" : "Incluir sección"}
                     </button>
-                    <p className="mt-1 text-sm text-slate-500">
-                      Agrega filas simples para dejar restricciones o
-                      recordatorios rápidos.
+                    <p className="mt-1 text-xs sm:text-sm text-slate-500">
+                      Agrega filas simples para dejar restricciones o recordatorios rápidos.
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <label className="hidden items-center gap-2 text-sm font-medium text-slate-600">
-                      <input
-                        type="checkbox"
-                        checked={includeAvoidFoods}
-                        onChange={(e) => setIncludeAvoidFoods(e.target.checked)}
-                        className="h-4 w-4 rounded border-slate-300 text-emerald-600"
-                      />
-                      Incluir seccion
-                    </label>
                     <Button
                       variant="outline"
-                      className="h-11 rounded-2xl border-slate-200"
+                      className="h-11 rounded-2xl border-slate-200 w-full sm:w-auto justify-center"
                       onClick={addAvoidFoodRow}
                       disabled={!includeAvoidFoods}
                     >
@@ -2744,7 +2792,31 @@ export default function QuickDeliverableClient() {
                   </div>
                 </div>
 
-                <div className="mt-6 overflow-x-auto rounded-3xl border border-slate-200">
+                {/* Vista Móvil (< 768px) */}
+                <div className="block md:hidden space-y-2 mt-4">
+                  {avoidFoods.map((food) => (
+                    <div key={food.id} className="flex items-center gap-2">
+                      <Input
+                        value={food.value}
+                        onChange={(e) => updateAvoidFood(food.id, e.target.value)}
+                        className="h-10 flex-1 rounded-xl border-slate-200 bg-white text-xs font-medium"
+                        placeholder="Ej: bebidas azucaradas, frituras, alcohol..."
+                        disabled={!includeAvoidFoods}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeAvoidFood(food.id)}
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 text-rose-600"
+                        disabled={!includeAvoidFoods}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Vista Desktop (>= 768px) */}
+                <div className="hidden md:block mt-6 overflow-x-auto rounded-3xl border border-slate-200">
                   <table className="w-full min-w-[620px] bg-white">
                     <thead className="bg-slate-50">
                       <tr className="border-b border-slate-200">
@@ -2792,11 +2864,11 @@ export default function QuickDeliverableClient() {
               <section
                 ref={resourcesSectionRef}
                 className={cn(
-                  "rounded-3xl border border-slate-200 bg-white p-10 shadow-sm",
+                  "rounded-3xl border border-slate-200 bg-white p-4 sm:p-10 shadow-sm",
                   !includeResources && "opacity-55",
                 )}
               >
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
                     <h2 className="text-lg font-black text-slate-900">
                       Recursos específicos
@@ -2805,7 +2877,7 @@ export default function QuickDeliverableClient() {
                       type="button"
                       onClick={() => setIncludeResources((current) => !current)}
                       className={cn(
-                        "mt-3 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[11px] font-black uppercase tracking-widest transition-colors",
+                        "mt-2 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[11px] font-black uppercase tracking-widest transition-colors w-fit",
                         includeResources
                           ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                           : "border-slate-200 bg-white text-slate-500",
@@ -2817,25 +2889,16 @@ export default function QuickDeliverableClient() {
                           includeResources ? "bg-emerald-500" : "bg-slate-300",
                         )}
                       />
-                      {includeResources ? "Ocultar seccion" : "Incluir seccion"}
+                      {includeResources ? "Ocultar sección" : "Incluir sección"}
                     </button>
-                    <p className="mt-1 text-sm text-slate-500">
+                    <p className="mt-1 text-xs sm:text-sm text-slate-500">
                       Puedes sumar material breve adaptado al paciente.
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <label className="hidden items-center gap-2 text-sm font-medium text-slate-600">
-                      <input
-                        type="checkbox"
-                        checked={includeResources}
-                        onChange={(e) => setIncludeResources(e.target.checked)}
-                        className="h-4 w-4 rounded border-slate-300 text-emerald-600"
-                      />
-                      Incluir seccion
-                    </label>
                     <Button
                       variant="outline"
-                      className="h-10 rounded-2xl border-slate-200"
+                      className="h-10 rounded-2xl border-slate-200 w-full sm:w-auto justify-center"
                       onClick={openResourceModal}
                       disabled={!includeResources || isLoadingResources}
                     >
@@ -2849,7 +2912,7 @@ export default function QuickDeliverableClient() {
                   </div>
                 </div>
 
-                <div className="mt-5 overflow-x-auto rounded-3xl border border-slate-200">
+                <div className="mt-5 overflow-x-auto rounded-3xl border border-slate-200 hidden sm:block">
                   <table className="w-full min-w-[760px] bg-white">
                     <thead className="bg-slate-50">
                       <tr className="border-b border-slate-200">
@@ -2940,7 +3003,7 @@ export default function QuickDeliverableClient() {
                   </table>
                 </div>
 
-                <div className="hidden mt-5 space-y-3">
+                <div className="block sm:hidden mt-5 space-y-3">
                   {resolvedResourcePages.length > 0 ? (
                     resolvedResourcePages.map((resource, index) => (
                       <div
@@ -2948,7 +3011,7 @@ export default function QuickDeliverableClient() {
                         className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
                       >
                         <div className="flex items-center justify-between gap-3">
-                          <p className="font-bold text-slate-800">
+                          <p className="font-bold text-slate-800 text-sm">
                             {resource.title}
                           </p>
                           <button
@@ -2965,13 +3028,13 @@ export default function QuickDeliverableClient() {
                             <Trash2 className="h-4 w-4" />
                           </button>
                         </div>
-                        <p className="mt-2 line-clamp-4 whitespace-pre-wrap text-sm leading-6 text-slate-600">
+                        <p className="mt-2 line-clamp-4 whitespace-pre-wrap text-xs leading-5 text-slate-600">
                           {resource.content}
                         </p>
                       </div>
                     ))
                   ) : (
-                    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">
+                    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-xs text-slate-500 text-center">
                       Todavía no agregas recursos para este entregable.
                     </div>
                   )}
@@ -2980,8 +3043,8 @@ export default function QuickDeliverableClient() {
               )}
 
               {currentStep === 3 && (
-              <section ref={portionsSectionRef} className="rounded-3xl border border-slate-200 bg-white p-10 shadow-sm">
-                <div className="flex items-center justify-between gap-3">
+              <section ref={portionsSectionRef} className="rounded-3xl border border-slate-200 bg-white p-4 sm:p-10 shadow-sm">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
                     <h2 className="text-lg font-black text-slate-900">
                       Guía resumida de porciones
@@ -2990,7 +3053,7 @@ export default function QuickDeliverableClient() {
                       type="button"
                       onClick={() => setIncludePortionGuide((current) => !current)}
                       className={cn(
-                        "mt-3 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[11px] font-black uppercase tracking-widest transition-colors",
+                        "mt-2 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[11px] font-black uppercase tracking-widest transition-colors w-fit",
                         includePortionGuide
                           ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                           : "border-slate-200 bg-white text-slate-500",
@@ -3002,40 +3065,61 @@ export default function QuickDeliverableClient() {
                           includePortionGuide ? "bg-emerald-500" : "bg-slate-300",
                         )}
                       />
-                      {includePortionGuide ? "Ocultar seccion" : "Incluir seccion"}
+                      {includePortionGuide ? "Ocultar sección" : "Incluir sección"}
                     </button>
-                    <p className="mt-1 text-sm text-slate-500">
-                      Resumen profesional simple para que el paciente entienda
-                      referencias base.
+                    <p className="mt-1 text-xs sm:text-sm text-slate-500">
+                      Resumen profesional simple para que el paciente entienda referencias base.
                     </p>
                   </div>
-                  <label className="hidden items-center gap-2 text-sm font-medium text-slate-600">
-                    <input
-                      type="checkbox"
-                      checked={includePortionGuide}
-                      onChange={(e) =>
-                        setIncludePortionGuide(e.target.checked)
-                      }
-                      className="h-4 w-4 rounded border-slate-300 text-emerald-600"
-                    />
-                    Incluir seccion
-                  </label>
-                </div>
-                <div className="mt-5 flex justify-end">
-                  <Button
-                    variant="outline"
-                    className="h-10 rounded-2xl border-slate-200"
-                    onClick={addPortionGuideRow}
-                    disabled={!includePortionGuide}
-                  >
-                    <Plus className="mr-2 h-4 w-4" />
-                    Agregar fila
-                  </Button>
+                  <div className="flex justify-end">
+                    <Button
+                      variant="outline"
+                      className="h-10 rounded-2xl border-slate-200 w-full sm:w-auto justify-center"
+                      onClick={addPortionGuideRow}
+                      disabled={!includePortionGuide}
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      Agregar fila
+                    </Button>
+                  </div>
                 </div>
 
+                {/* Vista Móvil (< 768px) */}
+                <div className="block md:hidden space-y-2.5 mt-4">
+                  {portionGuideRows.map((row) => (
+                    <div key={row.id} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <Input
+                          value={row.category}
+                          onChange={(e) => updatePortionGuideRow(row.id, "category", e.target.value)}
+                          className="h-9 flex-1 rounded-xl border-slate-200 bg-white text-xs font-bold"
+                          placeholder="Categoría"
+                          disabled={!includePortionGuide}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removePortionGuideRow(row.id)}
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 text-rose-600"
+                          disabled={!includePortionGuide || portionGuideRows.length === 1}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                      <Input
+                        value={row.portion}
+                        onChange={(e) => updatePortionGuideRow(row.id, "portion", e.target.value)}
+                        className="h-9 rounded-xl border-slate-200 bg-white text-xs font-semibold"
+                        placeholder="Detalle de porción"
+                        disabled={!includePortionGuide}
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                {/* Vista Desktop (>= 768px) */}
                 <div
                   className={cn(
-                    "mt-4 overflow-x-auto rounded-2xl border border-slate-200",
+                    "hidden md:block mt-4 overflow-x-auto rounded-2xl border border-slate-200",
                     !includePortionGuide && "opacity-45",
                   )}
                 >
@@ -3231,16 +3315,16 @@ export default function QuickDeliverableClient() {
               </div>
             );
           })}
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">
             <Button
               variant="outline"
-              className="rounded-xl border-slate-200"
+              className="rounded-xl border-slate-200 w-full sm:w-auto justify-center"
               onClick={() => setIsResourceVariablesModalOpen(false)}
             >
               Cancelar
             </Button>
             <Button
-              className="rounded-xl bg-emerald-600 text-white hover:bg-emerald-700"
+              className="rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 w-full sm:w-auto justify-center"
               onClick={resolvePendingResourceVariables}
             >
               Importar recurso

@@ -142,20 +142,21 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
         />
       </button>
 
-        <div className="flex flex-1 items-center gap-x-4 lg:gap-x-6">
-          <div className="flex flex-1 items-center justify-end gap-x-3 sm:gap-x-4 lg:gap-x-8">
+        <div className="flex flex-1 items-center gap-x-2 sm:gap-x-4 lg:gap-x-6">
+          <div className="flex flex-1 items-center justify-end gap-x-2 sm:gap-x-4 lg:gap-x-8">
             {!isAdminView && (
               <Link
                 href="/dashboard/actualizaciones"
                 className={cn(
-                  "inline-flex cursor-pointer items-center gap-2 rounded-full border px-4 py-2 text-xs font-bold transition-all",
+                  "inline-flex cursor-pointer items-center gap-1.5 sm:gap-2 rounded-full border px-2.5 py-1.5 sm:px-4 sm:py-2 text-xs font-bold transition-all shrink-0",
                   isDarkMode
                     ? "border-indigo-400/20 bg-indigo-500/10 text-indigo-100 hover:bg-indigo-500/15"
                     : "border-indigo-100 bg-indigo-50 text-indigo-700 hover:bg-indigo-100",
                 )}
+                title="Futuras funciones"
               >
-                <Sparkles className="h-4 w-4" />
-                Futuras funciones
+                <Sparkles className="h-4 w-4 shrink-0 text-indigo-400" />
+                <span className="hidden sm:inline">Futuras funciones</span>
               </Link>
             )}
 
@@ -172,16 +173,46 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
                       )
                 }
                 className={cn(
-                  "inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold transition-all",
+                  "inline-flex items-center gap-1.5 sm:gap-2 rounded-full px-2.5 py-1.5 sm:px-4 sm:py-2 text-xs font-bold transition-all shrink-0",
                   hasPendingTransfer
                     ? "border border-slate-200 bg-slate-50 text-slate-600 cursor-default"
                     : isDarkMode
                       ? "border border-amber-400/30 bg-gradient-to-r from-amber-500/20 to-amber-600/20 text-amber-300 hover:from-amber-500/30 hover:to-amber-600/30"
                       : "border border-amber-200 bg-gradient-to-r from-amber-50 to-amber-100 text-amber-700 hover:from-amber-100 hover:to-amber-200 shadow-sm",
                 )}
+                title={hasPendingTransfer ? "Plan pendiente de aprobación" : "Ascender a Pro"}
               >
-                <Crown className="h-4 w-4" />
-                {hasPendingTransfer ? "Plan pendiente de aprobación" : "Ascender a Pro"}
+                <Crown className="h-4 w-4 shrink-0 text-amber-500" />
+                <span className="hidden sm:inline">
+                  {hasPendingTransfer ? "Plan pendiente" : "Ascender a Pro"}
+                </span>
+              </button>
+            )}
+
+            {!isAdminView && (
+              <button
+                type="button"
+                onClick={() =>
+                  window.dispatchEvent(new CustomEvent("toggle-nutria-chat"))
+                }
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-bold transition-all shrink-0 cursor-pointer border shadow-sm active:scale-95",
+                  isDarkMode
+                    ? "border-violet-400/30 bg-gradient-to-r from-violet-600/30 to-fuchsia-600/30 text-violet-100 hover:from-violet-600/40 hover:to-fuchsia-600/40"
+                    : "border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 text-violet-800 hover:from-violet-100 hover:to-fuchsia-100",
+                )}
+                title="Tutorial y Asistencia de Nutria"
+              >
+                <div className="relative h-4.5 w-4.5 overflow-hidden rounded-full border border-violet-400/40 shrink-0">
+                  <Image
+                    src="/circle_logo.webp"
+                    alt="Nutria"
+                    fill
+                    sizes="18px"
+                    className="object-cover"
+                  />
+                </div>
+                <span className="text-[11px] font-bold tracking-tight">Nutria</span>
               </button>
             )}
 
@@ -208,7 +239,7 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
               {isNotificationsOpen && (
                 <div
                   className={cn(
-                    "absolute right-0 z-20 mt-2.5 w-80 origin-top-right overflow-hidden rounded-xl border shadow-xl ring-1 animate-in fade-in zoom-in-95 duration-100 focus:outline-none sm:w-96",
+                    "absolute right-0 z-20 mt-2.5 w-[calc(100vw-2rem)] max-w-sm sm:w-96 origin-top-right overflow-hidden rounded-xl border shadow-xl ring-1 animate-in fade-in zoom-in-95 duration-100 focus:outline-none",
                     isDarkMode
                       ? "border-emerald-400/14 bg-slate-950/96 ring-black/20"
                       : "border-slate-100 bg-white ring-slate-900/5",
@@ -422,7 +453,7 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
             {isProfileOpen && (
               <div
                 className={cn(
-                  "absolute right-0 z-10 mt-2.5 w-56 origin-top-right rounded-md border py-2 shadow-lg ring-1 animate-in fade-in zoom-in-95 duration-100 focus:outline-none",
+                  "absolute right-0 z-10 mt-2.5 w-56 max-w-[calc(100vw-2rem)] origin-top-right rounded-xl border py-2 shadow-lg ring-1 animate-in fade-in zoom-in-95 duration-100 focus:outline-none",
                   isDarkMode
                     ? "border-emerald-400/14 bg-slate-950/96 ring-black/20"
                     : "border-slate-100 bg-white ring-slate-900/5",

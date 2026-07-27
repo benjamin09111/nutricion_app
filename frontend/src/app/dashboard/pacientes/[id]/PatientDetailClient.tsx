@@ -581,7 +581,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
 
       {/* ── TABS NAVBAR ────────────────────────────────────────────────── */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-5">
-        <div className="flex gap-0 overflow-x-auto overflow-y-hidden no-scrollbar">
+        <div className="grid grid-cols-2 sm:flex sm:items-center rounded-2xl border border-slate-200 bg-slate-100/80 p-1.5 shadow-sm gap-1">
           {tabs.filter((t) => !t.hidden).map((tab) => (
             <button
               key={tab.label}
@@ -595,20 +595,20 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
               }}
               disabled={tab.disabled}
               className={cn(
-                "px-4 py-2.5 text-[11px] font-bold uppercase tracking-wider transition-all duration-200 whitespace-nowrap shrink-0 border-b-2 -mb-px",
+                "flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold transition-all rounded-xl",
                 tab.disabled || (isEditing && tab.label !== "Ficha clínica")
-                  ? "text-slate-300 border-transparent cursor-not-allowed"
+                  ? "text-slate-300 bg-transparent cursor-not-allowed"
                   : state.activeTab === tab.label
-                  ? "text-emerald-700 border-emerald-500 cursor-pointer"
-                  : "text-slate-400 border-transparent hover:text-slate-600 cursor-pointer",
+                  ? "text-emerald-700 bg-white shadow-sm cursor-pointer"
+                  : "text-slate-600 hover:bg-white/60 hover:text-slate-900 cursor-pointer",
               )}
             >
               <span className="inline-flex items-center gap-1.5 relative">
                 {tab.label}
                 {tab.label === "Seguimiento" && (state.portalOverview?.summary?.pendingQuestions ?? 0) > 0 && (
-                  <span className="absolute -top-1 -right-2.5 w-1.5 h-1.5 bg-emerald-500 rounded-full border border-white animate-pulse" />
+                  <span className="w-2 h-2 bg-emerald-500 rounded-full border border-white animate-pulse shrink-0" />
                 )}
-                {tab.disabled && <Lock className="h-2.5 w-2.5" />}
+                {tab.disabled && <Lock className="h-3 w-3 shrink-0" />}
               </span>
             </button>
           ))}

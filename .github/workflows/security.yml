@@ -1,0 +1,35 @@
+name: Security checks
+
+on:
+  pull_request:
+  push:
+    branches: [main, staging]
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Audit dependencies
+        working-directory: backend
+        run: npm audit --audit-level=high
+
+      - name: Run security-focused tests
+        working-directory: backend
+        run: npm run test -- src/config/secrets.spec.ts src/modules/patient-portals/patient-portals.service.spec.ts --runInBand
+
+      - name: Scan repository for secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

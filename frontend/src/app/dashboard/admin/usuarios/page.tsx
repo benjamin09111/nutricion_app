@@ -17,8 +17,8 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { toast } from "sonner";
-import Cookies from "js-cookie";
 import { fetchApi } from "@/lib/api-base";
+import { useAdmin } from "@/context/AdminContext";
 
 interface UserData {
   id: string;
@@ -85,6 +85,7 @@ const roleLabels: Record<string, string> = {
 };
 
 export default function AdminUsersPage() {
+  const { role: adminRole } = useAdmin();
   const [activeTab, setActiveTab] = useState<"create" | "reset" | "admins">(
     "admins",
   );
@@ -125,19 +126,12 @@ export default function AdminUsersPage() {
   const [resetEmail, setResetEmail] = useState("");
   const [isResetting, setIsResetting] = useState(false);
 
-  // Get current user role from token
+  // SEGURIDAD: el rol se pide al backend (`/auth/me` vía AdminContext) y nunca
+  // se decodifica del JWT en el navegador. Esto es sólo para la UI; el backend
+  // vuelve a validar el rol contra la base de datos en cada acción.
   useEffect(() => {
-    const token =
-      Cookies.get("auth_token") || localStorage.getItem("auth_token");
-    if (token) {
-      try {
-        const payload = JSON.parse(atob(token.split(".")[1]));
-        setCurrentAdminRole(payload.role);
-      } catch (e) {
-        console.error("Error decoding token:", e);
-      }
-    }
-  }, []);
+    setCurrentAdminRole(adminRole ?? null);
+  }, [adminRole]);
 
   const fetchMembershipPlans = async () => {
     try {
@@ -157,8 +151,6 @@ export default function AdminUsersPage() {
   const fetchUsers = useCallback(async () => {
     setIsLoadingUsers(true);
     try {
-      const token =
-        Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const roleFilter =
         accountFilter === "admins"
           ? "ALL_ADMINS"
@@ -166,9 +158,7 @@ export default function AdminUsersPage() {
             ? "NUTRITIONIST_DEVELOPER"
             : "ALL_MANAGEMENT_ACCOUNTS";
 
-      const response = await fetchApi(`/users?role=${roleFilter}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await fetchApi(`/users?role=${roleFilter}`);
       if (!response.ok) throw new Error("Error al cargar usuarios");
       const data = await response.json();
       setUsers(data);
@@ -237,21 +227,15 @@ export default function AdminUsersPage() {
 
     setIsLoadingUsers(true);
     try {
-      const token =
-        Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const response =
         confirmAction.type === "DELETE"
           ? await fetchApi(`/users/${selectedUser.id}`, {
               method: "DELETE",
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
             })
           : await fetchApi(`/users/${selectedUser.id}`, {
               method: "PATCH",
               headers: {
                 "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
               },
               body:
                 confirmAction.type === "STATUS"
@@ -296,13 +280,10 @@ export default function AdminUsersPage() {
   ) => {
     setIsCreatingAccount(true);
     try {
-      const token =
-        Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const response = await fetchApi(`/auth/create-account`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           email: payload.email,

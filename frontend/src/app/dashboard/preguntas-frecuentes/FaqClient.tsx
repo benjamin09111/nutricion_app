@@ -55,70 +55,70 @@ export function FaqClient() {
     <section className="space-y-6 pb-10">
       <Card className="overflow-hidden border-slate-200 bg-gradient-to-br from-indigo-50 via-white to-emerald-50 shadow-[0_24px_80px_-40px_rgba(79,70,229,0.35)]">
         <CardContent className="p-0">
-          <div className="grid gap-8 p-6 md:grid-cols-[1.35fr_0.95fr] md:p-8">
-            <div className="space-y-5">
+          <div className="grid gap-6 p-4 sm:p-6 md:grid-cols-[1.35fr_0.95fr] md:p-8">
+            <div className="space-y-4 sm:space-y-5">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="success" className="border-emerald-200 bg-emerald-100 text-emerald-800">
+                <Badge variant="success" className="border-emerald-200 bg-emerald-100 text-emerald-800 text-xs">
                   Centro de ayuda
                 </Badge>
-                <Badge variant="outline" className="border-indigo-200 bg-white text-indigo-700">
+                <Badge variant="outline" className="border-indigo-200 bg-white text-indigo-700 text-xs">
                   Respuestas rápidas
                 </Badge>
               </div>
 
-              <div className="space-y-3">
-                <h1 className="text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">
+              <div className="space-y-2">
+                <h1 className="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl lg:text-4xl">
                   Preguntas frecuentes
                 </h1>
-                <p className="max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
+                <p className="max-w-2xl text-xs sm:text-sm leading-relaxed text-slate-600">
                   Hola, soy Nutria. Aquí encuentras respuestas claras, directas y con accesos
                   concretos para que no tengas que adivinar dónde hacer cada cosa dentro de NutriNet.
                 </p>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-3">
-                <div className="rounded-2xl border border-white/80 bg-white/80 p-4 shadow-sm backdrop-blur">
-                  <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Preguntas</p>
-                  <p className="mt-2 text-2xl font-black text-slate-900">{faqs.length}</p>
+              <div className="grid gap-3 grid-cols-3">
+                <div className="rounded-2xl border border-white/80 bg-white/80 p-3 sm:p-4 shadow-xs backdrop-blur text-center sm:text-left">
+                  <p className="text-[9px] sm:text-xs font-bold uppercase tracking-wider text-slate-400">Preguntas</p>
+                  <p className="mt-1 text-xl sm:text-2xl font-black text-slate-900">{faqs.length}</p>
                 </div>
-                <div className="rounded-2xl border border-white/80 bg-white/80 p-4 shadow-sm backdrop-blur">
-                  <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Categorías</p>
-                  <p className="mt-2 text-2xl font-black text-slate-900">{categoryOrder.length - 1}</p>
+                <div className="rounded-2xl border border-white/80 bg-white/80 p-3 sm:p-4 shadow-xs backdrop-blur text-center sm:text-left">
+                  <p className="text-[9px] sm:text-xs font-bold uppercase tracking-wider text-slate-400">Categorías</p>
+                  <p className="mt-1 text-xl sm:text-2xl font-black text-slate-900">{categoryOrder.length - 1}</p>
                 </div>
-                <div className="rounded-2xl border border-white/80 bg-white/80 p-4 shadow-sm backdrop-blur">
-                  <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Ruta más usada</p>
-                  <Link href="/dashboard/dieta" className="mt-2 inline-flex items-center gap-1 text-sm font-bold text-indigo-700 transition hover:text-indigo-800 cursor-pointer">
-                    Ir a Dieta <ArrowRight className="h-4 w-4" />
+                <div className="rounded-2xl border border-white/80 bg-white/80 p-3 sm:p-4 shadow-xs backdrop-blur flex flex-col justify-center items-center sm:items-start">
+                  <p className="text-[9px] sm:text-xs font-bold uppercase tracking-wider text-slate-400">Ruta más usada</p>
+                  <Link href="/dashboard/dieta" className="mt-1 inline-flex items-center gap-1 text-xs sm:text-sm font-bold text-indigo-700 transition hover:text-indigo-800 cursor-pointer">
+                    Ir a Dieta <ArrowRight className="h-3.5 w-3.5" />
                   </Link>
                 </div>
               </div>
             </div>
 
-            <div className="relative overflow-hidden rounded-[2rem] border border-white/70 bg-white/85 p-6 shadow-xl shadow-indigo-100/50 backdrop-blur">
+            <div className="relative overflow-hidden rounded-2xl border border-white/70 bg-white/85 p-5 sm:p-6 shadow-xl shadow-indigo-100/50 backdrop-blur">
               <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-emerald-200/40 blur-3xl" />
               <div className="absolute -left-10 bottom-0 h-28 w-28 rounded-full bg-indigo-200/40 blur-3xl" />
 
-              <div className="relative flex h-full flex-col items-center justify-center gap-5 text-center">
-                <div className="relative h-28 w-28 overflow-hidden rounded-full border-4 border-white shadow-lg ring-1 ring-indigo-100">
+              <div className="relative flex h-full flex-col items-center justify-center gap-4 text-center">
+                <div className="relative h-24 w-24 sm:h-28 sm:w-28 overflow-hidden rounded-full border-4 border-white shadow-lg ring-1 ring-indigo-100 shrink-0">
                    <Image src="/nutria.webp" alt="Nutria de NutriNet" fill sizes="112px" className="object-cover" priority />
                 </div>
-                <div className="space-y-2">
-                  <p className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-xs font-black uppercase tracking-[0.22em] text-emerald-800">
-                    <Sparkles className="h-3.5 w-3.5" />
+                <div className="space-y-1.5">
+                  <p className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-0.5 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-800">
+                    <Sparkles className="h-3 w-3" />
                     Te acompaño
                   </p>
-                  <p className="text-lg font-black text-slate-900">Hola, soy Nutria. Te ayudo a encontrar la respuesta correcta sin rodeos.</p>
-                  <p className="text-sm leading-6 text-slate-600">
+                  <p className="text-base sm:text-lg font-black text-slate-900">Hola, soy Nutria. Te ayudo a encontrar la respuesta correcta sin rodeos.</p>
+                  <p className="text-xs sm:text-sm leading-relaxed text-slate-600">
                     Si algo te genera duda, empieza por el buscador o abre la categoría que más se parece a tu pregunta.
                   </p>
                 </div>
 
-                <div className="flex flex-wrap items-center justify-center gap-2">
-                  <Link href="/dashboard/feedback" className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 cursor-pointer">
+                <div className="flex flex-wrap items-center justify-center gap-2 w-full">
+                  <Link href="/dashboard/feedback" className="inline-flex items-center justify-center gap-2 rounded-full border border-indigo-200 bg-indigo-600 px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-xs transition hover:bg-indigo-700 cursor-pointer flex-1 sm:flex-none">
                     <HelpCircle className="h-4 w-4" />
                     Pedir ayuda
                   </Link>
-                  <Link href="/dashboard/actualizaciones" className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 cursor-pointer">
+                  <Link href="/dashboard/actualizaciones" className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-xs sm:text-sm font-semibold text-slate-700 shadow-xs transition hover:bg-slate-50 cursor-pointer flex-1 sm:flex-none">
                     Ver novedades
                   </Link>
                 </div>

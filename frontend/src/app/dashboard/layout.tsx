@@ -6,7 +6,6 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { AdminSidebar } from "@/components/layout/AdminSidebar";
 import { Navbar } from "@/components/layout/Navbar";
 import { NutriaChatWidget } from "@/components/layout/NutriaChatWidget";
-import { CopilotPanel } from "@/features/copilot/CopilotPanel";
 import { WelcomeOverlay } from "@/components/welcome/WelcomeOverlay";
 import { AdminProvider, useAdmin } from "@/context/AdminContext";
 import {
@@ -73,29 +72,29 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
 
   const dashboardShell = (
     <div className="dashboard-shell-bg relative h-full">
-      <div className={`fixed inset-0 z-9999 lg:hidden ${sidebarOpen ? "block" : "hidden"}`}>
+      <div className={cn("fixed inset-0 z-50 lg:hidden transition-opacity duration-300", sidebarOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none")}>
         <div
           className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300"
           onClick={() => setSidebarOpen(false)}
         />
 
-        <div className={`dashboard-sidebar-bg fixed inset-y-0 left-0 w-72 shadow-2xl transition-transform duration-300 transform ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
-          <div className="absolute top-4 right-4 animate-in fade-in duration-500">
+        <div className={`dashboard-sidebar-bg fixed inset-y-0 left-0 w-72 max-w-[calc(100vw-3rem)] shadow-2xl transition-transform duration-300 transform ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
+          <div className="absolute top-3 right-3 z-20">
             <button
               type="button"
               className={cn(
-                "rounded-lg border p-2 transition-colors",
+                "rounded-xl border p-2 transition-colors",
                 isDarkMode
                   ? "border-emerald-400/10 bg-emerald-500/8 text-emerald-100/65 hover:text-rose-300"
                   : "border-slate-100 bg-slate-50 text-slate-400 hover:text-rose-500",
               )}
               onClick={() => setSidebarOpen(false)}
             >
-              <X className="h-6 w-6" />
+              <X className="h-5 w-5" />
             </button>
           </div>
 
-          <div className="h-full overflow-y-auto pt-10">
+          <div className="h-full overflow-y-auto pt-2">
              {isAdminView ? (
                <AdminSidebar onItemClick={() => setSidebarOpen(false)} />
              ) : (
@@ -140,8 +139,6 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
       </div>
 
       <NutriaChatWidget />
-
-      <CopilotPanel />
 
       <WelcomeOverlay />
 

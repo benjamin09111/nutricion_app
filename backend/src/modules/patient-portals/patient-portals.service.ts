@@ -1,13 +1,22 @@
 import {
   BadRequestException,
   ForbiddenException,
+  HttpException,
+  HttpStatus,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { resolveRequiredUrl } from '../../common/utils/runtime-url.util';
 import { JwtService } from '@nestjs/jwt';
-import { createHash, randomBytes } from 'crypto';
+import {
+  createHash,
+  randomBytes,
+  randomInt,
+  scrypt as scryptCallback,
+  timingSafeEqual,
+} from 'crypto';
+import { promisify } from 'util';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AppointmentsService } from '../appointments/appointments.service';
 import { MailService } from '../mail/mail.service';
@@ -93,8 +102,10 @@ type InvitationSummary = {
   resourceIds: string[];
   deliverableCreationIds: string[];
   createdAt: Date;
-  accessCode: string;
 };
+
+const scrypt = promisify(scryptCallback);
+const GENERIC_PORTAL_LOGIN_ERROR = 'Correo o código de acceso no válido';
 
 type PortalResource = {
   id: string;
@@ -276,9 +287,6 @@ export class PatientPortalsService {
 
     const token = randomBytes(32).toString('hex');
     const tokenHash = this.hashToken(token);
-    const accessCode = this.formatAccessCodeForDisplay(
-      this.getPortalAccessCode(patientId, nutritionistId),
-    );
     const nutritionistAccountId = patient.nutritionist.accountId;
 
     await this.assertFollowUpLimit({
@@ -325,6 +333,7 @@ export class PatientPortalsService {
       });
     });
 
+    const accessCode = await this.issueAccessCode(invitation.id);
     const shareUrl = this.buildPortalUrl(token);
     const recipientEmail = dto.email?.trim() || patient.email || '';
 
@@ -368,16 +377,17 @@ export class PatientPortalsService {
     });
 
     if (!invitation) {
-      throw new NotFoundException('No se encontró invitación para este paciente');
+      throw new NotFoundException(
+        'No se encontró invitación para este paciente',
+      );
     }
 
-    const accessCode = this.formatAccessCodeForDisplay(
-      this.getPortalAccessCode(patientId, nutritionistId),
-    );
-
-    const recipientEmail = email?.trim() || invitation.email || invitation.patient.email;
+    const recipientEmail =
+      email?.trim() || invitation.email || invitation.patient.email;
     if (!recipientEmail) {
-      throw new BadRequestException('No hay un correo disponible para enviar la invitación');
+      throw new BadRequestException(
+        'No hay un correo disponible para enviar la invitación',
+      );
     }
 
     const { randomBytes } = await import('crypto');
@@ -386,6 +396,7 @@ export class PatientPortalsService {
     const shareUrl = this.buildPortalUrl(rawToken);
 
     try {
+      const accessCode = await this.issueAccessCode(invitation.id);
       await this.mailService.sendPatientPortalInvitationEmail({
         email: recipientEmail,
         patientName: invitation.patient.fullName,
@@ -403,8 +414,34 @@ export class PatientPortalsService {
       return { success: true, sentTo: recipientEmail };
     } catch (err) {
       console.error('Error sending invitation email:', err);
-      throw new BadRequestException('No se pudo enviar el correo de invitación');
+      throw new BadRequestException(
+        'No se pudo enviar el correo de invitación',
+      );
     }
+  }
+
+  async rotateAccessCode(nutritionistId: string, patientId: string) {
+    const invitation = await this.prisma.patientPortalInvitation.findFirst({
+      where: {
+        patientId,
+        nutritionistId,
+        status: 'ACTIVE',
+        revokedAt: null,
+        blockedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true },
+    });
+
+    if (!invitation) {
+      throw new NotFoundException(
+        'No se encontró un portal activo para este paciente',
+      );
+    }
+
+    const accessCode = await this.issueAccessCode(invitation.id);
+    return { success: true, accessCode };
   }
 
   async previewInvitation(token: string) {
@@ -424,35 +461,40 @@ export class PatientPortalsService {
       throw new BadRequestException('Debes ingresar un correo');
     }
 
-    const normalizedCode = this.normalizeAccessCode(accessCode);
-    if (!normalizedCode) {
-      throw new BadRequestException('Debes ingresar tu código de acceso');
-    }
-
     const invitation = await this.findInvitationByToken(token);
     const invitationEmail = invitation.email
       ? this.normalizeEmail(invitation.email)
       : null;
-    const expectedCode = this.getPortalAccessCode(
-      invitation.patientId,
-      invitation.nutritionistId,
-    );
 
     if (invitationEmail && invitationEmail !== normalizedEmail) {
-      throw new ForbiddenException('Ese correo no coincide con la invitación');
-    }
-
-    if (normalizedCode !== expectedCode) {
-      throw new ForbiddenException('El código de acceso es incorrecto');
+      throw new ForbiddenException(GENERIC_PORTAL_LOGIN_ERROR);
     }
 
     if (
       invitation.status !== 'ACTIVE' ||
+      invitation.expiresAt <= new Date() ||
       invitation.revokedAt ||
-      invitation.blockedAt
+      invitation.blockedAt ||
+      (invitation.lockedUntil && invitation.lockedUntil > new Date())
     ) {
-      throw new ForbiddenException('La invitación expiró o ya no está activa');
+      throw new HttpException(
+        GENERIC_PORTAL_LOGIN_ERROR,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
     }
+
+    if (
+      !invitation.accessCodeHash ||
+      !(await this.verifyAccessCode(invitation.accessCodeHash, accessCode))
+    ) {
+      await this.registerFailedAttempt(
+        invitation.id,
+        invitation.failedAttempts,
+      );
+      throw new ForbiddenException(GENERIC_PORTAL_LOGIN_ERROR);
+    }
+
+    await this.resetFailedAttempts(invitation.id);
 
     if (!invitation.email) {
       await this.prisma.patientPortalInvitation.update({
@@ -478,11 +520,8 @@ export class PatientPortalsService {
         invitationId: invitation.id,
       } satisfies PortalSessionPayload,
       {
-        secret:
-          this.configService.get<string>('PORTAL_JWT_SECRET') ||
-          this.configService.get<string>('JWT_SECRET') ||
-          'secret',
-        expiresIn: '100y',
+        secret: this.configService.getOrThrow<string>('PORTAL_JWT_SECRET'),
+        expiresIn: '7d',
       },
     );
 
@@ -503,71 +542,66 @@ export class PatientPortalsService {
       throw new BadRequestException('Debes ingresar un correo');
     }
 
-    const normalizedCode = this.normalizeAccessCode(accessCode);
-    if (!normalizedCode) {
-      throw new BadRequestException('Debes ingresar tu código de acceso');
-    }
-
-    // Buscar invitaciones activas por email
-    const invitations = await this.prisma.patientPortalInvitation.findMany({
+    const invitation = await this.prisma.patientPortalInvitation.findFirst({
       where: {
         email: normalizedEmail,
-        status: { in: ['ACTIVE', 'PENDING'] },
+        status: 'ACTIVE',
         revokedAt: null,
         blockedAt: null,
+        expiresAt: { gt: new Date() },
       },
       orderBy: { createdAt: 'desc' },
-      include: {
-        patient: {
-          select: {
-            id: true,
-            fullName: true,
-          },
-        },
+      select: {
+        id: true,
+        patientId: true,
+        nutritionistId: true,
+        accessCodeHash: true,
+        failedAttempts: true,
+        lockedUntil: true,
       },
     });
 
-    if (invitations.length === 0) {
-      throw new ForbiddenException('No hay portales activos para ese correo');
+    if (!invitation) {
+      throw new ForbiddenException(GENERIC_PORTAL_LOGIN_ERROR);
     }
 
-    // Verificar el código para cada invitación
-    let validInvitation = null;
-    for (const inv of invitations) {
-      const expectedCode = this.getPortalAccessCode(
-        inv.patientId,
-        inv.nutritionistId,
+    if (invitation.lockedUntil && invitation.lockedUntil > new Date()) {
+      throw new HttpException(
+        GENERIC_PORTAL_LOGIN_ERROR,
+        HttpStatus.TOO_MANY_REQUESTS,
       );
-      if (normalizedCode === expectedCode) {
-        validInvitation = inv;
-        break;
-      }
     }
 
-    if (!validInvitation) {
-      throw new ForbiddenException('Código de acceso incorrecto');
+    if (
+      !invitation.accessCodeHash ||
+      !(await this.verifyAccessCode(invitation.accessCodeHash, accessCode))
+    ) {
+      await this.registerFailedAttempt(
+        invitation.id,
+        invitation.failedAttempts,
+      );
+      throw new ForbiddenException(GENERIC_PORTAL_LOGIN_ERROR);
     }
+
+    await this.resetFailedAttempts(invitation.id);
 
     // Si encontramos una válida, generamos el token JWT
     const accessToken = await this.jwtService.signAsync(
       {
         kind: 'patient-portal',
-        patientId: validInvitation.patientId,
-        nutritionistId: validInvitation.nutritionistId,
-        invitationId: validInvitation.id,
+        patientId: invitation.patientId,
+        nutritionistId: invitation.nutritionistId,
+        invitationId: invitation.id,
       } satisfies PortalSessionPayload,
       {
-        secret:
-          this.configService.get<string>('PORTAL_JWT_SECRET') ||
-          this.configService.get<string>('JWT_SECRET') ||
-          'secret',
-        expiresIn: '100y',
+        secret: this.configService.getOrThrow<string>('PORTAL_JWT_SECRET'),
+        expiresIn: '7d',
       },
     );
 
     // Actualizar fecha de verificación
     await this.prisma.patientPortalInvitation.update({
-      where: { id: validInvitation.id },
+      where: { id: invitation.id },
       data: {
         verifiedAt: new Date(),
         status: 'ACTIVE', // Aseguramos que pase a ACTIVE si estaba PENDING
@@ -575,13 +609,13 @@ export class PatientPortalsService {
     });
 
     const overview = await this.buildOverview(
-      validInvitation.nutritionistId,
-      validInvitation.patientId,
+      invitation.nutritionistId,
+      invitation.patientId,
     );
 
     return {
       accessToken,
-      invitationId: validInvitation.id,
+      invitationId: invitation.id,
       ...overview,
     };
   }
@@ -1307,7 +1341,13 @@ export class PatientPortalsService {
                 id: { in: sharingInvitation.deliverableCreationIds },
                 nutritionistId,
                 type: {
-                  in: ['DIET', 'SHOPPING_LIST', 'RECIPE', 'FAST_DELIVERABLE', 'PAUTAS'],
+                  in: [
+                    'DIET',
+                    'SHOPPING_LIST',
+                    'RECIPE',
+                    'FAST_DELIVERABLE',
+                    'PAUTAS',
+                  ],
                 },
               },
               orderBy: { updatedAt: 'desc' },
@@ -1372,18 +1412,10 @@ export class PatientPortalsService {
       patient,
       portal: {
         activeInvitation: activeInvitation
-          ? this.formatInvitationSummary(
-              activeInvitation,
-              patientId,
-              nutritionistId,
-            )
+          ? this.formatInvitationSummary(activeInvitation)
           : null,
         latestInvitation: latestInvitation
-          ? this.formatInvitationSummary(
-              latestInvitation,
-              patientId,
-              nutritionistId,
-            )
+          ? this.formatInvitationSummary(latestInvitation)
           : null,
       },
       summary,
@@ -1553,31 +1585,24 @@ export class PatientPortalsService {
     };
   }
 
-  private formatInvitationSummary(
-    invitation: {
-      id: string;
-      email: string | null;
-      expiresAt: Date;
-      status: string;
-      lastSentAt: Date | null;
-      verifiedAt: Date | null;
-      revokedAt: Date | null;
-      blockedAt?: Date | null;
-      resourceIds?: string[];
-      deliverableCreationIds?: string[];
-      createdAt: Date;
-    },
-    patientId: string,
-    nutritionistId: string,
-  ): InvitationSummary {
+  private formatInvitationSummary(invitation: {
+    id: string;
+    email: string | null;
+    expiresAt: Date;
+    status: string;
+    lastSentAt: Date | null;
+    verifiedAt: Date | null;
+    revokedAt: Date | null;
+    blockedAt?: Date | null;
+    resourceIds?: string[];
+    deliverableCreationIds?: string[];
+    createdAt: Date;
+  }): InvitationSummary {
     return {
       ...invitation,
       blockedAt: invitation.blockedAt || null,
       resourceIds: invitation.resourceIds || [],
       deliverableCreationIds: invitation.deliverableCreationIds || [],
-      accessCode: this.formatAccessCodeForDisplay(
-        this.getPortalAccessCode(patientId, nutritionistId),
-      ),
     };
   }
 
@@ -1609,23 +1634,85 @@ export class PatientPortalsService {
     return invitation;
   }
 
-  private getPortalAccessCode(patientId: string, nutritionistId: string) {
-    const secret =
-      this.configService.get<string>('PORTAL_ACCESS_CODE_SECRET') ||
-      this.configService.get<string>('PORTAL_JWT_SECRET') ||
-      this.configService.get<string>('JWT_SECRET') ||
-      'secret';
+  private async issueAccessCode(invitationId: string) {
+    const code = randomInt(0, 100_000_000).toString().padStart(8, '0');
+    const accessCodeHash = await this.hashAccessCode(code);
 
-    const digest = createHash('sha256')
-      .update(`${secret}:${nutritionistId}:${patientId}:patient-portal-code`)
-      .digest();
-    const code = digest.readUInt32BE(0) % 1000000;
-    return code.toString().padStart(6, '0');
+    await this.prisma.patientPortalInvitation.update({
+      where: { id: invitationId },
+      data: {
+        accessCodeHash,
+        accessCodeSetAt: new Date(),
+        failedAttempts: 0,
+        lockedUntil: null,
+        blockedAt: null,
+        status: 'ACTIVE',
+      },
+    });
+
+    return this.formatAccessCodeForDisplay(code);
+  }
+
+  private async hashAccessCode(code: string) {
+    const salt = randomBytes(16);
+    const derivedKey = (await scrypt(code, salt, 64)) as Buffer;
+    return `${salt.toString('base64')}:${derivedKey.toString('base64')}`;
+  }
+
+  private async verifyAccessCode(storedHash: string, code: string) {
+    const normalizedCode = this.normalizeAccessCode(code);
+    if (normalizedCode.length !== 8) return false;
+
+    try {
+      const [saltBase64, digestBase64] = storedHash.split(':');
+      if (!saltBase64 || !digestBase64) return false;
+      const salt = Buffer.from(saltBase64, 'base64');
+      const expected = Buffer.from(digestBase64, 'base64');
+      const actual = (await scrypt(
+        normalizedCode,
+        salt,
+        expected.length,
+      )) as Buffer;
+      return (
+        expected.length === actual.length && timingSafeEqual(expected, actual)
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  private async registerFailedAttempt(
+    invitationId: string,
+    failedAttempts: number,
+  ) {
+    const nextAttempts = failedAttempts + 1;
+    const now = new Date();
+    const shouldBlock = nextAttempts >= 10;
+    const shouldLock = nextAttempts >= 5;
+
+    await this.prisma.patientPortalInvitation.update({
+      where: { id: invitationId },
+      data: {
+        failedAttempts: { increment: 1 },
+        ...(shouldBlock
+          ? { blockedAt: now, status: 'BLOCKED' }
+          : shouldLock
+            ? { lockedUntil: new Date(now.getTime() + 15 * 60 * 1000) }
+            : {}),
+      },
+    });
+  }
+
+  private resetFailedAttempts(invitationId: string) {
+    return this.prisma.patientPortalInvitation.update({
+      where: { id: invitationId },
+      data: { failedAttempts: 0, lockedUntil: null },
+    });
   }
 
   private formatAccessCodeForDisplay(code: string) {
-    const digits = this.normalizeAccessCode(code).padStart(6, '0');
-    return `${digits.slice(0, 3)}-${digits.slice(3, 6)}`;
+    const digits = this.normalizeAccessCode(code).padStart(8, '0');
+    return `${digits.slice(0, 4)}-${digits.slice(4, 8)}`;
   }
 
   private buildPortalUrl(token: string) {
@@ -1647,6 +1734,6 @@ export class PatientPortalsService {
   }
 
   private normalizeAccessCode(code: string) {
-    return code.replace(/\D/g, '').slice(0, 6);
+    return code.replace(/\D/g, '').slice(0, 8);
   }
 }

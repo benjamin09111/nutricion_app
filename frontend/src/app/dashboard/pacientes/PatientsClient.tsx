@@ -150,31 +150,35 @@ export default function PatientsClient() {
       title="Mis Pacientes"
       description="Gestiona a tus pacientes: puedes crear, ver su progreso a través del tiempo, crear un espacio de comunicación privado y mucho más."
       rightContent={
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => setIsPrivacyModalOpen(true)}
             title="Protección y privacidad"
-            className="h-10 px-4 rounded-xl border border-indigo-200 text-indigo-600 hover:bg-indigo-50 font-medium transition-all flex items-center gap-2"
+            className="h-9 sm:h-10 px-3 sm:px-4 rounded-xl border border-indigo-200 text-indigo-600 hover:bg-indigo-50 font-medium transition-all flex items-center gap-1.5 sm:gap-2 shrink-0 cursor-pointer"
             aria-label="Ver información de protección y privacidad"
           >
             <ShieldCheck className="h-4 w-4 shrink-0" />
-            <span className="text-sm whitespace-nowrap">
-              Protección y privacidad
+            <span className="text-xs sm:text-sm whitespace-nowrap">
+              <span className="hidden sm:inline">Protección y privacidad</span>
+              <span className="sm:hidden">Privacidad</span>
             </span>
           </button>
           <Button
             variant="outline"
             disabled={isExporting || isLoading}
             onClick={handleExportPatientsExcel}
-            className="h-10 px-5 rounded-xl border-emerald-200 text-emerald-700 hover:bg-emerald-50 font-medium transition-all flex items-center gap-2"
+            className="h-9 sm:h-10 px-3 sm:px-5 rounded-xl border-emerald-200 text-emerald-700 hover:bg-emerald-50 font-medium transition-all flex items-center gap-1.5 sm:gap-2 shrink-0 cursor-pointer"
           >
             {isExporting ? (
-              <div className="h-4 w-4 border-2 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" />
+              <div className="h-4 w-4 border-2 border-emerald-200 border-t-emerald-600 rounded-full animate-spin shrink-0" />
             ) : (
-              <FileSpreadsheet className="h-4 w-4" />
+              <FileSpreadsheet className="h-4 w-4 shrink-0" />
             )}
-            <span className="text-sm whitespace-nowrap">Exportar Excel</span>
+            <span className="text-xs sm:text-sm whitespace-nowrap">
+              <span className="hidden sm:inline">Exportar Excel</span>
+              <span className="sm:hidden">Excel</span>
+            </span>
           </Button>
         </div>
       }
@@ -182,7 +186,7 @@ export default function PatientsClient() {
     >
       <div className="space-y-4 mb-6">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-1 items-center gap-3 min-w-0">
+          <div className="flex flex-1 items-center gap-2.5 min-w-0">
             <div className="pl-2 shrink-0">
               <Search className="h-5 w-5 text-slate-400" />
             </div>
@@ -221,37 +225,42 @@ export default function PatientsClient() {
               </div>
             </div>
 
-            <Button
-              variant="outline"
-              disabled
-              onClick={() => setIsShareModalOpen(true)}
-              className="h-10 px-5 rounded-xl border-indigo-200 text-indigo-400 bg-slate-50 font-medium transition-all gap-2 cursor-not-allowed"
-            >
-              <Lock className="h-4 w-4" />
-              <span className="text-sm whitespace-nowrap">Compartir formulario</span>
-            </Button>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <Button
+                variant="outline"
+                disabled
+                onClick={() => setIsShareModalOpen(true)}
+                className="h-10 px-3 sm:px-5 flex-1 sm:flex-initial justify-center rounded-xl border-indigo-200 text-indigo-400 bg-slate-50 font-medium transition-all gap-1.5 sm:gap-2 cursor-not-allowed"
+              >
+                <Lock className="h-4 w-4 shrink-0" />
+                <span className="text-xs sm:text-sm whitespace-nowrap">
+                  <span className="hidden sm:inline">Compartir formulario</span>
+                  <span className="sm:hidden">Compartir</span>
+                </span>
+              </Button>
 
-            <Button
-              onClick={() => {
-                if (isPatientLimitReached) {
-                  toast.error(
-                    "Has alcanzado el límite de pacientes activos de tu plan.",
-                  );
-                  return;
-                }
-                router.push("/dashboard/pacientes/new");
-              }}
-              disabled={isPatientLimitReached}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium h-10 px-6 rounded-xl shadow-sm transition-all gap-2"
-            >
-              <Plus
-                className="h-4 w-4 group-hover:rotate-90 transition-transform"
-                aria-hidden="true"
-              />
-              <span className="text-sm">
-                {isPatientLimitReached ? "Límite alcanzado" : "Crear paciente"}
-              </span>
-            </Button>
+              <Button
+                onClick={() => {
+                  if (isPatientLimitReached) {
+                    toast.error(
+                      "Has alcanzado el límite de pacientes activos de tu plan.",
+                    );
+                    return;
+                  }
+                  router.push("/dashboard/pacientes/new");
+                }}
+                disabled={isPatientLimitReached}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium h-10 px-4 sm:px-6 flex-1 sm:flex-initial justify-center rounded-xl shadow-sm transition-all gap-1.5 sm:gap-2"
+              >
+                <Plus
+                  className="h-4 w-4 shrink-0"
+                  aria-hidden="true"
+                />
+                <span className="text-xs sm:text-sm whitespace-nowrap">
+                  {isPatientLimitReached ? "Límite alcanzado" : "Crear paciente"}
+                </span>
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -565,7 +574,7 @@ export default function PatientsClient() {
                     )}
                   </div>
 
-                  <div className="flex items-center justify-between pt-4 border-t border-slate-50">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-slate-100">
                     <div className="text-xs font-semibold text-slate-400">
                       ID:{" "}
                       <span className="text-slate-600 ml-1">
@@ -573,48 +582,50 @@ export default function PatientsClient() {
                       </span>
                     </div>
                     <div
-                      className="flex items-center gap-2"
+                      className="flex items-center justify-between sm:justify-end gap-1.5"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <button
-                        onClick={() => openPatientPreview(patient)}
-                        className="p-2 text-slate-400 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 rounded-lg"
-                        title="Ver"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleTogglePatientStatus(patient)}
-                        className="p-2 bg-slate-50 rounded-lg"
-                        title={
-                          patient.status === "Active"
-                            ? "Inhabilitar"
-                            : "Habilitar"
-                        }
-                      >
-                        {patient.status === "Active" ? (
-                          <Ban className="w-4 h-4 text-emerald-600" />
-                        ) : (
-                          <CheckCircle2 className="w-4 h-4 text-indigo-600" />
-                        )}
-                      </button>
-                      <button
-                        onClick={() => {
-                          setPatientToDelete(patient);
-                          setIsDeleteModalOpen(true);
-                        }}
-                        className="p-2 text-slate-400 hover:text-rose-600 bg-slate-50 hover:bg-rose-50 rounded-lg"
-                        title="Eliminar paciente"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => openPatientPreview(patient)}
+                          className="p-2 text-slate-400 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 rounded-xl transition-all"
+                          title="Ver detalles"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleTogglePatientStatus(patient)}
+                          className="p-2 text-slate-400 hover:bg-slate-100 bg-slate-50 rounded-xl transition-all"
+                          title={
+                            patient.status === "Active"
+                              ? "Inhabilitar"
+                              : "Habilitar"
+                          }
+                        >
+                          {patient.status === "Active" ? (
+                            <Ban className="w-4 h-4 text-emerald-600" />
+                          ) : (
+                            <CheckCircle2 className="w-4 h-4 text-indigo-600" />
+                          )}
+                        </button>
+                        <button
+                          onClick={() => {
+                            setPatientToDelete(patient);
+                            setIsDeleteModalOpen(true);
+                          }}
+                          className="p-2 text-slate-400 hover:text-rose-600 bg-slate-50 hover:bg-rose-50 rounded-xl transition-all"
+                          title="Eliminar paciente"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                       <button
                         onClick={() =>
                           router.push(`/dashboard/pacientes/${patient.id}`)
                         }
-                        className="p-2 text-indigo-600 bg-indigo-50 rounded-lg ml-1 font-bold text-[10px] px-3 flex items-center gap-1 shadow-sm border border-indigo-100"
+                        className="py-2 px-3 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl font-bold text-xs flex items-center gap-1 shadow-sm border border-indigo-100 cursor-pointer"
                       >
-                        VER FICHA <ArrowRight className="w-3 h-3" />
+                        VER FICHA <ArrowRight className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
@@ -644,7 +655,7 @@ export default function PatientsClient() {
 
       {patientPreview && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-2xl rounded-3xl border border-slate-200 bg-white shadow-2xl">
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl border border-slate-200 bg-white shadow-2xl">
             <div className="flex items-start justify-between gap-4 border-b border-slate-100 p-6">
               <div className="flex items-center gap-4">
                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-indigo-100 bg-indigo-50 text-lg font-bold text-indigo-600">

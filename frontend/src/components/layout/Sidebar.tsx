@@ -192,7 +192,7 @@ export function Sidebar({ onItemClick }: SidebarProps = {}) {
       <div
         className={cn(
           "flex h-16 shrink-0 items-center justify-between sticky top-0 z-10 dashboard-sidebar-bg",
-          isSidebarCollapsed ? "flex-col gap-1 pt-2 pb-1 h-20 -mx-2 px-2" : "-mx-4 px-4 pl-6",
+          isSidebarCollapsed ? "flex-col gap-1 pt-2 pb-1 h-20 -mx-2 px-2" : "-mx-4 px-4 pl-5 pr-12 lg:pr-4",
         )}
       >
         <Link
@@ -231,28 +231,39 @@ export function Sidebar({ onItemClick }: SidebarProps = {}) {
         <ul role="list" className="flex flex-1 flex-col gap-y-2">
           {visibleGroups.map((group) => {
             const isOpen = openGroups[group.title] === true;
-            const showItems = isOpen;
+            const showItems = onItemClick ? true : isOpen;
 
             return (
               <li key={group.title}>
                 {!isSidebarCollapsed && (
-                  <button
-                    type="button"
-                    onClick={() => toggleGroup(group.title)}
-                    className={cn(
-                      "flex w-full items-center justify-between mb-1 pl-2 text-[0.7rem] font-bold uppercase tracking-wider transition-colors",
-                      isDarkMode ? "text-indigo-100/55 hover:text-indigo-100/80" : "text-slate-400 hover:text-slate-600",
-                    )}
-                  >
-                    <span>{group.title}</span>
-                    <div className="flex items-center pr-1">
-                      {isOpen ? (
-                        <ChevronDown className="h-3 w-3" />
-                      ) : (
-                        <ChevronRight className="h-3 w-3" />
+                  onItemClick ? (
+                    <div
+                      className={cn(
+                        "mb-1 pl-2 text-[0.7rem] font-bold uppercase tracking-wider",
+                        isDarkMode ? "text-indigo-100/55" : "text-slate-400",
                       )}
+                    >
+                      {group.title}
                     </div>
-                  </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => toggleGroup(group.title)}
+                      className={cn(
+                        "flex w-full items-center justify-between mb-1 pl-2 text-[0.7rem] font-bold uppercase tracking-wider transition-colors",
+                        isDarkMode ? "text-indigo-100/55 hover:text-indigo-100/80" : "text-slate-400 hover:text-slate-600",
+                      )}
+                    >
+                      <span>{group.title}</span>
+                      <div className="flex items-center pr-1">
+                        {isOpen ? (
+                          <ChevronDown className="h-3 w-3" />
+                        ) : (
+                          <ChevronRight className="h-3 w-3" />
+                        )}
+                      </div>
+                    </button>
+                  )
                 )}
                 {showItems && (
                   <ul role="list" className={cn("-mx-2 space-y-0.5", !isSidebarCollapsed && "mt-1")}>

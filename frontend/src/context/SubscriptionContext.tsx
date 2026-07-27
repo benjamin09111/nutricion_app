@@ -113,7 +113,8 @@ export function SubscriptionProvider({
     const user = getCurrentUser();
     if (!user) return;
 
-    setRole(typeof user?.role === "string" ? user.role : null);
+    // El rol NO se toma del snapshot local (cookie manipulable); sólo llega
+    // desde `/auth/me`. Aquí sólo se rehidratan datos de plan para la UI.
     if (user.plan || user.currentPlan?.key || user.currentPlan?.slug) {
       const backendPlan = String(user.currentPlan?.key || user.currentPlan?.slug || user.plan).toLowerCase();
       if (backendPlan === "free" || backendPlan === "freemium") setPlan("free");
@@ -159,7 +160,6 @@ export function SubscriptionProvider({
   );
 
   const refreshSubscription = useCallback(async () => {
-    let resolvedRole: string | null = null;
     const previousUser = getCurrentUser();
 
     try {
@@ -199,17 +199,14 @@ export function SubscriptionProvider({
         if (meResponse.ok) {
           const meData = await meResponse.json();
           const user = meData?.user || meData;
-          resolvedRole = typeof user?.role === "string" ? user.role : null;
-          setRole(resolvedRole);
+          setRole(typeof user?.role === "string" ? user.role : null);
           setCurrentUser(user);
         }
       } catch {}
 
       const user = getCurrentUser();
       if (user) {
-        if (resolvedRole === null) {
-          setRole(typeof user?.role === "string" ? user.role : null);
-        }
+        // Sin fallback de rol: si `/auth/me` no respondió, el rol queda nulo.
         user.plan = data.accountPlan || key;
         user.planName = data.currentPlan?.name || "Plan Gratuito";
         user.subscription = data.subscription;

@@ -46,9 +46,14 @@ describe('AuthController', () => {
 
     expect(authService.login).toHaveBeenCalledWith(credentials);
     expect(response.cookie).toHaveBeenCalledWith(
-      'auth_token_http',
+      'auth_session',
       'signed-token',
       expect.objectContaining({ httpOnly: true, sameSite: 'lax' }),
+    );
+    expect(response.cookie).toHaveBeenCalledWith(
+      'auth_session_present',
+      '1',
+      expect.objectContaining({ httpOnly: false }),
     );
   });
 

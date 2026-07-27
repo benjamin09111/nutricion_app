@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -1088,7 +1088,7 @@ export default function GruposClient({
       <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-3">
-            <div className="inline-flex rounded-2xl border border-slate-200/80 bg-slate-100/80 p-1">
+            <div className="grid grid-cols-2 sm:flex w-full sm:w-auto rounded-2xl border border-slate-200/80 bg-slate-100/80 p-1 gap-1">
               {groupTabs.map(({ label, icon }) => (
                 <button
                   key={label}
@@ -1106,7 +1106,7 @@ export default function GruposClient({
                     }
                   }}
                   className={cn(
-                    "flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all",
+                    "flex items-center justify-center gap-2 rounded-xl px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold transition-all",
                     activeTab === label
                       ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200/70"
                       : "text-slate-500 hover:bg-white/70 hover:text-slate-700",
@@ -1128,15 +1128,15 @@ export default function GruposClient({
           <p className="max-w-3xl text-sm text-slate-500">
             {activeTab === "Mis grupos"
               ? "Explora tus grupos creados o revisa tus alimentos y los de la comunidad para agregarlos rápido a un grupo."
-              : "Selecciona ingredientes por categoría, busca por nombre y aplica filtros nutricionales antes de crear el grupo."}
+              : "Selecciona y ajusta ingredientes para armar tu grupo personalizado."}
           </p>
         </div>
 
-        <div className="shrink-0">{headerRight}</div>
+        {headerRight}
       </div>
 
-      {activeTab === "Crear grupo" && freemiumLimitReached && !editingGroupId && (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900">
+      {freemiumLimitReached && activeTab === "Crear grupo" && (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs font-semibold text-rose-800">
           Ya alcanzaste el límite de 2 grupos en FREEMIUM. Elimina uno para crear otro.
         </div>
       )}
@@ -1144,7 +1144,7 @@ export default function GruposClient({
       {activeTab === "Mis grupos" && (
         <div className="space-y-4">
             <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-100/80 p-1 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex flex-wrap gap-2">
+              <div className="grid grid-cols-1 sm:flex w-full sm:w-auto gap-1">
               {[
                 { key: "groups", label: "Mis grupos creados", icon: <Layers size={16} /> },
                 { key: "mine", label: "Mis alimentos creados", icon: <UtensilsCrossed size={16} /> },
@@ -1167,7 +1167,7 @@ export default function GruposClient({
                       void openPreviewSourceTab(tab.key as IngredientSourceTab);
                     }}
                     className={cn(
-                      "rounded-xl px-4 py-2 text-sm font-semibold transition-all",
+                      "flex items-center justify-center gap-2 rounded-xl px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold transition-all",
                       isSelected
                         ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200/70"
                         : "text-slate-500 hover:bg-white/70 hover:text-slate-700",
