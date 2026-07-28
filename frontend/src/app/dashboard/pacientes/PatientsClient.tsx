@@ -18,11 +18,13 @@ import {
   Lock,
   FileSpreadsheet,
   ShieldCheck,
+  Download,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Patient } from "@/features/patients";
+import { buildClinicalRecordDraft } from "@/features/patients/clinical-record";
 import { TagInput } from "@/components/ui/TagInput";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -40,6 +42,7 @@ import { useSubscription } from "@/context/SubscriptionContext";
 import { useScrollLock } from "@/hooks/useScrollLock";
 import { ShareFormModal } from "@/features/patients-intake/components/ShareFormModal";
 import { PrivacyInfoModal } from "@/features/patients/components/PrivacyInfoModal";
+import { buildClinicalRecordPdfData } from "@/features/patients/utils/clinical-record-export";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -130,6 +133,23 @@ export default function PatientsClient() {
       toast.success("Excel de pacientes descargado");
     } catch {
       toast.error("Error al exportar pacientes");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleExportClinicalRecord = async (patient: Patient) => {
+    setIsExporting(true);
+    try {
+      const response = await fetchApi(`/patients/${patient.id}/clinical-record`);
+      const clinicalRecord = response.ok ? await response.json() : null;
+      const clinicalRecordDraft = buildClinicalRecordDraft(patient, clinicalRecord);
+      const { downloadClinicalRecordPdf } = await import("@/features/pdf/clinicalRecordPdfExport");
+      await downloadClinicalRecordPdf(buildClinicalRecordPdfData(patient, clinicalRecordDraft));
+      toast.success("Ficha clínica descargada");
+    } catch (error) {
+      console.error("Clinical Record PDF Error:", error);
+      toast.error("Error al generar la ficha clínica");
     } finally {
       setIsExporting(false);
     }
@@ -454,6 +474,14 @@ export default function PatientsClient() {
                               <Eye className="w-4.5 h-4.5" />
                             </button>
                             <button
+                              onClick={() => handleExportClinicalRecord(patient)}
+                              className="group relative p-2.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
+                              title="Descargar ficha clínica PDF"
+                              disabled={isExporting}
+                            >
+                              <Download className="w-4.5 h-4.5" />
+                            </button>
+                            <button
                               onClick={() => handleTogglePatientStatus(patient)}
                               className="group relative p-2.5 text-slate-400 hover:bg-slate-100 rounded-xl transition-all"
                               title={patient.status === "Active" ? "Inhabilitar paciente" : "Habilitar paciente"}
@@ -592,6 +620,14 @@ export default function PatientsClient() {
                           title="Ver detalles"
                         >
                           <Eye className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleExportClinicalRecord(patient)}
+                          className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 bg-slate-50 rounded-xl transition-all"
+                          title="Descargar ficha clínica PDF"
+                          disabled={isExporting}
+                        >
+                          <Download className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleTogglePatientStatus(patient)}

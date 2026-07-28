@@ -1506,6 +1506,7 @@ export default function QuickRecipesClient() {
         description="Genera recetas rápidas reutilizando contexto clínico, restricciones y preferencias."
         step={{ number: "Express", label: "Receta rápida", icon: ChefHat, color: "text-amber-600" }}
         rightNavItems={actionItems}
+        rightNavDesktopBreakpoint="lg"
         className="max-w-[68rem]"
       >
         <PlanWizardShell

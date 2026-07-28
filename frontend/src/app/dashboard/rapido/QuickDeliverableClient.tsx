@@ -2095,6 +2095,7 @@ export default function QuickDeliverableClient() {
         description="Crea un entregable express de una sola hoja con horarios, indicaciones, alimentos a evitar, recursos y una guía breve de porciones."
         className="max-w-[68rem]"
         rightNavItems={actionItems}
+        rightNavDesktopBreakpoint="lg"
       >
         <WorkflowContextBanner
           projectName={currentProjectName}

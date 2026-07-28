@@ -27,6 +27,7 @@ import {
   formatDateOnlyForLocale,
   getTodayDateInputValue,
 } from "../utils/patient-helpers";
+import { buildClinicalRecordPdfData } from "../utils/clinical-record-export";
 import { Ruler, Weight, Activity, Dumbbell, Zap, Target, Heart } from "lucide-react";
 import { systemMetrics } from "@/lib/constants";
 import { sanitizePhone } from "@/lib/utils";
@@ -1487,72 +1488,7 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
 
       const p = patient;
       const cr = clinicalRecordDraft;
-      const weight = p?.weight;
-      const height = p?.height;
-      const bmi = weight && height ? weight / ((height / 100) * (height / 100)) : null;
-      const bmiClass = bmi
-        ? bmi < 18.5 ? "Bajo peso" : bmi < 25 ? "Normopeso" : bmi < 30 ? "Sobrepeso" : "Obesidad"
-        : undefined;
-      const activityLabels: Record<string, string> = {
-        sedentario: "Sedentario",
-        ligero: "Ligero",
-        moderado: "Moderado",
-        activo: "Activo",
-        muy_activo: "Muy activo",
-      };
-
-      const pdfData = {
-        patientName: p?.fullName || "Sin Nombre",
-        patientEmail: p?.email,
-        patientPhone: p?.phone,
-        patientRut: p?.documentId,
-        patientGender: p?.gender,
-        patientAge: p?.age,
-        patientBirthDate: p?.birthDate
-          ? new Date(p.birthDate).toLocaleDateString("es-ES", { year: "numeric", month: "short", day: "numeric" })
-          : undefined,
-        weight,
-        height,
-        bmi: bmi ? Math.round(bmi * 10) / 10 : undefined,
-        bmiClassification: bmiClass,
-        get: undefined,
-        weightHabitual: cr?.anthropometry?.pesoHabitual,
-        weightTarget: cr?.vitalHistory?.pesoObjetivoProf,
-        manualCaloriesAdjustment: cr?.vitalHistory?.manualCaloriesAdjustment,
-        activityLevel: activityLabels[p?.activityLevel || ""] || p?.activityLevel,
-        tricipital: cr?.anthropometry?.skinfolds?.tricipital,
-        bicipital: cr?.anthropometry?.skinfolds?.bicipital,
-        subescapular: cr?.anthropometry?.skinfolds?.subescapular,
-        suprailiac: cr?.anthropometry?.skinfolds?.suprailiac,
-        kneeHeight: cr?.anthropometry?.circumferences?.kneeHeight,
-        calfCircumference: cr?.anthropometry?.circumferences?.calfCircumference,
-        armCircumference: cr?.anthropometry?.circumferences?.armCircumference,
-        waistCircumference: cr?.anthropometry?.circumferences?.waistCircumference,
-        hipCircumference: cr?.anthropometry?.circumferences?.hipCircumference,
-        occupation: cr?.vitalHistory?.occupation,
-        workSchedule: cr?.vitalHistory?.workSchedule,
-        medications: cr?.vitalHistory?.medications,
-        supplementsOrDrugs: cr?.vitalHistory?.supplementsOrDrugs,
-        diagnosedPathologies: cr?.vitalHistory?.diagnosedPathologies,
-        primaryCondition: p?.primaryCondition,
-        familyHistory: cr?.vitalHistory?.familyHistory,
-        sleepQuality: cr?.vitalHistory?.sleepQuality,
-        perceivedStress: cr?.vitalHistory?.perceivedStress,
-        weeklyExercise: cr?.vitalHistory?.weeklyExercise,
-        motivoConsulta: cr?.vitalHistory?.motivoConsulta,
-        dietRestrictions: p?.dietRestrictions,
-        eatingPreferences: cr?.nutritionalAnamnesis?.eatingPreferences || p?.likes,
-        rejectedFoods: cr?.nutritionalAnamnesis?.rejectedFoods,
-        clinicalObservations: cr?.nutritionalAnamnesis?.clinicalObservations || p?.clinicalSummary,
-        diagnosticoNutricional: cr?.nutritionalAnamnesis?.diagnosticoNutricional,
-        isPregnant: cr?.gynecoObstetric?.isPregnant,
-        pregnancyWeeks: cr?.gynecoObstetric?.pregnancyWeeks,
-        pregestationalWeight: cr?.gynecoObstetric?.pregestationalWeight,
-        pregnancyType: cr?.gynecoObstetric?.pregnancyType,
-        nutritionalFocus: p?.nutritionalFocus,
-        fitnessGoals: p?.fitnessGoals,
-        generatedAt: new Date().toISOString(),
-      };
+      const pdfData = buildClinicalRecordPdfData(p!, cr);
 
       const { downloadClinicalRecordExcel } = await import("@/features/pdf/clinicalRecordExcelExport");
       await downloadClinicalRecordExcel(pdfData);
@@ -1598,72 +1534,7 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
       const p = patient;
       const cr = clinicalRecordDraft;
 
-      const weight = p?.weight;
-      const height = p?.height;
-      const bmi = weight && height ? weight / ((height / 100) * (height / 100)) : null;
-      const bmiClass = bmi
-        ? bmi < 18.5 ? "Bajo peso" : bmi < 25 ? "Normopeso" : bmi < 30 ? "Sobrepeso" : "Obesidad"
-        : undefined;
-      const activityLabels: Record<string, string> = {
-        sedentario: "Sedentario",
-        ligero: "Ligero",
-        moderado: "Moderado",
-        activo: "Activo",
-        muy_activo: "Muy activo",
-      };
-
-      const pdfData = {
-        patientName: p?.fullName || "Sin Nombre",
-        patientEmail: p?.email,
-        patientPhone: p?.phone,
-        patientRut: p?.documentId,
-        patientGender: p?.gender,
-        patientAge: p?.age,
-        patientBirthDate: p?.birthDate
-          ? new Date(p.birthDate).toLocaleDateString("es-ES", { year: "numeric", month: "short", day: "numeric" })
-          : undefined,
-        weight,
-        height,
-        bmi: bmi ? Math.round(bmi * 10) / 10 : undefined,
-        bmiClassification: bmiClass,
-        get: undefined,
-        weightHabitual: cr?.anthropometry?.pesoHabitual,
-        weightTarget: cr?.vitalHistory?.pesoObjetivoProf,
-        manualCaloriesAdjustment: cr?.vitalHistory?.manualCaloriesAdjustment,
-        activityLevel: activityLabels[p?.activityLevel || ""] || p?.activityLevel,
-        tricipital: cr?.anthropometry?.skinfolds?.tricipital,
-        bicipital: cr?.anthropometry?.skinfolds?.bicipital,
-        subescapular: cr?.anthropometry?.skinfolds?.subescapular,
-        suprailiac: cr?.anthropometry?.skinfolds?.suprailiac,
-        kneeHeight: cr?.anthropometry?.circumferences?.kneeHeight,
-        calfCircumference: cr?.anthropometry?.circumferences?.calfCircumference,
-        armCircumference: cr?.anthropometry?.circumferences?.armCircumference,
-        waistCircumference: cr?.anthropometry?.circumferences?.waistCircumference,
-        hipCircumference: cr?.anthropometry?.circumferences?.hipCircumference,
-        occupation: cr?.vitalHistory?.occupation,
-        workSchedule: cr?.vitalHistory?.workSchedule,
-        medications: cr?.vitalHistory?.medications,
-        supplementsOrDrugs: cr?.vitalHistory?.supplementsOrDrugs,
-        diagnosedPathologies: cr?.vitalHistory?.diagnosedPathologies,
-        primaryCondition: p?.primaryCondition,
-        familyHistory: cr?.vitalHistory?.familyHistory,
-        sleepQuality: cr?.vitalHistory?.sleepQuality,
-        perceivedStress: cr?.vitalHistory?.perceivedStress,
-        weeklyExercise: cr?.vitalHistory?.weeklyExercise,
-        motivoConsulta: cr?.vitalHistory?.motivoConsulta,
-        dietRestrictions: p?.dietRestrictions,
-        eatingPreferences: cr?.nutritionalAnamnesis?.eatingPreferences || p?.likes,
-        rejectedFoods: cr?.nutritionalAnamnesis?.rejectedFoods,
-        clinicalObservations: cr?.nutritionalAnamnesis?.clinicalObservations || p?.clinicalSummary,
-        diagnosticoNutricional: cr?.nutritionalAnamnesis?.diagnosticoNutricional,
-        isPregnant: cr?.gynecoObstetric?.isPregnant,
-        pregnancyWeeks: cr?.gynecoObstetric?.pregnancyWeeks,
-        pregestationalWeight: cr?.gynecoObstetric?.pregestationalWeight,
-        pregnancyType: cr?.gynecoObstetric?.pregnancyType,
-        nutritionalFocus: p?.nutritionalFocus,
-        fitnessGoals: p?.fitnessGoals,
-        generatedAt: new Date().toISOString(),
-      };
+      const pdfData = buildClinicalRecordPdfData(p!, cr);
 
       const { downloadClinicalRecordPdf } = await import("@/features/pdf/clinicalRecordPdfExport");
       await downloadClinicalRecordPdf(pdfData);

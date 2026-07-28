@@ -44,15 +44,15 @@ function LoginPageContent({ autoStart = false }: Props) {
   }
 
   return (
-    <main className="min-h-screen w-full bg-white lg:flex">
+    <main className="min-h-dvh w-full bg-white lg:flex lg:h-dvh lg:min-h-0 lg:overflow-hidden">
       {/* Hero Banner - Solo visible en pantallas grandes (Desktop / Tablet lg) */}
-      <section className="hidden lg:flex relative items-start justify-start min-h-screen overflow-hidden bg-linear-to-br from-indigo-900 via-slate-950 to-emerald-900 text-white lg:w-1/2">
+      <section className="hidden lg:flex relative items-center justify-center min-h-dvh overflow-hidden bg-linear-to-br from-indigo-900 via-slate-950 to-emerald-900 text-white lg:h-dvh lg:min-h-0 lg:w-1/2">
         <div className="absolute top-0 -left-10 h-72 w-72 rounded-full bg-emerald-500/20 blur-3xl lg:h-96 lg:w-96"></div>
         <div className="absolute top-0 -right-10 h-72 w-72 rounded-full bg-indigo-500/20 blur-3xl lg:h-96 lg:w-96"></div>
         <div className="absolute -bottom-32 left-20 h-72 w-72 rounded-full bg-purple-500/20 blur-3xl lg:h-96 lg:w-96"></div>
 
-        <div className="relative z-10 flex w-full max-w-xl flex-col justify-start pt-10 sm:pt-16 lg:pt-24 pb-12 px-8 lg:px-16 mx-auto">
-          <div className="mb-8 lg:mb-12">
+        <div className="relative z-10 mx-auto flex w-full max-w-xl flex-col justify-center px-8 py-10 lg:px-16">
+          <div className="mb-8 lg:mb-8">
             <Image
               src="/logo_2.webp"
               alt="NutriNet"
@@ -87,8 +87,8 @@ function LoginPageContent({ autoStart = false }: Props) {
       </section>
 
       {/* Form Area - Vista única simplificada en móviles y panel derecho en Desktop */}
-      <section className="flex w-full flex-col justify-start min-h-screen px-6 pt-10 sm:pt-16 lg:pt-24 pb-12 lg:w-1/2 lg:px-16 bg-white">
-        <div className="mx-auto w-full max-w-md">
+      <section className="flex min-h-dvh w-full flex-col justify-start bg-white px-6 py-10 sm:py-16 lg:h-dvh lg:min-h-0 lg:w-1/2 lg:justify-center lg:overflow-y-auto lg:px-16 lg:py-8">
+        <div className="mx-auto w-full max-w-md lg:shrink-0">
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
             {/* Logo para Celulares */}
             <div className="mb-6 block lg:hidden">
@@ -115,7 +115,7 @@ function LoginPageContent({ autoStart = false }: Props) {
             )}
 
             {/* Header */}
-            <div className="mb-8 mt-18">
+            <div className="mb-8 mt-8 lg:mb-5 lg:mt-0">
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600">
                 NutriNet
               </p>
@@ -131,7 +131,7 @@ function LoginPageContent({ autoStart = false }: Props) {
 
             {/* Tab Selector */}
             <div
-              className="grid w-full grid-cols-2 rounded-2xl bg-slate-100 p-1 mb-8"
+              className="mb-8 grid w-full grid-cols-2 rounded-2xl bg-slate-100 p-1 lg:mb-5"
               role="tablist"
               aria-label="Opciones de acceso"
             >

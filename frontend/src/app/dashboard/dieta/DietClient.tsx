@@ -149,6 +149,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
           color: "text-emerald-600",
         }}
         rightNavItems={actionItems}
+        rightNavDesktopBreakpoint="lg"
       >
         <WorkflowContextBanner
           projectName={state.currentProjectName}

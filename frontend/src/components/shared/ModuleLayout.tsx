@@ -17,6 +17,7 @@ interface ModuleLayoutProps {
   description: React.ReactNode;
   step?: StepIndicator;
   rightNavItems?: ActionDockItem[];
+  rightNavDesktopBreakpoint?: "md" | "lg";
   rightContent?: React.ReactNode;
   footer?: React.ReactNode;
   children: React.ReactNode;
@@ -28,6 +29,7 @@ export function ModuleLayout({
   description,
   step,
   rightNavItems,
+  rightNavDesktopBreakpoint,
   rightContent,
   footer,
   children,
@@ -66,7 +68,9 @@ export function ModuleLayout({
         </div>
 
         {/* Right Navigation */}
-        {rightNavItems && <ModuleRightNav items={rightNavItems} />}
+        {rightNavItems && (
+          <ModuleRightNav items={rightNavItems} desktopBreakpoint={rightNavDesktopBreakpoint} />
+        )}
       </div>
 
       {/* Main Content */}

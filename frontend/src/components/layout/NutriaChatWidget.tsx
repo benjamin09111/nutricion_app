@@ -20,6 +20,7 @@ type ChatRouteContent = {
   routePatterns: string[];
   moduleLabel: string;
   message: string;
+  welcomeMessage?: string;
   links?: ChatLink[];
 };
 
@@ -27,6 +28,7 @@ type ChatConfig = {
   default: {
     moduleLabel: string;
     message: string;
+    welcomeMessage?: string;
     links?: ChatLink[];
   };
   routes: ChatRouteContent[];
@@ -62,16 +64,27 @@ const getCurrentModuleHelp = (pathname: string) => {
   return {
     moduleLabel: chatConfig.default.moduleLabel,
     message: chatConfig.default.message,
+    welcomeMessage: chatConfig.default.welcomeMessage,
     links: chatConfig.default.links,
   };
 };
+
+const FIRST_CHAT_OPEN_KEY = "nutri_chat_opened_once";
 
 export function NutriaChatWidget() {
   const pathname = usePathname();
   const { isDarkMode } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
+  const normalizedPathname = pathname || "/dashboard";
+  const isAllowed = normalizedPathname.startsWith("/dashboard") && !normalizedPathname.startsWith("/dashboard/admin");
+  const showFloatingButton = !normalizedPathname.startsWith("/dashboard/rapido");
 
   useEffect(() => {
+    if (isAllowed && localStorage.getItem(FIRST_CHAT_OPEN_KEY) !== "true") {
+      localStorage.setItem(FIRST_CHAT_OPEN_KEY, "true");
+      setIsOpen(true);
+    }
+
     const handleOpen = () => setIsOpen(true);
     const handleToggle = () => setIsOpen((prev) => !prev);
 
@@ -82,10 +95,7 @@ export function NutriaChatWidget() {
       window.removeEventListener("open-nutria-chat", handleOpen);
       window.removeEventListener("toggle-nutria-chat", handleToggle);
     };
-  }, []);
-
-  const normalizedPathname = pathname || "/dashboard";
-  const isAllowed = normalizedPathname.startsWith("/dashboard") && !normalizedPathname.startsWith("/dashboard/admin");
+  }, [isAllowed]);
 
   const moduleHelp = useMemo(
     () => getCurrentModuleHelp(normalizedPathname),
@@ -94,6 +104,7 @@ export function NutriaChatWidget() {
 
   const welcomeMessage = useMemo(
     () =>
+      moduleHelp.welcomeMessage ||
       `¡Bienvenido! Aún estoy en beta, pero puedo ayudarte con el módulo actual: **${moduleHelp.moduleLabel}**.\n\n${moduleHelp.message}`,
     [moduleHelp],
   );
@@ -210,7 +221,7 @@ export function NutriaChatWidget() {
         </div>
       ) : null}
 
-      <div className="fixed bottom-6 right-6 z-[70] hidden sm:block">
+      {showFloatingButton ? <div className="fixed bottom-6 right-6 z-[70] hidden sm:block">
         <button
           type="button"
           onClick={() => setIsOpen((currentValue) => !currentValue)}
@@ -224,7 +235,7 @@ export function NutriaChatWidget() {
             <MessageCircle className="h-2.5 w-2.5" />
           </div>
         </button>
-      </div>
+      </div> : null}
     </>
   );
 }

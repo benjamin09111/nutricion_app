@@ -19,12 +19,14 @@ import {
   Award,
   ShieldAlert,
   AlertTriangle,
+  UserRound,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { cn } from "@/lib/utils";
 import { FeatureGate } from "@/components/memberships/FeatureGate";
 import { api } from "@/lib/api";
+import { PatientSelectionModal } from "@/components/patients/PatientSelectionModal";
 
 import { CalculationResult, MNAData } from "./types";
 import { ClinicalAlerts } from "./components/ClinicalAlerts";
@@ -47,6 +49,37 @@ const ACTIVITY_OPTIONS = [
   { value: "activo", label: "Activo (×1.725)" },
   { value: "muy_activo", label: "Muy Activo (×1.9)" },
 ];
+
+type CalculatorPatient = {
+  id?: string;
+  fullName?: string;
+  name?: string;
+  weight?: number | string | null;
+  height?: number | string | null;
+  age?: number | null;
+  ageYears?: number | null;
+  birthDate?: string | null;
+  gender?: string | null;
+  activityLevel?: string | null;
+};
+
+const getPatientAge = (patient: CalculatorPatient): number | null => {
+  if (typeof patient.ageYears === "number") return patient.ageYears;
+  if (typeof patient.age === "number") return patient.age;
+  if (!patient.birthDate) return null;
+
+  const birthDate = new Date(patient.birthDate);
+  if (Number.isNaN(birthDate.getTime())) return null;
+
+  const today = new Date();
+  let years = today.getFullYear() - birthDate.getFullYear();
+  const hasNotHadBirthday =
+    today.getMonth() < birthDate.getMonth() ||
+    (today.getMonth() === birthDate.getMonth() && today.getDate() < birthDate.getDate());
+  if (hasNotHadBirthday) years -= 1;
+
+  return years >= 0 ? years : null;
+};
 
 export default function CalculosClient() {
   // 1. PASO ESENCIAL (Siempre visible)
@@ -109,6 +142,11 @@ export default function CalculosClient() {
   const [showGlossary, setShowGlossary] = useState(false);
   const [result, setResult] = useState<CalculationResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const [patients, setPatients] = useState<CalculatorPatient[]>([]);
+  const [selectedPatient, setSelectedPatient] = useState<CalculatorPatient | null>(null);
+  const [isPatientModalOpen, setIsPatientModalOpen] = useState(false);
+  const [isLoadingPatients, setIsLoadingPatients] = useState(false);
+  const [patientsError, setPatientsError] = useState<string | null>(null);
 
   const parseNum = (val: string | number | null | undefined): number | null => {
     if (val === null || val === undefined) return null;
@@ -268,6 +306,47 @@ export default function CalculosClient() {
     setProteinProfile("adulto_mayor");
   };
 
+  const openPatientImportModal = async () => {
+    setIsPatientModalOpen(true);
+    setIsLoadingPatients(true);
+    setPatientsError(null);
+
+    try {
+      const response = await api.get("/patients?status=Activos&limit=100");
+      if (!response.ok) throw new Error("No se pudieron cargar los pacientes.");
+
+      const data = await response.json();
+      setPatients(Array.isArray(data) ? data : Array.isArray(data.data) ? data.data : []);
+    } catch (error) {
+      console.error("Error loading patients for calculator:", error);
+      setPatients([]);
+      setPatientsError("No se pudieron cargar los pacientes. Inténtalo nuevamente.");
+    } finally {
+      setIsLoadingPatients(false);
+    }
+  };
+
+  const importPatient = (patient: CalculatorPatient) => {
+    const patientAge = getPatientAge(patient);
+    const importedGender =
+      patient.gender === "Masculino" || patient.gender === "Femenino"
+        ? patient.gender
+        : null;
+    const importedActivityLevel = ACTIVITY_OPTIONS.some(
+      (option) => option.value === patient.activityLevel,
+    )
+      ? patient.activityLevel
+      : null;
+
+    setSelectedPatient(patient);
+    if (patient.weight !== null && patient.weight !== undefined) setWeight(String(patient.weight));
+    if (patient.height !== null && patient.height !== undefined) setHeight(String(patient.height));
+    if (patientAge !== null) setAge(String(patientAge));
+    if (importedGender) setGender(importedGender);
+    if (importedActivityLevel) setActivityLevel(importedActivityLevel);
+    setResult(null);
+  };
+
   const isSevereWeightLoss = result?.weightLoss?.severity === "grave";
   const isSignificantWeightLoss = result?.weightLoss?.severity === "significativa";
   const isMalnourishedMna = mnaResult !== null && mnaResult.score < 17;
@@ -297,6 +376,16 @@ export default function CalculosClient() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void openPatientImportModal()}
+              className="text-xs border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 font-semibold h-8 rounded-xl flex-1 sm:flex-none justify-center"
+            >
+              <UserRound className="w-3.5 h-3.5 mr-1 text-emerald-600 shrink-0" />
+              <span>{selectedPatient ? "Cambiar paciente" : "Importar paciente"}</span>
+            </Button>
+
             <Button
               variant="outline"
               size="sm"
@@ -548,6 +637,24 @@ export default function CalculosClient() {
                   )}
                 </Button>
               </div>
+
+              {selectedPatient && (
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-100 bg-emerald-50/70 px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-emerald-700">Paciente importado</p>
+                    <p className="truncate text-xs font-bold text-slate-800">
+                      {selectedPatient.fullName || selectedPatient.name || "Paciente sin nombre"}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPatient(null)}
+                    className="shrink-0 text-[10px] font-bold text-emerald-700 hover:text-emerald-900"
+                  >
+                    Quitar
+                  </button>
+                </div>
+              )}
 
               {/* Sexo & Actividad */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1205,6 +1312,17 @@ export default function CalculosClient() {
             </div>
           </div>
         </div>
+
+        <PatientSelectionModal
+          isOpen={isPatientModalOpen}
+          onClose={() => setIsPatientModalOpen(false)}
+          patients={patients}
+          onSelectPatient={importPatient}
+          isLoading={isLoadingPatients}
+          selectedPatientId={selectedPatient?.id}
+          error={patientsError}
+          title="Importar paciente"
+        />
 
         {/* Modal MNA */}
         <MNAModal
