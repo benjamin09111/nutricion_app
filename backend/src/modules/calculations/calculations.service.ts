@@ -40,6 +40,10 @@ export interface CalculationInputs {
   proteinProfile?: string | null;
   edemaPercent?: number | null;
   useUsualWeightForRequirements?: boolean | null;
+  pregnancyWeek?: number | null;
+  isPregnant?: boolean | null;
+  isLactating?: boolean | null;
+  lactationType?: 'exclusive' | 'partial' | string | null;
 }
 
 export interface BmiResult {
@@ -67,6 +71,7 @@ export interface GetResult {
   formula: string;
   get: number;
   activityFactor: number;
+  physiologicalAdjustmentKcal?: number;
   macros: {
     calories: number;
     protein: number;
@@ -129,7 +134,7 @@ const EXCHANGE_PROFILES = {
   },
   grasas_saludables: {
     label: 'Grasas y aceites',
-    portion: '1 cucharada de aceite o 1/4 de palta',
+    portion: '20 g de aceite o 1/4 de palta',
     cho: 0,
     protein: 0,
     fat: 20,
@@ -187,6 +192,14 @@ export class CalculationsService {
     ) {
       age -= 1;
     }
+    return age >= 0 ? age : null;
+  }
+
+  private calculateAgeFraction(birthDate?: string | Date | null): number | null {
+    if (!birthDate) return null;
+    const date = new Date(birthDate);
+    if (Number.isNaN(date.getTime())) return null;
+    const age = (Date.now() - date.getTime()) / (365.2425 * 24 * 60 * 60 * 1000);
     return age >= 0 ? age : null;
   }
 
@@ -338,13 +351,16 @@ export class CalculationsService {
 
     let classification = 'Normopeso';
     let color = '#22c55e';
-    if (percentile < 10) {
+    if (z <= -2) {
       classification = 'Bajo peso';
       color = '#3b82f6';
-    } else if (percentile < 85) {
+    } else if (z <= -1) {
+      classification = 'Riesgo de bajo peso';
+      color = '#60a5fa';
+    } else if (z < 1) {
       classification = 'Normopeso';
       color = '#22c55e';
-    } else if (percentile < 95) {
+    } else if (z < 2) {
       classification = 'Sobrepeso';
       color = '#eab308';
     } else {
@@ -358,13 +374,15 @@ export class CalculationsService {
       color,
       percentile: this.round(percentile, 1),
       percentileCategory:
-        percentile < 10
-          ? '<p10'
-          : percentile < 85
-            ? 'p10-p85'
-            : percentile < 95
-              ? 'p85-p95'
-              : '>p95',
+        z <= -2
+          ? 'Z ≤ -2'
+          : z <= -1
+            ? '-2 < Z ≤ -1'
+            : z < 1
+              ? '-1 < Z < +1'
+              : z < 2
+                ? '+1 ≤ Z < +2'
+                : 'Z ≥ +2',
       reference: 'MINSAL IMC/E 5-19 años',
       isPediatric: true,
     };
@@ -391,7 +409,7 @@ export class CalculationsService {
       // Lipschitz Geriátrico
       let classification = 'Normopeso (Eutrófico)';
       let color = '#22c55e';
-      if (bmi < 23.0) {
+      if (bmi <= 23.0) {
         classification = 'Bajo peso (Enflaquecido)';
         color = '#3b82f6';
       } else if (bmi < 28.0) {
@@ -555,10 +573,10 @@ export class CalculationsService {
 
     let amb_mm2 = 0;
     if (gender === 'Masculino') {
-      amb_mm2 = Math.pow(cb_mm - Math.PI * pt, 2) / (4 * Math.PI) - 10;
+      amb_mm2 = Math.pow(cb_mm - Math.PI * pt, 2) / (4 * Math.PI) - 1000;
     } else {
       // Femenino / Otro
-      amb_mm2 = Math.pow(cb_mm - Math.PI * pt, 2) / (4 * Math.PI) - 6.5;
+      amb_mm2 = Math.pow(cb_mm - Math.PI * pt, 2) / (4 * Math.PI) - 650;
     }
 
     const agb_mm2 = atb_mm2 - amb_mm2;
@@ -804,38 +822,55 @@ export class CalculationsService {
     const roundToSingle = (value: number) =>
       Math.round(Math.max(0, value) * 10) / 10;
 
+    const fruitPortions = 2;
+    const vegetablePortions = 4;
+    const dairyPortions = 1;
+    const legumePortions = calories >= 1600 ? 1 : 0;
+    const fixedCarbs =
+      fruitPortions * EXCHANGE_PROFILES.frutas.cho +
+      vegetablePortions * EXCHANGE_PROFILES.verduras_bajas.cho +
+      dairyPortions * EXCHANGE_PROFILES.lacteos_descremados.cho +
+      legumePortions * EXCHANGE_PROFILES.legumbres_secas.cho;
+    const cerealPortions = roundToSingle((carbs - fixedCarbs) / EXCHANGE_PROFILES.cereales_tuberculos.cho);
+    const fixedProtein =
+      cerealPortions * EXCHANGE_PROFILES.cereales_tuberculos.protein +
+      vegetablePortions * EXCHANGE_PROFILES.verduras_bajas.protein +
+      dairyPortions * EXCHANGE_PROFILES.lacteos_descremados.protein +
+      legumePortions * EXCHANGE_PROFILES.legumbres_secas.protein;
+    const leanProteinPortions = roundToSingle((protein - fixedProtein) / EXCHANGE_PROFILES.proteina_magra.protein);
+    const fixedFat =
+      cerealPortions * EXCHANGE_PROFILES.cereales_tuberculos.fat +
+      legumePortions * EXCHANGE_PROFILES.legumbres_secas.fat +
+      leanProteinPortions * EXCHANGE_PROFILES.proteina_magra.fat;
+
     const rows: Array<{ profileId: string; portions: number }> = [
       {
         profileId: 'cereales_tuberculos',
-        portions: roundToSingle((Math.max(carbs - 45, 0) * 0.55) / 30),
+        portions: cerealPortions,
       },
       {
         profileId: 'legumbres_secas',
-        portions: calories >= 1600 ? 1 : 0,
+        portions: legumePortions,
       },
       {
         profileId: 'frutas',
-        portions: Math.max(2, Math.round(Math.max(carbs, 120) / 45)),
+        portions: fruitPortions,
       },
       {
         profileId: 'verduras_bajas',
-        portions: 4,
+        portions: vegetablePortions,
       },
       {
         profileId: 'proteina_magra',
-        portions: roundToSingle((protein * 0.7) / 11),
+        portions: leanProteinPortions,
       },
       {
         profileId: 'lacteos_descremados',
-        portions: Math.max(1, Math.round((protein * 0.15) / 8)),
+        portions: dairyPortions,
       },
       {
         profileId: 'grasas_saludables',
-        portions: roundToSingle(fats / 20),
-      },
-      {
-        profileId: 'azucares_extras',
-        portions: calories >= 2200 ? 1 : 0,
+        portions: roundToSingle((fats - fixedFat) / EXCHANGE_PROFILES.grasas_saludables.fat),
       },
     ];
 
@@ -870,6 +905,7 @@ export class CalculationsService {
       typeof inputs.ageYears === 'number'
         ? inputs.ageYears
         : this.calculateAge(birthDate);
+    const growthAge = birthDate ? this.calculateAgeFraction(birthDate) : resolvedAge;
 
     // Folds
     const tricipital = this.validateInput(inputs.tricipitalFold, 2, 60);
@@ -920,8 +956,8 @@ export class CalculationsService {
     let adjustedWeight: number | null = null;
 
     if (weight && height) {
-      bmi = this.calculateBMI(weight, height, gender, resolvedAge);
-      idealWeight = this.getIdealWeightRange(height, gender, resolvedAge, inputs.targetBmi);
+      bmi = this.calculateBMI(weight, height, gender, growthAge);
+      idealWeight = this.getIdealWeightRange(height, gender, growthAge, inputs.targetBmi);
 
       if (idealWeight.supported) {
         const targetBmi = inputs.targetBmi || (
@@ -997,12 +1033,20 @@ export class CalculationsService {
           muy_activo: 1.9,
         };
         const factor = baseFactors[activityLevel] || 1.2;
-        const getVal = Math.round(tmb * factor);
+        let physiologicalAdjustmentKcal = 0;
+        if (inputs.isPregnant) {
+          const pregnancyWeek = inputs.pregnancyWeek ?? 0;
+          if (pregnancyWeek >= 14 && pregnancyWeek <= 27) physiologicalAdjustmentKcal = 340;
+          if (pregnancyWeek >= 28 && pregnancyWeek <= 42) physiologicalAdjustmentKcal = 450;
+        } else if (inputs.isLactating) {
+          physiologicalAdjustmentKcal = inputs.lactationType === 'partial' ? 300 : 500;
+        }
+        const getVal = Math.round(tmb * factor + physiologicalAdjustmentKcal);
 
         // Macros percentages (defaults: C 55%, P 20%, F 25%)
-        const carbPercent = inputs.carbPct || 55;
-        const proteinPercent = inputs.proteinPct || 20;
-        const fatPercent = inputs.fatPct || 25;
+        const carbPercent = inputs.carbPct ?? 55;
+        const proteinPercent = inputs.proteinPct ?? 20;
+        const fatPercent = inputs.fatPct ?? 25;
 
         const carbsGrams = Math.round((getVal * (carbPercent / 100)) / 4);
         const proteinGrams = Math.round((getVal * (proteinPercent / 100)) / 4);
@@ -1014,10 +1058,11 @@ export class CalculationsService {
             formula === 'mifflin-st-jeor'
               ? 'Mifflin-St Jeor (1990)'
               : formula === 'harris-benedict'
-                ? 'Harris-Benedict (rev. Roza-Shizgal, 1984)'
+                ? 'Harris-Benedict (original, 1919)'
                 : 'OMS/FAO (2004)',
           get: getVal,
           activityFactor: factor,
+          physiologicalAdjustmentKcal,
           macros: {
             calories: getVal,
             protein: proteinGrams,
@@ -1071,6 +1116,10 @@ export class CalculationsService {
         weightLossPeriodWeeks: inputs.weightLossPeriodWeeks || null,
         proteinProfile: inputs.proteinProfile || 'adulto_sano',
         useUsualWeightForRequirements: isUsingUsual,
+        pregnancyWeek: inputs.pregnancyWeek ?? null,
+        isPregnant: inputs.isPregnant ?? false,
+        isLactating: inputs.isLactating ?? false,
+        lactationType: inputs.lactationType ?? null,
         folds: {
           tricipital,
           subescapular,

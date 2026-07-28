@@ -600,13 +600,19 @@ export class PatientsService {
     const resolvedAge = this.calculateAge(patient.birthDate);
     const gender = this.normalizeGender(patient.gender);
     const activity = this.normalizeActivityLevel(patient.activityLevel);
+    const gynecoObstetric = (clinical.gynecoObstetric || {}) as Record<string, unknown>;
+    const pregnancyWeek = this.toPositiveNumber(
+      gynecoObstetric.pregnancyWeeks ?? gynecoObstetric.gestationalWeek,
+    );
+    const isPregnant = gynecoObstetric.isPregnant === true;
+    const isLactating = gynecoObstetric.isLactating === true;
+    const lactationType = gynecoObstetric.lactationType === 'partial' ? 'partial' : 'exclusive';
 
     const calcResult = this.calculationsService.calculateAll({
       gender,
       weight: this.toPositiveNumber(patient.weight),
       height: this.toPositiveNumber(patient.height),
       birthDate: patient.birthDate,
-      ageYears: resolvedAge,
       activityLevel: activity,
       kneeHeight,
       calfCircumference,
@@ -617,6 +623,10 @@ export class PatientsService {
       bicipitalFold,
       subescapularFold,
       suprailiacoFold,
+      pregnancyWeek,
+      isPregnant,
+      isLactating,
+      lactationType,
     });
 
     if (!calcResult.bmi) return null;
@@ -688,6 +698,7 @@ export class PatientsService {
         tmb: energy.tmb,
         get: energy.get,
         activityFactor: energy.activityFactor,
+        physiologicalAdjustmentKcal: energy.physiologicalAdjustmentKcal ?? 0,
         formula: energy.formula,
       },
       macros: energy.macros,

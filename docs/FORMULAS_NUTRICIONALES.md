@@ -44,7 +44,7 @@ Gold standard actual. Más precisa en adultos.
 | Masculino | `TMB = (10 × kg) + (6.25 × cm) − (5 × edad) + 5` |
 | Femenino | `TMB = (10 × kg) + (6.25 × cm) − (5 × edad) − 161` |
 
-#### Harris-Benedict (1919)
+#### Harris-Benedict original (1919)
 Clásica. Puede sobreestimar en obesidad.
 
 | Sexo | Ecuación |
@@ -118,23 +118,26 @@ Una vez calculado el GET, los macronutrientes se distribuyen según porcentajes 
 
 ---
 
-## 5. Porciones de Intercambio (Sistema Chileno)
+## 5. Porciones de Intercambio (perfil INTA Chile)
 
-Basado en el sistema de equivalentes estándar. 1 porción de cada categoría aporta:
+Los perfiles de la aplicación siguen de forma aproximada el patrón de
+`Porciones de intercambio y composición química de los alimentos de la pirámide
+alimentaria chilena` (INTA, 1999). No es una norma MINSAL vigente ni reemplaza
+la tabla profesional que el nutricionista decida utilizar.
 
 | Categoría | Cantidad | CHO | Prot | Grasas | kcal |
 |-----------|----------|-----|------|--------|------|
-| Cereales y Tubérculos | ½ taza cocida | 15g | 2g | 0g | 70 |
-| Legumbres | ½ taza cocida | 15g | 7g | 0g | 90 |
+| Cereales y Tubérculos | ½ taza cocida | 30g | 3g | 1g | 140 |
+| Legumbres | ¾ taza cocida | 30g | 12g | 1g | 180 |
 | Verduras Grupo A (libre) | 1 taza cruda | 5g | 2g | 0g | 25 |
 | Verduras Grupo B | ½ taza cocida | 10g | 2g | 0g | 50 |
 | Frutas | 1 unidad mediana | 15g | 0g | 0g | 60 |
 | Lácteos descremados | 1 taza (200ml) | 12g | 8g | 0g | 80 |
 | Lácteos enteros | 1 taza (200ml) | 12g | 8g | 8g | 150 |
-| Carnes magras | 90g cocido | 0g | 21g | 3g | 110 |
-| Carnes semigrasas | 90g cocido | 0g | 21g | 8g | 155 |
-| Grasas saludables | 1 cda aceite | 0g | 0g | 5g | 45 |
-| Azúcares y extras | 1 cda azúcar | 15g | 0g | 0g | 60 |
+| Carnes magras | 50g cocido | 0g | 11g | 2g | 65 |
+| Carnes semigrasas | 50g cocido | 0g | 11g | 5g | 95 |
+| Grasas saludables | 20g aceite | 0g | 0g | 20g | 180 |
+| Azúcares y extras | Según alimento | 5g | 0g | 0g | 20 |
 
 ### Cálculo de porciones desde el GET
 
@@ -144,7 +147,8 @@ CHO 55% = 1100 kcal → 275g CHO
 Prot 20% = 400 kcal → 100g Prot
 Grasas 25% = 500 kcal → 56g Grasas
 
-→ Sugerencia: 8 cereales + 3 frutas + 2 verduras B + 3 carnes magras + 2 lácteos + 5 grasas
+→ Sugerencia aproximada: 6,1 cereales + 1 legumbre + 2 frutas + 4 verduras + 6,5 carnes magras + 1 lácteo + 2,1 grasas.
+La sugerencia se recalcula desde los macros y debe validarse contra el menú final.
 ```
 
 ---
@@ -177,15 +181,15 @@ Para pacientes pediátricos (< 18 años), se usan las curvas de crecimiento de l
 - **Talla/Edad** (0–10 años): indicador de desnutrición crónica
 - **IMC/Edad** (5–19 años): indicador de estado nutricional
 
-### Clasificación por percentiles
+### Clasificación operativa por puntaje Z
 
 | Percentil | Z-score | Clasificación |
 |-----------|---------|---------------|
-| < p3 | Z < −2 | Bajo peso / Desnutrición |
-| p3 – p15 | Z −2 a −1 | Riesgo de bajo peso |
-| p15 – p85 | Z −1 a +1 | Normal / Eutrófico |
-| p85 – p97 | Z +1 a +2 | Sobrepeso |
-| > p97 | Z > +2 | Obesidad |
+| Z ≤ −2 | Z ≤ −2 | Bajo peso / Desnutrición |
+| −2 < Z ≤ −1 | −2 < Z ≤ −1 | Riesgo de bajo peso |
+| −1 < Z < +1 | −1 < Z < +1 | Normal / Eutrófico |
+| +1 ≤ Z < +2 | +1 ≤ Z < +2 | Sobrepeso |
+| Z ≥ +2 | Z ≥ +2 | Obesidad |
 
 ---
 
