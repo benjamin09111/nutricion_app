@@ -115,8 +115,8 @@ export function WelcomeOverlay() {
             </Button>
           </div>
 
-          <div className="hidden md:flex flex-col items-center justify-center p-8 sm:p-10 lg:p-14">
-            <div className="relative w-[35rem] h-[35rem]">
+          <div className="hidden lg:flex flex-col items-center justify-center p-8 sm:p-10 lg:p-14">
+            <div className="relative aspect-square w-full max-w-sm">
               <Image
                 src="/nutria.webp"
                 alt="Nati la Nutria"

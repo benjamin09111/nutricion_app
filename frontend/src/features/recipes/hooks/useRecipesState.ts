@@ -1057,6 +1057,12 @@ export function useRecipesState({ id }: UseRecipesStateProps = {}) {
             "Puedes crear platos con ingredientes fuera de la dieta base si aportan variedad. Esos ingredientes se agregarán después en el carrito si hace falta.",
           allowedFoodsMain: sourceFoods,
           exchangeGuide: buildExchangeGuideForAi(),
+          nutritionalTargets: {
+            dailyCalories: targetCalories,
+            dailyProtein: targetProtein,
+            dailyCarbs: targetCarbs,
+            dailyFats: targetFats,
+          },
           mealSectionTargets: validTargets,
           generationMode: "single" as const,
           patient: {
@@ -1870,7 +1876,7 @@ export function useRecipesState({ id }: UseRecipesStateProps = {}) {
   const weekTotalsWithSupplement = useMemo(
     () => ({
       ...weekTotals,
-      protein: weekTotals.protein + proteinSupplementPerDay * 7,
+       protein: weekTotals.protein + proteinSupplementPerDay * days.length,
     }),
     [weekTotals, proteinSupplementPerDay],
   );

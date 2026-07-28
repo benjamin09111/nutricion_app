@@ -264,7 +264,7 @@ export default function PatientsClient() {
           </div>
         </div>
 
-        <div className="flex items-center justify-between gap-4 px-1 py-2 sm:px-3">
+         <div className="flex flex-col items-start justify-between gap-3 px-1 py-2 sm:flex-row sm:items-center sm:gap-4 sm:px-3">
           <p className="text-xs font-medium text-slate-500 flex items-center gap-1.5 min-w-0 flex-wrap">
             <User className="h-4 w-4 shrink-0 text-slate-400" />
             <span>

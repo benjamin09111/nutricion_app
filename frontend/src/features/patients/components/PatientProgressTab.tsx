@@ -468,7 +468,7 @@ export function PatientProgressTab({
               </button>
             </div>
 
-            <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
+            <div className="flex min-h-0 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
               {/* Left column — selected metrics + date */}
               <div className="w-full lg:w-1/2 lg:border-r border-slate-100 flex flex-col">
                 <div className="p-5 shrink-0">
@@ -506,7 +506,7 @@ export function PatientProgressTab({
                   </button>
                 </div>
 
-                <div className="max-h-[35vh] lg:max-h-[45vh] overflow-y-auto px-5 pb-5 custom-scrollbar space-y-3">
+                <div className="max-h-none overflow-y-visible px-5 pb-5 custom-scrollbar space-y-3 lg:max-h-[45vh] lg:overflow-y-auto">
                   {metricForm.metrics.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-center">
                       <Activity className="w-10 h-10 text-slate-200 mb-3" />
@@ -615,7 +615,7 @@ export function PatientProgressTab({
               </div>
 
               {/* Right column — metric search and selection */}
-              <div className="w-full lg:w-1/2 flex flex-col max-h-[70vh] lg:max-h-[90vh] overflow-y-auto custom-scrollbar">
+              <div className="w-full flex max-h-none flex-col overflow-y-visible custom-scrollbar lg:w-1/2 lg:max-h-[90vh] lg:overflow-y-auto">
                 <div className="p-5 pb-3 shrink-0">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block">
                     Selector de métricas

@@ -123,7 +123,9 @@ export function GestationalPanel({
 
   // Mínimos clínicos de macros gestacionales
   // Proteína: al menos 71g en 2do y 3er trimestre
-  const isSecondOrThirdTrimester = trimesterLabel.includes("Segundo") || trimesterLabel.includes("Tercer");
+  const isSecondOrThirdTrimester = /^(2|3)\./.test(trimesterLabel) ||
+    trimesterLabel.includes("Segundo") ||
+    trimesterLabel.includes("Tercer");
   
   // Mapeamos macros formateando los valores clínicos mínimos
   const adjustedMacros = macros.map((m) => {

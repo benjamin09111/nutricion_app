@@ -397,7 +397,7 @@ export default function CreateIngredientForm({
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4 pt-2">
+           <div className="grid grid-cols-1 gap-4 pt-2 min-[380px]:grid-cols-2 sm:grid-cols-3">
             <div className="space-y-1">
               <label className="text-xs font-medium text-slate-500">
                 Azúcares (g) *

@@ -569,7 +569,7 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
               safeLocalStorage.removeItem(getPortalStorageKey(token));
               window.location.reload();
             }}
-            className="h-9 w-9 flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer shrink-0"
+            className="h-11 w-11 flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer shrink-0"
             aria-label="Cerrar sesión"
           >
             <LogOut className="h-4 w-4" />
@@ -579,7 +579,7 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
 
       <div className="mx-auto flex max-w-7xl flex-col gap-4 p-4 pb-24 sm:p-6 sm:pb-8 lg:flex-row lg:gap-8 lg:p-8">
         {/* Sidebar */}
-        <aside className="hidden lg:block w-full lg:w-56 shrink-0">
+        <aside className="block w-full lg:w-56 shrink-0">
           <nav className="flex lg:flex-col gap-1 overflow-x-auto pb-2 lg:pb-0 -mx-4 px-4 lg:mx-0 lg:px-0">
             <button
               onClick={() => setActiveTab("diary")}
@@ -805,7 +805,7 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
                           <div className="ml-4 sm:ml-8 space-y-3 border-l-2 border-slate-100 pl-4 sm:pl-6 py-1">
                             {question.replies.map((reply: any) => (
                               <div key={reply.id} className="bg-slate-50/50 rounded-[1.25rem] sm:rounded-[1.5rem] p-4 sm:p-5 space-y-2 border border-slate-100/50">
-                                <div className="flex items-center gap-3">
+                                <div className="flex min-w-0 items-center gap-3">
                                   {portalData.patient.nutritionist?.avatarUrl ? (
                                     <img
                                       src={portalData.patient.nutritionist?.avatarUrl}
@@ -817,11 +817,11 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
                                       <User className="h-3 w-3" />
                                     </div>
                                   )}
-                                  <div className="flex flex-col">
-                                    <span className="text-[10px] font-bold text-slate-900">{portalData.patient.nutritionist?.fullName}</span>
+                                  <div className="min-w-0 flex flex-col">
+                                    <span className="truncate text-[10px] font-bold text-slate-900">{portalData.patient.nutritionist?.fullName}</span>
                                     <span className="text-[8px] font-bold text-emerald-600 uppercase tracking-widest">Nutricionista</span>
                                   </div>
-                                  <span className="text-[10px] text-slate-300 ml-auto font-medium">
+                                  <span className="ml-auto shrink-0 text-[10px] text-slate-300 font-medium">
                                     {new Date(reply.createdAt).toLocaleString("es-CL", {
                                       day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
                                     })}

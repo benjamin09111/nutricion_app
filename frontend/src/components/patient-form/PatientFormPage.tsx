@@ -341,7 +341,7 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
                   onChange={(e) => updateDraft({ fullName: e.target.value })}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="space-y-1.5">
                   <label className="text-xs font-medium text-slate-500">Email *</label>
                   <div className="relative">
@@ -368,7 +368,7 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
                   </div>
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-slate-500">Fecha de nacimiento *</label>
                   <Input
@@ -605,7 +605,7 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
 
               <div className="space-y-2">
                 <label className="text-xs font-medium text-slate-500">Nivel de actividad</label>
-                <div className="grid grid-cols-5 gap-2">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
                   {[
                     { key: "sedentario", icon: ActivityIcon, label: "Sed." },
                     { key: "ligero", icon: HeartPulse, label: "Lig." },
@@ -653,7 +653,7 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
             description="Historia clínica y contexto del paciente"
           >
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-slate-500">Ocupación</label>
                   <Input
@@ -824,7 +824,7 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
                 <label className="text-xs font-medium text-slate-500">RUT <span className="text-slate-400">(opcional)</span></label>
                 <Input placeholder="12.345.678-9" className="h-10 rounded-xl bg-slate-50 border-transparent text-sm font-semibold" value={quickRut} onChange={e => setQuickRut(formatRut(e.target.value))} />
               </div>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-slate-500">Fecha de nacimiento</label>
                   <Input type="date" className="h-10 rounded-xl bg-slate-50 border-transparent text-sm font-semibold" value={quickBirth} onChange={e => setQuickBirth(e.target.value)} />
@@ -843,12 +843,11 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
                   </select>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-slate-500">Motivo de consulta</label>
                   <Input placeholder="Ej: Baja de peso, control..." className="h-10 rounded-xl bg-slate-50 border-transparent text-sm font-semibold" value={quickMotivo} onChange={e => setQuickMotivo(e.target.value)} />
                 </div>
-                <div />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">

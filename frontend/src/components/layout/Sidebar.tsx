@@ -128,6 +128,7 @@ export function Sidebar({ onItemClick }: SidebarProps = {}) {
   const pathname = usePathname();
   const { isSidebarCollapsed, toggleSidebarCollapsed, isSidebarToggleHighlighted } = useDashboardShell();
   const { isDarkMode } = useTheme();
+  const shouldCollapse = isSidebarCollapsed && !onItemClick;
 
   const SIDEBAR_GROUPS_STORAGE_KEY = "nutri_dashboard_sidebar_open_groups";
 
@@ -186,13 +187,13 @@ export function Sidebar({ onItemClick }: SidebarProps = {}) {
     <div
       className={cn(
         "sidebar-scroll dashboard-sidebar-bg flex h-full grow flex-col gap-y-4 overflow-y-auto overflow-x-hidden border-r pb-4 transition-all duration-300",
-        isSidebarCollapsed ? "px-2" : "px-3",
+        shouldCollapse ? "px-2" : "px-3",
       )}
     >
       <div
         className={cn(
           "flex h-16 shrink-0 items-center justify-between sticky top-0 z-10 dashboard-sidebar-bg",
-          isSidebarCollapsed ? "flex-col gap-1 pt-2 pb-1 h-20 -mx-2 px-2" : "-mx-4 px-4 pl-5 pr-12 lg:pr-4",
+          shouldCollapse ? "flex-col gap-1 pt-2 pb-1 h-20 -mx-2 px-2" : "-mx-4 px-4 pl-5 pr-12 lg:pr-4",
         )}
       >
         <Link
@@ -204,9 +205,9 @@ export function Sidebar({ onItemClick }: SidebarProps = {}) {
           <Image
             src="/logo_2.webp"
             alt="NutriNet"
-            width={isSidebarCollapsed ? 72 : 180}
-            height={isSidebarCollapsed ? 23 : 57}
-            className={cn("h-auto w-auto object-contain", isSidebarCollapsed ? "max-w-[72px]" : "max-w-[180px]")}
+            width={shouldCollapse ? 72 : 180}
+            height={shouldCollapse ? 23 : 57}
+            className={cn("h-auto w-auto object-contain", shouldCollapse ? "max-w-[72px]" : "max-w-[180px]")}
             style={{ width: "auto", height: "auto" }}
           />
         </Link>
@@ -235,7 +236,7 @@ export function Sidebar({ onItemClick }: SidebarProps = {}) {
 
             return (
               <li key={group.title}>
-                {!isSidebarCollapsed && (
+                {!shouldCollapse && (
                   onItemClick ? (
                     <div
                       className={cn(
@@ -266,10 +267,10 @@ export function Sidebar({ onItemClick }: SidebarProps = {}) {
                   )
                 )}
                 {showItems && (
-                  <ul role="list" className={cn("-mx-2 space-y-0.5", !isSidebarCollapsed && "mt-1")}>
+                   <ul role="list" className={cn("-mx-2 space-y-0.5", !shouldCollapse && "mt-1")}>
                     {group.items.map((item) => {
                       if (item.isSubHeader) {
-                        if (isSidebarCollapsed) return null;
+                        if (shouldCollapse) return null;
                         return (
                           <li key={item.name} className="mt-4 mb-1 px-3">
                             <div className={cn(
@@ -312,8 +313,8 @@ export function Sidebar({ onItemClick }: SidebarProps = {}) {
                                   : "text-slate-600 hover:text-indigo-600 hover:bg-slate-50 font-medium",
                               isLocked && "cursor-not-allowed grayscale opacity-50",
                               "group flex min-w-0 cursor-pointer items-center gap-x-2 rounded-md p-2 leading-5 transition-colors",
-                              isSidebarCollapsed && "justify-center",
-                              !isSidebarCollapsed && group.title === "Nutrición y Dietética" && "pl-4"
+                              shouldCollapse && "justify-center",
+                              !shouldCollapse && group.title === "Nutrición y Dietética" && "pl-4"
                             )}
                             title={item.name}
                           >
@@ -334,7 +335,7 @@ export function Sidebar({ onItemClick }: SidebarProps = {}) {
                                 />
                               )}
                             </span>
-                            {!isSidebarCollapsed && <span className="min-w-0 flex-1 truncate">{item.name}</span>}
+                            {!shouldCollapse && <span className="min-w-0 flex-1 truncate">{item.name}</span>}
                             {isLocked && <Lock className={cn("h-3 w-3", isDarkMode ? "text-indigo-100/35" : "text-slate-400")} />}
                           </Link>
                         </li>

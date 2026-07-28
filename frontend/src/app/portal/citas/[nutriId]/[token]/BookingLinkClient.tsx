@@ -479,8 +479,9 @@ export default function BookingLinkClient({
                     <span className="text-sm font-semibold text-slate-600">Actualizando horarios...</span>
                   </div>
                 ) : (
-                  <div className="w-full">
-                    <div className="grid grid-cols-[72px_repeat(7,minmax(0,1fr))] border-b border-slate-100 bg-white">
+                   <div className="w-full overflow-x-auto">
+                     <div className="min-w-[44rem]">
+                     <div className="grid grid-cols-[72px_repeat(7,minmax(0,1fr))] border-b border-slate-100 bg-white">
                       <div className="px-3 py-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">
                         Hora
                       </div>
@@ -507,7 +508,7 @@ export default function BookingLinkClient({
                       })}
                     </div>
 
-                    <div className="flex flex-col bg-slate-50/50">
+                     <div className="flex flex-col bg-slate-50/50">
                       {Array.from({ length: 22 - 8 + 1 }, (_, hourIndex) => {
                         const hour = 8 + hourIndex;
                         return (
@@ -547,8 +548,9 @@ export default function BookingLinkClient({
                           </div>
                         );
                       })}
-                    </div>
-                  </div>
+                     </div>
+                     </div>
+                   </div>
                 )}
             </CardContent>
           </Card>

@@ -29,7 +29,7 @@ export function ActionDock({ items, className }: ActionDockProps) {
       className={cn(
         "fixed z-50 transition-all duration-300",
         // Mobile (< 768px): Bottom floating navbar
-        "bottom-3 left-2 right-2 sm:left-4 sm:right-4 max-w-[calc(100vw-1rem)] mx-auto",
+        "bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-2 right-2 sm:left-4 sm:right-4 max-w-[calc(100vw-1rem)] mx-auto",
         // Desktop (>= 768px): Vertical dock on the right
         "md:bottom-auto md:left-auto md:right-4 md:top-1/2 md:-translate-y-1/2 md:max-w-none md:mx-0",
         "xl:right-8",

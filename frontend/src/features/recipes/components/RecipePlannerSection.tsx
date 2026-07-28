@@ -814,11 +814,11 @@ export const RecipePlannerSection: React.FC<RecipePlannerSectionProps> = ({
                           Cumplimiento semanal
                         </p>
                         <div className="grid grid-cols-2 gap-2 text-[10px] font-black uppercase tracking-widest">
-                          <span className={weekTotalsWithSupplement.calories >= patientNutritionGoals.calories * 7 ? "text-emerald-600" : "text-slate-500"}>
-                            kcal {weekTotalsWithSupplement.calories}/{patientNutritionGoals.calories * 7}
+                          <span className={weekTotalsWithSupplement.calories >= patientNutritionGoals.calories * cycleDayCount ? "text-emerald-600" : "text-slate-500"}>
+                            kcal {weekTotalsWithSupplement.calories}/{patientNutritionGoals.calories * cycleDayCount}
                           </span>
-                          <span className={weekTotalsWithSupplement.protein >= patientNutritionGoals.protein * 7 ? "text-emerald-600" : "text-slate-500"}>
-                            prot {Math.round(weekTotalsWithSupplement.protein)}/{patientNutritionGoals.protein * 7}
+                          <span className={weekTotalsWithSupplement.protein >= patientNutritionGoals.protein * cycleDayCount ? "text-emerald-600" : "text-slate-500"}>
+                            prot {Math.round(weekTotalsWithSupplement.protein)}/{patientNutritionGoals.protein * cycleDayCount}
                           </span>
                         </div>
                       </div>

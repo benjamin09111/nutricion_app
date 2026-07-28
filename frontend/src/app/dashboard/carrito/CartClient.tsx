@@ -479,7 +479,10 @@ export default function CartClient() {
     id: `recipe-${normalizeFoodKey(usage.name)}-${usage.unit}`,
     producto: usage.name,
     grupo: "Ingredientes de platos",
-    frecuenciaSemanal: Math.max(1, Math.round(usage.weeklyHits || 1)),
+  // `amount` already aggregates every scheduled recipe appearance.
+  frecuenciaSemanal: usage.amount != null
+    ? 1
+    : Math.max(1, Math.round(usage.weeklyHits || 1)),
     porcionGramos: Math.max(0, usage.amount || 1),
     carbohidratosPor100g: 0,
     grasasPor100g: 0,
@@ -499,7 +502,7 @@ export default function CartClient() {
     cantidadMes: calculateMonthlyQuantity(
       Math.max(0, usage.amount || 1),
       usage.unit || (usage.amount != null ? "g" : "unidad"),
-      Math.max(1, Math.round(usage.weeklyHits || 1)),
+      usage.amount != null ? 1 : Math.max(1, Math.round(usage.weeklyHits || 1)),
     ),
   });
 

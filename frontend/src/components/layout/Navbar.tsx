@@ -116,7 +116,7 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
   return (
     <div
       className={cn(
-        "dashboard-nav-bg sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b px-4 backdrop-blur-xl sm:gap-x-6 sm:px-6 lg:px-8 transition-colors",
+        "dashboard-nav-bg sticky top-0 z-40 flex h-16 min-w-0 shrink-0 items-center gap-x-2 border-b px-3 backdrop-blur-xl sm:gap-x-6 sm:px-6 lg:px-8 transition-colors",
         isAdminView && !isDarkMode && "bg-indigo-50/50 border-indigo-100",
         isAdminView && isDarkMode && "border-indigo-400/20",
       )}
@@ -142,8 +142,8 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
         />
       </button>
 
-        <div className="flex flex-1 items-center gap-x-2 sm:gap-x-4 lg:gap-x-6">
-          <div className="flex flex-1 items-center justify-end gap-x-2 sm:gap-x-4 lg:gap-x-8">
+        <div className="flex min-w-0 flex-1 items-center gap-x-1 sm:gap-x-4 lg:gap-x-6">
+          <div className="flex min-w-0 flex-1 items-center justify-end gap-x-1.5 sm:gap-x-4 lg:gap-x-8">
             {!isAdminView && (
               <Link
                 href="/dashboard/actualizaciones"
@@ -212,7 +212,7 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
                     className="object-cover"
                   />
                 </div>
-                <span className="text-[11px] font-bold tracking-tight">Nutria</span>
+                <span className="hidden text-[11px] font-bold tracking-tight sm:inline">Nutria</span>
               </button>
             )}
 

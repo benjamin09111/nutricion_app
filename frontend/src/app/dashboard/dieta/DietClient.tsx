@@ -15,7 +15,7 @@ import { DietConstraintSection } from "@/features/diet/components/DietConstraint
 import { DietMacroSection } from "@/features/diet/components/DietMacroSection";
 import { DietPlannerSection } from "@/features/diet/components/DietPlannerSection";
 import { DietRecipesSection, DietMealBlock } from "@/features/diet/components/DietRecipesSection";
-import { DietCartSection, DietCartItem, DEFAULT_CART_ITEMS } from "@/features/diet/components/DietCartSection";
+import { DietCartSection, DietCartItem } from "@/features/diet/components/DietCartSection";
 import { DietFinalPlanSection } from "@/features/diet/components/DietFinalPlanSection";
 import { DietModals } from "@/features/diet/components/DietModals";
 import {
@@ -53,7 +53,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
 
   // Local state for Step 3 (Recetas y porciones) & Step 4 (Carrito)
   const [meals, setMeals] = useState<DietMealBlock[]>([]);
-  const [cartItems, setCartItems] = useState<DietCartItem[]>(() => DEFAULT_CART_ITEMS);
+  const [cartItems, setCartItems] = useState<DietCartItem[]>([]);
 
   const buildMainPromptPayload = () => ({
     context: {

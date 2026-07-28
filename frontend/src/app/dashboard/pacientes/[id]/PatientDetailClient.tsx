@@ -141,6 +141,7 @@ function getValidationAlerts(
 }
 
 export default function PatientDetailClient({ id }: PatientDetailClientProps) {
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const router = useRouter();
   const state = usePatientDetailState({ id });
   const { currentPlan } = useSubscription();
@@ -278,11 +279,18 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                     <Edit2 className="w-3.5 h-3.5" />
                   </button>
 
-                  <div className="relative group">
-                    <button className="h-8 w-8 rounded-xl border border-slate-200 text-slate-400 bg-white hover:bg-slate-50 hover:text-slate-700 transition-all cursor-pointer flex items-center justify-center">
+                  <div className="relative">
+                    <button
+                      type="button"
+                      aria-expanded={isExportMenuOpen}
+                      aria-label="Más acciones del paciente"
+                      onClick={() => setIsExportMenuOpen((open) => !open)}
+                      className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 transition-all hover:bg-slate-50 hover:text-slate-700"
+                    >
                       <MoreHorizontal className="w-4 h-4" />
                     </button>
-                    <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-xl border border-slate-100 shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-40 py-1">
+                    {isExportMenuOpen && (
+                    <div className="absolute right-0 top-full z-40 mt-1 w-56 rounded-xl border border-slate-100 bg-white py-1 shadow-lg">
                       <div className="px-3 py-1.5">
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Exportar ficha</p>
                       </div>
@@ -318,6 +326,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                         {patient.status === "Active" ? "Marcar inactivo" : "Reactivar"}
                       </button>
                     </div>
+                    )}
                   </div>
                 </>
             </div>

@@ -36,7 +36,7 @@ import { MNAModal } from "./components/MNAModal";
 
 const FORMULA_OPTIONS = [
   { value: "mifflin-st-jeor", label: "Mifflin-St Jeor (1990)" },
-  { value: "harris-benedict", label: "Harris-Benedict (rev. Roza-Shizgal, 1984)" },
+  { value: "harris-benedict", label: "Harris-Benedict (original, 1919)" },
   { value: "oms-fao", label: "OMS/FAO (2004)" },
 ];
 
@@ -58,6 +58,10 @@ export default function CalculosClient() {
   const [isTargetBmiCustom, setIsTargetBmiCustom] = useState(false);
   const [activityLevel, setActivityLevel] = useState("sedentario");
   const [tmbFormula, setTmbFormula] = useState("mifflin-st-jeor");
+  const [isPregnant, setIsPregnant] = useState(false);
+  const [pregnancyWeek, setPregnancyWeek] = useState("");
+  const [isLactating, setIsLactating] = useState(false);
+  const [lactationType, setLactationType] = useState<"exclusive" | "partial">("exclusive");
 
   // Macro distribution default
   const [carbPct] = useState(55);
@@ -167,10 +171,14 @@ export default function CalculosClient() {
         gender,
         weight: w,
         height: h,
-        ageYears: a ? Math.round(a) : null,
+        ageYears: a,
         targetBmi: parseNum(targetBmi) || 22.0,
         activityLevel,
         tmbFormula,
+        isPregnant,
+        pregnancyWeek: isPregnant ? parseNum(pregnancyWeek) : null,
+        isLactating,
+        lactationType: isLactating ? lactationType : null,
         carbPct,
         proteinPct,
         fatPct,
@@ -211,6 +219,10 @@ export default function CalculosClient() {
     targetBmi,
     activityLevel,
     tmbFormula,
+    isPregnant,
+    pregnancyWeek,
+    isLactating,
+    lactationType,
     carbPct,
     proteinPct,
     fatPct,
@@ -661,6 +673,62 @@ export default function CalculosClient() {
                     className="h-9 rounded-xl text-xs font-semibold"
                   />
                 </div>
+              </div>
+
+              <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-3 space-y-3">
+                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700">
+                  Condición fisiológica
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <label className="flex items-center gap-2 text-xs font-semibold text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={isPregnant}
+                      onChange={(event) => setIsPregnant(event.target.checked)}
+                      className="accent-emerald-600"
+                    />
+                    Embarazo
+                  </label>
+                  <label className="flex items-center gap-2 text-xs font-semibold text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={isLactating}
+                      onChange={(event) => setIsLactating(event.target.checked)}
+                      className="accent-emerald-600"
+                    />
+                    Lactancia
+                  </label>
+                </div>
+                {isPregnant ? (
+                  <div>
+                    <label className="block text-[10px] font-bold text-emerald-700 mb-1 uppercase">
+                      Semana gestacional
+                    </label>
+                    <Input
+                      value={pregnancyWeek}
+                      onChange={(event) => setPregnancyWeek(event.target.value)}
+                      type="number"
+                      min="1"
+                      max="42"
+                      step="1"
+                      placeholder="24"
+                      className="h-9 rounded-xl text-xs font-semibold px-3"
+                    />
+                  </div>
+                ) : null}
+                {isLactating ? (
+                  <select
+                    value={lactationType}
+                    onChange={(event) => setLactationType(event.target.value as "exclusive" | "partial")}
+                    className="w-full h-9 rounded-xl border border-emerald-200 bg-white px-2.5 text-xs font-semibold text-slate-700"
+                  >
+                    <option value="exclusive">Lactancia exclusiva (+500 kcal)</option>
+                    <option value="partial">Lactancia parcial (+300 kcal)</option>
+                  </select>
+                ) : null}
+                <p className="text-[10px] text-emerald-800">
+                  Ajuste orientativo. Confirmar semana, tipo de lactancia y condición clínica antes de indicar un plan.
+                </p>
               </div>
             </div>
           </div>

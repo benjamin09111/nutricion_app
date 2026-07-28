@@ -37,6 +37,8 @@ const DEFAULT_MEAL_SECTIONS = [
   { section: "Cena", time: "20:30" },
 ];
 
+const createMealId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
 interface DietRecipesSectionProps {
   meals: DietMealBlock[];
   setMeals: React.Dispatch<React.SetStateAction<DietMealBlock[]>>;
@@ -62,7 +64,7 @@ export function DietRecipesSection({
 
   const addMealBlock = (sectionName = "Comida nueva", defaultTime = "12:00") => {
     const newMeal: DietMealBlock = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      id: createMealId(),
       section: sectionName,
       time: defaultTime,
       name: "",
@@ -323,8 +325,8 @@ export function DietRecipesSection({
         </div>
 
         {showPortionGuide && (
-          <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
-            <table className="w-full text-left text-xs">
+          <div className="mt-4 overflow-x-auto rounded-2xl border border-slate-200">
+            <table className="w-full min-w-[42rem] text-left text-xs">
               <thead className="bg-slate-50 font-bold uppercase tracking-wider text-slate-600 border-b border-slate-200">
                 <tr>
                   <th className="px-4 py-3">Grupo / Categoría</th>

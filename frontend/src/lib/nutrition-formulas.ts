@@ -240,13 +240,16 @@ function getPediatricBmiAssessment(params: {
 
   let classification = "Normopeso";
   let color = "#8da84f";
-  if (percentile < 10) {
+  if (z <= -2) {
     classification = "Bajo peso";
     color = "#8f70d8";
-  } else if (percentile < 85) {
+  } else if (z <= -1) {
+    classification = "Riesgo de bajo peso";
+    color = "#a78bfa";
+  } else if (z < 1) {
     classification = "Normopeso";
     color = "#8da84f";
-  } else if (percentile < 95) {
+  } else if (z < 2) {
     classification = "Sobrepeso";
     color = "#d97706";
   } else {
@@ -260,13 +263,15 @@ function getPediatricBmiAssessment(params: {
     color,
     percentile: Math.round(percentile * 10) / 10,
     percentileCategory:
-      percentile < 10
-        ? "<p10"
-        : percentile < 85
-          ? "p10-p85"
-          : percentile < 95
-            ? "p85-p95"
-            : ">p95",
+      z <= -2
+        ? "Z ≤ -2"
+        : z <= -1
+          ? "-2 < Z ≤ -1"
+          : z < 1
+            ? "-1 < Z < +1"
+            : z < 2
+              ? "+1 ≤ Z < +2"
+              : "Z ≥ +2",
     reference: "MINSAL IMC/E 5-19 años",
     isPediatric: true,
   };

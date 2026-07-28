@@ -161,14 +161,14 @@ export default function ConsultationsClient() {
           </div>
 
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 lg:justify-end">
-            <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full sm:w-auto">
+             <div className="grid grid-cols-1 gap-2 min-[380px]:grid-cols-2 sm:flex sm:items-center w-full sm:w-auto">
               <div className="relative">
                 <CalendarDays className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
                 <input
                   type="date"
                   value={dateFrom}
                   onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
-                  className="h-10 w-full sm:w-[9rem] pl-9 pr-2 rounded-xl border border-slate-200 bg-white text-xs font-medium text-slate-600 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/10 outline-none cursor-pointer transition-all"
+                   className="h-10 min-w-0 w-full sm:w-[9rem] pl-9 pr-2 rounded-xl border border-slate-200 bg-white text-xs font-medium text-slate-600 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/10 outline-none cursor-pointer transition-all"
                   title="Desde"
                 />
               </div>
@@ -178,7 +178,7 @@ export default function ConsultationsClient() {
                   type="date"
                   value={dateTo}
                   onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
-                  className="h-10 w-full sm:w-[9rem] pl-9 pr-2 rounded-xl border border-slate-200 bg-white text-xs font-medium text-slate-600 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/10 outline-none cursor-pointer transition-all"
+                   className="h-10 min-w-0 w-full sm:w-[9rem] pl-9 pr-2 rounded-xl border border-slate-200 bg-white text-xs font-medium text-slate-600 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/10 outline-none cursor-pointer transition-all"
                   title="Hasta"
                 />
               </div>
