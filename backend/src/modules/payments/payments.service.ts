@@ -19,7 +19,6 @@ import { DiscountCodesService } from '../discount-codes/discount-codes.service';
 import { resolveAccountPlanFromMembershipPlan } from '../memberships/account-plan';
 import { WhatsAppService } from '../notifications/whatsapp.service';
 import { MailService } from '../mail/mail.service';
-import { INDEPENDENT_METRICS_TITLE } from '../consultations/consultations.service';
 import * as XLSX from 'xlsx';
 
 @Injectable()
@@ -320,22 +319,19 @@ export class PaymentsService {
 
     const subscription = snapshot.subscription;
     const [
-      activePatients,
+       totalPatients,
       totalConsultations,
       activeFollowUps,
-      pdfUsage,
+       pdfUsage,
       aiUsage,
       calculatorUsage,
       pendingTransferCount,
     ] = await Promise.all([
-      this.prisma.patient.count({
-        where: { nutritionist: { accountId }, status: 'Active' },
+       this.prisma.patient.count({
+         where: { nutritionist: { accountId } },
       }),
       this.prisma.consultation.count({
-        where: {
-          nutritionist: { accountId },
-          title: { not: INDEPENDENT_METRICS_TITLE },
-        },
+         where: { nutritionist: { accountId } },
       }),
       this.prisma.patientPortalInvitation.count({
         where: {
@@ -346,7 +342,7 @@ export class PaymentsService {
           expiresAt: { gte: new Date() },
         },
       }),
-      this.planUsageService.getUsage(accountId, 'pdf.monthly.limit'),
+       this.planUsageService.getUsage(accountId, 'pdf.exports.total.limit'),
       this.planUsageService.getUsage(accountId, 'ai.calls.limit'),
       this.planUsageService.getUsage(accountId, 'clinical_calculator.limit'),
       this.prisma.payment.count({
@@ -394,7 +390,7 @@ export class PaymentsService {
         : null,
       entitlements: snapshot.entitlements,
       usage: {
-        patientsActive: activePatients,
+         patientsActive: totalPatients,
         consultationsUsed: totalConsultations,
         followupsPrivateActive: activeFollowUps,
         pdfUsed: pdfUsage,

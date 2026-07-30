@@ -14,6 +14,7 @@ import { AuthGuard } from '../auth/guards/auth.guard';
 import { PermissionsGuard } from '../permissions/permissions.guard';
 import { RequireFeatures } from '../permissions/permissions.decorator';
 import { SPECIAL_FEATURES } from '../permissions/permissions.constants';
+import { PLAN_ENTITLEMENT_KEYS } from '../memberships/plan-entitlements';
 
 @Controller('metrics')
 @UseGuards(AuthGuard, PermissionsGuard)
@@ -30,6 +31,10 @@ export class MetricsController {
   }
 
   @Post()
+  @RequireFeatures(
+    SPECIAL_FEATURES.MEMBERSHIP_SELECTED,
+    PLAN_ENTITLEMENT_KEYS.METRICS_CREATE_ACCESS,
+  )
   async create(
     @Body()
     data: {

@@ -37,13 +37,14 @@ export class CopilotController {
     res.flushHeaders();
 
     const accountId = req.user?.id || req.user?.sub;
+    let quotaReserved = false;
     if (accountId) {
       try {
         await this.planUsageService.consumeQuota(
           accountId,
           PLAN_ENTITLEMENT_KEYS.AI_CALLS_LIMIT,
-          1,
         );
+        quotaReserved = true;
       } catch (error) {
         const message =
           error instanceof Error ? error.message : 'Cuota agotada';
@@ -66,6 +67,12 @@ export class CopilotController {
 
       res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
     } catch (error) {
+      if (accountId && quotaReserved) {
+        await this.planUsageService.refundQuota(
+          accountId,
+          PLAN_ENTITLEMENT_KEYS.AI_CALLS_LIMIT,
+        );
+      }
       const message =
         error instanceof Error ? error.message : 'Error desconocido';
       res.write(

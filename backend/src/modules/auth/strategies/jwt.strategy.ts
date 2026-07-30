@@ -68,7 +68,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         role: true,
         email: true,
         rut: true,
-        lastLoginAt: true,
         nutritionist: {
           select: { id: true },
         },
@@ -77,16 +76,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
     if (!account || account.status !== 'ACTIVE') {
       throw new UnauthorizedException('Sesión inválida');
-    }
-
-    // Plan changes update lastLoginAt so tokens issued before that action
-    // cannot keep using stale permissions.
-    if (
-      account.lastLoginAt &&
-      payload.iat &&
-      account.lastLoginAt.getTime() > payload.iat * 1000 + 1000
-    ) {
-      throw new UnauthorizedException('Sesión desactualizada por cambio de plan');
     }
 
     return {

@@ -53,6 +53,7 @@ import { SaveCreationModal } from "@/components/ui/SaveCreationModal";
 import Cookies from "js-cookie";
 import { fetchApi } from "@/lib/api-base";
 import { getCurrentUser, setCurrentUser } from "@/lib/current-user";
+import { membershipService } from "@/features/memberships/services/membership.service";
 import {
   fetchCreation,
   fetchProject,
@@ -1168,6 +1169,7 @@ export default function DeliverableClient() {
       const blob = await pdf(
         <StandardTemplate data={draftData} config={config} />,
       ).toBlob();
+      await membershipService.consumeQuota("pdf.exports.total.limit");
 
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -1260,7 +1262,7 @@ export default function DeliverableClient() {
         });
       });
 
-      await Promise.all(
+      const generatedFiles = await Promise.all(
         tasks.map(async (task, index) => {
           const userObj = getCurrentUser();
           const brandSettings = userObj?.nutritionist?.settings || {};
@@ -1275,19 +1277,23 @@ export default function DeliverableClient() {
             <StandardTemplate data={draftData} config={config} />,
           ).toBlob();
 
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = `${task.pkgName.replace(/ /g, "_")}_${Date.now()}.pdf`;
-          document.body.appendChild(a);
-
-          setTimeout(() => {
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-          }, index * 800);
+          return { blob, task, index };
         })
       );
+
+      await membershipService.consumeQuota("pdf.exports.total.limit");
+      generatedFiles.forEach(({ blob, task, index }) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${task.pkgName.replace(/ /g, "_")}_${Date.now()}.pdf`;
+        document.body.appendChild(a);
+        setTimeout(() => {
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }, index * 800);
+      });
 
       toast.success("¡Paquetes PDF generados y descargados!", {
         id: "pdf-toast",

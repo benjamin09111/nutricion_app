@@ -335,12 +335,17 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           {/* Patient identity row */}
           <div className="pb-4 space-y-2">
             {isEditing ? (
-              <Input
-                value={editForm.fullName || ""}
-                onChange={(e) => state.updateField("fullName", e.target.value)}
-                className="bg-slate-50 border-none font-bold text-xl h-10 w-full max-w-md"
-                placeholder="Nombre completo"
-              />
+              <div className="flex items-center gap-2 max-w-md">
+                <Input
+                  value={editForm.fullName || ""}
+                  onChange={(e) => state.updateField("fullName", e.target.value)}
+                  className="bg-amber-50/40 border-2 border-amber-300/90 font-bold text-xl h-11 w-full rounded-xl shadow-2xs focus:bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-400/30"
+                  placeholder="Nombre completo"
+                />
+                <span className="shrink-0 inline-flex items-center gap-1 text-[11px] font-extrabold text-amber-800 bg-amber-100 border border-amber-300 px-2.5 py-1 rounded-lg">
+                  <Edit2 className="w-3 h-3" /> Editable
+                </span>
+              </div>
             ) : (
               <h1 className={cn(
                 "text-xl font-black tracking-tight",
@@ -590,7 +595,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
 
       {/* ── TABS NAVBAR ────────────────────────────────────────────────── */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-5">
-        <div className="grid grid-cols-2 sm:flex sm:items-center rounded-2xl border border-slate-200 bg-slate-100/80 p-1.5 shadow-sm gap-1">
+        <div className="flex items-center overflow-x-auto no-scrollbar sm:flex-wrap rounded-2xl border border-slate-200 bg-slate-100/80 p-1.5 shadow-sm gap-1">
           {tabs.filter((t) => !t.hidden).map((tab) => (
             <button
               key={tab.label}
@@ -604,7 +609,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
               }}
               disabled={tab.disabled}
               className={cn(
-                "flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold transition-all rounded-xl",
+                "flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold transition-all rounded-xl shrink-0 sm:shrink flex-1 sm:flex-initial whitespace-nowrap",
                 tab.disabled || (isEditing && tab.label !== "Ficha clínica")
                   ? "text-slate-300 bg-transparent cursor-not-allowed"
                   : state.activeTab === tab.label

@@ -58,7 +58,7 @@ export default function CreationsClient({
   onUpdate
 }: CreationsClientProps) {
   const router = useRouter();
-  const { currentPlan } = useSubscription();
+  const { can } = useSubscription();
   const [selectedType, setSelectedType] = useState<CreationType | "Todos">("Todos");
   const [selectedTag, setSelectedTag] = useState<string>("Todos");
   const [searchTerm, setSearchTerm] = useState("");
@@ -424,7 +424,7 @@ export default function CreationsClient({
   };
 
   const handleEdit = (item: Creation) => {
-    if (currentPlan?.key === "free") {
+    if (!can("creations.edit.access")) {
       window.dispatchEvent(
         new CustomEvent("show-freemium-upgrade", {
           detail: {

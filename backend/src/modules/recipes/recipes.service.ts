@@ -407,9 +407,10 @@ export class RecipesService {
     modelId: string;
     object: any;
   }> {
+    let quotaReserved = false;
     try {
       await this.planUsageService.consumeQuota(accountId, 'ai.calls.limit');
-
+      quotaReserved = true;
       const result = await this.aiService.generateStructuredObject(
         taskName,
         systemInstruction,
@@ -425,6 +426,9 @@ export class RecipesService {
         object: any;
       };
     } catch (error) {
+      if (quotaReserved) {
+        await this.planUsageService.refundQuota(accountId, 'ai.calls.limit');
+      }
       if (error instanceof ForbiddenException) {
         throw error;
       }
@@ -1443,9 +1447,10 @@ export class RecipesService {
       `Ingredientes: ${JSON.stringify(dto.ingredientNames)}`,
     ].join('\n');
 
+    let quotaReserved = false;
     try {
       await this.planUsageService.consumeQuota(userId, 'ai.calls.limit');
-
+      quotaReserved = true;
       const structured = await this.aiService.generateStructuredObject(
         'recipes.estimate-macros',
         'Eres un asistente nutricional. Responde solo JSON.',
@@ -1473,6 +1478,9 @@ export class RecipesService {
         lipids: Math.round(parsed.lipids ?? 0),
       };
     } catch (err) {
+      if (quotaReserved) {
+        await this.planUsageService.refundQuota(userId, 'ai.calls.limit');
+      }
       if (err instanceof BadRequestException) throw err;
       throw new BadRequestException(
         'No se pudo estimar macros con IA. Verifica GEMINI_API_KEY o las credenciales del proveedor configurado.',

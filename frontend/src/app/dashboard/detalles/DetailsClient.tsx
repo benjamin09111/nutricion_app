@@ -37,7 +37,7 @@ import { useSubscription } from "@/context/SubscriptionContext";
 import { DEFAULT_CONSTRAINTS, DEFAULT_METRICS } from "@/lib/constants";
 
 export default function DetailsClient() {
-  const { currentPlan } = useSubscription();
+  const { can } = useSubscription();
   const [tags, setTags] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -295,7 +295,10 @@ export default function DetailsClient() {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ name: newTag.trim() }),
+         body: JSON.stringify({
+           name: newTag.trim(),
+           isClinicalRestriction: activeDetailsTab === "restricciones",
+         }),
       });
 
       if (response.ok) {
@@ -470,12 +473,12 @@ export default function DetailsClient() {
                 variant="outline"
                 className="rounded-2xl font-semibold border-slate-200 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 w-full sm:w-auto shrink-0 justify-center"
                 onClick={() => {
-                  if (currentPlan?.key === "free") {
+                   if (!can("clinical_restrictions.create.access")) {
                     window.dispatchEvent(
                       new CustomEvent("show-freemium-upgrade", {
                         detail: {
                           description:
-                            "Crear nuevos Detalles personalizados (restricciones, hashtags y métricas) es una característica exclusiva de los planes de pago. En el plan Freemium puedes usar todos los Detalles disponibles en la plataforma.",
+                             "Crear restricciones clínicas es una característica exclusiva de los planes de pago. En el plan Freemium puedes usar las restricciones disponibles.",
                         },
                       })
                     );
@@ -579,19 +582,8 @@ export default function DetailsClient() {
                   variant="outline"
                   className="rounded-2xl font-semibold border-indigo-100 text-indigo-600 hover:bg-indigo-50 w-full sm:w-auto shrink-0 justify-center"
                   onClick={() => {
-                    if (currentPlan?.key === "free") {
-                      window.dispatchEvent(
-                        new CustomEvent("show-freemium-upgrade", {
-                          detail: {
-                            description:
-                              "Crear nuevos Detalles personalizados (restricciones, hashtags y métricas) es una característica exclusiva de los planes de pago. En el plan Freemium puedes usar todos los Detalles disponibles en la plataforma.",
-                          },
-                        })
-                      );
-                    } else {
-                      setNewTag("#");
-                      setIsAddModalOpen(true);
-                    }
+                    setNewTag("#");
+                    setIsAddModalOpen(true);
                   }}
                 >
                   <Plus className="w-4 h-4 mr-2" />
@@ -665,12 +657,12 @@ export default function DetailsClient() {
               variant="outline"
               className="rounded-2xl font-semibold border-slate-200 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 w-full sm:w-auto shrink-0 justify-center"
               onClick={() => {
-                if (currentPlan?.key === "free") {
+                if (!can("metrics.create.access")) {
                   window.dispatchEvent(
                     new CustomEvent("show-freemium-upgrade", {
                       detail: {
                         description:
-                          "Crear nuevos Detalles personalizados (restricciones, hashtags y métricas) es una característica exclusiva de los planes de pago. En el plan Freemium puedes usar todos los Detalles disponibles en la plataforma.",
+                          "Crear métricas de seguimiento es una característica exclusiva de los planes de pago. En el plan Freemium puedes usar las métricas disponibles.",
                       },
                     })
                   );

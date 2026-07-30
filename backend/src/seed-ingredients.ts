@@ -1,6 +1,9 @@
 import { PrismaClient } from '@prisma/client';
 import * as fs from 'fs';
 import * as path from 'path';
+import { loadPrismaEnv } from '../prisma/load-prisma-env';
+
+loadPrismaEnv();
 
 const prisma = new PrismaClient();
 
@@ -49,11 +52,6 @@ async function main() {
     });
     categoryMap.set(name, category.id);
   }
-
-  // Optional: Clear existing public ingredients if resetting
-  await prisma.ingredient.deleteMany({
-    where: { isPublic: true, verified: true },
-  });
 
   const ingredientsData = [];
   const seenKeys = new Set<string>();

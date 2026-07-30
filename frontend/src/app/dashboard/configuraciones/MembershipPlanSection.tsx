@@ -117,19 +117,19 @@ export function MembershipPlanSection({
   const usageRows = useMemo(
     () => [
       {
-        label: "Pacientes activos",
+        label: "Pacientes totales",
         usage: usage?.patientsActive ?? 0,
-        limit: currentPlan?.entitlements?.["patients.active.limit"],
+        limit: currentPlan?.entitlements?.["patients.total.limit"] ?? currentPlan?.entitlements?.["patients.active.limit"],
       },
       {
-        label: "Consultas consumidas",
+        label: "Consultas guardadas",
         usage: usage?.consultationsUsed ?? 0,
-        limit: currentPlan?.entitlements?.["consultations.monthly.limit"],
+        limit: currentPlan?.entitlements?.["consultations.saved.limit"] ?? currentPlan?.entitlements?.["consultations.monthly.limit"],
       },
       {
-        label: "PDFs consumidos",
+        label: "PDFs generados",
         usage: usage?.pdfUsed ?? 0,
-        limit: currentPlan?.entitlements?.["pdf.monthly.limit"],
+        limit: currentPlan?.entitlements?.["pdf.exports.total.limit"] ?? currentPlan?.entitlements?.["pdf.monthly.limit"],
       },
       {
         label: "Seguimientos privados activos",
@@ -144,7 +144,7 @@ export function MembershipPlanSection({
       {
         label: "IA consumida",
         usage: usage?.aiUsed ?? 0,
-        limit: currentPlan?.entitlements?.["ai.calls.limit"],
+        limit: currentPlan?.entitlements?.["ai.operations.total.limit"] ?? currentPlan?.entitlements?.["ai.calls.limit"],
       },
     ],
     [currentPlan?.entitlements, usage],

@@ -84,9 +84,10 @@ export class PautasService {
       `[AI] Generating pautas for restriction: ${restriction}, categories: ${categories.join(', ')}`,
     );
 
+    let quotaReserved = false;
     try {
       await this.planUsageService.consumeQuota(accountId, 'ai.calls.limit');
-
+      quotaReserved = true;
       const structured = await this.aiService.generateStructuredObject(
         'pautas.generate',
         systemInstruction,
@@ -128,6 +129,9 @@ export class PautasService {
 
       return structured.object;
     } catch (error) {
+      if (quotaReserved) {
+        await this.planUsageService.refundQuota(accountId, 'ai.calls.limit');
+      }
       if (error instanceof ForbiddenException) {
         throw error;
       }

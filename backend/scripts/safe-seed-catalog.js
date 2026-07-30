@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
-const { backendRoot, ensureSafeRemoteFlag, loadEnvFile } = require('./lib/env');
+const { backendRoot, loadEnvFile } = require('./lib/env');
 
 function escapeSql(value) {
   return value.replace(/'/g, "''");
@@ -33,22 +33,6 @@ function readLines(filePath) {
 
 function buildSql(categories, ingredients) {
   const parts = ['BEGIN;'];
-  parts.push(`
-WITH ranked AS (
-  SELECT
-    id,
-    ROW_NUMBER() OVER (
-      PARTITION BY lower(btrim("name")), COALESCE("brand_id", '')
-      ORDER BY "verified" DESC, "is_public" DESC, "createdAt" ASC, id ASC
-    ) AS rn
-  FROM "ingredients"
-)
-DELETE FROM "ingredients"
-WHERE id IN (
-  SELECT id
-  FROM ranked
-  WHERE rn > 1
-);`);
 
   for (const categoryName of categories) {
     const safeCategoryName = escapeSql(categoryName);
@@ -160,7 +144,13 @@ function main() {
   const envArg = process.argv.find((arg) => arg.startsWith('--env='));
   const envFile = envArg ? envArg.split('=')[1] : '.env';
   const { env } = loadEnvFile(envFile);
-  ensureSafeRemoteFlag(env.DIRECT_URL || env.DATABASE_URL, process.argv.slice(2));
+  const databaseUrl = env.DATABASE_URL_DEV;
+  const directUrl = env.DIRECT_URL_DEV || databaseUrl;
+  if (!databaseUrl || !directUrl) {
+    throw new Error(
+      'DATABASE_URL_DEV and DIRECT_URL_DEV are required. Catalog seeds cannot target production.',
+    );
+  }
 
   const ingredientsPath = path.resolve(backendRoot, '..', 'data', 'ingredients.txt');
   const generatedDir = path.resolve(backendRoot, 'prisma', 'generated');
@@ -194,7 +184,8 @@ function main() {
       shell: true,
       env: {
         ...process.env,
-        DATABASE_URL: env.DIRECT_URL || env.DATABASE_URL,
+        DATABASE_URL: directUrl,
+        DIRECT_URL: directUrl,
       },
     },
   );
@@ -203,7 +194,7 @@ function main() {
     process.exit(execute.status ?? 1);
   }
 
-  console.log(`Catalog seed applied successfully from ${categoriesPath} and ${ingredientsPath}`);
+  console.log(`Catalog seed applied non-destructively from ${ingredientsPath}`);
 }
 
 main();

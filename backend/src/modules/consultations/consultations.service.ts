@@ -10,6 +10,7 @@ import { UpdateConsultationDto } from './dto/update-consultation.dto';
 
 import { CacheService } from '../../common/services/cache.service';
 import { PermissionsService } from '../permissions/permissions.service';
+import { PLAN_ENTITLEMENT_KEYS } from '../memberships/plan-entitlements';
 import { PatientsService } from '../patients/patients.service';
 
 type ConsultationMetric = {
@@ -117,15 +118,12 @@ export class ConsultationsService {
       createConsultationDto.title === INDEPENDENT_METRICS_TITLE;
 
     const consultationsTotal = await this.prisma.consultation.count({
-      where: {
-        nutritionistId,
-        title: { not: INDEPENDENT_METRICS_TITLE },
-      },
+      where: { nutritionistId },
     });
 
     await this.permissionsService.ensureWithinLimit(
       accountId,
-      'consultations.monthly.limit',
+      PLAN_ENTITLEMENT_KEYS.CONSULTATIONS_SAVED_LIMIT,
       consultationsTotal,
     );
 

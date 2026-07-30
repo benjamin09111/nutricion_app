@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PermissionsService } from './permissions.service';
 
@@ -36,7 +36,9 @@ export class PlanUsageService {
       return counter?.usageCount ?? 0;
     } catch (error: any) {
       if (error?.code === 'P2021') {
-        return 0;
+        throw new InternalServerErrorException(
+          'El sistema de cuotas no está disponible. Intenta nuevamente más tarde.',
+        );
       }
 
       throw error;
@@ -94,11 +96,55 @@ export class PlanUsageService {
       });
     } catch (error: any) {
       if (error?.code === 'P2021') {
-        return { usageCount: null, limit };
+        throw new InternalServerErrorException(
+          'El sistema de cuotas no está disponible. Intenta nuevamente más tarde.',
+        );
       }
 
       throw error;
     }
+  }
+
+  async ensureQuotaAvailable(
+    accountId: string,
+    featureKey: string,
+    periodKey = LIFETIME_PERIOD_KEY,
+  ) {
+    const limit = await this.permissionsService.getFeatureLimit(accountId, featureKey);
+    if (limit === Infinity) return;
+    if (limit <= 0) {
+      throw new ForbiddenException(`Su plan actual no incluye la cuota: ${featureKey}`);
+    }
+    const usage = await this.getUsage(accountId, featureKey, periodKey);
+    if (usage >= limit) {
+      throw new ForbiddenException(`Su plan actual alcanzó el límite de ${featureKey}`);
+    }
+  }
+
+  async refundQuota(
+    accountId: string,
+    featureKey: string,
+    amount = 1,
+    periodKey = LIFETIME_PERIOD_KEY,
+  ) {
+    await this.prisma.$transaction(async (tx) => {
+      const counter = await tx.planUsageCounter.findUnique({
+        where: {
+          accountId_featureKey_periodKey: { accountId, featureKey, periodKey },
+        },
+      });
+      if (!counter) return;
+
+      const nextUsage = Math.max(0, counter.usageCount - amount);
+      if (nextUsage === 0) {
+        await tx.planUsageCounter.delete({ where: { id: counter.id } });
+      } else {
+        await tx.planUsageCounter.update({
+          where: { id: counter.id },
+          data: { usageCount: nextUsage },
+        });
+      }
+    });
   }
 
   async consumeMonthlyQuota(

@@ -148,9 +148,10 @@ export class DietService {
       `Alimentos: ${JSON.stringify(foods.map((food) => food.name))}`,
     ].join('\n');
 
+    let quotaReserved = false;
     try {
       await this.planUsageService.consumeQuota(accountId, 'ai.calls.limit');
-
+      quotaReserved = true;
       const result = await this.aiService.generateStructuredObject(
         'diet.verify-foods',
         'Eres un asistente clinico de apoyo para nutricionistas. Evalua incompatibilidades de alimentos.',
@@ -177,6 +178,9 @@ export class DietService {
 
       return { conflicts, provider: result.provider };
     } catch {
+      if (quotaReserved) {
+        await this.planUsageService.refundQuota(accountId, 'ai.calls.limit');
+      }
       return null;
     }
   }

@@ -9,6 +9,7 @@ import { normalizeUrl } from './common/utils/runtime-url.util';
 import { config as loadEnv } from 'dotenv';
 import { join } from 'path';
 import { assertSecretsConfigured } from './config/secrets';
+import { configureDatabaseEnvironment } from './config/database-env';
 import {
   bookingRequestLimiter,
   publicAppointmentLimiter,
@@ -30,6 +31,7 @@ import {
 dns.setDefaultResultOrder('ipv4first');
 
 loadEnv({ path: join(__dirname, '..', '.env') });
+configureDatabaseEnvironment();
 assertSecretsConfigured();
 
 async function bootstrap() {

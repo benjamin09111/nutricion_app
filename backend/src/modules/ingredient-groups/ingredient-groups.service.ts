@@ -10,15 +10,31 @@ import { CreateIngredientGroupDto } from './dto/create-ingredient-group.dto';
 import { UpdateGroupIngredientsDto } from './dto/update-group-ingredients.dto';
 
 import { CacheService } from '../../common/services/cache.service';
+import { PermissionsService } from '../permissions/permissions.service';
+import { PLAN_ENTITLEMENT_KEYS } from '../memberships/plan-entitlements';
 
 @Injectable()
 export class IngredientGroupsService {
   constructor(
     private prisma: PrismaService,
     private cacheService: CacheService,
+    private permissionsService: PermissionsService,
   ) {}
 
-  async create(nutritionistId: string, createDto: CreateIngredientGroupDto) {
+  async create(
+    accountId: string,
+    nutritionistId: string,
+    createDto: CreateIngredientGroupDto,
+  ) {
+    const totalGroups = await this.prisma.ingredientGroup.count({
+      where: { nutritionistId },
+    });
+    await this.permissionsService.ensureWithinLimit(
+      accountId,
+      PLAN_ENTITLEMENT_KEYS.FOOD_GROUPS_TOTAL_LIMIT,
+      totalGroups,
+    );
+
     const { tags, ingredients, recipeIds, type, ...data } = createDto;
     const isRecipeGroup = type === 'RECIPE';
 

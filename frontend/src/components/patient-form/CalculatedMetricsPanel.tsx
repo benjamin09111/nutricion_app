@@ -74,7 +74,7 @@ export function CalculatedMetricsPanel({
         <Calculator className="w-3.5 h-3.5" />
         Calculado automáticamente
       </p>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
         {imc && (
           <MetricCard
             label="IMC"

@@ -14,12 +14,17 @@ import { AuthGuard } from '../auth/guards/auth.guard';
 import { PermissionsGuard } from '../permissions/permissions.guard';
 import { RequireFeatures } from '../permissions/permissions.decorator';
 import { SPECIAL_FEATURES } from '../permissions/permissions.constants';
+import { PLAN_ENTITLEMENT_KEYS } from '../memberships/plan-entitlements';
+import { PermissionsService } from '../permissions/permissions.service';
 
 @Controller('tags')
 @UseGuards(AuthGuard, PermissionsGuard)
 @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
 export class TagsController {
-  constructor(private readonly tagsService: TagsService) {}
+  constructor(
+    private readonly tagsService: TagsService,
+    private readonly permissionsService: PermissionsService,
+  ) {}
 
   @Get()
   async findAll(
@@ -33,7 +38,17 @@ export class TagsController {
   }
 
   @Post()
-  async create(@Body('name') name: string, @Request() req: any) {
+  async create(
+    @Body('name') name: string,
+    @Body('isClinicalRestriction') isClinicalRestriction: boolean,
+    @Request() req: any,
+  ) {
+    if (isClinicalRestriction) {
+      await this.permissionsService.ensureAccess(
+        req.user.id,
+        PLAN_ENTITLEMENT_KEYS.CLINICAL_RESTRICTIONS_CREATE_ACCESS,
+      );
+    }
     const nutritionistId = req.user.nutritionistId;
     return this.tagsService.findOrCreate(name, nutritionistId);
   }

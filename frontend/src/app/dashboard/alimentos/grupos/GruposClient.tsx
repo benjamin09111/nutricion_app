@@ -238,7 +238,7 @@ export default function GruposClient({
 
   const getToken = useCallback(() => getAuthToken(), []);
   const isFreemium = String(currentPlan?.key || currentPlan?.slug || "").toLowerCase() === "free";
-  const freemiumGroupLimit = 2;
+  const freemiumGroupLimit = 1;
   const freemiumLimitReached = isFreemium && (freemiumGroupCount ?? groups.length) >= freemiumGroupLimit;
 
   const sourceTabToApiTab = useCallback((sourceTab: IngredientSourceTab) => {
@@ -881,7 +881,7 @@ export default function GruposClient({
       return;
     }
     if (freemiumLimitReached && !editingGroupId) {
-      toast.error("En FREEMIUM solo puedes crear 2 grupos. Elimina uno para crear otro.");
+      toast.error("En FREEMIUM solo puedes crear 1 grupo. Elimina uno para crear otro.");
       return;
     }
     const allIngredientIds = new Set([...Array.from(confirmedIngredientIds), ...Array.from(stagedIngredientIds)]);
@@ -1121,7 +1121,7 @@ export default function GruposClient({
             {isFreemium && (
               <div className="inline-flex items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2 text-xs font-semibold text-amber-800">
                 <Lock size={14} />
-                FREEMIUM: máximo 2 grupos
+                FREEMIUM: máximo 1 grupo
               </div>
             )}
           </div>
@@ -1137,7 +1137,7 @@ export default function GruposClient({
 
       {freemiumLimitReached && activeTab === "Crear grupo" && (
         <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs font-semibold text-rose-800">
-          Ya alcanzaste el límite de 2 grupos en FREEMIUM. Elimina uno para crear otro.
+          Ya alcanzaste el límite de 1 grupo en FREEMIUM. Elimina uno para crear otro.
         </div>
       )}
 
@@ -1838,6 +1838,7 @@ export default function GruposClient({
                     value={groupTags}
                     onChange={setGroupTags}
                     placeholder="Agrega etiquetas..."
+                    helperText="Presiona Enter para agregar la etiqueta o crearla si no existe."
                     className="rounded-xl border-slate-200 focus:border-indigo-500 focus:ring-indigo-500/20"
                   />
                 </div>

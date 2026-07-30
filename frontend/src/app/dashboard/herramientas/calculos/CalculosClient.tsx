@@ -24,8 +24,8 @@ import {
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { cn } from "@/lib/utils";
-import { FeatureGate } from "@/components/memberships/FeatureGate";
 import { api } from "@/lib/api";
+import { useSubscription } from "@/context/SubscriptionContext";
 import { PatientSelectionModal } from "@/components/patients/PatientSelectionModal";
 
 import { CalculationResult, MNAData } from "./types";
@@ -82,6 +82,9 @@ const getPatientAge = (patient: CalculatorPatient): number | null => {
 };
 
 export default function CalculosClient() {
+  const { can, isLoading: isSubscriptionLoading } = useSubscription();
+  const calculatorLocked =
+    isSubscriptionLoading || !can("clinical_calculator.use.access");
   // 1. PASO ESENCIAL (Siempre visible)
   const [gender, setGender] = useState<"Masculino" | "Femenino">("Femenino");
   const [weight, setWeight] = useState("");
@@ -191,6 +194,17 @@ export default function CalculosClient() {
 
   // Execution function triggered ONLY by clicking "Calcular"
   const executeCalculation = useCallback(async () => {
+    if (calculatorLocked) {
+      window.dispatchEvent(
+        new CustomEvent("show-freemium-upgrade", {
+          detail: {
+            description:
+              "La Calculadora Clínica es una característica exclusiva de NutriNet Plus.",
+          },
+        }),
+      );
+      return;
+    }
     const w = parseNum(weight);
     const h = parseNum(height);
     const a = parseNum(age);
@@ -277,6 +291,7 @@ export default function CalculosClient() {
     subescapularFold,
     activeModules,
     useUsualWeightForRequirements,
+    calculatorLocked,
   ]);
 
   const toggleModule = (modKey: keyof typeof activeModules) => {
@@ -356,11 +371,35 @@ export default function CalculosClient() {
   const isModerateAlert = !isCriticalAlert && (isSignificantWeightLoss || isRiskMna);
 
   return (
-    <FeatureGate
-      feature="clinical_calculator.access"
-      message="Disponible solo en Pro."
-    >
-      <div className="max-w-7xl mx-auto pb-24 px-4 sm:px-6">
+      <div className="relative max-w-7xl mx-auto pb-24 px-4 sm:px-6">
+        {calculatorLocked && (
+          <div className="absolute inset-0 z-30 flex items-start justify-center bg-white/75 px-4 pt-28 backdrop-blur-[1px]">
+            <div className="max-w-md rounded-2xl border border-indigo-100 bg-white p-6 text-center shadow-xl">
+              <h2 className="text-lg font-bold text-slate-900">
+                Calculadora exclusiva de NutriNet Plus
+              </h2>
+              <p className="mt-2 text-sm text-slate-600">
+                Puedes revisar esta herramienta, pero necesitas Plus para realizar cálculos clínicos.
+              </p>
+              <Button
+                type="button"
+                className="mt-4 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700"
+                onClick={() =>
+                  window.dispatchEvent(
+                    new CustomEvent("show-freemium-upgrade", {
+                      detail: {
+                        description:
+                          "La Calculadora Clínica es una característica exclusiva de NutriNet Plus.",
+                      },
+                    }),
+                  )
+                }
+              >
+                Conocer NutriNet Plus
+              </Button>
+            </div>
+          </div>
+        )}
         {/* Encabezado Limpio */}
         <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
           <div>
@@ -1331,6 +1370,5 @@ export default function CalculosClient() {
           onApplyMNA={(mnaData) => setMnaResult(mnaData)}
         />
       </div>
-    </FeatureGate>
   );
 }

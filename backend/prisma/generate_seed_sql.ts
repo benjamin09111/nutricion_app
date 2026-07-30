@@ -173,21 +173,6 @@ function main() {
   const statements = [
     '-- Generated file. Rebuild with: npx tsx prisma/generate_seed_sql.ts',
     'BEGIN;',
-    `WITH ranked AS (
-  SELECT
-    id,
-    ROW_NUMBER() OVER (
-      PARTITION BY lower(btrim("name")), COALESCE("brand_id", '')
-      ORDER BY "verified" DESC, "is_public" DESC, "createdAt" ASC, id ASC
-    ) AS rn
-  FROM "ingredients"
-)
-DELETE FROM "ingredients"
-WHERE id IN (
-  SELECT id
-  FROM ranked
-  WHERE rn > 1
-);`,
     ...buildCategoryStatements(categories),
     ...buildIngredientStatements(ingredientRows),
     'COMMIT;',

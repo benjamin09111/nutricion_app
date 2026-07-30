@@ -221,7 +221,7 @@ export function NutriaChatWidget() {
         </div>
       ) : null}
 
-      {showFloatingButton ? <div className="fixed bottom-6 right-6 z-[70] hidden sm:block">
+      {showFloatingButton && !isOpen ? <div className="fixed bottom-6 right-6 z-[70] hidden sm:block">
         <button
           type="button"
           onClick={() => setIsOpen((currentValue) => !currentValue)}

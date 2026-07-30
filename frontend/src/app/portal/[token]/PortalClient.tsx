@@ -337,21 +337,21 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
     try {
       if (del.type === "DIET") {
         const { downloadDietPdf } = await import("@/features/pdf/pdfExport");
-        await downloadDietPdf(buildDietData(del));
+        await downloadDietPdf(buildDietData(del), false);
         toast.success("PDF descargado correctamente.");
         return;
       }
 
       if (del.type === "FAST_DELIVERABLE" || del.type === "PAUTAS") {
         const { downloadFastDeliverablePdf } = await import("@/features/pdf/fastDeliverablePdfExport");
-        await downloadFastDeliverablePdf(buildFastDeliverableData(del));
+        await downloadFastDeliverablePdf(buildFastDeliverableData(del), false);
         toast.success("PDF descargado correctamente.");
         return;
       }
 
       if (del.type === "RECIPE" || del.type === "RECIPES") {
         const { downloadQuickRecipesPdf } = await import("@/features/pdf/quickRecipesPdfExport");
-        await downloadQuickRecipesPdf(buildQuickRecipesData(del));
+        await downloadQuickRecipesPdf(buildQuickRecipesData(del), false);
         toast.success("PDF descargado correctamente.");
         return;
       }

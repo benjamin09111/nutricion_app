@@ -59,24 +59,28 @@ export async function replaceDefaultResources(
     ...loadRestrictionResources(),
   ];
 
-  const deleted = await prisma.resource.deleteMany({
-    where: { nutritionistId: null },
-  });
-  console.log(`🧹 Deleted ${deleted.count} existing system resources.`);
-
-  if (!defaultResources.length) {
-    console.log('ℹ️ No resources found in JSON. Database was left empty on purpose.');
-    return;
+  let count = 0;
+  for (const resource of defaultResources) {
+    const data = toSystemResourceData(resource);
+    if (resource.id) {
+      await (prisma as PrismaClient).resource.upsert({
+        where: { id: resource.id },
+        update: data,
+        create: { id: resource.id, ...data },
+      });
+      count++;
+    } else {
+      const existing = await (prisma as PrismaClient).resource.findFirst({
+        where: { title: resource.title, nutritionistId: null },
+      });
+      if (!existing) {
+        await (prisma as PrismaClient).resource.create({ data });
+        count++;
+      }
+    }
   }
 
-  const result = await prisma.resource.createMany({
-    data: defaultResources.map((resource) => ({
-      ...(resource.id ? { id: resource.id } : {}),
-      ...toSystemResourceData(resource),
-    })),
-  });
-
-  console.log(`✅ Seed completed. Inserted ${result.count} default resources.`);
+  console.log(`✅ Seed completed. Synced ${count} default resources non-destructively.`);
 }
 
 export async function upsertRestrictionResources(

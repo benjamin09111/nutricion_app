@@ -7,6 +7,8 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 
 import { CacheService } from '../../common/services/cache.service';
+import { PermissionsService } from '../permissions/permissions.service';
+import { PLAN_ENTITLEMENT_KEYS } from '../memberships/plan-entitlements';
 
 const FINGERPRINT_IGNORED_KEYS = new Set([
   'description',
@@ -76,6 +78,7 @@ export class CreationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly cacheService: CacheService,
+    private readonly permissionsService: PermissionsService,
   ) {}
 
   async create(
@@ -111,19 +114,16 @@ export class CreationsService {
       );
     }
 
-    // Validar plan y límite de creaciones
-    const account = await this.prisma.account.findUnique({
-      where: { id: accountId },
-      include: { subscription: { include: { plan: true } } },
-    });
-
-    const planKey = account?.subscription?.plan?.slug || 'free';
-    if (planKey === 'free') {
+    const creationLimit = await this.permissionsService.getFeatureLimit(
+      accountId,
+      PLAN_ENTITLEMENT_KEYS.CREATIONS_SAVE_LIMIT,
+    );
+    if (creationLimit !== Infinity) {
       const creationsCount = await this.prisma.creation.count({
         where: { nutritionistId: resolvedNutritionistId },
       });
 
-      if (creationsCount >= 3) {
+      if (creationsCount >= creationLimit) {
         const creationFingerprint = buildCreationFingerprint({
           type,
           content,
@@ -153,7 +153,7 @@ export class CreationsService {
 
         if (!duplicateCreation) {
           throw new BadRequestException(
-            'Has alcanzado el límite de 3 creaciones guardadas en tu plan Freemium. Elimina una existente o mejora tu plan para continuar.',
+            `Has alcanzado el límite de ${creationLimit} creaciones guardadas en tu plan. Elimina una existente o mejora tu plan para continuar.`,
           );
         }
       }

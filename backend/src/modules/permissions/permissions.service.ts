@@ -9,6 +9,7 @@ import {
 import {
   getMembershipPlanEntitlementsFromPlan,
   getMembershipPlanKey,
+  MEMBERSHIP_PLAN_ENTITLEMENTS,
   normalizeMembershipPlanKey,
 } from '../memberships/plan-entitlements';
 import { resolveAccountPlanFromMembershipPlan } from '../memberships/account-plan';
@@ -25,6 +26,10 @@ function resolveEntitlements(
   plan: any,
   hardcoded: EntitlementMap,
 ): EntitlementMap {
+  if (getMembershipPlanKey(plan) === 'free') {
+    return MEMBERSHIP_PLAN_ENTITLEMENTS.free;
+  }
+
   const db = plan?.entitlements;
   if (!db || typeof db !== 'object' || Object.keys(db).length === 0) {
     return hardcoded;
@@ -57,7 +62,7 @@ export class PermissionsService {
   constructor(private prisma: PrismaService) {}
 
   private async getAccountAccess(accountId: string) {
-    const account = await this.prisma.account.findUnique({
+    let account = await this.prisma.account.findUnique({
       where: { id: accountId },
       include: {
         subscription: {
@@ -74,7 +79,10 @@ export class PermissionsService {
       return null;
     }
 
-    const subscriptionSelectable = isSubscriptionSelectable({
+    const membershipSelectedAt = account.membershipSelectedAt;
+    const existingSubscriptionStartDate = account.subscription?.startDate;
+
+    let subscriptionSelectable = isSubscriptionSelectable({
       role: account.role,
       subscription: account.subscription
         ? {
@@ -84,7 +92,7 @@ export class PermissionsService {
         : null,
     });
 
-    const hasPlanSelectionHistory =
+    let hasPlanSelectionHistory =
       Boolean(account.membershipSelectedAt) ||
       account.plan !== 'FREE' ||
       account.payments.length > 0 ||
@@ -95,7 +103,56 @@ export class PermissionsService {
         isActive: true,
         OR: [{ price: 0 }, { slug: { contains: 'free', mode: 'insensitive' } }],
       },
+      orderBy: [{ price: 'asc' }, { displayOrder: 'asc' }],
     });
+
+    const isNutritionist =
+      account.role === 'NUTRITIONIST' ||
+      account.role === 'NUTRITIONIST_DEVELOPER';
+    const needsDefaultFreemium =
+      isNutritionist && Boolean(freeMembershipPlan) && !subscriptionSelectable;
+
+    if (needsDefaultFreemium && freeMembershipPlan) {
+      const now = new Date();
+      await this.prisma.$transaction(async (tx) => {
+        await tx.account.update({
+          where: { id: accountId },
+          data: {
+            plan: 'FREE',
+            membershipSelectedAt: membershipSelectedAt || now,
+            subscriptionEndsAt: null,
+          },
+        });
+        await tx.subscription.upsert({
+          where: { accountId },
+          update: {
+            planId: freeMembershipPlan.id,
+            status: 'ACTIVE',
+            startDate: existingSubscriptionStartDate || now,
+            endDate: null,
+            cancelAtPeriodEnd: false,
+            canceledAt: null,
+          },
+          create: {
+            accountId,
+            planId: freeMembershipPlan.id,
+            status: 'ACTIVE',
+            startDate: now,
+            endDate: null,
+          },
+        });
+      });
+
+      account = await this.prisma.account.findUniqueOrThrow({
+        where: { id: accountId },
+        include: {
+          subscription: { include: { plan: true } },
+          payments: { take: 1, select: { id: true } },
+        },
+      });
+      subscriptionSelectable = true;
+      hasPlanSelectionHistory = true;
+    }
 
     const currentPlan =
       subscriptionSelectable && account.subscription?.plan

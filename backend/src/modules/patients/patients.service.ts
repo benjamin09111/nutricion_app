@@ -16,6 +16,7 @@ import {
 import { CacheService } from '../../common/services/cache.service';
 import { PermissionsService } from '../permissions/permissions.service';
 import { CalculationsService } from '../calculations/calculations.service';
+import { PLAN_ENTITLEMENT_KEYS } from '../memberships/plan-entitlements';
 
 const AUTOMATIC_NUTRITION_KEY = 'automaticNutritionCalculations';
 
@@ -51,14 +52,14 @@ export class PatientsService {
       ...patientData,
       clinicalRecord: clinicalRecordData,
     };
-    const activePatients = await this.prisma.patient.count({
-      where: { nutritionistId, status: 'Active' },
+    const totalPatients = await this.prisma.patient.count({
+      where: { nutritionistId },
     });
 
     await this.permissionsService.ensureWithinLimit(
       accountId,
-      'patients.active.limit',
-      activePatients,
+      PLAN_ENTITLEMENT_KEYS.PATIENTS_TOTAL_LIMIT,
+      totalPatients,
     );
 
     const customVariables = this.withAutomaticNutritionCalculations(

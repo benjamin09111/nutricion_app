@@ -5,6 +5,7 @@ import { membershipService } from "@/features/memberships/services/membership.se
 
 export async function downloadFastDeliverablePdf(
   data: FastDeliverablePdfData,
+  countQuota = true,
 ): Promise<void> {
   const [{ pdf }, { FastDeliverablePdfDocument }, React] = await Promise.all([
     import("@react-pdf/renderer"),
@@ -14,7 +15,9 @@ export async function downloadFastDeliverablePdf(
 
   const doc = React.createElement(FastDeliverablePdfDocument, { data });
   const blob = await pdf(doc as unknown as Parameters<typeof pdf>[0]).toBlob();
-  await membershipService.consumeQuota("pdf.monthly.limit");
+  if (countQuota) {
+    await membershipService.consumeQuota("pdf.exports.total.limit");
+  }
 
   const safeName =
     data.name.replace(/\s+/g, "_").replace(/[^\w-]/g, "") ||

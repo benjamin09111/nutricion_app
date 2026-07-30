@@ -7,7 +7,7 @@ loadPrismaEnv();
 const prisma = new PrismaClient();
 
 async function seed() {
-    console.log('🌱 Replacing all resources from default-resources.json...');
+    console.log('🌱 Syncing resources from default-resources.json non-destructively...');
     await prisma.$transaction(async (tx) => {
         await replaceDefaultResources(tx);
     });

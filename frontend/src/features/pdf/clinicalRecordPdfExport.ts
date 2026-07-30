@@ -1,6 +1,7 @@
 "use client";
 
 import type { ClinicalRecordPdfData } from "./ClinicalRecordPdfDocument";
+import { membershipService } from "@/features/memberships/services/membership.service";
 
 /**
  * Generates and downloads a Clinical Record PDF on the client side.
@@ -15,6 +16,7 @@ export async function downloadClinicalRecordPdf(data: ClinicalRecordPdfData): Pr
 
   const doc = React.createElement(ClinicalRecordPdfDocument, { data }) as any;
   const blob = await pdf(doc).toBlob();
+  await membershipService.consumeQuota("pdf.exports.total.limit");
 
   const safeName = (data.patientName || "Paciente")
     .replace(/\s+/g, "_")

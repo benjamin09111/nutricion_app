@@ -9,6 +9,7 @@ import { membershipService } from "@/features/memberships/services/membership.se
  */
 export async function downloadQuickRecipesPdf(
   data: QuickRecipesPdfData,
+  countQuota = true,
 ): Promise<void> {
   const [{ pdf }, { QuickRecipesPdfDocument }, React] = await Promise.all([
     import("@react-pdf/renderer"),
@@ -18,7 +19,9 @@ export async function downloadQuickRecipesPdf(
 
   const doc = React.createElement(QuickRecipesPdfDocument, { data });
   const blob = await pdf(doc as any).toBlob();
-  await membershipService.consumeQuota("pdf.monthly.limit");
+  if (countQuota) {
+    await membershipService.consumeQuota("pdf.exports.total.limit");
+  }
 
   const safeName =
     (data.title || "recetas_rapidas")

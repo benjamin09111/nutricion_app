@@ -8,10 +8,8 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
-import { toast } from "sonner";
 import { membershipService } from "@/features/memberships/services/membership.service";
 import { fetchApi } from "@/lib/api-base";
-import { authService } from "@/features/auth/services/auth.service";
 import { getCurrentUser, setCurrentUser } from "@/lib/current-user";
 
 export type SubscriptionPlan = "free" | "trial" | "pro";
@@ -160,24 +158,9 @@ export function SubscriptionProvider({
   );
 
   const refreshSubscription = useCallback(async () => {
-    const previousUser = getCurrentUser();
-
     try {
       const data = await membershipService.getStatus();
       const key = computePlan(data.currentPlan, data.accountPlan);
-      const previousPlan = String(
-        previousUser?.plan || previousUser?.currentPlan?.key || previousUser?.currentPlan?.slug || "",
-      ).toLowerCase();
-      const nextPlan = String(data.accountPlan || key || "").toLowerCase();
-
-      if (previousUser && previousPlan && nextPlan && previousPlan !== nextPlan) {
-        const email = encodeURIComponent(previousUser.email || "");
-        await authService.signOut();
-        if (typeof window !== "undefined") {
-          window.location.assign(`/sesion-actualizada?email=${email}`);
-        }
-        return;
-      }
 
       setPlan(key as SubscriptionPlan);
       setPlanName(data.currentPlan?.name || "Plan Gratuito");

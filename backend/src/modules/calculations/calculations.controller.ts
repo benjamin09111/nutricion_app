@@ -9,7 +9,7 @@ import { CalculateDto } from './dto/calculate.dto';
 
 @Controller('calculations')
 @UseGuards(AuthGuard, PermissionsGuard)
-@RequireFeatures(PLAN_ENTITLEMENT_KEYS.CLINICAL_CALCULATOR_ACCESS)
+@RequireFeatures(PLAN_ENTITLEMENT_KEYS.CLINICAL_CALCULATOR_USE_ACCESS)
 export class CalculationsController {
   constructor(
     private readonly calculationsService: CalculationsService,

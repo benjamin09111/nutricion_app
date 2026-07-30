@@ -34,7 +34,7 @@ import { Pagination } from "@/components/ui/Pagination";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { TableLoadingRows } from "@/components/ui/TableLoadingRows";
 import { MobileCardLoadingList } from "@/components/ui/MobileCardLoadingList";
-import { getApiUrl } from "@/lib/api-base";
+import { fetchApi, getApiUrl } from "@/lib/api-base";
 import { formatDateOnlyForLocale } from "@/features/patients/utils/patient-helpers";
 import { usePatients } from "@/features/patients/hooks/usePatients";
 import { exportPatientsToExcel } from "@/features/pdf/patientsExcelExport";
@@ -156,10 +156,10 @@ export default function PatientsClient() {
   };
 
   const filteredPatients = patients;
-  const activePatientLimit = limit("patients.active.limit");
+  const activePatientLimit = limit("patients.total.limit");
   const isPatientLimitReached =
     Number.isFinite(activePatientLimit) &&
-    meta.activeCount >= activePatientLimit;
+    meta.total >= activePatientLimit;
 
   const openPatientPreview = (patient: Patient) => {
     setPatientPreview(patient);

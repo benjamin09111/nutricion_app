@@ -173,20 +173,26 @@ export function ResourcesClient() {
   async function fetchResources() {
     setIsLoading(true);
     try {
-      // System resources come from local JSON (always loaded first)
-      const systemOnly = DEFAULT_SYSTEM_RESOURCES;
-      
-      // User resources come from API
       const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const res = await fetchApi("/resources", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const userData = res.ok ? await res.json() : [];
+      const userData: Resource[] = res.ok ? await res.json() : [];
       
-      // Combine: system resources + user resources
-      setResources([...systemOnly, ...userData]);
+      if (userData && userData.length > 0) {
+        const seenMap = new Map<string, Resource>();
+        for (const r of userData) {
+          const key = r.id || `${r.title.toLowerCase().trim()}_${r.nutritionistId || 'null'}`;
+          if (!seenMap.has(key)) {
+            seenMap.set(key, r);
+          }
+        }
+        setResources(Array.from(seenMap.values()));
+      } else {
+        setResources(DEFAULT_SYSTEM_RESOURCES);
+      }
     } catch {
-      // On error, only show system resources
+      // On error, fallback to local system resources
       setResources(DEFAULT_SYSTEM_RESOURCES);
     } finally {
       setIsLoading(false);

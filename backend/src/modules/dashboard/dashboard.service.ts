@@ -30,7 +30,6 @@ export class DashboardService {
       recentConsultations,
       recentProjects,
       account,
-      freeMembershipPlan,
     ] = await Promise.all([
       this.prisma.patient.count({ where: { nutritionistId } }),
       this.prisma.patient.count({
@@ -82,12 +81,6 @@ export class DashboardService {
           subscription: { include: { plan: true } },
         },
       }),
-      this.prisma.membershipPlan.findFirst({
-        where: {
-          isActive: true,
-          OR: [{ price: 0 }, { slug: { contains: 'free', mode: 'insensitive' } }],
-        },
-      }),
     ]);
 
     let planUsageCounters: { featureKey: string; usageCount: number }[] = [];
@@ -106,38 +99,27 @@ export class DashboardService {
       new Date(subscription.endDate).getTime() > Date.now() &&
       ['ACTIVE', 'TRIALING'].includes(subscription.status);
 
-    const activePlan =
-      isSubscriptionActive
-        ? subscription.plan
-        : account?.plan === 'FREE'
-          ? freeMembershipPlan
-          : null;
+    const activePlan = isSubscriptionActive ? subscription.plan : null;
     const rawSlug =
       activePlan?.slug ||
       activePlan?.name ||
       (account?.plan !== 'FREE' ? account?.plan : 'free') ||
       'free';
     const planKey = normalizeMembershipPlanKey(rawSlug);
-    const storedEntitlements =
-      activePlan?.entitlements &&
-      typeof activePlan.entitlements === 'object' &&
-      !Array.isArray(activePlan.entitlements)
-        ? (activePlan.entitlements as Record<string, boolean | number>)
-        : {};
-    const entitlements = {
-      ...getMembershipPlanEntitlements(planKey),
-      ...storedEntitlements,
-    };
+    const entitlements = getMembershipPlanEntitlements(planKey);
 
     const usageMap: Record<string, number> = {};
     for (const counter of planUsageCounters) {
       usageMap[counter.featureKey] = counter.usageCount;
     }
 
-    const patientLimit = Number(entitlements['patients.active.limit']) || 0;
+    const patientLimit = Number(
+      entitlements['patients.total.limit'] ?? entitlements['patients.active.limit'],
+    ) || 0;
     const consultationLimit =
-      Number(entitlements['consultations.monthly.limit']) || 0;
-    const pdfLimit = Number(entitlements['pdf.monthly.limit']) || 0;
+      Number(entitlements['consultations.saved.limit'] ?? entitlements['consultations.monthly.limit']) || 0;
+    const pdfLimit =
+      Number(entitlements['pdf.exports.total.limit'] ?? entitlements['pdf.monthly.limit']) || 0;
 
     const isFree =
       planKey === 'free' &&
@@ -148,7 +130,7 @@ export class DashboardService {
     if (isFree) {
       const limits = [
         {
-          used: activePatients,
+          used: totalPatients,
           limit: patientLimit > 0 ? patientLimit : Infinity,
         },
         {
@@ -193,9 +175,9 @@ export class DashboardService {
           pdfs: pdfLimit,
         },
         usage: {
-          patients: activePatients,
+          patients: totalPatients,
           consultations: totalConsultations,
-          pdfs: usageMap['pdf.monthly.limit'] || 0,
+          pdfs: usageMap['pdf.exports.total.limit'] || usageMap['pdf.monthly.limit'] || 0,
         },
       },
       recentPatients,

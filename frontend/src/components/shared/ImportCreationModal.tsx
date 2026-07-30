@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/Input";
 import { cn } from "@/lib/utils";
 import { fetchApi } from "@/lib/api-base";
 import { formatDateOnlyForLocale } from "@/features/patients/utils/patient-helpers";
+import { useSubscription } from "@/context/SubscriptionContext";
 
 interface Creation {
   id: string;
@@ -45,6 +46,8 @@ export function ImportCreationModal({
   defaultType,
   allowedTypes,
 }: ImportCreationModalProps) {
+  const { can } = useSubscription();
+  const canImport = can("creations.import.access");
   const [creations, setCreations] = useState<Creation[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
@@ -52,8 +55,20 @@ export function ImportCreationModal({
 
   useEffect(() => {
     if (!isOpen) return;
+    if (!canImport) {
+      window.dispatchEvent(
+        new CustomEvent("show-freemium-upgrade", {
+          detail: {
+            description:
+              "Importar creaciones es una característica exclusiva de los planes de pago.",
+          },
+        }),
+      );
+      onClose();
+      return;
+    }
     void fetchCreations();
-  }, [isOpen]);
+  }, [isOpen, canImport, onClose]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -211,6 +226,7 @@ export function ImportCreationModal({
               <div
                 key={creation.id}
                 onClick={() => {
+                  if (!canImport) return;
                   onImport(creation);
                   onClose();
                 }}
