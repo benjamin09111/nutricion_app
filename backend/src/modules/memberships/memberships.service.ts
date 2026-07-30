@@ -68,6 +68,7 @@ export class MembershipsService {
     currency?: string;
     billingPeriod?: string;
     features: string[];
+    entitlements?: Record<string, boolean | number>;
     maxPatients?: number;
     maxStorage?: number;
     isPopular?: boolean;
@@ -79,6 +80,7 @@ export class MembershipsService {
       data: {
         ...data,
         features: (data.features || []).map(normalizeMembershipFeature),
+        entitlements: data.entitlements || {},
       },
     });
   }
@@ -93,6 +95,7 @@ export class MembershipsService {
       currency?: string;
       billingPeriod?: string;
       features?: string[];
+      entitlements?: Record<string, boolean | number>;
       maxPatients?: number;
       maxStorage?: number;
       isPopular?: boolean;
@@ -108,6 +111,7 @@ export class MembershipsService {
         ...(data.features
           ? { features: data.features.map(normalizeMembershipFeature) }
           : {}),
+        ...(data.entitlements ? { entitlements: data.entitlements } : {}),
       },
     });
   }

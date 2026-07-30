@@ -29,7 +29,13 @@ import { api } from "@/lib/api";
 // import { FollowUpNotificationsMenu } from "@/components/layout/FollowUpNotificationsMenu";
 import { getCurrentUser } from "@/lib/current-user";
 
-export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
+export function Navbar({
+  onMenuClick,
+  isMobileMenuOpen = false,
+}: {
+  onMenuClick?: () => void;
+  isMobileMenuOpen?: boolean;
+}) {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [userEmail] = useState<string>(() => {
@@ -124,6 +130,8 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
       {/* Mobile Menu Toggle (Preserved) */}
       <button
         type="button"
+        aria-expanded={isMobileMenuOpen}
+        aria-controls="mobile-dashboard-navigation"
         className={cn(
           "-m-2.5 cursor-pointer rounded-lg p-2.5 transition-colors lg:hidden",
           isDarkMode
@@ -132,7 +140,9 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
         )}
         onClick={onMenuClick}
       >
-        <span className="sr-only">Abrir menú</span>
+        <span className="sr-only">
+          {isMobileMenuOpen ? "Cerrar menú" : "Abrir menú"}
+        </span>
         <Menu
           className={cn(
             "h-6 w-6",

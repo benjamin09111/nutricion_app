@@ -122,13 +122,14 @@ const groups: SidebarGroup[] = [
 
 interface SidebarProps {
   onItemClick?: () => void;
+  isMobile?: boolean;
 }
 
-export function Sidebar({ onItemClick }: SidebarProps = {}) {
+export function Sidebar({ onItemClick, isMobile = false }: SidebarProps = {}) {
   const pathname = usePathname();
   const { isSidebarCollapsed, toggleSidebarCollapsed, isSidebarToggleHighlighted } = useDashboardShell();
   const { isDarkMode } = useTheme();
-  const shouldCollapse = isSidebarCollapsed && !onItemClick;
+  const shouldCollapse = !isMobile && isSidebarCollapsed && !onItemClick;
 
   const SIDEBAR_GROUPS_STORAGE_KEY = "nutri_dashboard_sidebar_open_groups";
 
@@ -186,7 +187,8 @@ export function Sidebar({ onItemClick }: SidebarProps = {}) {
   return (
     <div
       className={cn(
-        "sidebar-scroll dashboard-sidebar-bg flex h-full grow flex-col gap-y-4 overflow-y-auto overflow-x-hidden border-r pb-4 transition-all duration-300",
+        "sidebar-scroll dashboard-sidebar-bg flex h-full min-h-0 grow flex-col gap-y-4 overflow-x-hidden border-r pb-4 transition-all duration-300",
+        !isMobile && "overflow-y-auto",
         shouldCollapse ? "px-2" : "px-3",
       )}
     >

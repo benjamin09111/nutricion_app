@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { AdminSidebar } from "@/components/layout/AdminSidebar";
 import { Navbar } from "@/components/layout/Navbar";
+import { MobileSidebar } from "@/components/layout/MobileSidebar";
 import { NutriaChatWidget } from "@/components/layout/NutriaChatWidget";
 import { WelcomeOverlay } from "@/components/welcome/WelcomeOverlay";
 import { AdminProvider, useAdmin } from "@/context/AdminContext";
@@ -14,7 +15,6 @@ import {
 } from "@/context/DashboardShellContext";
 import { useTheme } from "@/context/ThemeContext";
 import { cn } from "@/lib/utils";
-import { X } from "lucide-react";
 
 import { SubscriptionProvider } from "@/context/SubscriptionContext";
 import { MembershipGate } from "@/components/memberships/MembershipGate";
@@ -27,6 +27,10 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
   const { isDarkMode } = useTheme();
   const pathname = usePathname();
   const isRecipesModule = pathname.startsWith("/dashboard/recetas");
+
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
     const isPlanRoute =
@@ -72,37 +76,11 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
 
   const dashboardShell = (
     <div className="dashboard-shell-bg relative h-full">
-      <div className={cn("fixed inset-0 z-50 lg:hidden transition-opacity duration-300", sidebarOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none")}>
-        <div
-          className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300"
-          onClick={() => setSidebarOpen(false)}
-        />
-
-        <div className={`dashboard-sidebar-bg fixed inset-y-0 left-0 w-72 max-w-[calc(100vw-3rem)] shadow-2xl transition-transform duration-300 transform ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
-          <div className="absolute top-3 right-3 z-20">
-            <button
-              type="button"
-              className={cn(
-                "rounded-xl border p-2 transition-colors",
-                isDarkMode
-                  ? "border-emerald-400/10 bg-emerald-500/8 text-emerald-100/65 hover:text-rose-300"
-                  : "border-slate-100 bg-slate-50 text-slate-400 hover:text-rose-500",
-              )}
-              onClick={() => setSidebarOpen(false)}
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-
-          <div className="h-full overflow-y-auto pt-2">
-             {isAdminView ? (
-               <AdminSidebar onItemClick={() => setSidebarOpen(false)} />
-             ) : (
-               <Sidebar onItemClick={() => setSidebarOpen(false)} />
-             )}
-          </div>
-        </div>
-      </div>
+      <MobileSidebar
+        isOpen={sidebarOpen}
+        isAdminView={isAdminView}
+        onClose={() => setSidebarOpen(false)}
+      />
 
       <div
         className={`hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:flex-col transition-all duration-300 ${
@@ -117,7 +95,10 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
           isSidebarCollapsed ? "lg:pl-20" : "lg:pl-[17rem]"
         }`}
       >
-        <Navbar onMenuClick={() => setSidebarOpen(true)} />
+        <Navbar
+          onMenuClick={() => setSidebarOpen(true)}
+          isMobileMenuOpen={sidebarOpen}
+        />
         <main
           className={cn(
             isAdminView ? "flex-1 py-4 lg:py-4 xl:py-5" : "flex-1 py-6 lg:py-4 xl:py-8",

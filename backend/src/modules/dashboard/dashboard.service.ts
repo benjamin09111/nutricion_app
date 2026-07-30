@@ -30,6 +30,7 @@ export class DashboardService {
       recentConsultations,
       recentProjects,
       account,
+      freeMembershipPlan,
     ] = await Promise.all([
       this.prisma.patient.count({ where: { nutritionistId } }),
       this.prisma.patient.count({
@@ -81,6 +82,12 @@ export class DashboardService {
           subscription: { include: { plan: true } },
         },
       }),
+      this.prisma.membershipPlan.findFirst({
+        where: {
+          isActive: true,
+          OR: [{ price: 0 }, { slug: { contains: 'free', mode: 'insensitive' } }],
+        },
+      }),
     ]);
 
     let planUsageCounters: { featureKey: string; usageCount: number }[] = [];
@@ -99,14 +106,28 @@ export class DashboardService {
       new Date(subscription.endDate).getTime() > Date.now() &&
       ['ACTIVE', 'TRIALING'].includes(subscription.status);
 
-    const activePlan = isSubscriptionActive ? subscription.plan : null;
+    const activePlan =
+      isSubscriptionActive
+        ? subscription.plan
+        : account?.plan === 'FREE'
+          ? freeMembershipPlan
+          : null;
     const rawSlug =
       activePlan?.slug ||
       activePlan?.name ||
       (account?.plan !== 'FREE' ? account?.plan : 'free') ||
       'free';
     const planKey = normalizeMembershipPlanKey(rawSlug);
-    const entitlements = getMembershipPlanEntitlements(planKey);
+    const storedEntitlements =
+      activePlan?.entitlements &&
+      typeof activePlan.entitlements === 'object' &&
+      !Array.isArray(activePlan.entitlements)
+        ? (activePlan.entitlements as Record<string, boolean | number>)
+        : {};
+    const entitlements = {
+      ...getMembershipPlanEntitlements(planKey),
+      ...storedEntitlements,
+    };
 
     const usageMap: Record<string, number> = {};
     for (const counter of planUsageCounters) {

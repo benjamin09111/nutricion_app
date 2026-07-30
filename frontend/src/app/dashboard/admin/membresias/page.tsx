@@ -20,6 +20,7 @@ interface MembershipPlan {
   currency: string;
   billingPeriod: string;
   features: string[];
+  entitlements?: Record<string, boolean | number>;
   maxPatients: number | null;
   maxStorage: number | null;
   isPopular: boolean;
@@ -128,6 +129,11 @@ export default function MembershipsPage() {
     setDraggedFeatureIndex(null);
     setEditForm({
       ...plan,
+      entitlements: {
+        ...(plan.entitlements || {}),
+        "patients.active.limit":
+          plan.entitlements?.["patients.active.limit"] ?? plan.maxPatients ?? -1,
+      },
       features: plan.features.map((feature) => parseFeatureDraft(feature)),
     });
   };
@@ -144,6 +150,13 @@ export default function MembershipsPage() {
 
     const payload = {
       ...editForm,
+      maxPatients: Number(editForm.entitlements?.["patients.active.limit"] ?? -1),
+      entitlements: {
+        ...(editForm.entitlements || {}),
+        "patients.active.limit": Number(
+          editForm.entitlements?.["patients.active.limit"] ?? -1,
+        ),
+      },
       features: (editForm.features || [])
         .map(serializeFeatureDraft)
         .filter((feature): feature is string => Boolean(feature)),
@@ -285,8 +298,9 @@ export default function MembershipsPage() {
       currency: "CLP",
       billingPeriod: "monthly",
       features: [],
-      maxPatients: null,
+      maxPatients: 15,
       maxStorage: null,
+      entitlements: { "patients.active.limit": 15 },
       isPopular: false,
       isComingSoon: false,
       isActive: true,
@@ -571,10 +585,42 @@ export default function MembershipsPage() {
                     )}
                   </div>
 
-                  {/* Popular Toggle (Only in Edit Mode) */}
-                  {isEditing && (
-                    <div className="pt-3 border-t border-slate-100 space-y-3">
-                      <label className="flex items-center gap-2 cursor-pointer">
+                   {/* Popular Toggle (Only in Edit Mode) */}
+                   {isEditing && (
+                     <div className="pt-3 border-t border-slate-100 space-y-3">
+                       <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-3">
+                         <p className="text-xs font-bold uppercase tracking-wide text-indigo-700">
+                           Límites del plan
+                         </p>
+                         <label className="mt-2 block space-y-1">
+                           <span className="block text-sm font-medium text-slate-700">
+                             Pacientes activos
+                           </span>
+                           <input
+                             type="number"
+                             min={-1}
+                             step={1}
+                             value={Number(
+                               currentData.entitlements?.["patients.active.limit"] ?? -1,
+                             )}
+                             onChange={(e) =>
+                               setEditForm({
+                                 ...editForm,
+                                 entitlements: {
+                                   ...(editForm.entitlements || {}),
+                                   "patients.active.limit":
+                                     parseInt(e.target.value, 10) || 0,
+                                 },
+                               })
+                             }
+                             className="w-full rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-indigo-600"
+                           />
+                           <span className="block text-xs text-slate-500">
+                             Usa <strong>-1</strong> para permitir una cantidad ilimitada.
+                           </span>
+                         </label>
+                       </div>
+                       <label className="flex items-center gap-2 cursor-pointer">
                         <input
                           type="checkbox"
                           checked={currentData.isPopular || false}
