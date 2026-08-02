@@ -1,6 +1,9 @@
 import { PrismaClient } from '@prisma/client';
 import * as fs from 'fs';
 import * as path from 'path';
+import { loadPrismaEnv } from './load-prisma-env';
+
+loadPrismaEnv();
 
 const prisma = new PrismaClient();
 
@@ -11,22 +14,11 @@ function normalizeIngredientKey(name: string) {
 async function main() {
     console.log('🔄 Start seeding ingredients + recipes...');
 
-    // 1. Clean up existing data
-    console.log('🗑️ Cleaning up existing ingredients...');
-    try {
-        //await prisma.recipeIngredient.deleteMany({});
-        await prisma.ingredientPreference.deleteMany({});
-        await prisma.ingredient.deleteMany({});
-        console.log('✅ Existing ingredients deleted.');
-    } catch (error) {
-        console.error('⚠️ Error cleaning up:', error);
-    }
-
-    // 2. Load Categories
+    // 1. Load Categories
     const categories = await prisma.ingredientCategory.findMany();
     const categoryMap = new Map(categories.map(c => [c.name, c.id]));
 
-    // 3. Process CSVs
+    // 2. Process CSVs
     const csvFiles = ['ingredients.csv', 'recipes.csv'];
     const ingredientsData: any[] = [];
     const seenKeys = new Set<string>();
@@ -97,7 +89,7 @@ async function main() {
         }
     }
 
-    // 4. Bulk Insert
+    // 3. Bulk Insert
     if (ingredientsData.length > 0) {
         console.log(`🚀 Inserting ${ingredientsData.length} total records...`);
         try {

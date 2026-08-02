@@ -1,5 +1,8 @@
 import { PrismaClient } from '@prisma/client';
 import { getMembershipPlanEntitlements } from '../src/modules/memberships/plan-entitlements';
+import { loadPrismaEnv } from './load-prisma-env';
+
+loadPrismaEnv();
 
 const prisma = new PrismaClient();
 

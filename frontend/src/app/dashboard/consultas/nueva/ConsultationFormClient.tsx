@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { DatePicker } from "@/components/ui/DatePicker";
 import {
     ArrowLeft,
     Calendar,
@@ -35,7 +36,7 @@ import { TagInput } from "@/components/ui/TagInput";
 import { toast } from "sonner";
 import Cookies from "js-cookie";
 import { DEFAULT_METRICS } from "@/lib/constants";
-import { Metric } from "@/features/consultations";
+import { Consultation, Metric } from "@/features/consultations";
 import { Patient } from "@/features/patients";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -76,6 +77,8 @@ interface ConsultationFormProps {
     id?: string; // If present, we are editing
 }
 
+type PatientMetricSnapshot = Metric & { date: string };
+
 export default function ConsultationFormClient({ id }: ConsultationFormProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -98,6 +101,8 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
             .map((p) => ({ id: p.id, fullName: p.fullName }));
     }, [patients]);
     const [patientData, setPatientData] = useState<Patient | null>(null);
+    const [patientMetrics, setPatientMetrics] = useState<PatientMetricSnapshot[]>([]);
+    const [isPatientMetricsLoading, setIsPatientMetricsLoading] = useState(false);
 
     // Form State - Consultation
     const [formData, setFormData] = useState({
@@ -243,6 +248,61 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                 tags: [],
             });
         }
+    }, [formData.patientId]);
+
+    useEffect(() => {
+        let isCancelled = false;
+
+        if (!formData.patientId) {
+            setPatientMetrics([]);
+            setIsPatientMetricsLoading(false);
+            return;
+        }
+
+        const fetchPatientMetrics = async () => {
+            setIsPatientMetricsLoading(true);
+            setPatientMetrics([]);
+            try {
+                const query = new URLSearchParams({
+                    patientId: formData.patientId,
+                    limit: "100",
+                    type: "ALL",
+                });
+                const response = await fetchApi(`/consultations?${query}`, {
+                    headers: getAuthHeaders(),
+                });
+
+                if (!response.ok || isCancelled) return;
+
+                const result: { data?: Consultation[] } = await response.json();
+                const latestMetrics = new Map<string, PatientMetricSnapshot>();
+
+                // The endpoint returns consultations from newest to oldest.
+                (result.data || []).forEach((consultation) => {
+                    (consultation.metrics || []).forEach((metric) => {
+                        if (metric.value === undefined || metric.value === null || metric.value === "") return;
+
+                        const key = normalizeMetricKey(metric.label, metric.key);
+                        if (!latestMetrics.has(key)) {
+                            latestMetrics.set(key, { ...metric, date: consultation.date });
+                        }
+                    });
+                });
+
+                setPatientMetrics(Array.from(latestMetrics.values()));
+            } catch (error) {
+                console.error("Error fetching patient metrics", error);
+                if (!isCancelled) setPatientMetrics([]);
+            } finally {
+                if (!isCancelled) setIsPatientMetricsLoading(false);
+            }
+        };
+
+        fetchPatientMetrics();
+
+        return () => {
+            isCancelled = true;
+        };
     }, [formData.patientId]);
 
     const fetchPatients = async () => {
@@ -665,18 +725,12 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                     <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1">
                                         Fecha de la Sesión
                                     </label>
-                                    <div className="relative group">
-                                        <div className="absolute left-2 top-1/2 -translate-y-1/2 h-10 w-10 rounded-xl bg-emerald-50 flex items-center justify-center text-indigo-500 group-focus-within:bg-indigo-500 group-focus-within:text-white transition-all duration-300 pointer-events-none">
-                                            <Calendar className="h-5 w-5" />
-                                        </div>
-                                        <input
-                                            type="date"
-                                            disabled={!hasSelectedPatient}
-                                            className="w-full h-14 pl-14 pr-5 rounded-2xl bg-white border border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all font-bold text-slate-700 cursor-pointer shadow-sm disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
-                                            value={formData.date}
-                                            onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                                        />
-                                    </div>
+                                    <DatePicker
+                                         value={formData.date}
+                                         onChange={(date) => setFormData({ ...formData, date })}
+                                         placeholder="Seleccionar fecha..."
+                                         disabled={!hasSelectedPatient}
+                                     />
                                 </div>
                             </div>
 
@@ -779,6 +833,45 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                 <p className="text-xs text-slate-400 italic bg-slate-50 rounded-xl px-3 py-2">
                                     Selecciona un paciente para registrar métricas.
                                 </p>
+                            )}
+                            {hasSelectedPatient && (
+                                <section className="rounded-2xl border border-indigo-100 bg-indigo-50/40 p-4">
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div>
+                                            <p className="text-[10px] font-semibold uppercase tracking-widest text-indigo-500">
+                                                Últimos registros
+                                            </p>
+                                            <p className="mt-1 text-xs text-slate-500">
+                                                Último valor registrado por métrica.
+                                            </p>
+                                        </div>
+                                        <TrendingUp className="w-5 h-5 shrink-0 text-indigo-400" />
+                                    </div>
+                                    {isPatientMetricsLoading ? (
+                                        <div className="mt-4 flex items-center gap-2 text-xs font-medium text-slate-400">
+                                            <span className="h-3.5 w-3.5 rounded-full border-2 border-indigo-200 border-t-indigo-500 animate-spin" />
+                                            Cargando métricas registradas...
+                                        </div>
+                                    ) : patientMetrics.length > 0 ? (
+                                        <div className="mt-4 flex flex-wrap gap-2">
+                                            {patientMetrics.map((metric) => (
+                                                <div key={normalizeMetricKey(metric.label, metric.key)} className="rounded-xl border border-white bg-white px-3 py-2 shadow-sm">
+                                                    <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{metric.label}</p>
+                                                    <p className="mt-0.5 text-sm font-bold text-slate-800">
+                                                        {metric.value} {metric.unit || ""}
+                                                    </p>
+                                                    <p className="mt-0.5 text-[10px] font-medium text-slate-400">
+                                                        {new Intl.DateTimeFormat("es-CL", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" }).format(new Date(metric.date))}
+                                                    </p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="mt-4 text-xs text-slate-400">
+                                            Este paciente aún no tiene métricas registradas.
+                                        </p>
+                                    )}
+                                </section>
                             )}
                             <div className={cn("space-y-2", !hasSelectedPatient && "opacity-50 pointer-events-none")}>
                                 <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1">

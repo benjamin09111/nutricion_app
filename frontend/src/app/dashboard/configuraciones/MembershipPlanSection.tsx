@@ -109,6 +109,7 @@ export function MembershipPlanSection({
 
   const currentPrice = Number(currentPlan?.price || 0);
   const canChangePlan = currentPrice === 0;
+  const proPlan = availablePlans.find((p) => p.slug === "pro");
   const nextPaymentLabel = useMemo(() => {
     if (currentPrice === 0) return "Sin cobro";
     return formatDate(billing?.nextPaymentAt || subscriptionEndsAt?.toISOString() || null);
@@ -117,24 +118,29 @@ export function MembershipPlanSection({
   const usageRows = useMemo(
     () => [
       {
-        label: "Pacientes activos",
+        label: "Pacientes totales",
         usage: usage?.patientsActive ?? 0,
-        limit: currentPlan?.entitlements?.["patients.active.limit"],
+        limit: currentPlan?.entitlements?.["patients.total.limit"] ?? currentPlan?.entitlements?.["patients.active.limit"],
       },
       {
-        label: "Consultas consumidas",
+        label: "Consultas guardadas",
         usage: usage?.consultationsUsed ?? 0,
-        limit: currentPlan?.entitlements?.["consultations.monthly.limit"],
+        limit: currentPlan?.entitlements?.["consultations.saved.limit"] ?? currentPlan?.entitlements?.["consultations.monthly.limit"],
       },
       {
-        label: "PDFs consumidos",
+        label: "PDFs generados",
         usage: usage?.pdfUsed ?? 0,
-        limit: currentPlan?.entitlements?.["pdf.monthly.limit"],
+        limit: currentPlan?.entitlements?.["pdf.exports.total.limit"] ?? currentPlan?.entitlements?.["pdf.monthly.limit"],
       },
       {
-        label: "Seguimientos privados activos",
-        usage: usage?.followupsPrivateActive ?? 0,
-        limit: currentPlan?.entitlements?.["followups.private.active.limit"],
+        label: "Grupos creados (alimentos / recetas)",
+        usage: usage?.foodGroupsUsed ?? 0,
+        limit: currentPlan?.entitlements?.["food_groups.total.limit"],
+      },
+      {
+        label: "Creaciones guardadas (Pautas / Entregables / Tests)",
+        usage: usage?.creationsUsed ?? 0,
+        limit: currentPlan?.entitlements?.["creations.save.limit"],
       },
       {
         label: "Calculadora clínica",
@@ -144,7 +150,7 @@ export function MembershipPlanSection({
       {
         label: "IA consumida",
         usage: usage?.aiUsed ?? 0,
-        limit: currentPlan?.entitlements?.["ai.calls.limit"],
+        limit: currentPlan?.entitlements?.["ai.operations.total.limit"] ?? currentPlan?.entitlements?.["ai.calls.limit"],
       },
     ],
     [currentPlan?.entitlements, usage],
@@ -255,8 +261,8 @@ export function MembershipPlanSection({
         </div>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-        <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="grid grid-cols-1 xl:grid-cols-[1.15fr_0.85fr] gap-4 sm:gap-6">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Consumo</p>
@@ -291,8 +297,8 @@ export function MembershipPlanSection({
           )}
         </div>
 
-        <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="flex items-center justify-between gap-3">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Acciones</p>
                 <h3 className="mt-1 text-lg font-bold text-slate-900">Gestión de suscripción</h3>
@@ -300,7 +306,7 @@ export function MembershipPlanSection({
               <button
               onClick={loadAvailablePlans}
               disabled={!canChangePlan}
-              className="rounded-xl px-4 py-2 text-sm font-semibold transition-colors cursor-pointer disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none bg-indigo-600 hover:bg-indigo-700 text-white"
+              className="rounded-xl px-4 py-2 text-sm font-semibold transition-colors cursor-pointer disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none bg-indigo-600 hover:bg-indigo-700 text-white shrink-0"
               >
               {canChangePlan ? "Cambiar mi plan" : "Plan ya activo"}
               </button>
@@ -346,7 +352,7 @@ export function MembershipPlanSection({
         </div>
       </div>
 
-      <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm">
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">Características</p>
@@ -417,12 +423,17 @@ export function MembershipPlanSection({
               </div>
             )}
 
-            <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-2 text-xs font-bold text-white shadow-lg mb-6">
-              <Sparkles className="h-3.5 w-3.5" />
-              OFERTA DE LANZAMIENTO: $19.990/mes para las primeras 20 personas (Precio regular $25.000)
-            </div>
+            {proPlan && (
+              <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-2 text-xs font-bold text-white shadow-lg mb-6">
+                <Sparkles className="h-3.5 w-3.5" />
+                <span>
+                  OFERTA DE LANZAMIENTO: ${Number(proPlan.price).toLocaleString("es-CL")}/mes para las primeras 20 personas
+                  {Number(proPlan.price) < 25000 && " (Precio regular $25.000)"}
+                </span>
+              </div>
+            )}
 
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6">
                 <div className="flex items-center gap-2 mb-4">
                   <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Mi plan actual</span>
@@ -485,7 +496,7 @@ export function MembershipPlanSection({
                           {plan.name}
                         </p>
                         <div className="flex items-baseline gap-2">
-                          {plan.slug === "pro" && (
+                          {plan.slug === "pro" && Number(plan.price) < 25000 && (
                             <p className="text-sm font-semibold text-slate-400 line-through">$25.000</p>
                           )}
                           <p className={cn("font-black text-xl", isPopular ? "text-indigo-600" : "text-slate-900")}>

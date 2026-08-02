@@ -3,7 +3,13 @@ import { ExecutionContext } from '@nestjs/common';
 import { AuthGuard as PassportAuthGuard } from '@nestjs/passport';
 import { isStaffRole } from '../../permissions/permissions.constants';
 
-const RUT_EXEMPT_PATHS = ['/auth/me', '/auth/me/rut', '/auth/logout'];
+const RUT_EXEMPT_PATHS = [
+  '/auth/me',
+  '/auth/me/rut',
+  '/auth/logout',
+  // El middleware del frontend lo consulta para saber si falta el RUT.
+  '/auth/session-role',
+];
 
 const isRutExemptPath = (pathname: string) =>
   RUT_EXEMPT_PATHS.some(

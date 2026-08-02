@@ -2,7 +2,10 @@ import { Module } from '@nestjs/common';
 import { ProjectsController } from './projects.controller';
 import { ProjectsService } from './projects.service';
 
+import { PermissionsModule } from '../permissions/permissions.module';
+
 @Module({
+  imports: [PermissionsModule],
   controllers: [ProjectsController],
   providers: [ProjectsService],
   exports: [ProjectsService],

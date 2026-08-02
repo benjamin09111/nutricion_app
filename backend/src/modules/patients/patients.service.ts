@@ -16,6 +16,7 @@ import {
 import { CacheService } from '../../common/services/cache.service';
 import { PermissionsService } from '../permissions/permissions.service';
 import { CalculationsService } from '../calculations/calculations.service';
+import { PLAN_ENTITLEMENT_KEYS } from '../memberships/plan-entitlements';
 
 const AUTOMATIC_NUTRITION_KEY = 'automaticNutritionCalculations';
 
@@ -51,14 +52,14 @@ export class PatientsService {
       ...patientData,
       clinicalRecord: clinicalRecordData,
     };
-    const activePatients = await this.prisma.patient.count({
-      where: { nutritionistId, status: 'Active' },
+    const totalPatients = await this.prisma.patient.count({
+      where: { nutritionistId },
     });
 
     await this.permissionsService.ensureWithinLimit(
       accountId,
-      'patients.active.limit',
-      activePatients,
+      PLAN_ENTITLEMENT_KEYS.PATIENTS_TOTAL_LIMIT,
+      totalPatients,
     );
 
     const customVariables = this.withAutomaticNutritionCalculations(
@@ -278,9 +279,17 @@ export class PatientsService {
     nutritionistId: string,
     id: string,
     updatePatientDto: UpdatePatientDto,
+    accountId?: string,
   ) {
     // Lightweight ownership check — does NOT load consultations, exams, or projects
     await this.assertOwnership(nutritionistId, id);
+
+    if (accountId) {
+      await this.permissionsService.ensureAccess(
+        accountId,
+        'patients.edit.access',
+      );
+    }
 
     const current = await this.prisma.patient.findUnique({
       where: { id },
@@ -592,13 +601,19 @@ export class PatientsService {
     const resolvedAge = this.calculateAge(patient.birthDate);
     const gender = this.normalizeGender(patient.gender);
     const activity = this.normalizeActivityLevel(patient.activityLevel);
+    const gynecoObstetric = (clinical.gynecoObstetric || {}) as Record<string, unknown>;
+    const pregnancyWeek = this.toPositiveNumber(
+      gynecoObstetric.pregnancyWeeks ?? gynecoObstetric.gestationalWeek,
+    );
+    const isPregnant = gynecoObstetric.isPregnant === true;
+    const isLactating = gynecoObstetric.isLactating === true;
+    const lactationType = gynecoObstetric.lactationType === 'partial' ? 'partial' : 'exclusive';
 
     const calcResult = this.calculationsService.calculateAll({
       gender,
       weight: this.toPositiveNumber(patient.weight),
       height: this.toPositiveNumber(patient.height),
       birthDate: patient.birthDate,
-      ageYears: resolvedAge,
       activityLevel: activity,
       kneeHeight,
       calfCircumference,
@@ -609,6 +624,10 @@ export class PatientsService {
       bicipitalFold,
       subescapularFold,
       suprailiacoFold,
+      pregnancyWeek,
+      isPregnant,
+      isLactating,
+      lactationType,
     });
 
     if (!calcResult.bmi) return null;
@@ -680,6 +699,7 @@ export class PatientsService {
         tmb: energy.tmb,
         get: energy.get,
         activityFactor: energy.activityFactor,
+        physiologicalAdjustmentKcal: energy.physiologicalAdjustmentKcal ?? 0,
         formula: energy.formula,
       },
       macros: energy.macros,

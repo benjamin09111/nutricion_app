@@ -17,6 +17,7 @@ interface ModuleLayoutProps {
   description: React.ReactNode;
   step?: StepIndicator;
   rightNavItems?: ActionDockItem[];
+  rightNavDesktopBreakpoint?: "md" | "lg";
   rightContent?: React.ReactNode;
   footer?: React.ReactNode;
   children: React.ReactNode;
@@ -28,6 +29,7 @@ export function ModuleLayout({
   description,
   step,
   rightNavItems,
+  rightNavDesktopBreakpoint,
   rightContent,
   footer,
   children,
@@ -54,7 +56,7 @@ export function ModuleLayout({
               {step.icon && <step.icon className="h-3 w-3 ml-2" />}
             </div>
           )}
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
             <h1 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight leading-none">
               {title}
             </h1>
@@ -66,7 +68,9 @@ export function ModuleLayout({
         </div>
 
         {/* Right Navigation */}
-        {rightNavItems && <ModuleRightNav items={rightNavItems} />}
+        {rightNavItems && (
+          <ModuleRightNav items={rightNavItems} desktopBreakpoint={rightNavDesktopBreakpoint} />
+        )}
       </div>
 
       {/* Main Content */}

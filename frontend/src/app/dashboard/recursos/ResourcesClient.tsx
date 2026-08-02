@@ -173,20 +173,26 @@ export function ResourcesClient() {
   async function fetchResources() {
     setIsLoading(true);
     try {
-      // System resources come from local JSON (always loaded first)
-      const systemOnly = DEFAULT_SYSTEM_RESOURCES;
-      
-      // User resources come from API
       const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const res = await fetchApi("/resources", {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const userData = res.ok ? await res.json() : [];
+      const userData: Resource[] = res.ok ? await res.json() : [];
       
-      // Combine: system resources + user resources
-      setResources([...systemOnly, ...userData]);
+      if (userData && userData.length > 0) {
+        const seenMap = new Map<string, Resource>();
+        for (const r of userData) {
+          const key = r.id || `${r.title.toLowerCase().trim()}_${r.nutritionistId || 'null'}`;
+          if (!seenMap.has(key)) {
+            seenMap.set(key, r);
+          }
+        }
+        setResources(Array.from(seenMap.values()));
+      } else {
+        setResources(DEFAULT_SYSTEM_RESOURCES);
+      }
     } catch {
-      // On error, only show system resources
+      // On error, fallback to local system resources
       setResources(DEFAULT_SYSTEM_RESOURCES);
     } finally {
       setIsLoading(false);
@@ -245,7 +251,7 @@ export function ResourcesClient() {
   const Card = ({ resource }: { resource: Resource }) => {
     const cover = coverCfg(resource.category);
     return (
-      <article className="border border-slate-100 bg-slate-50 hover:shadow-md transition-all group flex flex-col h-full overflow-hidden">
+      <article className="border border-slate-100 bg-slate-50 hover:shadow-md transition-all group flex flex-col h-full overflow-hidden rounded-2xl">
         <div className="h-1 w-full" style={{ background: `linear-gradient(135deg, ${cover.gradientFrom}, ${cover.gradientTo})` }} />
         <div className="p-4 flex flex-col h-full bg-white">
           <div className="flex items-start justify-between gap-3 mb-3">
@@ -376,7 +382,7 @@ export function ResourcesClient() {
                   <select
                     value={sectionFilter}
                     onChange={(e) => setSectionFilter(e.target.value)}
-                    className="h-10 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-600 outline-none focus:border-indigo-500 transition-all cursor-pointer"
+                    className="h-10 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-600 outline-none focus:border-indigo-500 transition-all cursor-pointer w-full sm:w-auto"
                   >
                     {LIBRARY_CATEGORIES.map((c) => (
                       <option key={c.id} value={c.id}>
@@ -388,8 +394,8 @@ export function ResourcesClient() {
               }
             />
 
-              {isLoading ? (
-              <div className="flex min-h-[20rem] flex-col items-center justify-center rounded-[2rem] border border-slate-100 bg-white shadow-sm">
+            {isLoading ? (
+              <div className="flex min-h-[20rem] flex-col items-center justify-center rounded-2xl border border-slate-100 bg-white shadow-sm">
                 <Loader2 className="mb-4 h-10 w-10 animate-spin text-indigo-500" />
                 <p className="text-sm font-medium text-slate-400">Cargando biblioteca...</p>
               </div>
@@ -403,7 +409,7 @@ export function ResourcesClient() {
                         {resources.length} recursos disponibles
                       </span>
                     </div>
-                    <div className="grid lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                       {resources.map((resource) => (
                         <Card key={resource.id} resource={resource} />
                       ))}
@@ -412,13 +418,13 @@ export function ResourcesClient() {
                 ))}
               </div>
             ) : (
-              <section className="grid lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {filteredLibrary.length ? (
                   filteredLibrary.map((resource) => (
                     <Card key={resource.id} resource={resource} />
                   ))
                 ) : (
-                  <div className="col-span-full rounded-[2rem] border border-dashed border-slate-200 bg-white py-20 text-center">
+                  <div className="col-span-full rounded-2xl border border-dashed border-slate-200 bg-white py-20 text-center">
                     <BookOpen className="mx-auto h-10 w-10 text-slate-200 mb-4" />
                     <p className="text-slate-400 font-medium">No encontramos recursos con esos filtros.</p>
                   </div>
@@ -468,12 +474,12 @@ export function ResourcesClient() {
                     </Button>
                   )}
                 </div>
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                   {block.list.length ? block.list.map((resource) => (
                     <article
                       key={resource.id}
                       className={cn(
-                        "flex h-full flex-col rounded-[2rem] bg-white p-6 transition-all hover:shadow-md",
+                        "flex h-full flex-col rounded-2xl bg-white p-6 transition-all hover:shadow-md",
                         resource.isMine
                           ? "border-2 border-indigo-500 shadow-sm"
                           : "border border-slate-100"
@@ -506,7 +512,7 @@ export function ResourcesClient() {
                         )}
                       </div>
                     </article>
-                  )) : <div className="col-span-full rounded-[2rem] border border-dashed border-slate-200 bg-white p-10 text-center text-sm font-medium text-slate-400">No hay recursos cargados todavía.</div>}
+                  )) : <div className="col-span-full rounded-2xl border border-dashed border-slate-200 bg-white p-10 text-center text-sm font-medium text-slate-400">No hay recursos cargados todavía.</div>}
                 </div>
               </div>
             ))}
@@ -559,7 +565,7 @@ export function ResourcesClient() {
                     />
                   </div>
                   {restrictionSource === "mine" && (
-                    <Button className="h-10 rounded-xl px-4 font-semibold" onClick={() => openCreate("restriction")}>
+                    <Button className="h-10 rounded-xl px-4 font-semibold w-full sm:w-auto" onClick={() => openCreate("restriction")}>
                       <Plus className="mr-2 h-4 w-4" />
                       Nuevo recurso
                     </Button>
@@ -574,7 +580,7 @@ export function ResourcesClient() {
                 <p className="text-sm font-medium text-slate-400">Cargando restricciones alimenticias...</p>
               </div>
             ) : filteredRestrictionResources.length > 0 ? (
-              <section className="grid gap-4 lg:grid-cols-3 xl:grid-cols-4">
+              <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {filteredRestrictionResources.map((resource) => (
                   <Card key={resource.id} resource={resource} />
                 ))}
@@ -591,7 +597,7 @@ export function ResourcesClient() {
                     : "Crea un recurso para una restricción alimenticia o ajusta la búsqueda."}
                 </p>
                 {restrictionSource === "mine" && (
-                  <Button className="mt-5 h-10 rounded-xl px-4 font-semibold" onClick={() => openCreate("restriction")}>
+                  <Button className="mt-5 h-10 rounded-xl px-4 font-semibold w-full sm:w-auto" onClick={() => openCreate("restriction")}>
                     <Plus className="mr-2 h-4 w-4" />
                     Crear recurso
                   </Button>
@@ -621,7 +627,7 @@ export function ResourcesClient() {
                   <select
                     value={mineSection}
                     onChange={(e) => setMineSection(e.target.value)}
-                    className="h-10 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-600 outline-none focus:border-indigo-500 transition-all cursor-pointer"
+                    className="h-10 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-600 outline-none focus:border-indigo-500 transition-all cursor-pointer w-full sm:w-auto"
                   >
                     {CATEGORIES.map((c) => (
                       <option key={c.id} value={c.id}>
@@ -629,7 +635,7 @@ export function ResourcesClient() {
                       </option>
                     ))}
                   </select>
-                  <Button className="rounded-xl px-4 h-10 font-semibold" onClick={() => openCreate("general")}>
+                  <Button className="rounded-xl px-4 h-10 font-semibold w-full sm:w-auto" onClick={() => openCreate("general")}>
                     <Plus className="mr-2 h-4 w-4" />
                     Nuevo
                   </Button>
@@ -637,7 +643,7 @@ export function ResourcesClient() {
               }
             />
 
-            <div className="grid lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {filteredMine.length > 0 ? filteredMine.map((resource) => (
                   <Card key={resource.id} resource={resource} />
                 )) : (
@@ -661,7 +667,7 @@ export function ResourcesClient() {
 
       </div>
 
-      <Modal isOpen={!!resourceToPreview} onClose={() => setResourceToPreview(null)} title={resourceToPreview?.title || "Vista previa"} className="max-w-4xl"><div className="space-y-6">{resourceToPreview?.tags?.length ? <div className="flex flex-wrap gap-2">{resourceToPreview.tags.map((tag) => <span key={tag} className="inline-flex items-center rounded-full bg-slate-50 border border-slate-100 px-3 py-1 text-[10px] font-semibold text-slate-500"><Hash className="mr-1 h-3 w-3" />{tag}</span>)}</div> : null}{resourceToPreview?.format === "PDF" ? <div className="rounded-[2rem] border border-dashed border-slate-200 bg-slate-50 p-12 text-center"><FileText className="mx-auto mb-4 h-16 w-16 text-slate-200" />{resourceToPreview.fileUrl ? <a href={resourceToPreview.fileUrl} target="_blank" rel="noreferrer" className="inline-flex items-center rounded-full bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-lg hover:bg-indigo-700 transition-colors">Abrir PDF<ExternalLink className="ml-2 h-4 w-4" /></a> : null}</div> : <div className="prose prose-slate max-w-none text-slate-600 prose-p:leading-relaxed prose-headings:text-slate-900 prose-headings:font-semibold prose-h1:text-3xl prose-h2:text-2xl prose-h3:text-xl" dangerouslySetInnerHTML={{ __html: resourceToPreview?.content || "" }} />}</div></Modal>
+      <Modal isOpen={!!resourceToPreview} onClose={() => setResourceToPreview(null)} title={resourceToPreview?.title || "Vista previa"} className="max-w-4xl"><div className="space-y-6">{resourceToPreview?.tags?.length ? <div className="flex flex-wrap gap-2">{resourceToPreview.tags.map((tag) => <span key={tag} className="inline-flex items-center rounded-full bg-slate-50 border border-slate-100 px-3 py-1 text-[10px] font-semibold text-slate-500"><Hash className="mr-1 h-3 w-3" />{tag}</span>)}</div> : null}{resourceToPreview?.format === "PDF" ? <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-12 text-center"><FileText className="mx-auto mb-4 h-16 w-16 text-slate-200" />{resourceToPreview.fileUrl ? <a href={resourceToPreview.fileUrl} target="_blank" rel="noreferrer" className="inline-flex items-center rounded-full bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-lg hover:bg-indigo-700 transition-colors">Abrir PDF<ExternalLink className="ml-2 h-4 w-4" /></a> : null}</div> : <div className="prose prose-slate max-w-none text-slate-600 prose-p:leading-relaxed prose-headings:text-slate-900 prose-headings:font-semibold prose-h1:text-3xl prose-h2:text-2xl prose-h3:text-xl" dangerouslySetInnerHTML={{ __html: resourceToPreview?.content || "" }} />}</div></Modal>
       <ConfirmationModal isOpen={!!resourceToDelete} onClose={() => setResourceToDelete(null)} onConfirm={deleteResource} title="Eliminar recurso" description="Esta acción quitará el recurso de tu biblioteca personal. No se puede deshacer." confirmText="Eliminar" variant="destructive" />
     </ModuleLayout>
   );

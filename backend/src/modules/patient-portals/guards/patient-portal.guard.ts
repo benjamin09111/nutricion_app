@@ -40,10 +40,7 @@ export class PatientPortalAuthGuard implements CanActivate {
 
     try {
       const payload = await this.jwtService.verifyAsync(token, {
-        secret:
-          this.configService.get<string>('PORTAL_JWT_SECRET') ||
-          this.configService.get<string>('JWT_SECRET') ||
-          'secret',
+        secret: this.configService.getOrThrow<string>('PORTAL_JWT_SECRET'),
       });
 
       if (
@@ -72,6 +69,7 @@ export class PatientPortalAuthGuard implements CanActivate {
         invitation.patientId !== payload.patientId ||
         invitation.nutritionistId !== payload.nutritionistId ||
         invitation.status !== 'ACTIVE' ||
+        invitation.expiresAt <= new Date() ||
         invitation.revokedAt ||
         invitation.blockedAt
       ) {

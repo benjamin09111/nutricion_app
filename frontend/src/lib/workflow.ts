@@ -1,5 +1,6 @@
 import Cookies from "js-cookie";
 import { fetchApi, getApiUrl } from "@/lib/api-base";
+import { getCurrentUser } from "@/lib/current-user";
 
 type WorkflowCreationType =
   | "DIET"
@@ -96,6 +97,14 @@ export async function updateProject(
 }
 
 export async function fetchCreation(creationId: string) {
+  const currentUser = getCurrentUser();
+  const planKey = String(
+    currentUser?.currentPlan?.key || currentUser?.currentPlan?.slug || currentUser?.plan || "",
+  ).toLowerCase();
+  if (planKey.includes("free") || planKey.includes("freemium") || planKey.includes("gratis")) {
+    throw new Error("Importar creaciones es una característica exclusiva de los planes de pago.");
+  }
+
   const response = await fetchApi(
     `/creations/${creationId}`,
     {

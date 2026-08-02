@@ -4,13 +4,13 @@ import { replaceDefaultResources } from './resource-seed';
 
 loadPrismaEnv();
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+    datasources: { db: { url: process.env.DIRECT_URL } },
+});
 
 async function seed() {
-    console.log('🌱 Replacing all resources from default-resources.json...');
-    await prisma.$transaction(async (tx) => {
-        await replaceDefaultResources(tx);
-    });
+    console.log('🌱 Syncing resources from default-resources.json non-destructively...');
+    await replaceDefaultResources(prisma);
 }
 
 seed()

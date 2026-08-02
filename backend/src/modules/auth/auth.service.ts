@@ -769,11 +769,12 @@ export class AuthService {
         );
       }
 
+      // El JWT sólo identifica la cuenta. El rol NUNCA viaja en el token:
+      // se resuelve desde la base de datos en JwtStrategy.validate en cada
+      // request, así un token editado a mano no puede escalar privilegios.
       const payload = {
         email: account.email,
         sub: account.id,
-        role: account.role,
-        nutritionistId: account.nutritionist?.id,
       };
 
       const signOptions: any = {
@@ -1032,16 +1033,37 @@ export class AuthService {
     }
 
     const { user } = await this.buildSessionPayload(account as any);
+    // Igual que en login: sin rol dentro del token, se resuelve en la BD.
     const payload = {
       email: account.email,
       sub: account.id,
-      role: account.role,
-      nutritionistId: account.nutritionist?.id,
     };
 
     return {
       access_token: this.jwtService.sign(payload, { expiresIn: '30d' }),
       user,
+    };
+  }
+
+  /**
+   * Vista mínima y autoritativa de la sesión, pensada para que el middleware
+   * del frontend decida el ruteo (admin vs nutricionista) sin confiar en
+   * cookies manipulables por el cliente. El rol siempre sale de la BD.
+   */
+  async getSessionRole(userId: string) {
+    const account = await this.prisma.account.findUnique({
+      where: { id: userId },
+      select: { id: true, role: true, rut: true, status: true },
+    });
+
+    if (!account || account.status !== 'ACTIVE') {
+      throw new UnauthorizedException('Sesión inválida');
+    }
+
+    return {
+      id: account.id,
+      role: account.role,
+      rut: account.rut || null,
     };
   }
 

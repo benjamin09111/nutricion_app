@@ -2,9 +2,7 @@ import * as path from 'path';
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import * as fs from 'fs';
-import * as XLSX from 'xlsx';
 import { loadPrismaEnv } from './load-prisma-env';
-import { replaceDefaultResources } from './resource-seed';
 import { getMembershipPlanEntitlements } from '../src/modules/memberships/plan-entitlements';
 
 loadPrismaEnv();
@@ -40,7 +38,7 @@ async function main() {
   for (const user of users) {
     const account = await prisma.account.upsert({
       where: { email: user.email },
-      update: { role: user.role as any, password: hashedUserPassword }, // Update password just in case
+      update: { role: user.role as any, password: hashedUserPassword },
       create: {
         email: user.email,
         password: hashedUserPassword,
@@ -62,135 +60,104 @@ async function main() {
     console.log(`✅ Upserted Nutritionist: ${user.email}`);
   }
 
-  // 3. Seed Ingredients from CSV
-  console.log('🥑 Seeding Ingredients from CSV...');
+  // 3. Seed Ingredients from root data/ingredients.txt
+  console.log('🥑 Seeding Ingredients from root data/ingredients.txt...');
   try {
-    const filePath = path.resolve(process.cwd(), '..', 'docs', 'data', 'foods.csv');
-    if (fs.existsSync(filePath)) {
-      const workbook = XLSX.readFile(filePath);
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet);
+    const rootDataDir = path.resolve(__dirname, '../../data');
+    const txtPath = path.join(rootDataDir, 'ingredients.txt');
+    if (fs.existsSync(txtPath)) {
+      const lines = fs
+        .readFileSync(txtPath, 'utf-8')
+        .split('\n')
+        .map((l) => l.trim())
+        .filter(Boolean);
 
-      let count = 0;
-      // Process in chunks or one by one
-      for (const row of jsonData as any[]) {
-        const name = row['Producto'] || row['name'];
-        if (!name) continue;
+      // Collect categories first
+      const categoryNames = Array.from(
+        new Set(
+          lines
+            .map((line) => line.split(',')[1]?.trim())
+            .filter((c): c is string => Boolean(c))
+        )
+      );
 
-        const price = parseFloat(String(row['Precio promedio']).replace(',', '.') || '0') || 0;
-        const categoryName = row['Grupo'] || 'General';
-        const brandName = row['Marca'] || '';
-
-        const category = await prisma.ingredientCategory.upsert({
-          where: { name: categoryName },
+      for (const catName of categoryNames) {
+        await prisma.ingredientCategory.upsert({
+          where: { name: catName },
           update: {},
-          create: { name: categoryName },
+          create: { name: catName },
         });
-
-        let brandId = undefined;
-        if (brandName) {
-          const brand = await prisma.ingredientBrand.upsert({
-            where: { name: brandName },
-            update: {},
-            create: { name: brandName },
-          });
-          brandId = brand.id;
-        }
-
-        // Skip if exists to save time, or upsert
-        const existing = await prisma.ingredient.findFirst({
-          where: {
-            name: {
-              equals: name.trim(),
-              mode: 'insensitive',
-            },
-            brandId: brandId ?? null,
-          },
-        });
-        if (!existing) {
-          await prisma.ingredient.create({
-            data: {
-              name: name,
-              categoryId: category.id,
-              brandId: brandId,
-              price: Math.round(price),
-              unit: row['Unidad'] || 'u',
-              amount: 1, // Default amount if missing
-              calories: row['Calorías'] ? parseFloat(String(row['Calorías']).replace(',', '.')) : 0,
-              proteins: row['Proteínas'] ? parseFloat(String(row['Proteínas']).replace(',', '.')) : 0,
-              lipids: row['Grasa Total'] ? parseFloat(String(row['Grasa Total']).replace(',', '.')) : 0,
-              carbs: row['Carbohidratos Disp'] ? parseFloat(String(row['Carbohidratos Disp']).replace(',', '.')) : 0,
-              sugars: 0,
-              fiber: 0,
-              sodium: 0,
-              isPublic: true,
-              verified: true
-            }
-          });
-          count++;
-        }
       }
-      console.log(`✅ Seeded ${count} ingredients from CSV.`);
-    } else {
-      console.warn(`⚠️ CSV file not found at ${filePath}. Skipping mass seed.`);
-      // Fallback to manual seed
-      const manualIngredients = [
-        {
-          name: 'Marraqueta (Unidad)',
-          brandName: 'Panadería Local',
-          categoryName: 'Panadería',
-          price: 250,
-          unit: 'unidad',
-          amount: 100,
-          calories: 267.0,
-          proteins: 8.5,
-          lipids: 1.2,
-          carbs: 58.0,
+
+      const allCategories = await prisma.ingredientCategory.findMany();
+      const categoryMap = new Map(allCategories.map((c) => [c.name, c.id]));
+
+      const existingIngredients = await prisma.ingredient.findMany({
+        select: { name: true },
+      });
+      const existingNameSet = new Set(
+        existingIngredients.map((i) => i.name.toLowerCase().trim())
+      );
+
+      const ingredientsToInsert: any[] = [];
+      const seenInBatch = new Set<string>();
+
+      for (const line of lines) {
+        const cols = line.split(',');
+        if (cols.length < 11) continue;
+
+        const name = cols[0].trim();
+        const categoryName = cols[1].trim() || 'General';
+        const categoryId = categoryMap.get(categoryName);
+        if (!name || !categoryId) continue;
+
+        const key = name.toLowerCase().trim();
+        if (existingNameSet.has(key) || seenInBatch.has(key)) continue;
+        seenInBatch.add(key);
+
+        const calories = parseFloat(cols[2]) || 0;
+        const proteins = parseFloat(cols[3]) || 0;
+        const carbs = parseFloat(cols[4]) || 0;
+        const lipids = parseFloat(cols[5]) || 0;
+        const sugars = parseFloat(cols[6]) || 0;
+        const fiber = parseFloat(cols[7]) || 0;
+        const sodium = parseFloat(cols[8]) || 0;
+        const unit = cols[9]?.trim() || 'g';
+        const amount = parseFloat(cols[10]) || 100;
+        const price = parseFloat(cols[11]) || 0;
+
+        ingredientsToInsert.push({
+          name,
+          categoryId,
+          calories,
+          proteins,
+          carbs,
+          lipids,
+          sugars,
+          fiber,
+          sodium,
+          unit,
+          amount,
+          price: Math.round(price),
           isPublic: true,
-          verified: true
-        },
-      ];
-      for (const ing of manualIngredients) {
-        const { brandName, categoryName, ...rest } = ing;
-
-        const category = await prisma.ingredientCategory.upsert({
-          where: { name: categoryName },
-          update: {},
-          create: { name: categoryName },
+          verified: true,
         });
-
-        const brand = brandName ? await prisma.ingredientBrand.upsert({
-          where: { name: brandName },
-          update: {},
-          create: { name: brandName },
-        }) : null;
-
-        const existing = await prisma.ingredient.findFirst({
-          where: {
-            name: {
-              equals: rest.name.trim(),
-              mode: 'insensitive',
-            },
-            brandId: brand?.id ?? null,
-          },
-        });
-
-        if (existing) {
-          continue;
-        }
-
-        await prisma.ingredient.create({
-          data: {
-            ...rest,
-            categoryId: category.id,
-            brandId: brand?.id,
-          }
-        }).catch(() => { });
       }
+
+      if (ingredientsToInsert.length > 0) {
+        const created = await prisma.ingredient.createMany({
+          data: ingredientsToInsert,
+          skipDuplicates: true,
+        });
+        console.log(`✅ Bulk inserted ${created.count} new ingredients (processed ${lines.length} rows).`);
+      } else {
+        console.log(`ℹ️ Ingredients already up to date (${existingNameSet.size} in DB).`);
+      }
+    } else {
+      console.warn(`⚠️ TXT file not found at ${txtPath}.`);
     }
   } catch (error) {
-    console.error('❌ Error seeding from CSV:', error);
+    console.error('❌ Error seeding ingredients from TXT:', error);
   }
 
   // 4. Create Membership Plans
@@ -203,20 +170,20 @@ async function main() {
       currency: 'CLP',
       billingPeriod: 'monthly',
       features: [
-        '✓ 15 pacientes activos',
-        '✓ 15 consultas al mes',
-        '✓ 9 PDFs al mes',
+        '✓ 4 pacientes totales',
+        '✓ 3 consultas guardadas',
+        '✓ 3 PDFs generados',
         '✓ 6 seguimientos privados activos',
         '✓ Base de ingredientes',
-        '✓ 30 cálculos al mes',
-        'X Grupos de alimento',
-        '✓ 9 llamadas a IA',
+        'X Usar la calculadora clínica',
+        '✓ 1 grupo de alimentos',
+        '✓ 4 respuestas de IA',
         '✓ 3 creaciones guardadas',
         'X Editar información de pacientes',
         'X Editar creaciones guardadas',
         'X Crear Detalles personalizados',
       ],
-      maxPatients: 15,
+      maxPatients: 4,
       isPopular: false,
       displayOrder: 1,
       entitlements: getMembershipPlanEntitlements('free'),
@@ -239,18 +206,18 @@ async function main() {
   for (const plan of plans) {
     await prisma.membershipPlan.upsert({
       where: { slug: plan.slug },
-        update: {
-          name: plan.name,
-          description: plan.description,
-          price: plan.price,
-          features: plan.features,
-          entitlements: plan.entitlements,
-          isPopular: plan.isPopular,
-          displayOrder: plan.displayOrder
-        },
-        create: {
-          ...plan,
-        features: plan.features as any // Prisma JSON field
+      update: {
+        name: plan.name,
+        description: plan.description,
+        price: plan.price,
+        features: plan.features,
+        entitlements: plan.entitlements,
+        isPopular: plan.isPopular,
+        displayOrder: plan.displayOrder
+      },
+      create: {
+        ...plan,
+        features: plan.features as any
       },
     });
     console.log(`✅ Upserted Membership Plan: ${plan.name}`);
@@ -274,11 +241,76 @@ async function main() {
   }
   console.log('✅ Seeded default clinical restrictions as tags.');
 
-  // 6. Seed default platform resources
-  console.log('📚 Replacing default platform resources...');
-  await replaceDefaultResources(prisma);
+  // 6. Seed all platform resources non-destructively
+  console.log('📚 Syncing all platform resources from root data JSON files...');
+  const rootDataDir = path.resolve(__dirname, '../../data');
+  const resourceFiles = [
+    path.join(rootDataDir, 'nutri_resources.json'),
+    path.join(rootDataDir, 'restriction_resources.json'),
+    path.join(rootDataDir, 'seed_resources.json'),
+    path.resolve(__dirname, '../src/data/default-resources.json'),
+  ];
 
-  console.log('🏁 Seeding finished.');
+  const existingResources = await prisma.resource.findMany({
+    select: { id: true, title: true, nutritionistId: true },
+  });
+  const existingIds = new Set(existingResources.map((r) => r.id));
+  const existingTitleKeys = new Set(
+    existingResources.map((r) => `${r.title.toLowerCase().trim()}_${r.nutritionistId || 'null'}`)
+  );
+
+  const resourcesToCreate: any[] = [];
+
+  for (const filePath of resourceFiles) {
+    if (!fs.existsSync(filePath)) continue;
+    try {
+      const raw = fs.readFileSync(filePath, 'utf-8');
+      const parsed = JSON.parse(raw);
+      const items: any[] = Array.isArray(parsed)
+        ? parsed
+        : Array.isArray(parsed.resources)
+          ? parsed.resources
+          : [];
+
+      for (const item of items) {
+        if (!item.title) continue;
+
+        const titleKey = `${item.title.toLowerCase().trim()}_${item.nutritionistId || 'null'}`;
+        if (item.id && existingIds.has(item.id)) continue;
+        if (existingTitleKeys.has(titleKey)) continue;
+
+        existingTitleKeys.add(titleKey);
+        if (item.id) existingIds.add(item.id);
+
+        resourcesToCreate.push({
+          ...(item.id ? { id: item.id } : {}),
+          title: item.title,
+          content: item.content || '',
+          category: item.category || 'general',
+          tags: Array.isArray(item.tags) ? item.tags : [],
+          sources: item.sources || null,
+          format: item.format || 'HTML',
+          fileUrl: item.fileUrl || null,
+          isPublic: item.isPublic ?? true,
+          nutritionistId: item.nutritionistId || null,
+        });
+      }
+    } catch (err) {
+      console.error(`❌ Error parsing resource JSON at ${filePath}:`, err);
+    }
+  }
+
+  if (resourcesToCreate.length > 0) {
+    const created = await prisma.resource.createMany({
+      data: resourcesToCreate,
+      skipDuplicates: true,
+    });
+    console.log(`✅ Bulk inserted ${created.count} new resources (detalles).`);
+  } else {
+    console.log(`ℹ️ Platform resources already up to date (${existingResources.length} in DB).`);
+  }
+
+  console.log('🏁 Seeding finished successfully.');
 }
 
 main()

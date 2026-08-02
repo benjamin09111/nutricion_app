@@ -6,7 +6,6 @@ import { Save, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { TagInput } from "@/components/ui/TagInput";
 import { fetchApi, getApiUrl } from "@/lib/api-base";
-import { getAuthToken } from "@/lib/auth-token";
 import { Modal } from "@/components/ui/Modal";
 
 type GroupType = "INGREDIENT" | "RECIPE";
@@ -42,19 +41,11 @@ export default function CreateGroupModal({
 
   const onSubmit = async (data: CreateGroupForm) => {
     setIsLoading(true);
-    const token = getAuthToken();
-    if (!token) {
-      toast.error("Sesión no válida");
-      setIsLoading(false);
-      return;
-    }
-
     try {
       const response = await fetchApi("/ingredient-groups", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           ...data,

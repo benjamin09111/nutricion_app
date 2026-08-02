@@ -113,10 +113,13 @@ export class DashboardService {
       usageMap[counter.featureKey] = counter.usageCount;
     }
 
-    const patientLimit = Number(entitlements['patients.active.limit']) || 0;
+    const patientLimit = Number(
+      entitlements['patients.total.limit'] ?? entitlements['patients.active.limit'],
+    ) || 0;
     const consultationLimit =
-      Number(entitlements['consultations.monthly.limit']) || 0;
-    const pdfLimit = Number(entitlements['pdf.monthly.limit']) || 0;
+      Number(entitlements['consultations.saved.limit'] ?? entitlements['consultations.monthly.limit']) || 0;
+    const pdfLimit =
+      Number(entitlements['pdf.exports.total.limit'] ?? entitlements['pdf.monthly.limit']) || 0;
 
     const isFree =
       planKey === 'free' &&
@@ -127,7 +130,7 @@ export class DashboardService {
     if (isFree) {
       const limits = [
         {
-          used: activePatients,
+          used: totalPatients,
           limit: patientLimit > 0 ? patientLimit : Infinity,
         },
         {
@@ -172,9 +175,9 @@ export class DashboardService {
           pdfs: pdfLimit,
         },
         usage: {
-          patients: activePatients,
+          patients: totalPatients,
           consultations: totalConsultations,
-          pdfs: usageMap['pdf.monthly.limit'] || 0,
+          pdfs: usageMap['pdf.exports.total.limit'] || usageMap['pdf.monthly.limit'] || 0,
         },
       },
       recentPatients,

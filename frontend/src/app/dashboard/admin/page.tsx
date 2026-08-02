@@ -175,7 +175,7 @@ const { data, isLoading, isError, refetch } = useQuery({
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
         {/* Recent Activity / Signups */}
-        <div className="col-span-4 rounded-xl border border-indigo-100 bg-white shadow-sm overflow-hidden">
+         <div className="col-span-1 rounded-xl border border-indigo-100 bg-white shadow-sm overflow-hidden lg:col-span-4">
           <div className="border-b border-indigo-100 px-6 py-4 bg-indigo-50/30">
             <h3 className="font-semibold text-slate-900">Últimos Registros</h3>
           </div>
@@ -197,19 +197,19 @@ const { data, isLoading, isError, refetch } = useQuery({
                       key={user.id}
                       className="flex items-center justify-between px-6 py-4 hover:bg-slate-50 transition-colors"
                     >
-                      <div className="flex items-center gap-3">
+                       <div className="flex min-w-0 items-center gap-3">
                         <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-xs shadow-sm">
                           {user.name.charAt(0)}
                           {user.name.split(" ")[1]?.charAt(0)}
                         </div>
-                        <div>
-                          <p className="text-sm font-semibold text-slate-900">
+                         <div className="min-w-0">
+                           <p className="truncate text-sm font-semibold text-slate-900">
                             {user.name}
                           </p>
-                          <p className="text-xs text-slate-500">{user.email}</p>
+                           <p className="truncate text-xs text-slate-500">{user.email}</p>
                         </div>
                       </div>
-                      <span className="text-xs text-slate-400 font-medium">
+                       <span className="shrink-0 text-right text-xs text-slate-400 font-medium">
                         {new Date(user.joinedAt).toLocaleDateString("es-CL", {
                           day: "numeric",
                           month: "short",
@@ -230,7 +230,7 @@ const { data, isLoading, isError, refetch } = useQuery({
         </div>
 
         {/* Quick Actions */}
-        <div className="col-span-3 rounded-xl border border-indigo-100 bg-white shadow-sm h-fit">
+         <div className="col-span-1 rounded-xl border border-indigo-100 bg-white shadow-sm h-fit lg:col-span-3">
           <div className="border-b border-indigo-100 px-6 py-4 bg-indigo-50/30">
             <h3 className="font-semibold text-slate-900">Acciones Rapidas</h3>
           </div>

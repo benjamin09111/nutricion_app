@@ -39,11 +39,80 @@ const isAllowedWorkerAdminPath = (pathname: string) =>
     (allowedPath) => pathname === allowedPath || pathname.startsWith(`${allowedPath}/`),
   );
 
-export default function proxy(request: NextRequest) {
+// ─── Sesión autoritativa ─────────────────────────────────────────────────────
+// SEGURIDAD: el rol se pregunta SIEMPRE al backend, que lo lee de la base de
+// datos. Nunca se deduce de la cookie "user" (escribible por el navegador) ni
+// del contenido del JWT (editable a mano). Sin esto, cualquiera podría poner
+// role=ADMIN en sus cookies y entrar al panel de administración.
+type SessionInfo = { role: string | null; rut: string | null };
+
+const SESSION_CACHE_TTL_MS = 15_000;
+const sessionCache = new Map<
+  string,
+  { expiresAt: number; session: SessionInfo | null }
+>();
+
+const getApiOrigin = () => {
+  const raw =
+    process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL;
+  return raw ? raw.replace(/\/+$/, "") : null;
+};
+
+const fetchSession = async (
+  request: NextRequest,
+  sessionToken: string,
+): Promise<SessionInfo | null> => {
+  const cached = sessionCache.get(sessionToken);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.session;
+  }
+
+  const origin = getApiOrigin();
+  if (!origin) return null;
+
+  let session: SessionInfo | null = null;
+  try {
+    const response = await fetch(`${origin}/auth/session-role`, {
+      headers: {
+        cookie: request.headers.get("cookie") || "",
+        ...(process.env.NEXT_PUBLIC_TENANT_ID
+          ? { "X-Tenant-ID": process.env.NEXT_PUBLIC_TENANT_ID }
+          : {}),
+      },
+      cache: "no-store",
+    });
+
+    if (response.ok) {
+      const data = (await response.json()) as Partial<SessionInfo>;
+      session = {
+        role: typeof data?.role === "string" ? data.role : null,
+        rut: typeof data?.rut === "string" ? data.rut : null,
+      };
+    } else if (response.status === 401 || response.status === 403) {
+      session = null;
+    } else {
+      return null; // Error transitorio: no se cachea.
+    }
+  } catch {
+    return null;
+  }
+
+  if (sessionCache.size > 500) sessionCache.clear();
+  sessionCache.set(sessionToken, {
+    expiresAt: Date.now() + SESSION_CACHE_TTL_MS,
+    session,
+  });
+
+  return session;
+};
+
+export default async function proxy(request: NextRequest) {
   // auth_session_present is a non-httpOnly cookie (value "1") set by the backend
   // alongside the httpOnly JWT. It signals that a session exists without exposing the token.
   const token = request.cookies.get("auth_session_present")?.value;
-  const userData = request.cookies.get("user")?.value;
+  // El JWT httpOnly no es legible por JS, pero sí por el middleware: se usa sólo
+  // como clave de caché y se reenvía al backend. Nunca se decodifica aquí.
+  const sessionToken = request.cookies.get("auth_session")?.value;
   const { pathname } = request.nextUrl;
 
   if (isStaticAsset(pathname) || PUBLIC_PATHS.has(pathname) || isPublicIntakeForm(pathname)) {
@@ -54,33 +123,13 @@ export default function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  let parsedUser: { role?: string; rut?: string | null } | null = null;
-  let userParseFailed = false;
-
-  if (userData) {
-    try {
-      parsedUser = JSON.parse(userData);
-    } catch {
-      userParseFailed = true;
-      parsedUser = null;
-    }
-  }
-
   const isDashboardRoute = pathname.startsWith("/dashboard");
+  const isAdminRoute = pathname.startsWith("/dashboard/admin");
   const isAuthRoute = pathname === "/login";
   const isOnboardingRoute = pathname.startsWith(ONBOARDING_PATH);
-  const needsRut = Boolean(
-    parsedUser && !STAFF_ROLES.has(parsedUser.role || "") && !parsedUser.rut,
-  );
 
   if (!token && isOnboardingRoute) {
     return NextResponse.redirect(new URL("/login", request.url));
-  }
-
-  if (token && needsRut && !isOnboardingRoute) {
-    const url = new URL(ONBOARDING_PATH, request.url);
-    url.searchParams.set("next", pathname + request.nextUrl.search);
-    return NextResponse.redirect(url);
   }
 
   if (isDashboardRoute && !token) {
@@ -89,62 +138,69 @@ export default function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (userParseFailed) {
-    const response = NextResponse.redirect(new URL("/login", request.url));
-    response.cookies.delete("auth_session_present");
-    response.cookies.delete("user");
-    return response;
+  const needsSession =
+    Boolean(token) && (isDashboardRoute || isAuthRoute || isOnboardingRoute);
+
+  if (!needsSession) {
+    return NextResponse.next();
   }
 
-  if (isAuthRoute && token) {
+  const session = sessionToken ? await fetchSession(request, sessionToken) : null;
+
+  if (!session) {
+    // Sin verificación del backend no se otorga acceso privilegiado.
+    if (isAdminRoute) {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+    return NextResponse.next();
+  }
+
+  const isStaff = STAFF_ROLES.has(session.role || "");
+  const isWorker = session.role === "WORKER";
+  const needsRut = !isStaff && !session.rut;
+
+  if (needsRut && !isOnboardingRoute) {
+    const url = new URL(ONBOARDING_PATH, request.url);
+    url.searchParams.set("next", pathname + request.nextUrl.search);
+    return NextResponse.redirect(url);
+  }
+
+  if (isAuthRoute) {
     if (needsRut) {
       const url = new URL(ONBOARDING_PATH, request.url);
       url.searchParams.set("next", "/dashboard");
       return NextResponse.redirect(url);
     }
 
-    const target =
-      parsedUser && STAFF_ROLES.has(parsedUser.role || "")
-        ? "/dashboard/admin"
-        : "/dashboard";
-    return NextResponse.redirect(new URL(target, request.url));
+    return NextResponse.redirect(
+      new URL(isStaff ? "/dashboard/admin" : "/dashboard", request.url),
+    );
   }
 
-  if (isDashboardRoute && parsedUser) {
-    const isStaff = STAFF_ROLES.has(parsedUser.role || "");
-    const isWorker = parsedUser.role === "WORKER";
-
+  if (isDashboardRoute) {
     if (pathname === "/dashboard" && isStaff) {
       return NextResponse.redirect(new URL("/dashboard/admin", request.url));
     }
 
     if (isWorker) {
-      if (
-        pathname.startsWith("/dashboard/admin") &&
-        !isAllowedWorkerAdminPath(pathname)
-      ) {
+      if (isAdminRoute && !isAllowedWorkerAdminPath(pathname)) {
         return NextResponse.redirect(new URL("/dashboard/admin", request.url));
       }
 
-      if (
-        !pathname.startsWith("/dashboard/admin") &&
-        pathname !== "/dashboard"
-      ) {
+      if (!isAdminRoute && pathname !== "/dashboard") {
         return NextResponse.redirect(new URL("/dashboard/admin", request.url));
       }
     }
 
-    if (pathname.startsWith("/dashboard/admin") && !isStaff) {
+    if (isAdminRoute && !isStaff) {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
   }
 
-  if (isOnboardingRoute && token && !needsRut) {
-    const target =
-      parsedUser && STAFF_ROLES.has(parsedUser.role || "")
-        ? "/dashboard/admin"
-        : "/dashboard";
-    return NextResponse.redirect(new URL(target, request.url));
+  if (isOnboardingRoute && !needsRut) {
+    return NextResponse.redirect(
+      new URL(isStaff ? "/dashboard/admin" : "/dashboard", request.url),
+    );
   }
 
   return NextResponse.next();

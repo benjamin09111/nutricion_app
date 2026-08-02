@@ -207,7 +207,7 @@ export default function ConsultationDetailClient({ id }: Props) {
           <div className="lg:col-span-3 space-y-6">
 
             {/* Session header card */}
-            <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
               <div className="px-6 py-5 border-b border-slate-50 bg-gradient-to-r from-slate-50 to-white">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center">
@@ -253,7 +253,7 @@ export default function ConsultationDetailClient({ id }: Props) {
           <div className="lg:col-span-2 space-y-6">
 
             {/* Metrics card */}
-            <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
               <div className="px-6 py-4 border-b border-slate-50 flex items-center gap-2">
                 <Activity className="w-4 h-4 text-indigo-500" />
                 <h3 className="text-xs font-semibold uppercase tracking-widest text-slate-500">
@@ -313,7 +313,7 @@ export default function ConsultationDetailClient({ id }: Props) {
           <details
             open={isPatientPanelOpen}
             onToggle={(e) => setIsPatientPanelOpen(e.currentTarget.open)}
-            className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden animate-in slide-in-from-bottom-4 duration-500"
+            className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden animate-in slide-in-from-bottom-4 duration-500"
           >
             <summary className="list-none [&::-webkit-details-marker]:hidden cursor-pointer select-none p-5 lg:p-6 border-b border-slate-50 bg-slate-50/30 flex items-center justify-between gap-3 group">
               <div className="flex items-center gap-4">

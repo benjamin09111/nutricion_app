@@ -302,6 +302,10 @@ model PatientPortalInvitation {
   blockedAt              DateTime?              @map("blocked_at")
   verifiedAt             DateTime?              @map("verified_at")
   lastSentAt             DateTime?              @map("last_sent_at")
+  accessCodeHash         String?                @map("access_code_hash")
+  accessCodeSetAt        DateTime?              @map("access_code_set_at")
+  failedAttempts          Int                    @default(0) @map("failed_attempts")
+  lockedUntil             DateTime?              @map("locked_until")
   resourceIds            String[]               @default([]) @map("resource_ids")
   deliverableCreationIds String[]               @default([]) @map("deliverable_creation_ids")
   createdAt              DateTime               @default(now()) @map("created_at")
@@ -314,9 +318,30 @@ model PatientPortalInvitation {
   @@index([patientId])
   @@index([nutritionistId])
   @@index([expiresAt])
+  @@index([lockedUntil])
   @@index([email, status, expiresAt])
   @@index([patientId, nutritionistId, createdAt])
   @@map("patient_portal_invitations")
+}
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  actorId      String?  @map("actor_id")
+  actorType    String   @map("actor_type")
+  actorRole    String?  @map("actor_role")
+  action       String
+  resourceType String   @map("resource_type")
+  resourceId   String?  @map("resource_id")
+  patientId    String?  @map("patient_id")
+  ip           String?
+  userAgent    String?  @map("user_agent")
+  metadata     Json     @default("{}")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([patientId, createdAt])
+  @@index([actorId, createdAt])
+  @@index([resourceType, resourceId])
+  @@map("audit_logs")
 }
 
 model PatientPortalCheckIn {

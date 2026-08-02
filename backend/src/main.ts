@@ -6,6 +6,17 @@ import rateLimit from 'express-rate-limit';
 import { SanitizationPipe } from './common/pipes/sanitization.pipe';
 import * as dns from 'dns';
 import { normalizeUrl } from './common/utils/runtime-url.util';
+import { config as loadEnv } from 'dotenv';
+import { join } from 'path';
+import { assertSecretsConfigured } from './config/secrets';
+import { configureDatabaseEnvironment } from './config/database-env';
+import {
+  bookingRequestLimiter,
+  publicAppointmentLimiter,
+  publicInterestLimiter,
+  publicPatientIntakeLimiter,
+  supportRequestLimiter,
+} from './common/rate-limits';
 import type { NextFunction, Request, Response } from 'express';
 import {
   AUTH_SESSION_COOKIE,
@@ -18,6 +29,10 @@ import {
 
 // Force IPv4 preference for DNS resolution to avoid ENETUNREACH on IPv6-only cloud networks
 dns.setDefaultResultOrder('ipv4first');
+
+loadEnv({ path: join(__dirname, '..', '.env') });
+configureDatabaseEnvironment();
+assertSecretsConfigured();
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -59,7 +74,9 @@ async function bootstrap() {
   );
 
   if (frontendOrigins.size === 0) {
-    console.warn('No CORS origins configured. Set FRONTEND_URL or CORS_ORIGIN.');
+    console.warn(
+      'No CORS origins configured. Set FRONTEND_URL or CORS_ORIGIN.',
+    );
   }
 
   app.use((req: Request, res: Response, next: NextFunction) => {
@@ -119,6 +136,12 @@ async function bootstrap() {
       legacyHeaders: false,
     }),
   );
+
+  app.use('/public/patient-intake/submit', publicPatientIntakeLimiter);
+  app.use('/booking-links', bookingRequestLimiter);
+  app.use('/public/nutritionists', publicAppointmentLimiter);
+  app.use('/public/nutritionist-interest', publicInterestLimiter);
+  app.use('/support', supportRequestLimiter);
 
   // Validation & Sanitization
   app.useGlobalPipes(

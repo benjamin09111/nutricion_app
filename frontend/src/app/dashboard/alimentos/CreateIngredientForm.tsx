@@ -9,7 +9,6 @@ import { toast } from "sonner";
 import { TagInput } from "@/components/ui/TagInput";
 import { Ingredient } from "@/features/foods";
 import { fetchApi, getApiUrl } from "@/lib/api-base";
-import { getAuthToken } from "@/lib/auth-token";
 
 const ingredientSchema = z.object({
   name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
@@ -157,15 +156,10 @@ export default function CreateIngredientForm({
 
     setIsSubmitting(true);
     try {
-      const token = getAuthToken();
-      if (!token) {
-        throw new Error("Sesión no válida");
-      }
       const response = await fetchApi("/foods", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           ...data,
@@ -397,7 +391,7 @@ export default function CreateIngredientForm({
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4 pt-2">
+           <div className="grid grid-cols-1 gap-4 pt-2 min-[380px]:grid-cols-2 sm:grid-cols-3">
             <div className="space-y-1">
               <label className="text-xs font-medium text-slate-500">
                 Azúcares (g) *

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect } from "react";
 import {
@@ -17,6 +17,8 @@ import { useScrollLock } from "@/hooks/useScrollLock";
 import { toast } from "sonner";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
+import { UsageLimitBadge } from "@/components/shared/UsageLimitBadge";
+import { DatePicker } from "@/components/ui/DatePicker";
 import Cookies from "js-cookie";
 import { Pagination } from "@/components/ui/Pagination";
 import { fetchApi } from "@/lib/api-base";
@@ -41,8 +43,11 @@ export default function ConsultationsClient() {
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [consultationToDelete, setConsultationToDelete] = useState<string | null>(null);
-  const { limit } = useSubscription();
-  const consultationLimit = limit("consultations.monthly.limit");
+  const { usage, currentPlan } = useSubscription();
+
+  const rawConsultationLimit = currentPlan?.entitlements?.["consultations.saved.limit"] ?? currentPlan?.entitlements?.["consultations.monthly.limit"];
+  const consultationLimit = typeof rawConsultationLimit === "number" ? rawConsultationLimit : undefined;
+  const consultationsUsed = usage?.consultationsUsed ?? meta.total ?? 0;
 
   useScrollLock(isDeleteModalOpen);
 
@@ -129,6 +134,13 @@ export default function ConsultationsClient() {
     <ModuleLayout
       title="Mis Consultas"
       description="Espacio con todas tus consultas realizadas. Puedes filtrar por paciente y ver el detalle de cada sesión. Todas se conectan con tus pacientes."
+      rightContent={
+        <UsageLimitBadge
+          label="Consultas"
+          usage={consultationsUsed}
+          limit={consultationLimit}
+        />
+      }
       className="pb-8"
     >
       <ConfirmationModal
@@ -144,13 +156,13 @@ export default function ConsultationsClient() {
 
       <div className="space-y-4 mb-6">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-1 items-center gap-3 min-w-0">
+          <div className="flex flex-1 items-center gap-2.5 min-w-0">
             <div className="pl-2 shrink-0">
               <Search className="h-5 w-5 text-slate-400" />
             </div>
             <Input
               type="search"
-              placeholder="Buscar por nombre del paciente..."
+              placeholder="Buscar por RUT o nombre del paciente..."
               className="h-10 text-sm border border-slate-200 bg-white focus-visible:border-indigo-500 placeholder:text-slate-400 font-medium"
               value={searchTerm}
               onChange={(e) => {
@@ -160,38 +172,27 @@ export default function ConsultationsClient() {
             />
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-            <div className="flex items-center gap-1.5">
-              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Desde</span>
-              <div className="relative">
-                <CalendarDays className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-                <input
-                  type="date"
-                  value={dateFrom}
-                  onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
-                  className="h-10 w-[9rem] pl-9 pr-2 rounded-xl border border-slate-200 bg-white text-xs font-medium text-slate-600 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/10 outline-none cursor-pointer transition-all"
-                />
-              </div>
-              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Hasta</span>
-              <div className="relative">
-                <CalendarDays className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-                <input
-                  type="date"
-                  value={dateTo}
-                  onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
-                  className="h-10 w-[9rem] pl-9 pr-2 rounded-xl border border-slate-200 bg-white text-xs font-medium text-slate-600 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/10 outline-none cursor-pointer transition-all"
-                />
-              </div>
-            </div>
-            <div className="hidden md:flex items-center rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-semibold text-slate-500">
-              Límite mensual: {Number.isFinite(consultationLimit) ? consultationLimit : "Ilimitado"}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 lg:justify-end">
+            <div className="grid grid-cols-1 gap-2 min-[380px]:grid-cols-2 sm:flex sm:items-center w-full sm:w-auto">
+              <DatePicker
+                value={dateFrom}
+                onChange={(val) => { setDateFrom(val); setPage(1); }}
+                placeholder="Desde..."
+                className="w-full sm:w-36"
+              />
+              <DatePicker
+                value={dateTo}
+                onChange={(val) => { setDateTo(val); setPage(1); }}
+                placeholder="Hasta..."
+                className="w-full sm:w-36"
+              />
             </div>
             <button
               onClick={() => router.push("/dashboard/consultas/nueva")}
-              className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition-all shadow-sm active:scale-95 cursor-pointer"
+              className="flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm rounded-xl transition-all shadow-sm active:scale-95 cursor-pointer w-full sm:w-auto shrink-0"
             >
-              <Plus className="w-5 h-5" />
-              Nueva Consulta
+              <Plus className="w-4 h-4 shrink-0" />
+              <span>Nueva Consulta</span>
             </button>
           </div>
         </div>

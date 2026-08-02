@@ -119,9 +119,10 @@ const WORKER_ALLOWED_PATHS = new Set([
 
 interface AdminSidebarProps {
   onItemClick?: () => void;
+  isMobile?: boolean;
 }
 
-export function AdminSidebar({ onItemClick }: AdminSidebarProps = {}) {
+export function AdminSidebar({ onItemClick, isMobile = false }: AdminSidebarProps = {}) {
   const pathname = usePathname();
   const { isSidebarCollapsed } = useDashboardShell();
   const { isDarkMode } = useTheme();
@@ -240,23 +241,24 @@ export function AdminSidebar({ onItemClick }: AdminSidebarProps = {}) {
   return (
     <div
       className={cn(
-        "dashboard-sidebar-bg flex grow flex-col gap-y-4 overflow-y-auto border-r pb-4 transition-all duration-300",
-        isSidebarCollapsed ? "px-2" : "px-4",
+        "dashboard-sidebar-bg flex h-full min-h-0 grow flex-col gap-y-4 border-r pb-4 transition-all duration-300",
+        !isMobile && "overflow-y-auto",
+        !isMobile && isSidebarCollapsed ? "px-2" : "px-4",
       )}
     >
       <div
         className={cn(
           "flex h-16 shrink-0 items-center sticky top-0 z-10 dashboard-sidebar-bg",
-          isSidebarCollapsed ? "justify-center -mx-2 px-2" : "-mx-4 px-4 pl-6",
+          !isMobile && isSidebarCollapsed ? "justify-center -mx-2 px-2" : "-mx-4 px-4 pl-6",
         )}
       >
         <div className="flex items-center space-x-2">
           <Image
             src="/logo_2.webp"
             alt="NutriNet"
-            width={isSidebarCollapsed ? 72 : 180}
-            height={isSidebarCollapsed ? 23 : 57}
-            className={cn("h-auto w-auto object-contain", isSidebarCollapsed ? "max-w-[72px]" : "max-w-[180px]")}
+            width={!isMobile && isSidebarCollapsed ? 72 : 180}
+            height={!isMobile && isSidebarCollapsed ? 23 : 57}
+            className={cn("h-auto w-auto object-contain", !isMobile && isSidebarCollapsed ? "max-w-[72px]" : "max-w-[180px]")}
             style={{ width: "auto", height: "auto" }}
           />
         </div>
@@ -265,7 +267,7 @@ export function AdminSidebar({ onItemClick }: AdminSidebarProps = {}) {
         <ul role="list" className="flex flex-1 flex-col gap-y-3">
           {visibleGroups.map((group) => (
             <li key={group.title}>
-              {!isSidebarCollapsed && (
+              {(isMobile || !isSidebarCollapsed) && (
                 <div
                   className={cn(
                     "mb-1 pl-2 text-[0.8rem] font-bold uppercase tracking-wider",
@@ -298,7 +300,7 @@ export function AdminSidebar({ onItemClick }: AdminSidebarProps = {}) {
                               : "text-slate-600 hover:text-indigo-700 hover:bg-indigo-50",
                           "group flex min-w-0 gap-x-2 rounded-md p-2 leading-5 font-medium transition-colors items-center cursor-pointer",
                           "relative",
-                          isSidebarCollapsed && "justify-center",
+                          !isMobile && isSidebarCollapsed && "justify-center",
                         )}
                         title={item.name}
                       >
@@ -315,13 +317,13 @@ export function AdminSidebar({ onItemClick }: AdminSidebarProps = {}) {
                           )}
                           aria-hidden="true"
                         />
-                        {!isSidebarCollapsed && <span className="min-w-0 flex-1 truncate">{item.name}</span>}
+                        {(isMobile || !isSidebarCollapsed) && <span className="min-w-0 flex-1 truncate">{item.name}</span>}
                         {itemBadge && (
                           <span
                             className={cn(
                               "ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-emerald-500 px-1.5 text-[10px] font-black leading-none text-white shadow-sm ring-2",
                               isDarkMode ? "ring-slate-900" : "ring-white",
-                              isSidebarCollapsed &&
+                              !isMobile && isSidebarCollapsed &&
                                 "absolute -right-1 -top-1 ml-0",
                             )}
                             aria-label={`${itemBadge} mensajes pendientes`}

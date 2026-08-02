@@ -20,7 +20,7 @@ export function WizardStepper({
   nextDisabled = false,
 }: WizardStepperProps) {
   return (
-    <div className={cn("flex flex-wrap items-center gap-x-2 gap-y-3 mb-6 pb-2", className)}>
+    <div className={cn("flex w-full items-center gap-x-2 pb-3 mb-6 overflow-x-auto sm:flex-wrap sm:gap-y-3 sm:pb-2", className)}>
       {steps.map((step, index) => {
         const isCompleted = completedSteps.includes(index);
         const isActive = currentStep === index;
@@ -42,7 +42,7 @@ export function WizardStepper({
                 }
               }}
               className={cn(
-                "flex items-center gap-2 transition-all",
+                "flex shrink-0 items-center gap-2 transition-all sm:shrink",
                 isLocked
                   ? "cursor-not-allowed opacity-45 select-none"
                   : onStepClick

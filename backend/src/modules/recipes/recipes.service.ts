@@ -135,6 +135,57 @@ export class RecipesService {
     return this.normalizeFoodName(value || '');
   }
 
+  private ingredientAmountInGrams(amount: number, unit: string): number | null {
+    const normalized = String(unit || '').trim().toLowerCase();
+    if (['g', 'gr', 'gramo', 'gramos'].includes(normalized)) return amount;
+    if (['kg', 'kilo', 'kilos', 'kilogramo', 'kilogramos'].includes(normalized)) {
+      return amount * 1000;
+    }
+    return null;
+  }
+
+  private async calculateIngredientMacros(
+    ingredients: Array<{ ingredientId: string; amount: number; unit: string }>,
+    portions: number,
+  ) {
+    const ingredientIds = ingredients.map((ingredient) => ingredient.ingredientId);
+    const dbIngredients = await this.prisma.ingredient.findMany({
+      where: { id: { in: ingredientIds } },
+    });
+
+    const totals = {
+      calories: 0,
+      proteins: 0,
+      carbs: 0,
+      lipids: 0,
+      fiber: 0,
+      sodium: 0,
+    };
+
+    for (const ingredient of ingredients) {
+      const grams = this.ingredientAmountInGrams(ingredient.amount, ingredient.unit);
+      if (grams === null) {
+        throw new BadRequestException(
+          `No se pueden calcular macros automáticamente para la unidad "${ingredient.unit}". Usa gramos/kg o ingresa macros manuales por porción.`,
+        );
+      }
+
+      const dbIngredient = dbIngredients.find((item) => item.id === ingredient.ingredientId);
+      if (!dbIngredient) continue;
+      const factor = grams / 100;
+      totals.calories += dbIngredient.calories * factor;
+      totals.proteins += dbIngredient.proteins * factor;
+      totals.carbs += dbIngredient.carbs * factor;
+      totals.lipids += dbIngredient.lipids * factor;
+      totals.fiber += (dbIngredient.fiber ?? 0) * factor;
+      totals.sodium += (dbIngredient.sodium ?? 0) * factor;
+    }
+
+    return Object.fromEntries(
+      Object.entries(totals).map(([key, value]) => [key, Number((value / portions).toFixed(2))]),
+    ) as typeof totals;
+  }
+
   private isStrictMealSection(mealSection?: string): boolean {
     const normalized = this.normalizeMealSection(mealSection);
     return ['desayuno', 'almuerzo', 'cena', 'once'].includes(normalized);
@@ -356,9 +407,10 @@ export class RecipesService {
     modelId: string;
     object: any;
   }> {
+    let quotaReserved = false;
     try {
       await this.planUsageService.consumeQuota(accountId, 'ai.calls.limit');
-
+      quotaReserved = true;
       const result = await this.aiService.generateStructuredObject(
         taskName,
         systemInstruction,
@@ -374,6 +426,9 @@ export class RecipesService {
         object: any;
       };
     } catch (error) {
+      if (quotaReserved) {
+        await this.planUsageService.refundQuota(accountId, 'ai.calls.limit');
+      }
       if (error instanceof ForbiddenException) {
         throw error;
       }
@@ -1020,47 +1075,20 @@ export class RecipesService {
           data.fiber == null ||
           data.sodium == null)
       ) {
-        const ingredientIds = ingredients.map((i) => i.ingredientId);
-        const dbIngredients = await this.prisma.ingredient.findMany({
-          where: { id: { in: ingredientIds } },
-        });
-
-        let totalCalories = 0;
-        let totalProteins = 0;
-        let totalCarbs = 0;
-        let totalLipids = 0;
-        let totalFiber = 0;
-        let totalSodium = 0;
-
-        ingredients.forEach((ing) => {
-          const dbIng = dbIngredients.find((d) => d.id === ing.ingredientId);
-          if (dbIng) {
-            const factor = ing.amount / 100;
-            totalCalories += dbIng.calories * factor;
-            totalProteins += dbIng.proteins * factor;
-            totalCarbs += dbIng.carbs * factor;
-            totalLipids += dbIng.lipids * factor;
-            totalFiber += (dbIng.fiber ?? 0) * factor;
-            totalSodium += (dbIng.sodium ?? 0) * factor;
-          }
-        });
+        const ingredientMacros = await this.calculateIngredientMacros(ingredients, portions);
 
         if (data.calories == null)
-          calcMacros.calories = parseFloat(
-            (totalCalories / portions).toFixed(2),
-          );
+          calcMacros.calories = ingredientMacros.calories;
         if (data.proteins == null)
-          calcMacros.proteins = parseFloat(
-            (totalProteins / portions).toFixed(2),
-          );
+          calcMacros.proteins = ingredientMacros.proteins;
         if (data.carbs == null)
-          calcMacros.carbs = parseFloat((totalCarbs / portions).toFixed(2));
+          calcMacros.carbs = ingredientMacros.carbs;
         if (data.lipids == null)
-          calcMacros.lipids = parseFloat((totalLipids / portions).toFixed(2));
+          calcMacros.lipids = ingredientMacros.lipids;
         if (data.fiber == null)
-          calcMacros.fiber = parseFloat((totalFiber / portions).toFixed(2));
+          calcMacros.fiber = ingredientMacros.fiber;
         if (data.sodium == null)
-          calcMacros.sodium = parseFloat((totalSodium / portions).toFixed(2));
+          calcMacros.sodium = ingredientMacros.sodium;
       }
 
       const recipe = await this.prisma.recipe.create({
@@ -1352,6 +1380,14 @@ export class RecipesService {
     };
 
     if (ingredients) {
+      const canCalculateIngredientMacros = ingredients.every(
+        (ingredient) => this.ingredientAmountInGrams(ingredient.amount, ingredient.unit) !== null,
+      );
+      const hasManualMacros = [data.calories, data.proteins, data.carbs, data.lipids]
+        .every((value) => value != null);
+      const ingredientMacros = canCalculateIngredientMacros
+        ? await this.calculateIngredientMacros(ingredients, data.portions ?? 1)
+        : null;
       updateData.ingredients = {
         deleteMany: {},
         create: ingredients.map((ing) => ({
@@ -1362,6 +1398,18 @@ export class RecipesService {
           isMain: ing.isMain ?? true,
         })),
       };
+      if (ingredientMacros) {
+        updateData.calories = ingredientMacros.calories;
+        updateData.proteins = ingredientMacros.proteins;
+        updateData.carbs = ingredientMacros.carbs;
+        updateData.lipids = ingredientMacros.lipids;
+        updateData.fiber = ingredientMacros.fiber;
+        updateData.sodium = ingredientMacros.sodium;
+      } else if (!hasManualMacros) {
+        throw new BadRequestException(
+          'Las recetas con unidades domésticas necesitan macros manuales por porción.',
+        );
+      }
     }
 
     const updated = await this.prisma.recipe.update({
@@ -1399,9 +1447,10 @@ export class RecipesService {
       `Ingredientes: ${JSON.stringify(dto.ingredientNames)}`,
     ].join('\n');
 
+    let quotaReserved = false;
     try {
       await this.planUsageService.consumeQuota(userId, 'ai.calls.limit');
-
+      quotaReserved = true;
       const structured = await this.aiService.generateStructuredObject(
         'recipes.estimate-macros',
         'Eres un asistente nutricional. Responde solo JSON.',
@@ -1429,6 +1478,9 @@ export class RecipesService {
         lipids: Math.round(parsed.lipids ?? 0),
       };
     } catch (err) {
+      if (quotaReserved) {
+        await this.planUsageService.refundQuota(userId, 'ai.calls.limit');
+      }
       if (err instanceof BadRequestException) throw err;
       throw new BadRequestException(
         'No se pudo estimar macros con IA. Verifica GEMINI_API_KEY o las credenciales del proveedor configurado.',

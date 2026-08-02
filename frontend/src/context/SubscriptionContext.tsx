@@ -8,10 +8,8 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
-import { toast } from "sonner";
 import { membershipService } from "@/features/memberships/services/membership.service";
 import { fetchApi } from "@/lib/api-base";
-import { authService } from "@/features/auth/services/auth.service";
 import { getCurrentUser, setCurrentUser } from "@/lib/current-user";
 
 export type SubscriptionPlan = "free" | "trial" | "pro";
@@ -44,6 +42,8 @@ export interface MembershipState {
     pdfUsed: number;
     aiUsed: number;
     calculatorUsed: number;
+    foodGroupsUsed?: number;
+    creationsUsed?: number;
   };
   billing?: {
     nextPaymentAt: string | null;
@@ -113,7 +113,8 @@ export function SubscriptionProvider({
     const user = getCurrentUser();
     if (!user) return;
 
-    setRole(typeof user?.role === "string" ? user.role : null);
+    // El rol NO se toma del snapshot local (cookie manipulable); sólo llega
+    // desde `/auth/me`. Aquí sólo se rehidratan datos de plan para la UI.
     if (user.plan || user.currentPlan?.key || user.currentPlan?.slug) {
       const backendPlan = String(user.currentPlan?.key || user.currentPlan?.slug || user.plan).toLowerCase();
       if (backendPlan === "free" || backendPlan === "freemium") setPlan("free");
@@ -159,25 +160,9 @@ export function SubscriptionProvider({
   );
 
   const refreshSubscription = useCallback(async () => {
-    let resolvedRole: string | null = null;
-    const previousUser = getCurrentUser();
-
     try {
       const data = await membershipService.getStatus();
       const key = computePlan(data.currentPlan, data.accountPlan);
-      const previousPlan = String(
-        previousUser?.plan || previousUser?.currentPlan?.key || previousUser?.currentPlan?.slug || "",
-      ).toLowerCase();
-      const nextPlan = String(data.accountPlan || key || "").toLowerCase();
-
-      if (previousUser && previousPlan && nextPlan && previousPlan !== nextPlan) {
-        const email = encodeURIComponent(previousUser.email || "");
-        await authService.signOut();
-        if (typeof window !== "undefined") {
-          window.location.assign(`/sesion-actualizada?email=${email}`);
-        }
-        return;
-      }
 
       setPlan(key as SubscriptionPlan);
       setPlanName(data.currentPlan?.name || "Plan Gratuito");
@@ -199,17 +184,14 @@ export function SubscriptionProvider({
         if (meResponse.ok) {
           const meData = await meResponse.json();
           const user = meData?.user || meData;
-          resolvedRole = typeof user?.role === "string" ? user.role : null;
-          setRole(resolvedRole);
+          setRole(typeof user?.role === "string" ? user.role : null);
           setCurrentUser(user);
         }
       } catch {}
 
       const user = getCurrentUser();
       if (user) {
-        if (resolvedRole === null) {
-          setRole(typeof user?.role === "string" ? user.role : null);
-        }
+        // Sin fallback de rol: si `/auth/me` no respondió, el rol queda nulo.
         user.plan = data.accountPlan || key;
         user.planName = data.currentPlan?.name || "Plan Gratuito";
         user.subscription = data.subscription;

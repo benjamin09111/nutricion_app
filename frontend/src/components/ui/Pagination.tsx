@@ -97,14 +97,14 @@ export function Pagination({
   return (
     <div
       className={cn(
-        "flex items-center justify-center space-x-2 py-4",
+        "flex items-center justify-center space-x-2 overflow-x-auto py-4",
         className,
       )}
     >
       <div className="flex items-center space-x-1">
         <Button
           variant="outline"
-          className="h-8 w-8 p-0"
+          className="hidden h-10 w-10 p-0 sm:inline-flex sm:h-8 sm:w-8"
           onClick={() => onPageChange(1)}
           disabled={currentPage === 1}
           title="Primera página"
@@ -114,7 +114,7 @@ export function Pagination({
         </Button>
         <Button
           variant="outline"
-          className="h-8 w-8 p-0"
+          className="h-10 w-10 p-0 sm:h-8 sm:w-8"
           onClick={() => onPageChange(Math.max(1, currentPage - 1))}
           disabled={currentPage === 1}
           title="Anterior"
@@ -131,7 +131,10 @@ export function Pagination({
               key={`${page}-${index}`}
               variant={currentPage === page ? "default" : "ghost"}
               className={cn(
-                "h-8 w-8 p-0 font-bold transition-all text-xs rounded-lg",
+                cn(
+                  "h-10 w-10 p-0 font-bold transition-all text-xs rounded-lg sm:h-8 sm:w-8",
+                  currentPage !== page && "hidden sm:inline-flex",
+                ),
                 currentPage === page
                   ? "bg-emerald-600 text-white hover:bg-emerald-700 shadow-md shadow-emerald-200"
                   : isDarkMode
@@ -146,7 +149,7 @@ export function Pagination({
             <span
               key={`ellipsis-${index}`}
               className={cn(
-                "px-1 text-xs font-bold select-none",
+                 "hidden px-1 text-xs font-bold select-none sm:inline",
                 isDarkMode ? "text-emerald-100/30" : "text-slate-300",
               )}
             >
@@ -159,7 +162,7 @@ export function Pagination({
       <div className="flex items-center space-x-1">
         <Button
           variant="outline"
-          className="h-8 w-8 p-0"
+          className="h-10 w-10 p-0 sm:h-8 sm:w-8"
           onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
           disabled={currentPage === totalPages}
           title="Siguiente"
@@ -169,7 +172,7 @@ export function Pagination({
         </Button>
         <Button
           variant="outline"
-          className="h-8 w-8 p-0"
+          className="hidden h-10 w-10 p-0 sm:inline-flex sm:h-8 sm:w-8"
           onClick={() => onPageChange(totalPages)}
           disabled={currentPage === totalPages}
           title="Última página"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -20,6 +20,7 @@ type ChatRouteContent = {
   routePatterns: string[];
   moduleLabel: string;
   message: string;
+  welcomeMessage?: string;
   links?: ChatLink[];
 };
 
@@ -27,6 +28,7 @@ type ChatConfig = {
   default: {
     moduleLabel: string;
     message: string;
+    welcomeMessage?: string;
     links?: ChatLink[];
   };
   routes: ChatRouteContent[];
@@ -62,17 +64,38 @@ const getCurrentModuleHelp = (pathname: string) => {
   return {
     moduleLabel: chatConfig.default.moduleLabel,
     message: chatConfig.default.message,
+    welcomeMessage: chatConfig.default.welcomeMessage,
     links: chatConfig.default.links,
   };
 };
+
+const FIRST_CHAT_OPEN_KEY = "nutri_chat_opened_once";
 
 export function NutriaChatWidget() {
   const pathname = usePathname();
   const { isDarkMode } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
-
   const normalizedPathname = pathname || "/dashboard";
   const isAllowed = normalizedPathname.startsWith("/dashboard") && !normalizedPathname.startsWith("/dashboard/admin");
+  const showFloatingButton = !normalizedPathname.startsWith("/dashboard/rapido");
+
+  useEffect(() => {
+    if (isAllowed && localStorage.getItem(FIRST_CHAT_OPEN_KEY) !== "true") {
+      localStorage.setItem(FIRST_CHAT_OPEN_KEY, "true");
+      setIsOpen(true);
+    }
+
+    const handleOpen = () => setIsOpen(true);
+    const handleToggle = () => setIsOpen((prev) => !prev);
+
+    window.addEventListener("open-nutria-chat", handleOpen);
+    window.addEventListener("toggle-nutria-chat", handleToggle);
+
+    return () => {
+      window.removeEventListener("open-nutria-chat", handleOpen);
+      window.removeEventListener("toggle-nutria-chat", handleToggle);
+    };
+  }, [isAllowed]);
 
   const moduleHelp = useMemo(
     () => getCurrentModuleHelp(normalizedPathname),
@@ -81,6 +104,7 @@ export function NutriaChatWidget() {
 
   const welcomeMessage = useMemo(
     () =>
+      moduleHelp.welcomeMessage ||
       `¡Bienvenido! Aún estoy en beta, pero puedo ayudarte con el módulo actual: **${moduleHelp.moduleLabel}**.\n\n${moduleHelp.message}`,
     [moduleHelp],
   );
@@ -88,25 +112,25 @@ export function NutriaChatWidget() {
   if (!isAllowed) return null;
 
   return (
-    <div className="pointer-events-none fixed bottom-5 right-5 z-[70] flex flex-col items-end gap-3 sm:bottom-6 sm:right-6">
+    <>
       {isOpen ? (
         <div
           className={cn(
-            "pointer-events-auto flex max-h-[min(35rem,calc(100vh-8rem))] w-[min(24rem,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-[2rem] border shadow-[0_30px_90px_-35px_rgba(88,28,135,0.45)]",
+            "fixed inset-0 z-[100] flex flex-col overflow-hidden sm:bottom-6 sm:right-6 sm:top-auto sm:left-auto sm:z-[70] sm:max-h-[min(35rem,calc(100vh-8rem))] sm:w-[min(24rem,calc(100vw-1.5rem))] sm:rounded-2xl border shadow-2xl transition-all duration-300",
             isDarkMode ? "border-violet-400/20 bg-[#120c24]" : "border-violet-100 bg-white",
           )}
         >
-          <div className="bg-gradient-to-br from-violet-700 via-violet-600 to-fuchsia-500 px-5 py-4 text-white">
-            <div className="flex items-start justify-between gap-3">
+          <div className="bg-gradient-to-br from-violet-700 via-violet-600 to-fuchsia-500 px-5 py-4 text-white shrink-0">
+            <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="relative h-12 w-12 overflow-hidden rounded-full border border-white/25 bg-white/10 shadow-inner">
+                <div className="relative h-10 w-10 sm:h-12 sm:w-12 overflow-hidden rounded-full border border-white/25 bg-white/10 shadow-inner shrink-0">
                   <Image src="/circle_logo.webp" alt="Nutria asistente" fill sizes="48px" className="object-cover" />
                 </div>
                 <div>
                   <p className="text-sm font-black tracking-wide">Nutria</p>
-                  <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-1 text-[10px] font-black uppercase tracking-[0.18em]">
+                  <div className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.18em]">
                     <Sparkles className="h-3 w-3" />
-                    Beta asistida
+                    Asistente Clínico
                   </div>
                 </div>
               </div>
@@ -115,18 +139,10 @@ export function NutriaChatWidget() {
                 <button
                   type="button"
                   onClick={() => setIsOpen(false)}
-                  className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-white/10 transition-colors hover:bg-white/20"
-                  aria-label="Minimizar chat"
-                >
-                  <Minus className="h-4 w-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsOpen(false)}
-                  className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-white/10 transition-colors hover:bg-white/20"
+                  className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-white/15 transition-colors hover:bg-white/25"
                   aria-label="Cerrar chat"
                 >
-                  <X className="h-4 w-4" />
+                  <X className="h-5 w-5" />
                 </button>
               </div>
             </div>
@@ -205,19 +221,21 @@ export function NutriaChatWidget() {
         </div>
       ) : null}
 
-      <button
-        type="button"
-        onClick={() => setIsOpen((currentValue) => !currentValue)}
-        className="pointer-events-auto relative inline-flex h-16 w-16 cursor-pointer items-center justify-center rounded-full bg-gradient-to-br from-violet-700 via-violet-600 to-fuchsia-500 shadow-[0_22px_40px_-20px_rgba(126,34,206,0.75)] transition-transform hover:scale-[1.04] active:scale-95"
-        aria-label={isOpen ? "Cerrar chat de Nutria" : "Abrir chat de Nutria"}
-      >
-        <div className="absolute inset-[3px] overflow-hidden rounded-full border border-white/25">
-          <Image src="/circle_logo.webp" alt="Nutria" fill sizes="40px" className="object-cover" />
-        </div>
-        <div className="absolute -right-1 -top-1 flex h-6 min-w-6 items-center justify-center rounded-full border-2 border-white bg-emerald-400 px-1 text-[10px] font-black text-slate-900">
-          <MessageCircle className="h-3 w-3" />
-        </div>
-      </button>
-    </div>
+      {showFloatingButton && !isOpen ? <div className="fixed bottom-6 right-6 z-[70] hidden sm:block">
+        <button
+          type="button"
+          onClick={() => setIsOpen((currentValue) => !currentValue)}
+          className="relative inline-flex h-14 w-14 cursor-pointer items-center justify-center rounded-full bg-gradient-to-br from-violet-700 via-violet-600 to-fuchsia-500 shadow-[0_22px_40px_-20px_rgba(126,34,206,0.75)] transition-transform hover:scale-[1.04] active:scale-95"
+          aria-label={isOpen ? "Cerrar chat de Nutria" : "Abrir chat de Nutria"}
+        >
+          <div className="absolute inset-[3px] overflow-hidden rounded-full border border-white/25">
+            <Image src="/circle_logo.webp" alt="Nutria" fill sizes="40px" className="object-cover" />
+          </div>
+          <div className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-white bg-emerald-400 px-1 text-[9px] font-black text-slate-900">
+            <MessageCircle className="h-2.5 w-2.5" />
+          </div>
+        </button>
+      </div> : null}
+    </>
   );
 }

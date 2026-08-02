@@ -2,14 +2,13 @@
 
 import { useState, KeyboardEvent, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { X, Globe, User as UserIcon, Trash2 } from "lucide-react";
+import { X, Globe, User as UserIcon, Trash2, Plus } from "lucide-react";
 import { Input } from "./Input";
 import { toast } from "sonner";
 import { DEFAULT_CONSTRAINTS } from "@/lib/constants";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { fetchApi } from "@/lib/api-base";
 import { useTheme } from "@/context/ThemeContext";
-import { getAuthToken } from "@/lib/auth-token";
 interface TagInputProps {
   value: string[];
   onChange: (tags: string[]) => void;
@@ -39,7 +38,7 @@ export function TagInput({
   openDirection = "down",
   singleSelect = false,
   tagsAbsolute = false,
-  helperText,
+  helperText = "Presiona Enter para agregar la etiqueta o crearla si no existe.",
 }: TagInputProps) {
   const { isDarkMode } = useTheme();
   const [inputValue, setInputValue] = useState("");
@@ -51,20 +50,12 @@ export function TagInput({
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [tagToDelete, setTagToDelete] = useState<string | null>(null);
 
-  const token = typeof window !== "undefined" ? getAuthToken() : "";
-
   useEffect(() => {
     let isMounted = true;
     const controller = new AbortController();
 
     const fetchTags = async () => {
       if (!fetchSuggestionsUrl) {
-        setFetchedSuggestions([]);
-        return;
-      }
-
-      // Avoid noisy network errors while auth/session is still bootstrapping
-      if (!token) {
         setFetchedSuggestions([]);
         return;
       }
@@ -78,7 +69,7 @@ export function TagInput({
 
         const response = await fetch(url, {
           signal: controller.signal,
-          headers: { Authorization: `Bearer ${token}` },
+          credentials: "include",
         });
         if (response.ok) {
           const data = await response.json();
@@ -114,7 +105,7 @@ export function TagInput({
       controller.abort();
       clearTimeout(timer);
     };
-  }, [inputValue, fetchSuggestionsUrl, token]);
+  }, [inputValue, fetchSuggestionsUrl]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
@@ -156,7 +147,6 @@ export function TagInput({
     try {
       const response = await fetchApi(`/tags/${encodeURIComponent(tagName)}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
         // Remove from current selection if present
@@ -205,6 +195,11 @@ export function TagInput({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const hasExactMatch = allMatchingSuggestions.some(
+    (s) => s.toLowerCase() === inputValue.trim().toLowerCase(),
+  );
+  const showCreateOption = inputValue.trim().length > 0 && !hasExactMatch;
+
   return (
     <div className={cn(tagsAbsolute ? "relative" : "space-y-3")} ref={containerRef}>
       <div className="relative">
@@ -243,7 +238,7 @@ export function TagInput({
         )}
 
         {/* Suggestions Dropdown */}
-        {showSuggestions && allSuggestions.length > 0 && (
+        {showSuggestions && (allSuggestions.length > 0 || showCreateOption) && (
           <div className={cn(
             "fixed inset-x-4 sm:inset-x-auto sm:absolute z-[100] border rounded-2xl max-h-72 overflow-auto animate-in fade-in duration-200 sm:w-full",
             openDirection === "up" ? "bottom-full mb-2 slide-in-from-bottom-2" : "top-full mt-2 slide-in-from-top-2",
@@ -251,14 +246,41 @@ export function TagInput({
               ? "bg-slate-950 border-emerald-400/12 shadow-black/40"
               : "bg-white border-slate-200/80 shadow-2xl shadow-slate-200/50",
           )}>
-            <div className={cn(
-              "px-3 py-2 border-b",
-              isDarkMode ? "bg-slate-900/90 border-emerald-400/10" : "border-slate-100 bg-slate-50/80",
-            )}>
-              <p className={cn("text-[10px] font-black uppercase tracking-[0.22em] text-slate-400", isDarkMode && "text-emerald-100/45")}>
-                Sugerencias Globales
-              </p>
-            </div>
+            {showCreateOption && (
+              <button
+                type="button"
+                onClick={() => addTag(inputValue)}
+                className={cn(
+                  "w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors border-b cursor-pointer",
+                  isDarkMode
+                    ? "border-emerald-500/20 bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-200"
+                    : "border-emerald-100 bg-emerald-50/90 hover:bg-emerald-100 text-emerald-900",
+                )}
+              >
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-emerald-200 bg-emerald-100 text-emerald-700">
+                  <Plus className="w-4 h-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-bold text-xs">
+                    Crear etiqueta &quot;{inputValue.trim()}&quot;
+                  </div>
+                  <div className="text-[10px] text-emerald-600 font-semibold">
+                    Presiona Enter o haz clic para agregar esta nueva etiqueta
+                  </div>
+                </div>
+              </button>
+            )}
+
+            {allSuggestions.length > 0 && (
+              <div className={cn(
+                "px-3 py-1.5 border-b",
+                isDarkMode ? "bg-slate-900/90 border-emerald-400/10" : "border-slate-100 bg-slate-50/80",
+              )}>
+                <p className={cn("text-[10px] font-black uppercase tracking-[0.22em] text-slate-400", isDarkMode && "text-emerald-100/45")}>
+                  Sugerencias Globales
+                </p>
+              </div>
+            )}
             {allSuggestions.map((suggestion) => {
               const isSystem = DEFAULT_CONSTRAINTS.some(
                 (c) => c.id === suggestion,

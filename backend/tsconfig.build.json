@@ -3,5 +3,5 @@
   "compilerOptions": {
     "rootDir": "src"
   },
-  "exclude": ["node_modules", "test", "dist", "**/*spec.ts", "debug-*.ts", "delete-*.ts", "scripts", "prisma"]
+  "exclude": ["node_modules", "test", "dist", "**/*spec.ts", "debug-*.ts", "delete-*.ts", "scripts", "prisma", "src/seed-ingredients.ts", "src/seed-metrics.ts"]
 }

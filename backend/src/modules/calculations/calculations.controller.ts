@@ -5,10 +5,11 @@ import { PermissionsGuard } from '../permissions/permissions.guard';
 import { RequireFeatures } from '../permissions/permissions.decorator';
 import { PLAN_ENTITLEMENT_KEYS } from '../memberships/plan-entitlements';
 import { PlanUsageService } from '../permissions/plan-usage.service';
+import { CalculateDto } from './dto/calculate.dto';
 
 @Controller('calculations')
 @UseGuards(AuthGuard, PermissionsGuard)
-@RequireFeatures(PLAN_ENTITLEMENT_KEYS.CLINICAL_CALCULATOR_ACCESS)
+@RequireFeatures(PLAN_ENTITLEMENT_KEYS.CLINICAL_CALCULATOR_USE_ACCESS)
 export class CalculationsController {
   constructor(
     private readonly calculationsService: CalculationsService,
@@ -16,7 +17,7 @@ export class CalculationsController {
   ) {}
 
   @Post('calculate')
-  async calculate(@Request() req: any, @Body() inputs: any) {
+  async calculate(@Request() req: any, @Body() inputs: CalculateDto) {
     await this.planUsageService.consumeQuota(
       req.user.id,
       PLAN_ENTITLEMENT_KEYS.CLINICAL_CALCULATOR_LIMIT,

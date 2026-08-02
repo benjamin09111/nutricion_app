@@ -318,7 +318,7 @@ export const EXCHANGE_PORTION_PROFILES: ExchangePortionProfile[] = [
     id: "grasas_saludables",
     label: "Grasas y aceites",
     macroBasis: "fat",
-    householdPortion: "1 cucharada de aceite, 1/4 de palta o 25 g de frutos secos",
+    householdPortion: "20 g de aceite, 1/4 de palta o 25 g de frutos secos",
     cho: 0,
     protein: 0,
     fat: 20,
@@ -326,7 +326,7 @@ export const EXCHANGE_PORTION_PROFILES: ExchangePortionProfile[] = [
     ingredientCategories: ["Grasas y Aceites", "Semillas y Nueces"],
     keywords: ["aceite", "palta", "nuez", "almendra", "mani", "mantequilla de mani", "semilla", "fruto seco", "grasa"],
     clinicalNote: "Importante para densidad energetica y saciedad; contarla por separado.",
-    patientFriendlyPortion: "1 cucharada de aceite o 1/4 de palta",
+    patientFriendlyPortion: "20 g de aceite o 1/4 de palta",
     isClinicalExchange: true,
     priority: 110,
   },
@@ -612,38 +612,55 @@ export function buildExchangeGuideForPatient(): PatientExchangeGuideRow[] {
 export function buildSuggestedExchangeRows(
   macros: MacroTargetsLike,
 ): SuggestedExchangeRow[] {
+  const fruitPortions = 2;
+  const vegetablePortions = 4;
+  const dairyPortions = 1;
+  const legumePortions = macros.calories >= 1600 ? 1 : 0;
+  const fixedCarbs =
+    fruitPortions * getProfileById("frutas").cho +
+    vegetablePortions * getProfileById("verduras_bajas").cho +
+    dairyPortions * getProfileById("lacteos_descremados").cho +
+    legumePortions * getProfileById("legumbres_secas").cho;
+  const cerealPortions = roundToSingle((macros.carbs - fixedCarbs) / getProfileById("cereales_tuberculos").cho);
+  const fixedProtein =
+    cerealPortions * getProfileById("cereales_tuberculos").protein +
+    vegetablePortions * getProfileById("verduras_bajas").protein +
+    dairyPortions * getProfileById("lacteos_descremados").protein +
+    legumePortions * getProfileById("legumbres_secas").protein;
+  const leanProteinPortions = roundToSingle((macros.protein - fixedProtein) / getProfileById("proteina_magra").protein);
+  const fixedFat =
+    cerealPortions * getProfileById("cereales_tuberculos").fat +
+    legumePortions * getProfileById("legumbres_secas").fat +
+    leanProteinPortions * getProfileById("proteina_magra").fat;
+
   const rows: Array<{ profileId: string; portions: number }> = [
     {
       profileId: "cereales_tuberculos",
-      portions: roundToSingle((Math.max(macros.carbs - 45, 0) * 0.55) / 30),
+      portions: cerealPortions,
     },
     {
       profileId: "legumbres_secas",
-      portions: macros.calories >= 1600 ? 1 : 0,
+      portions: legumePortions,
     },
     {
       profileId: "frutas",
-      portions: Math.max(2, Math.round(Math.max(macros.carbs, 120) / 45)),
+      portions: fruitPortions,
     },
     {
       profileId: "verduras_bajas",
-      portions: 4,
+      portions: vegetablePortions,
     },
     {
       profileId: "proteina_magra",
-      portions: roundToSingle((macros.protein * 0.7) / 11),
+      portions: leanProteinPortions,
     },
     {
       profileId: "lacteos_descremados",
-      portions: Math.max(1, Math.round((macros.protein * 0.15) / 8)),
+      portions: dairyPortions,
     },
     {
       profileId: "grasas_saludables",
-      portions: roundToSingle(macros.fats / 20),
-    },
-    {
-      profileId: "azucares_extras",
-      portions: macros.calories >= 2200 ? 1 : 0,
+      portions: roundToSingle((macros.fats - fixedFat) / getProfileById("grasas_saludables").fat),
     },
   ];
 

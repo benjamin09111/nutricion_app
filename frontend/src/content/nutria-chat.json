@@ -9,9 +9,18 @@
   },
   "routes": [
     {
+      "routePatterns": ["/dashboard"],
+      "moduleLabel": "Dashboard",
+      "welcomeMessage": "¡Bienvenido a Nutrinet!\n\nEsta es la página principal, puedes acceder a ella apretando el logo de Nutrinet arriba a la izquierda.\n\nPuedes ver información general y resumida, pacientes, consultas y tus planes creados.\n\n¡Yo estaré presente en cada vista para darte la información necesaria!",
+      "message": "",
+      "links": [
+        { "label": "Ir a crear paciente", "href": "/dashboard/pacientes/new" }
+      ]
+    },
+    {
       "routePatterns": ["/dashboard/dieta"],
       "moduleLabel": "Dieta",
-      "message": "Aquí defines la estrategia clínica y las restricciones base para el entregable personalizado.",
+      "message": "Aquí puedes diseñar un entregable más completo y personalizado para un paciente, siguiendo la misma lógica de los flujos anteriores.\n\nPrimero debes diseñar la dieta con todos los alimentos que serán considerados. Luego incluirás las recetas y porciones del plan. Después se genera un Carrito de compras, con la lista de alimentos, frecuencias y cantidades para que el paciente pueda guiarse fácilmente. Finalmente, puedes incluir recursos e información importante.\n\nTambién puedes descargar y guardar estos entregables, además de utilizar a Naty para ayudarte con las recetas.",
       "links": [
         { "label": "Abrir recetas", "href": "/dashboard/recetas" },
         { "label": "Ver pacientes", "href": "/dashboard/pacientes" }
@@ -45,18 +54,56 @@
       ]
     },
     {
+      "routePatterns": ["/dashboard/pacientes/new"],
+      "moduleLabel": "Crear paciente",
+      "welcomeMessage": "Aquí puedes crear y registrar tus pacientes.\n\nTienes la opción **rápida**, donde solo colocas los datos fundamentales y luego puedes editar al paciente para completar su información. La otra opción es la **detallada**, donde creas al paciente con toda la información disponible en NutriNet.\n\nLa opción de formulario de creación es para compartirle al paciente un formulario y que él mismo ingrese su información. Por ahora, esta funcionalidad no está disponible.",
+      "message": "",
+      "links": [
+        { "label": "Volver a pacientes", "href": "/dashboard/pacientes" }
+      ]
+    },
+    {
+      "routePatterns": ["/dashboard/pacientes/:id"],
+      "moduleLabel": "Detalle del paciente",
+      "welcomeMessage": "Esta vista muestra toda la información de tu paciente.\n\n**Ficha clínica:** Información del paciente.\n\n**Progreso:** Puedes ver el avance del paciente según las métricas que hayas seleccionado, como el peso y su evolución en el tiempo. Para ello debes tomar nuevos registros manuales con Registrar métrica o registrarlos cuando realizas las consultas. También puedes descargar en PDF el seguimiento de un paciente.\n\n**Consultas:** Verás todas las consultas asociadas al paciente.\n\n**Planes:** Verás todos los planes creados asociados a ese paciente.\n\n**Tests:** Aplica y guarda evaluaciones de tamizaje nutricional validadas (MNA, NRS-2002, MUST, STRONGkids, Atalah). Los datos conocidos del paciente se pre-seleccionan automáticamente. Puedes guardar y descargar los resultados en PDF.\n\nPuedes registrar una nueva consulta desde aquí mismo, arriba a la derecha. Si aprietas los tres puntitos, puedes ver opciones adicionales. También puedes editar cuando desees la información del paciente con el ícono de lápiz.",
+      "message": "",
+      "links": [
+        { "label": "Ir a consultas", "href": "/dashboard/consultas" },
+        { "label": "Volver a pacientes", "href": "/dashboard/pacientes" }
+      ]
+    },
+    {
+      "routePatterns": ["/dashboard/herramientas/calculos"],
+      "moduleLabel": "Calculadora clínica",
+      "welcomeMessage": "Esta es la calculadora clínica avanzada.\n\nAquí puedes realizar cálculos antropométricos y energéticos (Mifflin-St Jeor, Harris-Benedict, OMS), ajustar requerimientos proteicos y evaluar riesgos. Además, puedes aplicar los **Tests de Tamizaje Nutricional** (MNA, NRS-2002, MUST, STRONGkids, Atalah) y guardar o exportar sus resultados.",
+      "message": "",
+      "links": [
+        { "label": "Ver pacientes", "href": "/dashboard/pacientes" },
+        { "label": "Ver creaciones", "href": "/dashboard/creaciones" }
+      ]
+    },
+    {
       "routePatterns": ["/dashboard/pacientes", "/dashboard/pacientes/*"],
       "moduleLabel": "Pacientes",
-      "message": "Gestiona perfiles, seguimiento y el contexto clínico que alimenta todo el flujo.",
+      "message": "En esta vista puedes ver a tus pacientes creados, apretar el botón Crear paciente para generar uno y descargar su ficha clínica. Los pacientes son necesarios para crear consultas y planes. Puedes eliminar pacientes o inhabilitarlos cuando ya no estén activos, y usar Mostrar inactivos para encontrarlos. También puedes descargar la ficha clínica desde aquí o al entrar al paciente para ver toda su información.",
       "links": [
-        { "label": "Crear paciente", "href": "/dashboard/pacientes/new" },
+        { "label": "Ir a crear paciente", "href": "/dashboard/pacientes/new" },
         { "label": "Ir a consultas", "href": "/dashboard/consultas" }
+      ]
+    },
+    {
+      "routePatterns": ["/dashboard/consultas/nueva"],
+      "moduleLabel": "Nueva consulta",
+      "welcomeMessage": "Aquí puedes crear una consulta. Puedes volver a empezar y borrar todo con el botón de reiniciar.\n\nDebes seleccionar al paciente e informar si has entregado planes o si entregarás algo en esta sesión.\n\nTambién puedes añadir métricas. Por ejemplo, si hoy registras la nueva métrica **Cantidad de vitamina C**, quedará registrada en el Registro del paciente. Si haces una nueva medición, regístrala como métrica al crear tu consulta.",
+      "message": "",
+      "links": [
+        { "label": "Volver a consultas", "href": "/dashboard/consultas" }
       ]
     },
     {
       "routePatterns": ["/dashboard/consultas", "/dashboard/consultas/*"],
       "moduleLabel": "Consultas",
-      "message": "Registra sesiones, observaciones y evolución clínica en un solo lugar.",
+      "message": "Aquí puedes ver y filtrar todas tus consultas realizadas. Puedes eliminar una consulta, ver su información o ir al paciente asociado. También puedes crear una nueva consulta desde el botón ubicado arriba a la derecha.",
       "links": [
         { "label": "Ver pacientes", "href": "/dashboard/pacientes" },
         { "label": "Ir a herramientas", "href": "/dashboard/herramientas/calculos" }
@@ -81,9 +128,19 @@
       ]
     },
     {
+      "routePatterns": ["/dashboard/creaciones", "/dashboard/creaciones/*"],
+      "moduleLabel": "Creaciones",
+      "welcomeMessage": "En esta vista puedes ver todas tus creaciones de planes. Además de borrarlas, puedes verlas, editarlas y descargarlas.\n\nAquí estará tu historial para que no se pierda ninguna creación. Puedes ver el tipo de creación en **TIPO**.\n\nLa idea es que puedas crear dietas para reutilizarlas más tarde y no tener que empezar desde cero. Estas creaciones son de tipo **GENERAL**.",
+      "message": "",
+      "links": [
+        { "label": "Crear una dieta", "href": "/dashboard/dieta" },
+        { "label": "Ver recursos", "href": "/dashboard/recursos" }
+      ]
+    },
+    {
       "routePatterns": ["/dashboard/recursos", "/dashboard/recursos/*"],
       "moduleLabel": "Recursos",
-      "message": "Administra PDFs, plantillas y material educativo para tus pacientes.",
+      "message": "Esta es la vista de recursos, donde encontrarás información útil y valiosa para tus pacientes que puedes agregar a tus planes.\n\n**Biblioteca:** Recursos del sistema separados por categorías. En el futuro podrás ver y reutilizar recursos de otras nutricionistas.\n\n**Mis recursos:** Recursos que hayas creado y que puedes reutilizar en tus creaciones.\n\n**Portada e introducción:** Por ahora no puedes personalizar tus portadas, pero puedes incluir información de introducción en tus planes personalizados. Ya hay algunas opciones disponibles por defecto.\n\n**Restricciones alimenticias:** Recursos asociados a una restricción, como Diabético. Se utilizan para crear los planes Rápidos disponibles en la barra izquierda, dentro de Nutrición y dietética.\n\nEn el futuro podrás conectar NutriNet con Canva para reutilizar tus plantillas, diseños y portadas.",
       "links": [
         { "label": "Nuevo recurso", "href": "/dashboard/recursos/nuevo" },
         { "label": "Ir a creaciones", "href": "/dashboard/creaciones" }
@@ -92,7 +149,7 @@
     {
       "routePatterns": ["/dashboard/rapido"],
       "moduleLabel": "Entregable Rápido",
-      "message": "Usa este flujo cuando necesites un resultado ágil sin recorrer el proceso completo.",
+      "message": "Esta es la creación de planes rápidos, pensada para atender a un paciente de forma simple y entregarle un plan sencillo y útil. Crea un título, asocia un paciente importándolo o créalo en el momento, e incluye hashtags opcionales.\n\nEsta sección cuenta con una tabla de comidas y alimentos a evitar. También puedes incluir recursos, junto con las porciones recomendadas y una guía para el paciente.\n\nPuedes revisar la barra lateral derecha para encontrar acciones relevantes e importantes.\n\nTambién puedes utilizar a Naty la Nutria para que complete el plan por ti. Al abrirla, tendrás que darle indicaciones. Recuerda que la revisión final siempre la haces tú.",
       "links": [
         { "label": "Abrir recetas rápidas", "href": "/dashboard/rapido/recetas" },
         { "label": "Ir a dieta", "href": "/dashboard/dieta" }
@@ -101,10 +158,29 @@
     {
       "routePatterns": ["/dashboard/rapido/recetas"],
       "moduleLabel": "Recetas Rápidas",
-      "message": "Genera recetas completas a partir de texto libre y guarda lo que te sirva.",
+      "message": "Esta vista es para crear recetas en base a alimentos. La idea principal es utilizar a Naty la Nutria: dale indicaciones para que cree distintos platos y recetas que luego puedes entregar a tus pacientes.\n\nPuedes importar cualquier creación y crear recetas en base a ella. Personaliza y ahorra todo el tiempo que quieras.",
       "links": [
         { "label": "Abrir entregable rápido", "href": "/dashboard/rapido" },
         { "label": "Ver platos", "href": "/dashboard/platos" }
+      ]
+    },
+    {
+      "routePatterns": ["/dashboard/herramientas/calculos"],
+      "moduleLabel": "Calculadora",
+      "welcomeMessage": "Esta es una calculadora automática para distintos casos. Debes completar la información y luego revisar el resultado. La idea es que puedas utilizarla de forma aislada y tenerla a mano cuando necesites realizar cálculos o consultar información puntual de un paciente o de una persona.",
+      "message": "",
+      "links": [
+        { "label": "Volver al dashboard", "href": "/dashboard" }
+      ]
+    },
+    {
+      "routePatterns": ["/dashboard/detalles"],
+      "moduleLabel": "Detalles personalizados",
+      "welcomeMessage": "Esta vista es para personalizar algunos detalles dentro de la página. Por defecto, el sistema tiene registradas algunas restricciones clínicas, pero puedes agregar más si lo deseas. Estas serán visibles para otras nutricionistas para reutilizar la información.\n\nTambién tenemos:\n\n**Hashtags:** Utilizados para clasificar cualquier tipo de información.\n\n**Métricas:** Son las que utilizas para medir la evolución de un paciente.\n\nMientras más personalices NutriNet, más podrás reutilizar estos datos en tus creaciones y en la gestión de tus pacientes.",
+      "message": "",
+      "links": [
+        { "label": "Ver pacientes", "href": "/dashboard/pacientes" },
+        { "label": "Ir a consultas", "href": "/dashboard/consultas" }
       ]
     },
     {

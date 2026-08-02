@@ -122,12 +122,14 @@ const groups: SidebarGroup[] = [
 
 interface SidebarProps {
   onItemClick?: () => void;
+  isMobile?: boolean;
 }
 
-export function Sidebar({ onItemClick }: SidebarProps = {}) {
+export function Sidebar({ onItemClick, isMobile = false }: SidebarProps = {}) {
   const pathname = usePathname();
   const { isSidebarCollapsed, toggleSidebarCollapsed, isSidebarToggleHighlighted } = useDashboardShell();
   const { isDarkMode } = useTheme();
+  const shouldCollapse = !isMobile && isSidebarCollapsed && !onItemClick;
 
   const SIDEBAR_GROUPS_STORAGE_KEY = "nutri_dashboard_sidebar_open_groups";
 
@@ -185,14 +187,15 @@ export function Sidebar({ onItemClick }: SidebarProps = {}) {
   return (
     <div
       className={cn(
-        "sidebar-scroll dashboard-sidebar-bg flex h-full grow flex-col gap-y-4 overflow-y-auto overflow-x-hidden border-r pb-4 transition-all duration-300",
-        isSidebarCollapsed ? "px-2" : "px-3",
+        "sidebar-scroll dashboard-sidebar-bg flex h-full min-h-0 grow flex-col gap-y-4 overflow-x-hidden border-r pb-4 transition-all duration-300",
+        !isMobile && "overflow-y-auto",
+        shouldCollapse ? "px-2" : "px-3",
       )}
     >
       <div
         className={cn(
           "flex h-16 shrink-0 items-center justify-between sticky top-0 z-10 dashboard-sidebar-bg",
-          isSidebarCollapsed ? "flex-col gap-1 pt-2 pb-1 h-20 -mx-2 px-2" : "-mx-4 px-4 pl-6",
+          shouldCollapse ? "flex-col gap-1 pt-2 pb-1 h-20 -mx-2 px-2" : "-mx-4 px-4 pl-5 pr-12 lg:pr-4",
         )}
       >
         <Link
@@ -204,9 +207,9 @@ export function Sidebar({ onItemClick }: SidebarProps = {}) {
           <Image
             src="/logo_2.webp"
             alt="NutriNet"
-            width={isSidebarCollapsed ? 72 : 180}
-            height={isSidebarCollapsed ? 23 : 57}
-            className={cn("h-auto w-auto object-contain", isSidebarCollapsed ? "max-w-[72px]" : "max-w-[180px]")}
+            width={shouldCollapse ? 72 : 180}
+            height={shouldCollapse ? 23 : 57}
+            className={cn("h-auto w-auto object-contain", shouldCollapse ? "max-w-[72px]" : "max-w-[180px]")}
             style={{ width: "auto", height: "auto" }}
           />
         </Link>
@@ -231,34 +234,45 @@ export function Sidebar({ onItemClick }: SidebarProps = {}) {
         <ul role="list" className="flex flex-1 flex-col gap-y-2">
           {visibleGroups.map((group) => {
             const isOpen = openGroups[group.title] === true;
-            const showItems = isOpen;
+            const showItems = onItemClick ? true : isOpen;
 
             return (
               <li key={group.title}>
-                {!isSidebarCollapsed && (
-                  <button
-                    type="button"
-                    onClick={() => toggleGroup(group.title)}
-                    className={cn(
-                      "flex w-full items-center justify-between mb-1 pl-2 text-[0.7rem] font-bold uppercase tracking-wider transition-colors",
-                      isDarkMode ? "text-indigo-100/55 hover:text-indigo-100/80" : "text-slate-400 hover:text-slate-600",
-                    )}
-                  >
-                    <span>{group.title}</span>
-                    <div className="flex items-center pr-1">
-                      {isOpen ? (
-                        <ChevronDown className="h-3 w-3" />
-                      ) : (
-                        <ChevronRight className="h-3 w-3" />
+                {!shouldCollapse && (
+                  onItemClick ? (
+                    <div
+                      className={cn(
+                        "mb-1 pl-2 text-[0.7rem] font-bold uppercase tracking-wider",
+                        isDarkMode ? "text-indigo-100/55" : "text-slate-400",
                       )}
+                    >
+                      {group.title}
                     </div>
-                  </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => toggleGroup(group.title)}
+                      className={cn(
+                        "flex w-full items-center justify-between mb-1 pl-2 text-[0.7rem] font-bold uppercase tracking-wider transition-colors",
+                        isDarkMode ? "text-indigo-100/55 hover:text-indigo-100/80" : "text-slate-400 hover:text-slate-600",
+                      )}
+                    >
+                      <span>{group.title}</span>
+                      <div className="flex items-center pr-1">
+                        {isOpen ? (
+                          <ChevronDown className="h-3 w-3" />
+                        ) : (
+                          <ChevronRight className="h-3 w-3" />
+                        )}
+                      </div>
+                    </button>
+                  )
                 )}
                 {showItems && (
-                  <ul role="list" className={cn("-mx-2 space-y-0.5", !isSidebarCollapsed && "mt-1")}>
+                   <ul role="list" className={cn("-mx-2 space-y-0.5", !shouldCollapse && "mt-1")}>
                     {group.items.map((item) => {
                       if (item.isSubHeader) {
-                        if (isSidebarCollapsed) return null;
+                        if (shouldCollapse) return null;
                         return (
                           <li key={item.name} className="mt-4 mb-1 px-3">
                             <div className={cn(
@@ -301,8 +315,8 @@ export function Sidebar({ onItemClick }: SidebarProps = {}) {
                                   : "text-slate-600 hover:text-indigo-600 hover:bg-slate-50 font-medium",
                               isLocked && "cursor-not-allowed grayscale opacity-50",
                               "group flex min-w-0 cursor-pointer items-center gap-x-2 rounded-md p-2 leading-5 transition-colors",
-                              isSidebarCollapsed && "justify-center",
-                              !isSidebarCollapsed && group.title === "Nutrición y Dietética" && "pl-4"
+                              shouldCollapse && "justify-center",
+                              !shouldCollapse && group.title === "Nutrición y Dietética" && "pl-4"
                             )}
                             title={item.name}
                           >
@@ -323,7 +337,7 @@ export function Sidebar({ onItemClick }: SidebarProps = {}) {
                                 />
                               )}
                             </span>
-                            {!isSidebarCollapsed && <span className="min-w-0 flex-1 truncate">{item.name}</span>}
+                            {!shouldCollapse && <span className="min-w-0 flex-1 truncate">{item.name}</span>}
                             {isLocked && <Lock className={cn("h-3 w-3", isDarkMode ? "text-indigo-100/35" : "text-slate-400")} />}
                           </Link>
                         </li>

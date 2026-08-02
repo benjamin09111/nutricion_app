@@ -28,7 +28,7 @@ export function WizardTabs({ steps, currentStep, onStepChange, className }: Wiza
               type="button"
               onClick={() => onStepChange(index)}
               className={cn(
-                "flex min-w-0 flex-1 items-start gap-3 rounded-2xl border px-4 py-3 text-left transition-all cursor-pointer",
+                "flex min-w-0 w-full sm:w-auto sm:flex-1 items-start gap-2.5 sm:gap-3 rounded-2xl border p-3 sm:px-4 sm:py-3 text-left transition-all cursor-pointer",
                 isActive && "border-indigo-200 bg-indigo-50 shadow-sm",
                 !isActive &&
                   isCompleted &&

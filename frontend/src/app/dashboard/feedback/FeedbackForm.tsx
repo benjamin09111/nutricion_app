@@ -102,27 +102,27 @@ export function FeedbackForm() {
 
   return (
     <div className="w-full max-w-2xl mx-auto">
-      <div className="bg-white rounded-[2rem] shadow-xl shadow-slate-200/40 border border-slate-100 overflow-hidden relative">
+      <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/40 border border-slate-100 overflow-hidden relative">
         {/* Header Decoration */}
         <div className="absolute top-0 left-0 right-0 h-1.5 bg-indigo-500" />
 
-        <div className="p-10">
-          <div className="mb-10 text-center">
-            <h3 className="text-2xl font-semibold text-slate-900 tracking-tight mb-3">
+        <div className="p-5 sm:p-10">
+          <div className="mb-6 sm:mb-10 text-center">
+            <h3 className="text-xl sm:text-2xl font-semibold text-slate-900 tracking-tight mb-2 sm:mb-3">
               Tu mensaje nos importa
             </h3>
-            <p className="text-slate-500 text-sm font-medium leading-relaxed max-w-md mx-auto">
+            <p className="text-slate-500 text-xs sm:text-sm font-medium leading-relaxed max-w-md mx-auto">
               Ayúdanos a mejorar NutriNet. Cuéntanos tus ideas, problemas, solicitudes de reunión o testimonios.
             </p>
           </div>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 sm:space-y-6">
             {/* Type Selection */}
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               <label className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest ml-1">
                 Tipo de Mensaje
               </label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-2.5">
                 {[
                   { id: "feedback", label: "Feedback", icon: MessageSquare, color: "indigo" },
                   { id: "testimonio", label: "Testimonio", icon: CheckCircle2, color: "green" },
@@ -147,7 +147,7 @@ export function FeedbackForm() {
                         setValue("type", item.id as FeedbackFormData["type"])
                       }
                       className={cn(
-                        "cursor-pointer relative overflow-hidden rounded-[1.25rem] border-2 p-3 transition-all duration-200 hover:shadow-sm active:scale-95 text-center flex flex-col items-center gap-1.5",
+                        "cursor-pointer relative overflow-hidden rounded-xl border-2 p-2.5 sm:p-3 transition-all duration-200 hover:shadow-xs active:scale-95 text-center flex flex-col items-center gap-1.5",
                         isSelected
                           ? `border-${color}-500 bg-${color}-50 text-${color}-700`
                           : "border-slate-100 bg-slate-50 text-slate-500 hover:border-slate-200 hover:bg-slate-100",
@@ -155,11 +155,11 @@ export function FeedbackForm() {
                     >
                       <item.icon
                         className={cn(
-                          "w-5 h-5",
+                          "w-4.5 h-4.5 sm:w-5 sm:h-5",
                           isSelected ? `text-${color}-600` : "text-slate-300",
                         )}
                       />
-                      <span className="text-[10px] font-bold uppercase tracking-wider">
+                      <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider">
                         {item.label}
                       </span>
                       {isSelected && (
@@ -170,14 +170,14 @@ export function FeedbackForm() {
                 })}
               </div>
               {selectedType === "testimonio" && (
-                <div className="rounded-[1.25rem] border border-green-100 bg-green-50 p-4 text-xs text-green-700 font-medium leading-relaxed">
-                  <p className="font-semibold text-green-800 mb-1">Testimonio público</p>
+                <div className="rounded-xl border border-green-100 bg-green-50 p-3.5 sm:p-4 text-xs text-green-700 font-medium leading-relaxed">
+                  <p className="font-semibold text-green-800 mb-0.5">Testimonio público</p>
                   Usaremos tu comentario como testimonio público en nuestra plataforma. ¡Gracias por tu apoyo!
                 </div>
               )}
               {selectedType === "reunion" && (
-                <div className="rounded-[1.25rem] border border-purple-100 bg-purple-50 p-4 text-xs text-purple-800 font-medium leading-relaxed">
-                  <p className="font-semibold text-purple-950 mb-1">Solicitud de Reunión</p>
+                <div className="rounded-xl border border-purple-100 bg-purple-50 p-3.5 sm:p-4 text-xs text-purple-800 font-medium leading-relaxed">
+                  <p className="font-semibold text-purple-950 mb-0.5">Solicitud de Reunión</p>
                   Al enviar esta solicitud, notificaremos directamente a <strong>contacto@nutrinet.cl</strong> indicando tu correo y el motivo especificado para agendar una reunión.
                 </div>
               )}

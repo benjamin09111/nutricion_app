@@ -34,6 +34,7 @@ export class IngredientGroupsController {
   @Post()
   create(@Request() req: any, @Body() createDto: CreateIngredientGroupDto) {
     return this.ingredientGroupsService.create(
+      req.user.id,
       req.user.nutritionistId,
       createDto,
     );

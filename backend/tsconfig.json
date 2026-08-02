@@ -22,5 +22,14 @@
     "noImplicitAny": true,
     "strictBindCallApply": true,
     "noFallthroughCasesInSwitch": true
-  }
+  },
+  "exclude": [
+    "node_modules",
+    "dist",
+    "test",
+    "prisma",
+    "scripts",
+    "src/seed-ingredients.ts",
+    "src/seed-metrics.ts"
+  ]
 }

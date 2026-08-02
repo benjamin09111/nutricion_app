@@ -23,6 +23,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
+import { DatePicker } from '@/components/ui/DatePicker';
 import { Button } from '@/components/ui/Button';
 import { intakeFormSchema } from '@/lib/schemas/intake-form.schema';
 import {
@@ -315,10 +316,11 @@ export default function PublicIntakeFormClient() {
                 <label className="text-[10px] font-black uppercase text-slate-400 ml-1 tracking-wider">
                   Fecha de nacimiento
                 </label>
-                <Input
-                  {...register('birthDate')}
-                  type="date"
-                  className="h-10 rounded-xl bg-slate-50 border-transparent text-sm font-semibold"
+                <DatePicker
+                  value={watch('birthDate') || ''}
+                  onChange={(date) => setValue('birthDate', date, { shouldValidate: true })}
+                  placeholder="Seleccionar fecha..."
+                  mode="birthDate"
                 />
               </div>
 

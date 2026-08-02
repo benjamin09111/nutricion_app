@@ -234,7 +234,25 @@ export const getActivityLevel = (patient: any): ActivityLevel | undefined => {
 };
 
 export const getGoalsFromPatient = (patient: any): NutritionGoals | null => {
+  const automaticTargets = patient?.automaticNutritionCalculations?.dailyTargets;
+  const automaticGoals = sanitizeNutritionGoals(automaticTargets);
+  if (automaticGoals) return automaticGoals;
+
   const customVariables = getCustomVariablesArray(patient);
+  const automaticVariable = findCustomVariable(customVariables, "automaticNutritionCalculations");
+  const automaticValue = automaticVariable?.value;
+  const parsedAutomatic = typeof automaticValue === "string"
+    ? (() => {
+        try {
+          return JSON.parse(automaticValue);
+        } catch {
+          return null;
+        }
+      })()
+    : automaticValue;
+  const variableGoals = sanitizeNutritionGoals(parsedAutomatic?.dailyTargets);
+  if (variableGoals) return variableGoals;
+
   const goals = {
     calories: readCustomVariableNumber(customVariables, "targetCalories"),
     protein: readCustomVariableNumber(customVariables, "targetProtein"),

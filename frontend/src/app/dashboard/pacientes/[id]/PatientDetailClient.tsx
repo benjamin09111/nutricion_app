@@ -53,6 +53,7 @@ import { PatientConsultationsTab } from "@/features/patients/components/PatientC
 import { PatientProgressTab } from "@/features/patients/components/PatientProgressTab";
 import { PatientAcompanamientoTab } from "@/features/patients/components/PatientAcompanamientoTab";
 import { PatientCreationsTab } from "@/features/patients/components/PatientCreationsTab";
+import { PatientTestsTab } from "@/features/patients/components/PatientTestsTab";
 import { cn, formatDateOnlyForLocale } from "@/features/patients/utils/patient-helpers";
 import { formatPhone } from "@/lib/utils";
 
@@ -141,9 +142,10 @@ function getValidationAlerts(
 }
 
 export default function PatientDetailClient({ id }: PatientDetailClientProps) {
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const router = useRouter();
   const state = usePatientDetailState({ id });
-  const { currentPlan } = useSubscription();
+  const { currentPlan, can, plan } = useSubscription();
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [showStatusConfirm, setShowStatusConfirm] = useState(false);
   const [isTogglingStatus, setIsTogglingStatus] = useState(false);
@@ -199,7 +201,10 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
     { label: "Seguimiento", disabled: false, hidden: true },
     { label: "Consultas", disabled: false },
     { label: "Planes", disabled: false },
-    { label: "Exámenes", disabled: true },
+    {
+      label: "Tests",
+      disabled: plan !== "free" && !can("screening_tests.access"),
+    },
   ];
 
   const latestConsultation = state.consultations.length > 0
@@ -207,7 +212,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
     : null;
 
   return (
-    <div className="max-w-7xl mx-auto pb-24 animate-in fade-in duration-500">
+    <div className="mx-auto w-full min-w-0 max-w-7xl pb-24 animate-in fade-in duration-500">
 
       {/* ── EXPORT LOADING OVERLAY ─────────────────────────────────────────── */}
       {state.isExporting && (
@@ -224,7 +229,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
 
       {/* ── PATIENT HERO ─────────────────────────────────────────────────── */}
       <div className="bg-white border-b border-slate-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="mx-auto w-full min-w-0 max-w-7xl px-4 sm:px-6">
 
           {/* Top bar: back + actions */}
           <div className="flex items-center justify-between h-14 gap-3">
@@ -278,11 +283,18 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                     <Edit2 className="w-3.5 h-3.5" />
                   </button>
 
-                  <div className="relative group">
-                    <button className="h-8 w-8 rounded-xl border border-slate-200 text-slate-400 bg-white hover:bg-slate-50 hover:text-slate-700 transition-all cursor-pointer flex items-center justify-center">
+                  <div className="relative">
+                    <button
+                      type="button"
+                      aria-expanded={isExportMenuOpen}
+                      aria-label="Más acciones del paciente"
+                      onClick={() => setIsExportMenuOpen((open) => !open)}
+                      className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 transition-all hover:bg-slate-50 hover:text-slate-700"
+                    >
                       <MoreHorizontal className="w-4 h-4" />
                     </button>
-                    <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-xl border border-slate-100 shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-40 py-1">
+                    {isExportMenuOpen && (
+                    <div className="absolute right-0 top-full z-40 mt-1 w-56 rounded-xl border border-slate-100 bg-white py-1 shadow-lg">
                       <div className="px-3 py-1.5">
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Exportar ficha</p>
                       </div>
@@ -318,6 +330,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                         {patient.status === "Active" ? "Marcar inactivo" : "Reactivar"}
                       </button>
                     </div>
+                    )}
                   </div>
                 </>
             </div>
@@ -326,22 +339,27 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
           {/* Patient identity row */}
           <div className="pb-4 space-y-2">
             {isEditing ? (
-              <Input
-                value={editForm.fullName || ""}
-                onChange={(e) => state.updateField("fullName", e.target.value)}
-                className="bg-slate-50 border-none font-bold text-xl h-10 w-full max-w-md"
-                placeholder="Nombre completo"
-              />
+              <div className="flex items-center gap-2 max-w-md">
+                <Input
+                  value={editForm.fullName || ""}
+                  onChange={(e) => state.updateField("fullName", e.target.value)}
+                  className="bg-amber-50/40 border-2 border-amber-300/90 font-bold text-xl h-11 w-full rounded-xl shadow-2xs focus:bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-400/30"
+                  placeholder="Nombre completo"
+                />
+                <span className="shrink-0 inline-flex items-center gap-1 text-[11px] font-extrabold text-amber-800 bg-amber-100 border border-amber-300 px-2.5 py-1 rounded-lg">
+                  <Edit2 className="w-3 h-3" /> Editable
+                </span>
+              </div>
             ) : (
               <h1 className={cn(
-                "text-xl font-black tracking-tight",
+                "min-w-0 break-words text-xl font-black tracking-tight",
                 patient.status === "Inactive" ? "text-slate-400" : "text-slate-900"
               )}>
                 {patient.fullName}
               </h1>
             )}
 
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 font-medium">
+            <div className="flex w-full min-w-0 flex-wrap items-center gap-x-4 gap-y-1 text-xs font-medium text-slate-500">
               {patient.gender && (
                 <span className="flex items-center gap-1">
                   <User className="w-3 h-3 text-slate-400" />
@@ -370,9 +388,9 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                 </span>
               )}
               {patient.email && (
-                <span className="flex items-center gap-1">
-                  <Mail className="w-3 h-3 text-slate-400" />
-                  {patient.email}
+                <span className="flex min-w-0 max-w-full items-center gap-1">
+                  <Mail className="h-3 w-3 shrink-0 text-slate-400" />
+                  <span className="min-w-0 break-all">{patient.email}</span>
                 </span>
               )}
               {patient.phone && (
@@ -580,8 +598,8 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       )}
 
       {/* ── TABS NAVBAR ────────────────────────────────────────────────── */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-5">
-        <div className="flex gap-0 overflow-x-auto overflow-y-hidden no-scrollbar">
+      <div className="mx-auto w-full min-w-0 max-w-7xl overflow-hidden px-4 pt-5 sm:px-6">
+        <div className="no-scrollbar flex w-full min-w-0 max-w-full touch-pan-x items-center gap-1 overflow-x-auto overscroll-x-contain rounded-2xl border border-slate-200 bg-slate-100/80 p-1.5 shadow-sm sm:flex-wrap">
           {tabs.filter((t) => !t.hidden).map((tab) => (
             <button
               key={tab.label}
@@ -595,20 +613,20 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
               }}
               disabled={tab.disabled}
               className={cn(
-                "px-4 py-2.5 text-[11px] font-bold uppercase tracking-wider transition-all duration-200 whitespace-nowrap shrink-0 border-b-2 -mb-px",
+                "flex flex-none items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-3 py-2 text-xs font-bold transition-all sm:flex-initial",
                 tab.disabled || (isEditing && tab.label !== "Ficha clínica")
-                  ? "text-slate-300 border-transparent cursor-not-allowed"
+                  ? "text-slate-300 bg-transparent cursor-not-allowed"
                   : state.activeTab === tab.label
-                  ? "text-emerald-700 border-emerald-500 cursor-pointer"
-                  : "text-slate-400 border-transparent hover:text-slate-600 cursor-pointer",
+                  ? "text-emerald-700 bg-white shadow-sm cursor-pointer"
+                  : "text-slate-600 hover:bg-white/60 hover:text-slate-900 cursor-pointer",
               )}
             >
               <span className="inline-flex items-center gap-1.5 relative">
                 {tab.label}
                 {tab.label === "Seguimiento" && (state.portalOverview?.summary?.pendingQuestions ?? 0) > 0 && (
-                  <span className="absolute -top-1 -right-2.5 w-1.5 h-1.5 bg-emerald-500 rounded-full border border-white animate-pulse" />
+                  <span className="w-2 h-2 bg-emerald-500 rounded-full border border-white animate-pulse shrink-0" />
                 )}
-                {tab.disabled && <Lock className="h-2.5 w-2.5" />}
+                {tab.disabled && <Lock className="h-3 w-3 shrink-0" />}
               </span>
             </button>
           ))}
@@ -616,7 +634,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       </div>
 
       {/* ── TAB CONTENT ──────────────────────────────────────────────────── */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-5 space-y-5">
+      <div className="mx-auto w-full min-w-0 max-w-7xl space-y-5 px-4 pt-5 sm:px-6">
 
         {state.activeTab === "Ficha clínica" && (
           <PatientFichaClinicaTab
@@ -700,6 +718,13 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
             patient={patient}
             portalOverview={state.portalOverview}
             fetchPortalOverview={state.fetchPortalOverview}
+          />
+        )}
+
+        {state.activeTab === "Tests" && (
+          <PatientTestsTab
+            patient={patient}
+            clinicalRecordDraft={state.clinicalRecordDraft}
           />
         )}
 

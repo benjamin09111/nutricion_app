@@ -8,6 +8,7 @@ import {
   Request,
   Res,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { PatientPortalsService } from './patient-portals.service';
@@ -23,6 +24,8 @@ import {
   PATIENT_PORTAL_SESSION_COOKIE,
   patientPortalSessionCookieOptions,
 } from './patient-portal-cookie.constants';
+import { Audit } from '../../common/audit/audit.decorator';
+import { AuditInterceptor } from '../../common/audit/audit.interceptor';
 
 @Controller('patient-portals')
 export class PatientPortalsController {
@@ -57,12 +60,23 @@ export class PatientPortalsController {
   }
 
   @UseGuards(AuthGuard)
+  @UseInterceptors(AuditInterceptor)
   @Get('patients/:patientId/overview')
+  @Audit({ action: 'READ', resourceType: 'PATIENT_PORTAL' })
   getPatientOverview(
     @Request() req: any,
     @Param('patientId') patientId: string,
   ) {
     return this.patientPortalsService.getPortalOverview(
+      req.user.nutritionistId,
+      patientId,
+    );
+  }
+
+  @UseGuards(AuthGuard)
+  @Post('patients/:patientId/access-code/rotate')
+  rotateAccessCode(@Request() req: any, @Param('patientId') patientId: string) {
+    return this.patientPortalsService.rotateAccessCode(
       req.user.nutritionistId,
       patientId,
     );
@@ -111,7 +125,7 @@ export class PatientPortalsController {
     res.cookie(
       PATIENT_PORTAL_SESSION_COOKIE,
       data.accessToken,
-      patientPortalSessionCookieOptions(30 * 24 * 60 * 60 * 1000),
+      patientPortalSessionCookieOptions(7 * 24 * 60 * 60 * 1000),
     );
 
     return data;
@@ -129,14 +143,16 @@ export class PatientPortalsController {
     res.cookie(
       PATIENT_PORTAL_SESSION_COOKIE,
       data.accessToken,
-      patientPortalSessionCookieOptions(30 * 24 * 60 * 60 * 1000),
+      patientPortalSessionCookieOptions(7 * 24 * 60 * 60 * 1000),
     );
 
     return data;
   }
 
   @UseGuards(PatientPortalAuthGuard)
+  @UseInterceptors(AuditInterceptor)
   @Get('me')
+  @Audit({ action: 'READ', resourceType: 'PATIENT_PORTAL' })
   getMyPortal(@Request() req: any) {
     return this.patientPortalsService.getPortalSessionOverview(
       req.portalSession,

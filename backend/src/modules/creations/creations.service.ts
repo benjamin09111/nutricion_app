@@ -1,12 +1,15 @@
 import { createHash } from 'crypto';
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 
 import { CacheService } from '../../common/services/cache.service';
+import { PermissionsService } from '../permissions/permissions.service';
+import { PLAN_ENTITLEMENT_KEYS } from '../memberships/plan-entitlements';
 
 const FINGERPRINT_IGNORED_KEYS = new Set([
   'description',
@@ -76,6 +79,7 @@ export class CreationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly cacheService: CacheService,
+    private readonly permissionsService: PermissionsService,
   ) {}
 
   async create(
@@ -111,19 +115,23 @@ export class CreationsService {
       );
     }
 
-    // Validar plan y límite de creaciones
-    const account = await this.prisma.account.findUnique({
-      where: { id: accountId },
-      include: { subscription: { include: { plan: true } } },
-    });
+    if (type === 'SCREENING_TEST') {
+      await this.permissionsService.ensureAccess(
+        accountId,
+        PLAN_ENTITLEMENT_KEYS.SCREENING_TESTS_ACCESS,
+      );
+    }
 
-    const planKey = account?.subscription?.plan?.slug || 'free';
-    if (planKey === 'free') {
+    const creationLimit = await this.permissionsService.getFeatureLimit(
+      accountId,
+      PLAN_ENTITLEMENT_KEYS.CREATIONS_SAVE_LIMIT,
+    );
+    if (type !== 'SCREENING_TEST' && creationLimit !== Infinity) {
       const creationsCount = await this.prisma.creation.count({
         where: { nutritionistId: resolvedNutritionistId },
       });
 
-      if (creationsCount >= 3) {
+      if (creationsCount >= creationLimit) {
         const creationFingerprint = buildCreationFingerprint({
           type,
           content,
@@ -153,7 +161,7 @@ export class CreationsService {
 
         if (!duplicateCreation) {
           throw new BadRequestException(
-            'Has alcanzado el límite de 3 creaciones guardadas en tu plan Freemium. Elimina una existente o mejora tu plan para continuar.',
+            `Has alcanzado el límite de ${creationLimit} creaciones guardadas en tu plan. Elimina una existente o mejora tu plan para continuar.`,
           );
         }
       }
@@ -211,6 +219,17 @@ export class CreationsService {
       };
     }
 
+    if (type === 'SCREENING_TEST') {
+      const savedTests = await this.prisma.creation.count({
+        where: { nutritionistId: resolvedNutritionistId, type: 'SCREENING_TEST' },
+      });
+      await this.permissionsService.ensureWithinLimit(
+        accountId,
+        PLAN_ENTITLEMENT_KEYS.SCREENING_TESTS_SAVED_LIMIT,
+        savedTests,
+      );
+    }
+
     try {
       const creation = await this.prisma.creation.create({
         data: {
@@ -262,7 +281,28 @@ export class CreationsService {
     return creation;
   }
 
-  async delete(id: string, nutritionistId: string) {
+  async delete(id: string, nutritionistId: string, accountId: string) {
+    const creation = await this.prisma.creation.findFirst({
+      where: { id, nutritionistId },
+      select: { id: true, type: true },
+    });
+
+    if (!creation) {
+      throw new NotFoundException('La creación solicitada no existe o no tienes permiso para eliminarla.');
+    }
+
+    if (creation.type === 'SCREENING_TEST') {
+      const canDeleteTests = await this.permissionsService.checkFeatureAccess(
+        accountId,
+        PLAN_ENTITLEMENT_KEYS.SCREENING_TESTS_DELETE_ACCESS,
+      );
+      if (!canDeleteTests) {
+        throw new ForbiddenException(
+          'Los tests guardados no se pueden eliminar en el plan Freemium.',
+        );
+      }
+    }
+
     const result = await this.prisma.creation.deleteMany({
       where: { id, nutritionistId },
     });

@@ -26,6 +26,7 @@ import {
   getUserDraftKey,
 } from "../utils/diet-helpers";
 import { getMacroPctFromGrams } from "@/lib/nutrition-formulas";
+import { getGoalsFromPatient } from "@/features/recipes/utils/recipe-helpers";
 
 interface UseDietStateProps {
   initialFoods: MarketPrice[];
@@ -84,15 +85,24 @@ const buildMacroTargets = (settings: MacroSettings): MacroTargetsSummary => {
   const adjustmentValue = Number(settings.calorieAdjustment) || 0;
   const calories =
     settings.calorieAdjustmentMode === "percent"
-      ? Math.max(0, Math.round(baseCalories * (1 - adjustmentValue / 100)))
+      ? Math.max(0, Math.round(baseCalories * (1 - Math.min(100, Math.max(-100, adjustmentValue)) / 100)))
       : Math.max(0, Math.round(baseCalories + adjustmentValue));
-  const macroPercents = getMacroPctFromGrams(calories, protein, carbs, fats);
+  const calorieScale = baseCalories > 0 ? calories / baseCalories : 0;
+  const adjustedProtein = Math.round(protein * calorieScale);
+  const adjustedCarbs = Math.round(carbs * calorieScale);
+  const adjustedFats = Math.round(fats * calorieScale);
+  const macroPercents = getMacroPctFromGrams(
+    calories,
+    adjustedProtein,
+    adjustedCarbs,
+    adjustedFats,
+  );
 
   return {
     calories,
-    protein,
-    carbs,
-    fats,
+    protein: adjustedProtein,
+    carbs: adjustedCarbs,
+    fats: adjustedFats,
     proteinPercent: macroPercents.proteinPercent,
     carbsPercent: macroPercents.carbsPercent,
     fatsPercent: macroPercents.fatsPercent,
@@ -441,10 +451,19 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
 
     setSelectedPatient(normalizedPatient);
     localStorage.setItem("nutri_patient", JSON.stringify(normalizedPatient));
-    if (normalizedPatient.weight) {
+    const patientGoals = getGoalsFromPatient(normalizedPatient);
+    const patientWeight = Number(normalizedPatient.weight) || 0;
+    if (patientWeight > 0) {
       setMacroSettings((prev) => ({
         ...prev,
-        referenceWeightKg: normalizedPatient.weight || prev.referenceWeightKg,
+        referenceWeightKg: patientWeight,
+        ...(patientGoals
+          ? {
+              proteinGPerKg: patientGoals.protein / patientWeight,
+              carbsGPerKg: patientGoals.carbs / patientWeight,
+              fatsGPerKg: patientGoals.fats / patientWeight,
+            }
+          : {}),
       }));
     }
 

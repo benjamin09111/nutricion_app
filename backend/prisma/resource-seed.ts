@@ -2,10 +2,21 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { PrismaClient, Prisma } from '@prisma/client';
 
-const jsonPath = path.resolve(__dirname, '../src/data/default-resources.json');
+const defaultResourcesPath = path.resolve(
+  __dirname,
+  '../src/data/default-resources.json',
+);
 const restrictionResourcesPath = path.resolve(
   __dirname,
   '../../data/restriction_resources.json',
+);
+const nutriResourcesPath = path.resolve(
+  __dirname,
+  '../../data/nutri_resources.json',
+);
+const seedResourcesPath = path.resolve(
+  __dirname,
+  '../../data/seed_resources.json',
 );
 
 type SeedResource = {
@@ -19,24 +30,28 @@ type SeedResource = {
   fileUrl?: string | null;
 };
 
-export function loadDefaultResources(): SeedResource[] {
-  if (!fs.existsSync(jsonPath)) {
-    throw new Error(`Default resources file not found at ${jsonPath}`);
+function loadResources(filePath: string): SeedResource[] {
+  if (!fs.existsSync(filePath)) {
+    throw new Error(`Resources file not found at ${filePath}`);
   }
 
-  return JSON.parse(fs.readFileSync(jsonPath, 'utf-8')) as SeedResource[];
+  const parsed = JSON.parse(fs.readFileSync(filePath, 'utf-8')) as
+    | SeedResource[]
+    | { resources: SeedResource[] };
+
+  return Array.isArray(parsed) ? parsed : parsed.resources;
+}
+
+export function loadDefaultResources(): SeedResource[] {
+  return [
+    ...loadResources(defaultResourcesPath),
+    ...loadResources(nutriResourcesPath),
+    ...loadResources(seedResourcesPath),
+  ];
 }
 
 export function loadRestrictionResources(): SeedResource[] {
-  if (!fs.existsSync(restrictionResourcesPath)) {
-    throw new Error(
-      `Restriction resources file not found at ${restrictionResourcesPath}`,
-    );
-  }
-
-  return JSON.parse(
-    fs.readFileSync(restrictionResourcesPath, 'utf-8'),
-  ) as SeedResource[];
+  return loadResources(restrictionResourcesPath);
 }
 
 const toSystemResourceData = (resource: SeedResource) => ({
@@ -59,24 +74,28 @@ export async function replaceDefaultResources(
     ...loadRestrictionResources(),
   ];
 
-  const deleted = await prisma.resource.deleteMany({
-    where: { nutritionistId: null },
-  });
-  console.log(`🧹 Deleted ${deleted.count} existing system resources.`);
-
-  if (!defaultResources.length) {
-    console.log('ℹ️ No resources found in JSON. Database was left empty on purpose.');
-    return;
+  let count = 0;
+  for (const resource of defaultResources) {
+    const data = toSystemResourceData(resource);
+    if (resource.id) {
+      await (prisma as PrismaClient).resource.upsert({
+        where: { id: resource.id },
+        update: data,
+        create: { id: resource.id, ...data },
+      });
+      count++;
+    } else {
+      const existing = await (prisma as PrismaClient).resource.findFirst({
+        where: { title: resource.title, nutritionistId: null },
+      });
+      if (!existing) {
+        await (prisma as PrismaClient).resource.create({ data });
+        count++;
+      }
+    }
   }
 
-  const result = await prisma.resource.createMany({
-    data: defaultResources.map((resource) => ({
-      ...(resource.id ? { id: resource.id } : {}),
-      ...toSystemResourceData(resource),
-    })),
-  });
-
-  console.log(`✅ Seed completed. Inserted ${result.count} default resources.`);
+  console.log(`✅ Seed completed. Synced ${count} default resources non-destructively.`);
 }
 
 export async function upsertRestrictionResources(

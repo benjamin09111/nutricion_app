@@ -15,6 +15,7 @@ import {
   Loader2,
   NotebookText,
   Share2,
+  User,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -24,6 +25,8 @@ import { Filtros_B } from "@/components/ui/Filtros_B";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
+import { ModuleLayout } from "@/components/shared/ModuleLayout";
+import { UsageLimitBadge } from "@/components/shared/UsageLimitBadge";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { Creation, CreationType } from "@/features/creations";
 import { Pagination } from "@/components/ui/Pagination";
@@ -33,6 +36,7 @@ import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { fetchApi } from "@/lib/api-base";
 import { formatDateOnlyForLocale } from "@/features/patients/utils/patient-helpers";
+import { MobileCardLoadingList } from "@/components/ui/MobileCardLoadingList";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -56,7 +60,9 @@ export default function CreationsClient({
   onUpdate
 }: CreationsClientProps) {
   const router = useRouter();
-  const { currentPlan } = useSubscription();
+  const { usage, currentPlan, can } = useSubscription();
+  const canDeleteScreeningTests = can("screening_tests.delete.access");
+
   const [selectedType, setSelectedType] = useState<CreationType | "Todos">("Todos");
   const [selectedTag, setSelectedTag] = useState<string>("Todos");
   const [searchTerm, setSearchTerm] = useState("");
@@ -65,6 +71,10 @@ export default function CreationsClient({
   const [localCreations, setLocalCreations] = useState<Creation[]>(initialData);
   const [isLoading, setIsLoading] = useState(initialData.length === 0);
   const itemsPerPage = 7;
+
+  const rawCreationsLimit = currentPlan?.entitlements?.["creations.save.limit"];
+  const creationsLimit = typeof rawCreationsLimit === "number" ? rawCreationsLimit : undefined;
+  const creationsUsed = usage?.creationsUsed ?? localCreations.length;
 
   const mapBackendTypeToFrontend = (type: string): CreationType => {
     switch (type) {
@@ -78,6 +88,8 @@ export default function CreationsClient({
         return CreationType.FAST_DELIVERABLE;
       case "PAUTAS":
         return CreationType.PAUTAS;
+      case "SCREENING_TEST":
+        return CreationType.SCREENING_TEST;
       default:
         return CreationType.OTHER;
     }
@@ -233,6 +245,10 @@ export default function CreationsClient({
         const { downloadQuickRecipesPdf } = await import("@/features/pdf/quickRecipesPdfExport");
         await downloadQuickRecipesPdf(buildQuickRecipesData(raw));
         toast.success("PDF de recetas descargado correctamente.");
+      } else if (item.type === CreationType.SCREENING_TEST) {
+        const { downloadScreeningTestPdf } = await import("@/features/pdf/screeningTestPdfExport");
+        await downloadScreeningTestPdf(raw);
+        toast.success("PDF del test descargado correctamente.");
       } else {
         toast.info("Exportación PDF para este tipo próximamente.");
       }
@@ -422,7 +438,7 @@ export default function CreationsClient({
   };
 
   const handleEdit = (item: Creation) => {
-    if (currentPlan?.key === "free") {
+    if (!can("creations.edit.access")) {
       window.dispatchEvent(
         new CustomEvent("show-freemium-upgrade", {
           detail: {
@@ -615,28 +631,32 @@ export default function CreationsClient({
               <Share2 className="h-4 w-4" />
             </button>
           )}
-          <div className="w-px h-4 bg-slate-200 mx-1" />
-          <button
-            onClick={() => handleDelete(item.id)}
-            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all cursor-pointer"
-            title="Eliminar"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
+          {(item.type !== CreationType.SCREENING_TEST || canDeleteScreeningTests) && (
+            <>
+              <div className="w-px h-4 bg-slate-200 mx-1" />
+              <button
+                onClick={() => handleDelete(item.id)}
+                className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all cursor-pointer"
+                title="Eliminar"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </>
+          )}
         </div>
       ),
     },
   ];
 
-  return (
+  const content = (
     <div className="space-y-6">
       {!isInsidePatientDetail && (
-        <div className="flex items-start gap-3 px-4 py-3 rounded-[2rem] bg-indigo-50 border border-indigo-100 text-indigo-800 text-xs font-semibold">
+        <div className="flex items-start gap-3 px-4 py-3 rounded-2xl bg-indigo-50 border border-indigo-100 text-indigo-800 text-xs font-semibold">
           <svg className="w-4 h-4 shrink-0 mt-0.5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20A10 10 0 0012 2z" />
           </svg>
           <span>
-            <strong>Recomendación de uso:</strong> crear plantillas generales para simplemente re utilizarlas.
+            <strong>Recomendación de uso:</strong> crear plantillas generales para simplemente reutilizarlas.
           </span>
         </div>
       )}
@@ -675,7 +695,7 @@ export default function CreationsClient({
               <select
                 value={selectedType}
                 onChange={(e) => setSelectedType(e.target.value as any)}
-                className="h-10 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-600 outline-none focus:border-indigo-500 transition-all cursor-pointer"
+                className="h-10 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-600 outline-none focus:border-indigo-500 transition-all cursor-pointer w-full sm:w-auto"
               >
                 <option value="Todos">Todos los Tipos</option>
                 <option value={CreationType.DIET}>Dietas</option>
@@ -683,7 +703,7 @@ export default function CreationsClient({
                 <option value={CreationType.RECIPE}>Recetas</option>
                 <option value={CreationType.FAST_DELIVERABLE}>Entregables Rápidos</option>
               </select>
-              <div className="w-full md:w-56">
+              <div className="w-full sm:w-56">
                 <SearchableSelect
                   options={[
                     { value: "Todos", label: "Todas las etiquetas" },
@@ -700,49 +720,187 @@ export default function CreationsClient({
         />
       </div>
 
-      <RecordsTable
-        columns={creationColumns}
-        data={paginatedData}
-        keyExtractor={(item) => item.id}
-        isLoading={isLoading}
-        loadingRows={5}
-        loadingColumns={6}
-        emptyState={
-          <div className="flex flex-col items-center justify-center space-y-3">
-            <div className="p-4 bg-slate-50 rounded-full">
-              <Folder className="h-8 w-8 text-slate-300" />
+      {/* Desktop Table View */}
+      <div className="hidden lg:block">
+        <RecordsTable
+          columns={creationColumns}
+          data={paginatedData}
+          keyExtractor={(item) => item.id}
+          isLoading={isLoading}
+          loadingRows={5}
+          loadingColumns={6}
+          emptyState={
+            <div className="flex flex-col items-center justify-center space-y-3">
+              <div className="p-4 bg-slate-50 rounded-full">
+                <Folder className="h-8 w-8 text-slate-300" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-base font-bold text-slate-600">
+                  No se encontraron creaciones
+                </p>
+                <p className="text-sm text-slate-400">
+                  Intenta ajustar los filtros de búsqueda.
+                </p>
+              </div>
             </div>
-            <div className="space-y-1">
-              <p className="text-base font-bold text-slate-600">
-                No se encontraron creaciones
+          }
+          rowClassName="hover:bg-emerald-50/20 transition-colors group"
+          footer={
+            <>
+              <p className="text-xs font-bold text-slate-500">
+                Mostrando{" "}
+                <span className="text-slate-900">{paginatedData.length}</span> de{" "}
+                <span className="text-slate-900">{filteredData.length}</span>{" "}
+                resultados
               </p>
-              <p className="text-sm text-slate-400">
-                Intenta ajustar los filtros de búsqueda.
-              </p>
-            </div>
-          </div>
-        }
-        rowClassName="hover:bg-emerald-50/20 transition-colors group"
-        footer={
-          <>
-            <p className="text-xs font-bold text-slate-500">
-              Mostrando{" "}
-              <span className="text-slate-900">{paginatedData.length}</span> de{" "}
-              <span className="text-slate-900">{filteredData.length}</span>{" "}
-              resultados
-            </p>
-            <div className="flex items-center gap-2">
-              {totalPages > 1 && (
-                <Pagination
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  onPageChange={setCurrentPage}
-                />
+              <div className="flex items-center gap-2">
+                {totalPages > 1 && (
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={setCurrentPage}
+                  />
+                )}
+              </div>
+            </>
+          }
+        />
+      </div>
+
+      {/* Mobile Cards View */}
+      <div className="lg:hidden space-y-3">
+        {isLoading ? (
+          <MobileCardLoadingList rows={3} />
+        ) : paginatedData.length > 0 ? (
+          paginatedData.map((item) => (
+            <div
+              key={item.id}
+              onClick={() => handleInfoClick(item)}
+              className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3 cursor-pointer active:scale-[0.99] transition-all"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div
+                    className={cn(
+                      "w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 transition-colors",
+                      getTypeStyles(item.type),
+                    )}
+                  >
+                    {getTypeIcon(item.type)}
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="font-bold text-slate-900 text-sm truncate">{item.name}</h3>
+                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                      <span className="text-xs text-slate-500 font-medium">{item.createdAt}</span>
+                      <span className={cn("inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-bold ring-1 ring-inset", getTypeStyles(item.type))}>
+                        {item.type}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {((item as any).patientName || (item.tags && item.tags.length > 0)) && (
+                <div className="flex items-center justify-between gap-2 flex-wrap text-xs pt-1">
+                  {(item as any).patientName ? (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-bold border border-indigo-100">
+                      <User className="w-3 h-3" />
+                      {(item as any).patientName}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-slate-400 italic">Sin paciente</span>
+                  )}
+
+                  <div className="flex flex-wrap gap-1">
+                    {item.tags?.slice(0, 2).map((tag) => (
+                      <span key={tag} className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                        #{tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
               )}
+
+              {/* Card Footer Actions */}
+              <div className="flex items-center justify-between pt-2 border-t border-slate-100" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => handleInfoClick(item)}
+                    className="p-2 text-slate-400 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 rounded-xl transition-all"
+                    title="Más info"
+                  >
+                    <Info className="h-4 w-4" />
+                  </button>
+                  {item.type !== CreationType.FAST_DELIVERABLE && (
+                    <button
+                      onClick={() => handleViewClick(item)}
+                      className="p-2 text-slate-400 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 rounded-xl transition-all"
+                      title="Previsualizar"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleEdit(item)}
+                    className="p-2 text-slate-400 hover:text-blue-600 bg-slate-50 hover:bg-blue-50 rounded-xl transition-all"
+                    title="Editar"
+                  >
+                    <Edit className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDownloadClick(item)}
+                    className="p-2 text-slate-400 hover:text-emerald-600 bg-slate-50 hover:bg-emerald-50 rounded-xl transition-all"
+                    title="Descargar / Exportar"
+                  >
+                    <Download className="h-4 w-4" />
+                  </button>
+                  {isInsidePatientDetail && (
+                    <button
+                      onClick={() => handleShareClick(item)}
+                      disabled={isSharing === item.id}
+                      className={cn(
+                        "p-2 rounded-xl transition-all",
+                        sharedCreationIdSet.has(item.id)
+                          ? "text-emerald-600 bg-emerald-50 animate-pulse"
+                          : "text-slate-400 hover:text-indigo-600 bg-slate-50",
+                      )}
+                      title="Compartir con paciente"
+                    >
+                      <Share2 className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+
+                <button
+                  onClick={() => handleDelete(item.id)}
+                  className="p-2 text-slate-400 hover:text-rose-600 bg-slate-50 hover:bg-rose-50 rounded-xl transition-all"
+                  title="Eliminar"
+                >
+                  <Trash2 className="h-4 w-4 text-rose-500" />
+                </button>
+              </div>
             </div>
-          </>
-        }
-      />
+          ))
+        ) : (
+          <div className="bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 p-8 text-center">
+            <Folder className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+            <p className="text-slate-500 text-sm font-medium">No se encontraron creaciones</p>
+          </div>
+        )}
+
+        <div className="flex items-center justify-between px-2 pt-2">
+          <p className="text-xs font-bold text-slate-500">
+            <span className="text-slate-900">{paginatedData.length}</span> de <span className="text-slate-900">{filteredData.length}</span>
+          </p>
+          {totalPages > 1 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
+          )}
+        </div>
+      </div>
 
       <Modal
         isOpen={infoModalOpen}
@@ -978,4 +1136,24 @@ export default function CreationsClient({
       />
     </div>
   );
+
+  if (!isInsidePatientDetail) {
+    return (
+      <ModuleLayout
+        title="Mis Creaciones"
+        description="Aquí encontrarás todo lo que has creado para tus pacientes, puedes filtrar, buscar y volver a descargar tus creaciones que hayas guardado, ya sea en el módulo de entregable personalizable o en entregables rápidos."
+        rightContent={
+          <UsageLimitBadge
+            label="Creaciones"
+            usage={creationsUsed}
+            limit={creationsLimit}
+          />
+        }
+      >
+        {content}
+      </ModuleLayout>
+    );
+  }
+
+  return content;
 }

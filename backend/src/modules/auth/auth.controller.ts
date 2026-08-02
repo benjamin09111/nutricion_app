@@ -189,6 +189,14 @@ export class AuthController {
     return this.authService.getMe(req.user.id);
   }
 
+  // Endpoint liviano para el middleware del frontend: devuelve el rol real
+  // (leído de la BD) para que el ruteo no dependa de cookies del cliente.
+  @UseGuards(AuthGuard)
+  @Get('session-role')
+  async sessionRole(@Request() req: any) {
+    return this.authService.getSessionRole(req.user.id);
+  }
+
   @UseGuards(AuthGuard)
   @Patch('me/rut')
   @HttpCode(HttpStatus.OK)

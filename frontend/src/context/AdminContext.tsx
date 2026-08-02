@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { fetchApi } from "@/lib/api-base";
-import { getCurrentUser, setCurrentUser } from "@/lib/current-user";
+import { setCurrentUser } from "@/lib/current-user";
 
 type UserRole =
   | "ADMIN"
@@ -41,15 +41,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const syncRole = async () => {
-      const storedUser = getCurrentUser();
-
-      if (!storedUser) {
-        setIsLoading(false);
-        return;
-      }
-
-      setRole(storedUser?.role as UserRole | null);
-
+      // SEGURIDAD: el rol se pide siempre al backend. No se siembra ni se hace
+      // fallback con cookies/localStorage porque el usuario puede editarlos.
       try {
         const response = await fetchApi("/auth/me");
 
@@ -59,14 +52,15 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
 
         const data = await response.json();
         const user = data?.user || data;
-        setRole(user?.role as UserRole | null);
+        setRole((user?.role as UserRole | null) ?? null);
 
         if (user) {
           setCurrentUser(user);
         }
       } catch (error) {
         console.error("Error syncing admin session:", error);
-        setRole(storedUser?.role as UserRole | null);
+        // Fallar cerrado: sin confirmación del backend no hay rol privilegiado.
+        setRole(null);
       } finally {
         setIsLoading(false);
       }

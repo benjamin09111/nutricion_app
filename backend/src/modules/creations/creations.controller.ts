@@ -56,7 +56,7 @@ export class CreationsController {
   @Delete(':id')
   async delete(@Request() req: any, @Param('id') id: string) {
     const nutritionistId = req.user.nutritionistId;
-    return this.creationsService.delete(id, nutritionistId);
+    return this.creationsService.delete(id, nutritionistId, req.user.id);
   }
 
   @Post(':id/share')

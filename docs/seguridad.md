@@ -1,40 +1,58 @@
 # Sistema de seguridad de NutriNet
 
-## Objetivo
-Proteger datos de salud, sesiones y accesos administrativos con un enfoque de mínimo privilegio y reducción de exposición en cliente.
+## Estado
 
-## Controles aplicados
+La plataforma aplica controles de mínimo privilegio para sesiones, portal de pacientes,
+datos clínicos y endpoints públicos. Los secretos críticos se validan antes de iniciar NestJS.
 
-### Sesión y autenticación
-- Inicio de sesión solo por Google.
-- La sesión real viaja en cookie `auth_token_http` con `HttpOnly`, `Secure` y `SameSite=Lax`.
-- El frontend usa `auth_token` solo como marcador legible para validar estado de sesión.
-- El frontend ya no guarda el JWT en `localStorage`.
-- El snapshot de usuario se mantiene en cookie `user` y no en `localStorage` en los flujos principales.
-- Se usa un ticket temporal de un solo uso para completar el callback de Google sin exponer el JWT en la URL.
-- `fetchApi` envía cookies con `credentials: include`.
+## Sesión y autenticación
 
-### Autorización
-- JWT validado por NestJS con extracción desde cookie o `Authorization`.
-- Guardas de autenticación y validación de ownership por `nutritionistId` en módulos clínicos.
-- Endpoints de pagos y membresías restringidos a roles admin.
-- `ApiKeyGuard` de citas ahora valida secreto real o JWT válido.
+- Las sesiones de cuenta usan cookies `httpOnly`, `Secure` en producción y `SameSite=Lax`.
+- El JWT real no se persiste en `localStorage`.
+- El callback OAuth usa tickets temporales de un solo uso; el JWT no viaja en la URL.
+- Las sesiones del portal usan `PORTAL_JWT_SECRET` independiente y expiran en 7 días.
+- El guard del portal revalida invitación, estado, revocación y expiración en cada solicitud.
 
-### Transporte y navegador
-- `helmet()` activo.
-- CORS limitado a orígenes permitidos.
-- Logs HTTP con redacción de parámetros sensibles.
-- No se persiste el JWT en `localStorage`.
+## Portal de pacientes
 
-### Secretos
-- Boot falla si faltan secretos críticos como `JWT_SECRET` o `ENCRYPTION_KEY`.
-- `ENCRYPTION_KEY`, `APPOINTMENTS_API_KEY`, `PORTAL_JWT_SECRET` y `PORTAL_ACCESS_CODE_SECRET` quedan documentados en `.env.example`.
+- Los códigos son aleatorios de 8 dígitos y se almacenan únicamente como hash `scrypt` con sal.
+- Los códigos no se derivan de identificadores de paciente o nutricionista.
+- Cinco fallos bloquean la invitación durante 15 minutos; diez fallos la bloquean definitivamente.
+- Los códigos pueden rotarse desde `POST /patient-portals/patients/:patientId/access-code/rotate`.
+- Los endpoints de login, verificación y rotación tienen límites dedicados por IP.
+- La reemisión masiva usa `backend/prisma/reissue-portal-codes.ts` durante el despliegue.
 
-### Auditoría y privacidad
-- Se evita registrar tokens en URLs.
-- Los flujos públicos de paciente siguen usando tokens hasheados en base de datos.
-- El frontend conserva solo datos de UI no sensibles donde todavía sea necesario, pero la sesión ya no depende de `localStorage`.
+## Autorización y auditoría
 
-## Estado actual
-- Cubierto: sesión Google segura, cookies protegidas, CORS, headers, logs, roles admin, citas.
-- Pendiente: migrar los últimos accesos de UI que aún leen `user` desde almacenamiento cliente y unificar rate limiting por endpoint sensible.
+- JWT de cuenta validado por NestJS; el rol efectivo se resuelve desde la base de datos.
+- Los módulos clínicos validan ownership mediante `nutritionistId`.
+- Las lecturas clínicas marcadas registran actor, rol, recurso, paciente, IP, user-agent y fecha.
+- `GET /audit/patients/:patientId` está restringido a `ADMIN_MASTER`.
+- La auditoría no registra cuerpos ni contenido clínico y no expone endpoints de edición o borrado.
+
+## Transporte y límites
+
+- `helmet()` y CORS con lista blanca están activos.
+- La protección CSRF bloquea métodos inseguros cross-site no autorizados.
+- Login, registro, verificación, portal, intake público, reservas, interés público y soporte tienen límites explícitos.
+- Los webhooks de pago deben validar firma; no se consideran protegidos únicamente por rate limiting.
+
+## Secretos
+
+Variables obligatorias, con mínimo 32 caracteres, generadas con:
+
+```bash
+openssl rand -base64 48
+```
+
+`PORTAL_JWT_SECRET` debe ser distinto de `JWT_SECRET`. El proceso falla al arrancar si falta
+un secreto, es corto o usa valores de ejemplo.
+
+## Pendientes P2
+
+- MFA TOTP obligatorio para roles administrativos.
+- Almacenamiento privado S3/R2 para archivos clínicos con URLs firmadas y magic bytes.
+- Política de sesión y revocación explícita para staff.
+
+Estos controles requieren definir proveedor de almacenamiento, migración de archivos existentes
+y flujo UX de enrolamiento MFA antes de activarlos en producción.

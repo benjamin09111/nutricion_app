@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { ActionDockItem } from "@/components/ui/ActionDock";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { WorkflowContextBanner } from "@/components/shared/WorkflowContextBanner";
-import { PlanWizardShell, PromptPreviewButton } from "@/components/plans";
+import { PlanWizardShell } from "@/components/plans";
 import { MarketPrice } from "@/features/foods";
 
 import { useDietState } from "@/features/diet/hooks/useDietState";
@@ -15,7 +15,7 @@ import { DietConstraintSection } from "@/features/diet/components/DietConstraint
 import { DietMacroSection } from "@/features/diet/components/DietMacroSection";
 import { DietPlannerSection } from "@/features/diet/components/DietPlannerSection";
 import { DietRecipesSection, DietMealBlock } from "@/features/diet/components/DietRecipesSection";
-import { DietCartSection, DietCartItem, DEFAULT_CART_ITEMS } from "@/features/diet/components/DietCartSection";
+import { DietCartSection, DietCartItem } from "@/features/diet/components/DietCartSection";
 import { DietFinalPlanSection } from "@/features/diet/components/DietFinalPlanSection";
 import { DietModals } from "@/features/diet/components/DietModals";
 import {
@@ -53,7 +53,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
 
   // Local state for Step 3 (Recetas y porciones) & Step 4 (Carrito)
   const [meals, setMeals] = useState<DietMealBlock[]>([]);
-  const [cartItems, setCartItems] = useState<DietCartItem[]>(() => DEFAULT_CART_ITEMS);
+  const [cartItems, setCartItems] = useState<DietCartItem[]>([]);
 
   const buildMainPromptPayload = () => ({
     context: {
@@ -149,14 +149,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
           color: "text-emerald-600",
         }}
         rightNavItems={actionItems}
-        rightContent={
-          <PromptPreviewButton
-            moduleName="Principal"
-            endpoint="Principal: referencia de prompt (sin envío activo)"
-            buildPayload={buildMainPromptPayload}
-            expectedOutput="JSON con estrategia nutricional base, restricciones, recetas, carrito y plan final."
-          />
-        }
+        rightNavDesktopBreakpoint="lg"
       >
         <WorkflowContextBanner
           projectName={state.currentProjectName}

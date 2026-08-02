@@ -93,14 +93,14 @@ export function ConfirmationModal({
       <div className="fixed inset-0" />
       <div
         className={cn(
-          "relative w-full overflow-hidden rounded-4xl border border-slate-200 bg-white shadow-2xl animate-in zoom-in-95 slide-in-from-bottom-4 duration-300",
+          "relative flex max-h-[calc(100dvh-2rem)] w-full flex-col overflow-hidden rounded-4xl border border-slate-200 bg-white shadow-2xl animate-in zoom-in-95 slide-in-from-bottom-4 duration-300",
           getMaxWidthClass(),
           isDarkMode && "dashboard-surface-strong",
         )}
       >
         <div
           className={cn(
-            "p-8 space-y-6",
+            "flex min-h-0 flex-col gap-6 overflow-y-auto p-5 sm:p-8",
             children ? "text-left" : "text-center",
           )}
         >
@@ -135,7 +135,7 @@ export function ConfirmationModal({
 
           {children && <div className="space-y-4">{children}</div>}
 
-          <div className="flex gap-3 pt-2">
+          <div className="flex flex-col gap-3 pt-2 sm:flex-row">
             <Button
               variant="outline"
               onClick={onClose}

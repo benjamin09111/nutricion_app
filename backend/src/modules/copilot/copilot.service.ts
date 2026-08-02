@@ -3,7 +3,6 @@ import { ToolLoopAgent, tool, isStepCount } from 'ai';
 import { z } from 'zod';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AiService } from '../../common/services/ai.service';
-import { PlanUsageService } from '../permissions/plan-usage.service';
 
 const AGENT_INSTRUCTIONS = `# Copiloto Clinico de NutriNet
 
@@ -51,7 +50,6 @@ export class CopilotService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly aiService: AiService,
-    private readonly planUsageService: PlanUsageService,
   ) {}
 
   private buildAgent(accountId?: string) {
@@ -313,10 +311,6 @@ export class CopilotService {
             );
             try {
               if (accountId) {
-                await this.planUsageService.consumeQuota(
-                  accountId,
-                  'ai.calls.limit',
-                );
               }
               const result = await this.aiService.generateStructuredObject(
                 'copilot.calculate-macros',
@@ -379,10 +373,6 @@ export class CopilotService {
               : '';
             try {
               if (accountId) {
-                await this.planUsageService.consumeQuota(
-                  accountId,
-                  'ai.calls.limit',
-                );
               }
               const result = await this.aiService.generateStructuredObject(
                 'copilot.generate-recipe',

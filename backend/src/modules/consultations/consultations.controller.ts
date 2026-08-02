@@ -20,11 +20,13 @@ import { CacheTTL } from '@nestjs/cache-manager';
 import { PermissionsGuard } from '../permissions/permissions.guard';
 import { RequireFeatures } from '../permissions/permissions.decorator';
 import { SPECIAL_FEATURES } from '../permissions/permissions.constants';
+import { Audit } from '../../common/audit/audit.decorator';
+import { AuditInterceptor } from '../../common/audit/audit.interceptor';
 
 @Controller('consultations')
 @UseGuards(AuthGuard, PermissionsGuard)
 @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
-@UseInterceptors(HttpCacheInterceptor)
+@UseInterceptors(HttpCacheInterceptor, AuditInterceptor)
 @CacheTTL(300000) // 5 minutes
 export class ConsultationsController {
   constructor(private readonly consultationsService: ConsultationsService) {}
@@ -42,6 +44,7 @@ export class ConsultationsController {
   }
 
   @Get()
+  @Audit({ action: 'READ', resourceType: 'CONSULTATION' })
   findAll(
     @Request() req: any,
     @Query('page') page?: string,
@@ -65,6 +68,7 @@ export class ConsultationsController {
   }
 
   @Get(':id')
+  @Audit({ action: 'READ', resourceType: 'CONSULTATION' })
   findOne(@Request() req: any, @Param('id') id: string) {
     return this.consultationsService.findOne(req.user.nutritionistId, id);
   }

@@ -1,6 +1,7 @@
 import React from "react";
 import { AlertCircle } from "lucide-react";
 import { Input } from "@/components/ui/Input";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { Textarea } from "@/components/ui/Textarea";
 import { TagInput } from "@/components/ui/TagInput";
 import { DEFAULT_CONSTRAINTS } from "@/lib/constants";
@@ -67,11 +68,10 @@ export const DietConstraintSection: React.FC<DietConstraintSectionProps> = ({
         </div>
         <div className="space-y-3">
           <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Fecha</p>
-          <Input
-            type="date"
+          <DatePicker
             value={deliveryDate}
-            onChange={(e) => setDeliveryDate(e.target.value)}
-            className="h-11 appearance-none rounded-xl border-slate-200 bg-slate-50 text-sm [&::-webkit-calendar-picker-indicator]:hidden"
+            onChange={(val) => setDeliveryDate(val)}
+            placeholder="Fecha..."
           />
         </div>
         <div className="space-y-3">

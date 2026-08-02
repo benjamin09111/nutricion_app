@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import {
   ShoppingCart,
   Plus,
@@ -22,20 +22,6 @@ export interface DietCartItem {
   weeklyFrequency: number;
 }
 
-export const DEFAULT_CART_ITEMS: DietCartItem[] = [
-  { id: "c-1", name: "Avena entera", category: "Cereales y Pan", monthlyQuantity: 1.5, unit: "kg", weeklyFrequency: 7 },
-  { id: "c-2", name: "Pan integral", category: "Cereales y Pan", monthlyQuantity: 2.0, unit: "kg", weeklyFrequency: 7 },
-  { id: "c-3", name: "Pechuga de pollo", category: "Carnes y Huevos", monthlyQuantity: 3.0, unit: "kg", weeklyFrequency: 4 },
-  { id: "c-4", name: "Huevos de gallina", category: "Carnes y Huevos", monthlyQuantity: 30, unit: "unid", weeklyFrequency: 7 },
-  { id: "c-5", name: "Yogurt griego descremado", category: "Lácteos", monthlyQuantity: 12, unit: "unid", weeklyFrequency: 5 },
-  { id: "c-6", name: "Leche descremada", category: "Lácteos", monthlyQuantity: 6, unit: "L", weeklyFrequency: 4 },
-  { id: "c-7", name: "Manzanas verdes", category: "Frutas", monthlyQuantity: 3.0, unit: "kg", weeklyFrequency: 7 },
-  { id: "c-8", name: "Plátanos", category: "Frutas", monthlyQuantity: 2.5, unit: "kg", weeklyFrequency: 5 },
-  { id: "c-9", name: "Espinaca fresca", category: "Verduras", monthlyQuantity: 1.2, unit: "kg", weeklyFrequency: 4 },
-  { id: "c-10", name: "Brócoli", category: "Verduras", monthlyQuantity: 2.0, unit: "kg", weeklyFrequency: 3 },
-  { id: "c-11", name: "Aceite de oliva extra virgen", category: "Aceites y Semillas", monthlyQuantity: 1.0, unit: "L", weeklyFrequency: 7 },
-];
-
 interface DietCartSectionProps {
   cartItems: DietCartItem[];
   setCartItems: React.Dispatch<React.SetStateAction<DietCartItem[]>>;
@@ -54,14 +40,7 @@ export function DietCartSection({
   const [newItemQuantity, setNewItemQuantity] = useState(1);
   const [newItemUnit, setNewItemUnit] = useState("kg");
 
-  // Initialize cart items inside useEffect to avoid setState during render
-  useEffect(() => {
-    if (cartItems.length === 0 && DEFAULT_CART_ITEMS.length > 0) {
-      setCartItems(DEFAULT_CART_ITEMS);
-    }
-  }, [cartItems.length, setCartItems]);
-
-  const itemsToRender = cartItems.length > 0 ? cartItems : DEFAULT_CART_ITEMS;
+  const itemsToRender = cartItems;
 
   const categories = useMemo(() => {
     const set = new Set(itemsToRender.map((i) => i.category));

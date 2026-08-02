@@ -23,11 +23,13 @@ import { CacheTTL } from '@nestjs/cache-manager';
 import { PermissionsGuard } from '../permissions/permissions.guard';
 import { RequireFeatures } from '../permissions/permissions.decorator';
 import { SPECIAL_FEATURES } from '../permissions/permissions.constants';
+import { Audit } from '../../common/audit/audit.decorator';
+import { AuditInterceptor } from '../../common/audit/audit.interceptor';
 
 @Controller('patients')
 @UseGuards(AuthGuard, PatientDataAccessGuard, PermissionsGuard)
 @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
-@UseInterceptors(HttpCacheInterceptor)
+@UseInterceptors(HttpCacheInterceptor, AuditInterceptor)
 @CacheTTL(300000) // 5 minutes
 export class PatientsController {
   constructor(private readonly patientsService: PatientsService) {}
@@ -42,6 +44,7 @@ export class PatientsController {
   }
 
   @Get()
+  @Audit({ action: 'READ', resourceType: 'PATIENT' })
   findAll(
     @Request() req: any,
     @Query('page') page?: string,
@@ -67,11 +70,13 @@ export class PatientsController {
   }
 
   @Get(':id')
+  @Audit({ action: 'READ', resourceType: 'PATIENT' })
   findOne(@Request() req: any, @Param('id') id: string) {
     return this.patientsService.findOne(req.user.nutritionistId, id);
   }
 
   @Get(':id/ai-context')
+  @Audit({ action: 'READ', resourceType: 'CLINICAL_RECORD' })
   @CacheTTL(0)
   getAiContext(@Request() req: any, @Param('id') id: string) {
     return this.patientsService.getAiContext(req.user.nutritionistId, id);
@@ -83,10 +88,12 @@ export class PatientsController {
     @Param('id') id: string,
     @Body() updatePatientDto: UpdatePatientDto,
   ) {
+    const accountId = req.user?.id || req.user?.sub || req.user?.accountId;
     return this.patientsService.update(
       req.user.nutritionistId,
       id,
       updatePatientDto,
+      accountId,
     );
   }
 
@@ -104,6 +111,7 @@ export class PatientsController {
   }
 
   @Post(':id/exams')
+  @Audit({ action: 'CREATE', resourceType: 'EXAM' })
   addExam(
     @Request() req: any,
     @Param('id') patientId: string,
@@ -117,11 +125,13 @@ export class PatientsController {
   }
 
   @Get(':id/clinical-record')
+  @Audit({ action: 'READ', resourceType: 'CLINICAL_RECORD' })
   getClinicalRecord(@Request() req: any, @Param('id') id: string) {
     return this.patientsService.getClinicalRecord(req.user.nutritionistId, id);
   }
 
   @Patch(':id/clinical-record')
+  @Audit({ action: 'UPDATE', resourceType: 'CLINICAL_RECORD' })
   updateClinicalRecord(
     @Request() req: any,
     @Param('id') id: string,

@@ -24,7 +24,13 @@ function parseEnvFile(filePath) {
     }
 
     const key = trimmed.slice(0, separatorIndex).trim();
-    const value = trimmed.slice(separatorIndex + 1).trim();
+    const rawValue = trimmed.slice(separatorIndex + 1).trim();
+    const value =
+      rawValue.length >= 2 &&
+      ((rawValue.startsWith('"') && rawValue.endsWith('"')) ||
+        (rawValue.startsWith("'") && rawValue.endsWith("'")))
+        ? rawValue.slice(1, -1)
+        : rawValue;
     env[key] = value;
   }
 

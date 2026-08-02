@@ -102,25 +102,25 @@ describe('GoogleIntegrationService login security', () => {
     expect(result.next).toBe('/dashboard/citas');
   });
 
-  it('falls back to JWT_SECRET when OAUTH_STATE_SECRET is omitted', () => {
+  it('rejects OAuth state signing when OAUTH_STATE_SECRET is omitted', () => {
     const fallbackConfig = {
       get: jest.fn((key: string) => {
         const values: Record<string, string> = {
           JWT_SECRET: 'test-jwt-secret-with-at-least-32-characters',
           GOOGLE_CLIENT_ID: 'google-client-id',
-          GOOGLE_AUTH_REDIRECT_URI: 'http://localhost:3001/auth/google/callback',
+          GOOGLE_AUTH_REDIRECT_URI:
+            'http://localhost:3001/auth/google/callback',
         };
         return values[key];
       }),
     };
     const svc = new GoogleIntegrationService({} as any, fallbackConfig as any);
-    const url = new URL(
+    expect(() =>
       svc.buildGoogleLoginUrl({
         browserBinding: 'browser-binding',
         codeChallenge: 'pkce-challenge',
       }),
-    );
-    expect(url.searchParams.get('client_id')).toBe('google-client-id');
+    ).toThrow('OAUTH_STATE_SECRET');
   });
 
   it('throws BadRequestException when GOOGLE_CLIENT_ID is missing', () => {
@@ -128,12 +128,16 @@ describe('GoogleIntegrationService login security', () => {
       get: jest.fn((key: string) => {
         const values: Record<string, string> = {
           JWT_SECRET: 'test-jwt-secret-with-at-least-32-characters',
-          GOOGLE_AUTH_REDIRECT_URI: 'http://localhost:3001/auth/google/callback',
+          GOOGLE_AUTH_REDIRECT_URI:
+            'http://localhost:3001/auth/google/callback',
         };
         return values[key];
       }),
     };
-    const svc = new GoogleIntegrationService({} as any, missingClientIdConfig as any);
+    const svc = new GoogleIntegrationService(
+      {} as any,
+      missingClientIdConfig as any,
+    );
     expect(() =>
       svc.buildGoogleLoginUrl({
         browserBinding: 'browser-binding',

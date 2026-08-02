@@ -571,10 +571,10 @@ export default function MembershipsPage() {
                     )}
                   </div>
 
-                  {/* Popular Toggle (Only in Edit Mode) */}
-                  {isEditing && (
-                    <div className="pt-3 border-t border-slate-100 space-y-3">
-                      <label className="flex items-center gap-2 cursor-pointer">
+                    {/* Popular Toggle (Only in Edit Mode) */}
+                    {isEditing && (
+                      <div className="pt-3 border-t border-slate-100 space-y-3">
+                       <label className="flex items-center gap-2 cursor-pointer">
                         <input
                           type="checkbox"
                           checked={currentData.isPopular || false}

@@ -13,6 +13,7 @@ import { CollapsibleSection } from "@/components/patient-form/CollapsibleSection
 import { CalculatedMetricsPanel } from "@/components/patient-form/CalculatedMetricsPanel";
 import { MacroGrid } from "@/components/patient-form/MacroGrid";
 import { Input } from "@/components/ui/Input";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { Button } from "@/components/ui/Button";
 import { TagInput } from "@/components/ui/TagInput";
 import { usePatientDraft } from "@/features/patients/hooks/usePatientDraft";
@@ -303,6 +304,25 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
 
   if (!isLoaded) return null;
 
+  if (isSaving) {
+    return (
+      <div className="mx-auto flex min-h-[60vh] max-w-lg items-center justify-center px-4">
+        <div className="w-full rounded-2xl border border-indigo-100 bg-white p-6 text-center shadow-sm sm:p-8">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50">
+            <span className="h-7 w-7 rounded-full border-4 border-indigo-200 border-t-indigo-600 animate-spin" />
+          </div>
+          <h1 className="mt-5 text-xl font-semibold text-slate-900">Cargando ficha clínica</h1>
+          <p className="mt-2 text-sm leading-relaxed text-slate-500">
+            Estamos creando el paciente y preparando su información clínica.
+          </p>
+          <div className="mt-6 h-1.5 overflow-hidden rounded-full bg-slate-100">
+            <div className="h-full w-2/3 rounded-full bg-indigo-500 animate-pulse" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const handleQuickCreate = async () => {
     if (!quickName || quickName.length < 2) { toast.error("Nombre requerido"); return; }
     if (!quickEmail || !quickEmail.includes("@")) { toast.error("Email válido requerido"); return; }
@@ -341,7 +361,7 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
                   onChange={(e) => updateDraft({ fullName: e.target.value })}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="space-y-1.5">
                   <label className="text-xs font-medium text-slate-500">Email *</label>
                   <div className="relative">
@@ -368,14 +388,14 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
                   </div>
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-slate-500">Fecha de nacimiento *</label>
-                  <Input
-                    type="date"
-                    className="h-10 rounded-xl bg-slate-50 border-transparent text-sm font-semibold"
+                  <DatePicker
                     value={draft.birthDate || ""}
-                    onChange={(e) => updateDraft({ birthDate: e.target.value })}
+                    onChange={(date) => updateDraft({ birthDate: date })}
+                    placeholder="Seleccionar fecha..."
+                    mode="birthDate"
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -427,7 +447,7 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
                     ¿Está embarazada?
                   </label>
                   {getCustomVariableValue("pregnant") && (
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <div className="space-y-1.5">
                         <label className="text-xs font-medium text-slate-500">Semanas de gestación</label>
                         <Input
@@ -469,7 +489,7 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
             description="Medidas corporales que alimentan los cálculos automáticos"
           >
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-slate-500">Peso (kg) *</label>
                   <Input
@@ -510,7 +530,7 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
               <MacroGrid macros={macros} />
 
               <CollapsibleSection title="Pliegues cutáneos" defaultOpen={false}>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {[
                     { key: "pliegueTricipital", label: "Tricipital" },
                     { key: "pliegueBicipital", label: "Bicipital" },
@@ -538,7 +558,7 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
               </CollapsibleSection>
 
               <CollapsibleSection title="Mediciones Complementarias (Chumlea / Perímetros)" defaultOpen={false}>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {[
                     { key: "alturaRodilla", label: "Altura de rodilla", unit: "cm" },
                     { key: "circunferenciaPantorrilla", label: "Circ. pantorrilla", unit: "cm" },
@@ -605,7 +625,7 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
 
               <div className="space-y-2">
                 <label className="text-xs font-medium text-slate-500">Nivel de actividad</label>
-                <div className="grid grid-cols-5 gap-2">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
                   {[
                     { key: "sedentario", icon: ActivityIcon, label: "Sed." },
                     { key: "ligero", icon: HeartPulse, label: "Lig." },
@@ -653,7 +673,7 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
             description="Historia clínica y contexto del paciente"
           >
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-slate-500">Ocupación</label>
                   <Input
@@ -745,7 +765,7 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
             <div className="grid gap-4">
               <div className="rounded-xl bg-slate-50 p-4 space-y-2">
                 <h4 className="text-xs font-black text-slate-500 uppercase tracking-wider">Identificación</h4>
-                <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
                   <p className="text-slate-400">Nombre: <span className="font-semibold text-slate-700">{draft.fullName || "—"}</span></p>
                   <p className="text-slate-400">Email: <span className="font-semibold text-slate-700">{draft.email || "—"}</span></p>
                   <p className="text-slate-400">Teléfono: <span className="font-semibold text-slate-700">{draft.phone || "—"}</span></p>
@@ -756,14 +776,14 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
               </div>
               <div className="rounded-xl bg-slate-50 p-4 space-y-2">
                 <h4 className="text-xs font-black text-slate-500 uppercase tracking-wider">Antropometría</h4>
-                <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
                   <p className="text-slate-400">Peso: <span className="font-semibold text-slate-700">{draft.weight ? `${draft.weight} kg` : "—"}</span></p>
                   <p className="text-slate-400">Altura: <span className="font-semibold text-slate-700">{draft.height ? `${draft.height} cm` : "—"}</span></p>
                 </div>
               </div>
               <div className="rounded-xl bg-slate-50 p-4 space-y-2">
                 <h4 className="text-xs font-black text-slate-500 uppercase tracking-wider">Objetivos</h4>
-                <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
                   <p className="text-slate-400">Enfoque: <span className="font-semibold text-slate-700">{draft.nutritionalFocus || "—"}</span></p>
                   <p className="text-slate-400">Meta: <span className="font-semibold text-slate-700">{draft.fitnessGoals || "—"}</span></p>
                   <p className="text-slate-400">Actividad: <span className="font-semibold text-slate-700">{draft.activityLevel || "—"}</span></p>
@@ -780,12 +800,12 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
   };
 
   return (
-    <div className="max-w-6xl mx-auto py-6">
+    <div className="max-w-6xl mx-auto px-4 py-4 sm:px-6 sm:py-6 lg:px-0">
       <div className="flex justify-center mb-6">
-        <div className="bg-slate-100 p-1 rounded-2xl flex gap-1 border border-slate-200/60 shadow-sm">
-          <button type="button" onClick={() => setShowQuick(true)} className={cn("px-5 py-2 text-xs font-black rounded-xl transition-all uppercase tracking-wider", showQuick ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-800")}>Creación rápida</button>
-          <button type="button" onClick={() => setShowQuick(false)} className={cn("px-5 py-2 text-xs font-black rounded-xl transition-all uppercase tracking-wider", !showQuick ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-800")}>Creación detallada</button>
-          <div className="relative group px-5 py-2 text-xs font-black rounded-xl uppercase tracking-wider text-slate-400 cursor-not-allowed flex items-center gap-1.5" title="">
+        <div className="w-full max-w-md bg-slate-100 p-1 rounded-2xl flex flex-col gap-1 border border-slate-200/60 shadow-sm sm:w-auto sm:max-w-none sm:flex-row">
+          <button type="button" onClick={() => setShowQuick(true)} className={cn("w-full px-4 py-2 text-xs font-black rounded-xl transition-all uppercase tracking-wider sm:w-auto sm:px-5", showQuick ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-800")}>Creación rápida</button>
+          <button type="button" onClick={() => setShowQuick(false)} className={cn("w-full px-4 py-2 text-xs font-black rounded-xl transition-all uppercase tracking-wider sm:w-auto sm:px-5", !showQuick ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-800")}>Creación detallada</button>
+          <div className="relative group w-full px-4 py-2 text-xs font-black rounded-xl uppercase tracking-wider text-slate-400 cursor-not-allowed flex items-center justify-center gap-1.5 sm:w-auto sm:px-5" title="">
             <Lock className="w-3 h-3" />
             Formulario creación
             <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 rounded-xl bg-slate-800 text-white text-[11px] font-medium px-3 py-2 text-center shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-50">
@@ -804,7 +824,7 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
                 <label className="text-xs font-medium text-slate-500">Nombre Completo *</label>
                 <Input placeholder="Valentina Morales Lagos" className="h-10 rounded-xl bg-slate-50 border-transparent text-sm font-semibold" value={quickName} onChange={e => setQuickName(e.target.value)} />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-slate-500">Email *</label>
                   <div className="relative">
@@ -824,10 +844,10 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
                 <label className="text-xs font-medium text-slate-500">RUT <span className="text-slate-400">(opcional)</span></label>
                 <Input placeholder="12.345.678-9" className="h-10 rounded-xl bg-slate-50 border-transparent text-sm font-semibold" value={quickRut} onChange={e => setQuickRut(formatRut(e.target.value))} />
               </div>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-slate-500">Fecha de nacimiento</label>
-                  <Input type="date" className="h-10 rounded-xl bg-slate-50 border-transparent text-sm font-semibold" value={quickBirth} onChange={e => setQuickBirth(e.target.value)} />
+                  <DatePicker value={quickBirth} onChange={(val) => setQuickBirth(val)} placeholder="Seleccionar fecha..." mode="birthDate" />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-slate-500">Edad</label>
@@ -843,14 +863,13 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
                   </select>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-slate-500">Motivo de consulta</label>
                   <Input placeholder="Ej: Baja de peso, control..." className="h-10 rounded-xl bg-slate-50 border-transparent text-sm font-semibold" value={quickMotivo} onChange={e => setQuickMotivo(e.target.value)} />
                 </div>
-                <div />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-slate-500">Peso (kg)</label>
                   <Input type="number" step="0.1" placeholder="65.0" className="h-10 rounded-xl bg-slate-50 border-transparent text-sm font-semibold" value={quickPeso} onChange={e => setQuickPeso(e.target.value)} />
@@ -860,18 +879,18 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
                   <Input type="number" step="0.1" placeholder="170" className="h-10 rounded-xl bg-slate-50 border-transparent text-sm font-semibold" value={quickAltura} onChange={e => setQuickAltura(e.target.value)} />
                 </div>
               </div>
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-                <Button type="button" onClick={() => setShowResetConfirm(true)} variant="ghost" className="rounded-xl px-4 text-rose-500 font-bold hover:bg-rose-50">
+              <div className="flex flex-col-reverse gap-3 pt-4 border-t border-slate-100 sm:flex-row sm:justify-end">
+                <Button type="button" onClick={() => setShowResetConfirm(true)} variant="ghost" className="w-full rounded-xl px-4 text-rose-500 font-bold hover:bg-rose-50 sm:w-auto">
                   <RotateCcw className="w-4 h-4 mr-1.5" />
                   Reiniciar
                 </Button>
-                <Button type="button" onClick={handleQuickCreate} disabled={isSaving} className="rounded-xl px-6 bg-indigo-600 text-white font-bold">{isSaving ? "Guardando..." : "Crear Paciente"}</Button>
+                <Button type="button" onClick={handleQuickCreate} disabled={isSaving} className="w-full rounded-xl px-6 bg-indigo-600 text-white font-bold sm:w-auto">{isSaving ? "Guardando..." : "Crear Paciente"}</Button>
               </div>
             </div>
           </FormStepCard>
         </div>
       ) : (
-    <div className="flex gap-8 max-w-6xl mx-auto">
+    <div className="flex gap-8 max-w-6xl mx-auto min-w-0">
       <SidebarQuickNav
         sections={SECTIONS}
         activeSection={SECTIONS[currentStep].id}
@@ -880,7 +899,7 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
           if (index !== -1) goToStep(index);
         }}
       />
-      <div className="flex-1">
+      <div className="flex-1 min-w-0">
         <WizardStepper
           steps={STEPS}
           currentStep={currentStep}
@@ -901,7 +920,7 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
           </div>
         )}
         {renderStepContent()}
-        <div className="flex items-center justify-between max-w-2xl mt-4">
+        <div className="flex flex-col-reverse items-stretch gap-3 max-w-2xl mt-4 sm:flex-row sm:items-center sm:justify-between">
           <FormNavigationFooter
             onBack={goBack}
             onNext={goNext}
@@ -910,7 +929,7 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
             nextLabel={currentStep === STEPS.length - 1 ? (isSaving ? "Guardando..." : "Guardar") : "Continuar"}
             className="mt-0 flex-1 max-w-none"
           />
-          <Button type="button" onClick={() => setShowResetConfirm(true)} variant="ghost" className="rounded-xl px-4 text-rose-500 font-bold hover:bg-rose-50 ml-3">
+          <Button type="button" onClick={() => setShowResetConfirm(true)} variant="ghost" className="w-full rounded-xl px-4 text-rose-500 font-bold hover:bg-rose-50 sm:w-auto sm:ml-3">
             <RotateCcw className="w-4 h-4 mr-1.5" />
             Reiniciar
           </Button>

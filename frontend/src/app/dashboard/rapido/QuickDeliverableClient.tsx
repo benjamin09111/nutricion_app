@@ -19,6 +19,7 @@ import {
   Save,
   Lock,
   Apple,
+  Image as ImageIcon,
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
@@ -31,7 +32,7 @@ import { Textarea } from "@/components/ui/Textarea";
 import { ImportCreationModal } from "@/components/shared/ImportCreationModal";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { WorkflowContextBanner } from "@/components/shared/WorkflowContextBanner";
-import { PlanWizardShell, NatyLoadingOverlay, NatyButton, PromptPreviewButton } from "@/components/plans";
+import { PlanWizardShell, NatyLoadingOverlay, NatyButton } from "@/components/plans";
 import { ActionDockItem } from "@/components/ui/ActionDock";
 import { CalculatedMetricsPanel } from "@/components/patient-form/CalculatedMetricsPanel";
 import { fetchApi, getApiUrl } from "@/lib/api-base";
@@ -2095,14 +2096,7 @@ export default function QuickDeliverableClient() {
         description="Crea un entregable express de una sola hoja con horarios, indicaciones, alimentos a evitar, recursos y una guía breve de porciones."
         className="max-w-[68rem]"
         rightNavItems={actionItems}
-        rightContent={
-          <PromptPreviewButton
-            moduleName="Entregable Rápido"
-            endpoint="/recipes/quick-ai-fill"
-            buildPayload={buildQuickDeliverablePromptPayload}
-            expectedOutput="JSON con dishes para completar únicamente los espacios de alimentos solicitados."
-          />
-        }
+        rightNavDesktopBreakpoint="lg"
       >
         <WorkflowContextBanner
           projectName={currentProjectName}
@@ -2384,326 +2378,646 @@ export default function QuickDeliverableClient() {
             onNext={goNext}
             isLastStep={currentStep === WIZARD_STEPS.length - 1}
             nextDisabled={
-              currentStep === 0 && (!title.trim() || (includeMeals && (!meals || meals.length === 0 || !meals.some((m) => m.mealText && m.mealText.trim().length > 0))))
+              currentStep === 0 && (
+                !title.trim() ||
+                (contentMode === "table" && includeMeals && (!meals || meals.length === 0 || !meals.some((m) => m.mealText && m.mealText.trim().length > 0))) ||
+                (contentMode === "paragraphs" && (!paragraphs || paragraphs.length === 0 || !paragraphs.some((p) => p.category.trim() || (p.foods && p.foods.some((f) => f.food.trim().length > 0)))))
+              )
             }
             onReset={resetQuickDeliverable}
           >
-              {currentStep === 0 && (
-              <section
-                ref={mealsSectionRef}
-                className={cn(
-                  "rounded-3xl border border-slate-200 bg-white p-10 shadow-sm",
-                  shouldHighlightMealsSection && "border-rose-400 ring-4 ring-rose-100",
-                  !includeMeals && "opacity-55",
-                )}
-              >
-                <div className="flex flex-col gap-5">
-                  <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                  <div>
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                      <h2 className="text-xl font-black text-slate-900">
-                        Tabla de comidas <span className="text-rose-600">*</span>
-                      </h2>
-                      <button
-                        type="button"
-                        onClick={() => setIncludeMeals((current) => !current)}
-                        className={cn(
-                          "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[11px] font-black uppercase tracking-widest transition-colors",
-                          includeMeals
-                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                            : "border-slate-200 bg-white text-slate-500",
-                        )}
-                      >
-                        <span
-                          className={cn(
-                            "h-2.5 w-2.5 rounded-full",
-                            includeMeals ? "bg-emerald-500" : "bg-slate-300",
-                          )}
-                        />
-                        {includeMeals ? "Ocultar seccion" : "Incluir seccion"}
-                      </button>
-                    </div>
-                    <p className="mt-1 text-sm text-slate-500">
-                      Arrastra los bloques para ordenar el día y completa hora,
-                      indicación y porción.
-                    </p>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-11 rounded-2xl border-purple-200 bg-purple-50 px-4 text-purple-700 hover:bg-purple-100 hover:border-purple-300 hover:text-purple-800 transition-all font-semibold shadow-sm md:self-start"
-                    onClick={() => setIsCreatedRecipesModalOpen(true)}
-                    title="Rellenar con platos creados"
-                  >
-                    {isGeneratingQuickAi ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin text-purple-600" />
-                    ) : (
-                      <Sparkles className="mr-2 h-4 w-4 text-purple-600 fill-purple-600/10" />
-                    )}
-
-                    Rellenar con Naty
-                  </Button>
-                </div>
-
-                {planMode === "weekly" && (
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
-                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                      <div className="hidden flex-wrap items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setIncludeMeals((current) => !current)}
-                          className={cn(
-                            "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-black uppercase tracking-widest transition-colors",
-                            includeMeals
-                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                              : "border-slate-200 bg-white text-slate-500",
-                          )}
-                        >
-                          <span className={cn(
-                            "h-2.5 w-2.5 rounded-full",
-                            includeMeals ? "bg-emerald-500" : "bg-slate-300",
-                          )} />
-                          {includeMeals ? "Seccion visible" : "Seccion oculta"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setPlanMode((current) => (current === "single" ? "weekly" : "single"))}
-                          className={cn(
-                            "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-black uppercase tracking-widest transition-colors",
-                            planMode === "weekly"
-                              ? "border-indigo-200 bg-indigo-50 text-indigo-700"
-                              : "border-slate-200 bg-white text-slate-600",
-                          )}
-                        >
-                          {planMode === "weekly" ? "Vista semanal activa" : "Cambiar a semanal"}
-                        </button>
-                      </div>
-                      <p className="text-xs text-slate-500">
-                        Categoria, hora y porcion se editan una vez; alimentos cambian por dia.
+            {currentStep === 0 && (
+              <div className="space-y-6">
+                <div className="rounded-3xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+                    <div>
+                      <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">
+                        Formato del entregable principal <span className="text-rose-500">*</span>
+                      </p>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Elige cómo deseas presentar las preparaciones o porciones a tu paciente en este entregable.
                       </p>
                     </div>
                   </div>
-                )}
 
-                <div className={cn(
-                  "overflow-x-auto rounded-3xl border border-slate-200",
-                  planMode === "weekly" && "hidden",
-                )}>
-                  <table className="w-full min-w-[860px] bg-white">
-                    <thead className="bg-slate-50">
-                      <tr className="border-b border-slate-200">
-                        <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
-                          Categoría
-                        </th>
-                        <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
-                          Alimentos
-                        </th>
-                        <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 w-36">
-                          Hora
-                        </th>
-                        <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 w-44">
-                          Porciones
-                        </th>
-                        <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 w-20">
-                          Acción
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {meals.map((meal) => (
-                        <tr key={meal.id} className="border-b border-slate-100 last:border-b-0">
-                          <td className="px-4 py-3 align-top">
-                            <select
-                              value={meal.section}
-                              onChange={(e) =>
-                                updateMeal(meal.id, "section", e.target.value)
-                              }
-                              className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900"
-                              disabled={!includeMeals}
-                            >
-                              <option value="">Seleccionar</option>
-                              {QUICK_SECTIONS.map((section) => (
-                                <option key={section} value={section}>
-                                  {section}
-                                </option>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setContentMode("table")}
+                      className={cn(
+                        "flex items-start gap-3.5 p-4 rounded-2xl border text-left transition-all cursor-pointer",
+                        contentMode === "table"
+                          ? "border-emerald-500 bg-emerald-50/40 shadow-md ring-2 ring-emerald-500/20"
+                          : "border-slate-200 bg-white hover:bg-slate-50 text-slate-600",
+                      )}
+                    >
+                      <div className={cn(
+                        "p-3 rounded-xl shrink-0 mt-0.5 transition-colors",
+                        contentMode === "table" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"
+                      )}>
+                        <FileText className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs font-black uppercase tracking-wider text-slate-900">
+                            Tabla de comidas
+                          </p>
+                          {contentMode === "table" && (
+                            <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                              Activo
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-500 mt-1">
+                          Plan organizado en tabla por horarios (Desayuno, Almuerzo, Cena, etc.).
+                        </p>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setContentMode("paragraphs")}
+                      className={cn(
+                        "flex items-start gap-3.5 p-4 rounded-2xl border text-left transition-all cursor-pointer",
+                        contentMode === "paragraphs"
+                          ? "border-indigo-500 bg-indigo-50/40 shadow-md ring-2 ring-indigo-500/20"
+                          : "border-slate-200 bg-white hover:bg-slate-50 text-slate-600",
+                      )}
+                    >
+                      <div className={cn(
+                        "p-3 rounded-xl shrink-0 mt-0.5 transition-colors",
+                        contentMode === "paragraphs" ? "bg-indigo-100 text-indigo-700" : "bg-slate-100 text-slate-500"
+                      )}>
+                        <Sparkles className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs font-black uppercase tracking-wider text-slate-900">
+                            Imágenes por categoría
+                          </p>
+                          {contentMode === "paragraphs" && (
+                            <span className="text-[10px] font-extrabold text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded-full">
+                              Activo
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-500 mt-1">
+                          Porciones y equivalencias con imagen ilustrativa por grupo alimenticio.
+                        </p>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                {contentMode === "paragraphs" ? (
+                  <section
+                    ref={mealsSectionRef}
+                    className={cn(
+                      "rounded-3xl border border-slate-200 bg-white p-4 sm:p-10 shadow-sm space-y-6",
+                      shouldHighlightMealsSection && "border-rose-400 ring-4 ring-rose-100",
+                    )}
+                  >
+                    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between border-b border-slate-100 pb-5">
+                      <div>
+                        <h2 className="text-lg sm:text-xl font-black text-slate-900 flex items-center gap-2">
+                          <Sparkles className="w-5 h-5 text-indigo-600" />
+                          Imágenes por categoría <span className="text-rose-600">*</span>
+                        </h2>
+                        <p className="mt-1 text-xs sm:text-sm text-slate-500">
+                          Configura cada categoría de alimento, porción diaria e imagen representativa.
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setIsAiModalOpen(true)}
+                          className="h-10 rounded-2xl border-indigo-200 bg-indigo-50 px-4 text-indigo-700 hover:bg-indigo-100 font-semibold text-xs transition-all"
+                        >
+                          <Sparkles className="mr-2 h-4 w-4 text-indigo-600" />
+                          Generar con Naty AI
+                        </Button>
+                        <Button
+                          type="button"
+                          onClick={addParagraph}
+                          className="h-10 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition-all"
+                        >
+                          <Plus className="mr-1.5 h-4 w-4" />
+                          Agregar categoría
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-6">
+                      {paragraphs.map((paragraph, pIndex) => (
+                        <div
+                          key={paragraph.id}
+                          className="rounded-2xl border border-slate-200 bg-slate-50/60 p-5 space-y-4 shadow-2xs relative group"
+                        >
+                          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 justify-between border-b border-slate-200/60 pb-4">
+                            <div className="flex items-center gap-3 flex-1 w-full sm:w-auto">
+                              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-xs font-black text-indigo-700">
+                                #{pIndex + 1}
+                              </span>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedParagraphId(paragraph.id);
+                                  setIsImageSelectorOpen(true);
+                                }}
+                                className="relative flex h-14 w-14 shrink-0 cursor-pointer overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xs transition-all hover:border-indigo-500 hover:ring-2 hover:ring-indigo-200 group/img"
+                                title="Cambiar imagen de categoría"
+                              >
+                                <img
+                                  src={paragraph.imagePath || CATEGORY_IMAGE_MAP[paragraph.category] || "/imag_categories/1.webp"}
+                                  alt={paragraph.category || "Categoría"}
+                                  className="h-full w-full object-cover"
+                                />
+                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity">
+                                  <ImageIcon className="w-4 h-4 text-white" />
+                                </div>
+                              </button>
+
+                              <div className="flex-1 space-y-1">
+                                <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Categoría</p>
+                                <select
+                                  value={paragraph.category}
+                                  onChange={(e) => {
+                                    const newCat = e.target.value;
+                                    const newImg = CATEGORY_IMAGE_MAP[newCat] || paragraph.imagePath;
+                                    updateParagraph(paragraph.id, { category: newCat, imagePath: newImg });
+                                  }}
+                                  className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-800"
+                                >
+                                  <option value="">Seleccionar categoría</option>
+                                  {Object.keys(CATEGORY_IMAGE_MAP).map((cat) => (
+                                    <option key={cat} value={cat}>{cat}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+                              <div className="space-y-1 flex-1 sm:w-48">
+                                <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Porción diaria / Notas</p>
+                                <Input
+                                  value={paragraph.portionsPerDay || ""}
+                                  onChange={(e) => updateParagraph(paragraph.id, { portionsPerDay: e.target.value })}
+                                  placeholder="Ej: 2 a 3 porciones al día"
+                                  className="h-10 rounded-xl border-slate-200 bg-white text-xs"
+                                />
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => deleteParagraph(paragraph.id)}
+                                disabled={paragraphs.length <= 1}
+                                className="h-10 w-10 shrink-0 mt-4 flex items-center justify-center rounded-xl border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                                title="Eliminar categoría"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                              Alimentos permitidos / Ejemplos
+                            </p>
+                            <div className="space-y-2">
+                              {paragraph.foods.map((food, fIndex) => (
+                                <div key={food.id || fIndex} className="flex items-center gap-2">
+                                  <Input
+                                    value={food.portion || ""}
+                                    onChange={(e) => {
+                                      const newFoods = [...paragraph.foods];
+                                      newFoods[fIndex] = { ...newFoods[fIndex], portion: e.target.value };
+                                      updateParagraph(paragraph.id, { foods: newFoods });
+                                    }}
+                                    placeholder="Porción (ej: 1 taza)"
+                                    className="h-9 w-36 shrink-0 rounded-xl border-slate-200 bg-white text-xs"
+                                  />
+                                  <Input
+                                    value={food.food || ""}
+                                    onChange={(e) => {
+                                      const newFoods = [...paragraph.foods];
+                                      newFoods[fIndex] = { ...newFoods[fIndex], food: e.target.value };
+                                      updateParagraph(paragraph.id, { foods: newFoods });
+                                    }}
+                                    placeholder="Alimento (ej: Leche semidescremada)"
+                                    className="h-9 flex-1 rounded-xl border-slate-200 bg-white text-xs"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const newFoods = paragraph.foods.filter((_, idx) => idx !== fIndex);
+                                      updateParagraph(paragraph.id, { foods: newFoods.length > 0 ? newFoods : [{ id: `${Date.now()}-1`, portion: "", food: "" }] });
+                                    }}
+                                    className="h-9 w-9 shrink-0 flex items-center justify-center rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
                               ))}
-                            </select>
-                          </td>
-                          <td className="px-4 py-3 align-top">
-                            <Input
-                              value={meal.mealText}
-                              onChange={(e) =>
-                                updateMeal(meal.id, "mealText", e.target.value)
-                              }
-                              className="h-11 rounded-2xl border-slate-200 bg-white"
-                                placeholder="Nombre del plato o preparacion"
-                              disabled={!includeMeals}
-                            />
-                          </td>
-                          <td className="px-4 py-3 align-top">
-                            <Input
-                              value={meal.time}
-                              onChange={(e) =>
-                                updateMeal(meal.id, "time", e.target.value)
-                              }
-                              className="h-11 rounded-2xl border-slate-200 bg-white"
-                              placeholder="07:30"
-                              disabled={!includeMeals}
-                            />
-                          </td>
-                          <td className="px-4 py-3 align-top">
-                            <Input
-                              value={meal.portion}
-                              onChange={(e) =>
-                                updateMeal(meal.id, "portion", e.target.value)
-                              }
-                              className="h-11 rounded-2xl border-slate-200 bg-white"
-                              placeholder="2 porciones"
-                              disabled={!includeMeals}
-                            />
-                          </td>
-                          <td className="px-4 py-3 align-top">
+                            </div>
+
                             <button
                               type="button"
-                              onClick={() => removeMeal(meal.id)}
-                              className="flex h-11 w-11 items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100"
-                              disabled={!includeMeals}
+                              onClick={() => {
+                                const newFoods = [...paragraph.foods, createFoodItem()];
+                                updateParagraph(paragraph.id, { foods: newFoods });
+                              }}
+                              className="mt-1 flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-700 py-1 transition-colors cursor-pointer"
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Plus className="w-3.5 h-3.5" />
+                              Agregar alimento
                             </button>
-                          </td>
-                        </tr>
+                          </div>
+                        </div>
                       ))}
-                      <tr>
-                        <td colSpan={5} className="px-4 py-4">
-                          <button
-                            type="button"
-                            onClick={addMeal}
-                            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-600 transition-colors hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
-                            disabled={!includeMeals}
-                          >
-                            <Plus className="h-4 w-4" />
-                            Agregar fila
-                          </button>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-                {planMode === "weekly" && (
-                  <div className="overflow-x-auto rounded-3xl border border-slate-200">
-                    <table className="w-full min-w-[1500px] bg-white">
-                      <thead className="bg-slate-50">
-                        <tr className="border-b border-slate-200">
-                          <th className="px-3 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Categoria</th>
-                          {QUICK_WEEK_DAYS.map((day) => (
-                            <th key={day} className="px-3 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
-                              {day}
-                            </th>
-                          ))}
-                          <th className="px-3 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 w-28">Hora</th>
-                          <th className="px-3 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 w-36">Porciones</th>
-                          <th className="px-3 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 w-20">Accion</th>
-                        </tr>
-                      </thead>
-                      <tbody>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={addParagraph}
+                      className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3.5 text-xs font-bold text-slate-600 transition-colors hover:border-indigo-300 hover:bg-indigo-50/50 hover:text-indigo-700"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Agregar otra categoría con imagen
+                    </button>
+                  </section>
+                ) : (
+                  <section
+                    ref={mealsSectionRef}
+                    className={cn(
+                      "rounded-3xl border border-slate-200 bg-white p-4 sm:p-10 shadow-sm",
+                      shouldHighlightMealsSection && "border-rose-400 ring-4 ring-rose-100",
+                      !includeMeals && "opacity-55",
+                    )}
+                  >
+                    <div className="flex flex-col gap-5">
+                      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                        <div>
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                            <h2 className="text-lg sm:text-xl font-black text-slate-900">
+                              Tabla de comidas <span className="text-rose-600">*</span>
+                            </h2>
+                            <button
+                              type="button"
+                              onClick={() => setIncludeMeals((current) => !current)}
+                              className={cn(
+                                "inline-flex items-center justify-center gap-2 rounded-full border px-4 py-2 text-[11px] font-black uppercase tracking-widest transition-colors w-fit",
+                                includeMeals
+                                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                  : "border-slate-200 bg-white text-slate-500",
+                              )}
+                            >
+                              <span
+                                className={cn(
+                                  "h-2.5 w-2.5 rounded-full",
+                                  includeMeals ? "bg-emerald-500" : "bg-slate-300",
+                                )}
+                              />
+                              {includeMeals ? "Ocultar sección" : "Incluir sección"}
+                            </button>
+                          </div>
+                          <p className="mt-1 text-xs sm:text-sm text-slate-500">
+                            Arrastra los bloques para ordenar el día y completa hora, indicación y porción.
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-11 rounded-2xl border-purple-200 bg-purple-50 px-4 text-purple-700 hover:bg-purple-100 hover:border-purple-300 hover:text-purple-800 transition-all font-semibold shadow-sm w-full md:w-auto md:self-start justify-center"
+                          onClick={() => setIsCreatedRecipesModalOpen(true)}
+                          title="Rellenar con platos creados"
+                        >
+                          {isGeneratingQuickAi ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin text-purple-600" />
+                          ) : (
+                            <Sparkles className="mr-2 h-4 w-4 text-purple-600 fill-purple-600/10" />
+                          )}
+
+                          Rellenar con Naty
+                        </Button>
+                      </div>
+
+                      {planMode === "weekly" && (
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+                          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                            <div className="hidden flex-wrap items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setIncludeMeals((current) => !current)}
+                                className={cn(
+                                  "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-black uppercase tracking-widest transition-colors",
+                                  includeMeals
+                                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                    : "border-slate-200 bg-white text-slate-500",
+                                )}
+                              >
+                                <span className={cn(
+                                  "h-2.5 w-2.5 rounded-full",
+                                  includeMeals ? "bg-emerald-500" : "bg-slate-300",
+                                )} />
+                                {includeMeals ? "Sección visible" : "Sección oculta"}
+                              </button>
+                            </div>
+                            <p className="text-xs text-slate-500">
+                              Categoría, hora y porción se editan una vez; alimentos cambian por día.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className={cn("block md:hidden space-y-3", planMode === "weekly" && "hidden")}>
                         {meals.map((meal) => (
-                          <tr key={`weekly-${meal.id}`} className="border-b border-slate-100 last:border-b-0">
-                            <td className="px-3 py-3 align-top">
+                          <div key={meal.id} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3.5 space-y-3">
+                            <div className="flex items-center justify-between gap-2">
                               <select
                                 value={meal.section}
                                 onChange={(e) => updateMeal(meal.id, "section", e.target.value)}
-                                className="h-10 w-full rounded-2xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-900"
+                                className="h-10 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-900"
                                 disabled={!includeMeals}
                               >
-                                <option value="">Seleccionar</option>
+                                <option value="">Seleccionar sección</option>
                                 {QUICK_SECTIONS.map((section) => (
-                                  <option key={`weekly-${meal.id}-${section}`} value={section}>
+                                  <option key={section} value={section}>
                                     {section}
                                   </option>
                                 ))}
                               </select>
-                            </td>
-                            {QUICK_WEEK_DAYS.map((day) => (
-                              <td key={`${meal.id}-${day}`} className="px-3 py-3 align-top">
-                                <Input
-                                  value={meal.weeklyMealTexts?.[day] || ""}
-                                  onChange={(e) => updateWeeklyMealText(meal.id, day, e.target.value)}
-                                  className="h-10 rounded-2xl border-slate-200 bg-white text-xs"
-                                  placeholder="Alimento"
-                                  disabled={!includeMeals}
-                                />
-                              </td>
-                            ))}
-                            <td className="px-3 py-3 align-top">
-                              <Input
-                                value={meal.time}
-                                onChange={(e) => updateMeal(meal.id, "time", e.target.value)}
-                                className="h-10 rounded-2xl border-slate-200 bg-white text-xs"
-                                placeholder="07:30"
-                                disabled={!includeMeals}
-                              />
-                            </td>
-                            <td className="px-3 py-3 align-top">
-                              <Input
-                                value={meal.portion}
-                                onChange={(e) => updateMeal(meal.id, "portion", e.target.value)}
-                                className="h-10 rounded-2xl border-slate-200 bg-white text-xs"
-                                placeholder="2 porciones"
-                                disabled={!includeMeals}
-                              />
-                            </td>
-                            <td className="px-3 py-3 align-top">
                               <button
                                 type="button"
                                 onClick={() => removeMeal(meal.id)}
-                                className="flex h-10 w-10 items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100"
+                                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 text-rose-600"
                                 disabled={!includeMeals}
                               >
                                 <Trash2 className="h-4 w-4" />
                               </button>
-                            </td>
-                          </tr>
+                            </div>
+                            <div>
+                              <label className="text-[9px] font-black uppercase text-slate-400 block mb-1">Alimentos / Preparación</label>
+                              <Input
+                                value={meal.mealText}
+                                onChange={(e) => updateMeal(meal.id, "mealText", e.target.value)}
+                                className="h-10 rounded-xl border-slate-200 bg-white text-xs font-semibold"
+                                placeholder="Nombre del plato o preparación"
+                                disabled={!includeMeals}
+                              />
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="text-[9px] font-black uppercase text-slate-400 block mb-1">Hora</label>
+                                <Input
+                                  value={meal.time}
+                                  onChange={(e) => updateMeal(meal.id, "time", e.target.value)}
+                                  className="h-10 rounded-xl border-slate-200 bg-white text-xs font-semibold"
+                                  placeholder="07:30"
+                                  disabled={!includeMeals}
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[9px] font-black uppercase text-slate-400 block mb-1">Porciones</label>
+                                <Input
+                                  value={meal.portion}
+                                  onChange={(e) => updateMeal(meal.id, "portion", e.target.value)}
+                                  className="h-10 rounded-xl border-slate-200 bg-white text-xs font-semibold"
+                                  placeholder="2 porciones"
+                                  disabled={!includeMeals}
+                                />
+                              </div>
+                            </div>
+                          </div>
                         ))}
-                        <tr>
-                          <td colSpan={10} className="px-4 py-4">
-                            <button
-                              type="button"
-                              onClick={addMeal}
-                              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-600 transition-colors hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
-                              disabled={!includeMeals}
-                            >
-                              <Plus className="h-4 w-4" />
-                              Agregar fila semanal
-                            </button>
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
+                        <button
+                          type="button"
+                          onClick={addMeal}
+                          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-xs font-bold text-slate-600 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
+                          disabled={!includeMeals}
+                        >
+                          <Plus className="h-4 w-4" />
+                          Agregar fila
+                        </button>
+                      </div>
+
+                      <div className={cn(
+                        "hidden md:block overflow-x-auto rounded-3xl border border-slate-200",
+                        planMode === "weekly" && "hidden",
+                      )}>
+                        <table className="w-full min-w-[860px] bg-white">
+                          <thead className="bg-slate-50">
+                            <tr className="border-b border-slate-200">
+                              <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
+                                Categoría
+                              </th>
+                              <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
+                                Alimentos
+                              </th>
+                              <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 w-36">
+                                Hora
+                              </th>
+                              <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 w-44">
+                                Porciones
+                              </th>
+                              <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 w-20">
+                                Acción
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {meals.map((meal) => (
+                              <tr key={meal.id} className="border-b border-slate-100 last:border-b-0">
+                                <td className="px-4 py-3 align-top">
+                                  <select
+                                    value={meal.section}
+                                    onChange={(e) =>
+                                      updateMeal(meal.id, "section", e.target.value)
+                                    }
+                                    className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900"
+                                    disabled={!includeMeals}
+                                  >
+                                    <option value="">Seleccionar</option>
+                                    {QUICK_SECTIONS.map((section) => (
+                                      <option key={section} value={section}>
+                                        {section}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </td>
+                                <td className="px-4 py-3 align-top">
+                                  <Input
+                                    value={meal.mealText}
+                                    onChange={(e) =>
+                                      updateMeal(meal.id, "mealText", e.target.value)
+                                    }
+                                    className="h-11 rounded-2xl border-slate-200 bg-white"
+                                    placeholder="Nombre del plato o preparacion"
+                                    disabled={!includeMeals}
+                                  />
+                                </td>
+                                <td className="px-4 py-3 align-top">
+                                  <Input
+                                    value={meal.time}
+                                    onChange={(e) =>
+                                      updateMeal(meal.id, "time", e.target.value)
+                                    }
+                                    className="h-11 rounded-2xl border-slate-200 bg-white"
+                                    placeholder="07:30"
+                                    disabled={!includeMeals}
+                                  />
+                                </td>
+                                <td className="px-4 py-3 align-top">
+                                  <Input
+                                    value={meal.portion}
+                                    onChange={(e) =>
+                                      updateMeal(meal.id, "portion", e.target.value)
+                                    }
+                                    className="h-11 rounded-2xl border-slate-200 bg-white"
+                                    placeholder="2 porciones"
+                                    disabled={!includeMeals}
+                                  />
+                                </td>
+                                <td className="px-4 py-3 align-top">
+                                  <button
+                                    type="button"
+                                    onClick={() => removeMeal(meal.id)}
+                                    className="flex h-11 w-11 items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100"
+                                    disabled={!includeMeals}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                            <tr>
+                              <td colSpan={5} className="px-4 py-4">
+                                <button
+                                  type="button"
+                                  onClick={addMeal}
+                                  className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-600 transition-colors hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
+                                  disabled={!includeMeals}
+                                >
+                                  <Plus className="h-4 w-4" />
+                                  Agregar fila
+                                </button>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                      {planMode === "weekly" && (
+                        <div className="overflow-x-auto rounded-3xl border border-slate-200">
+                          <table className="w-full min-w-[1500px] bg-white">
+                            <thead className="bg-slate-50">
+                              <tr className="border-b border-slate-200">
+                                <th className="px-3 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">Categoria</th>
+                                {QUICK_WEEK_DAYS.map((day) => (
+                                  <th key={day} className="px-3 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
+                                    {day}
+                                  </th>
+                                ))}
+                                <th className="px-3 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 w-28">Hora</th>
+                                <th className="px-3 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 w-36">Porciones</th>
+                                <th className="px-3 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 w-20">Accion</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {meals.map((meal) => (
+                                <tr key={`weekly-${meal.id}`} className="border-b border-slate-100 last:border-b-0">
+                                  <td className="px-3 py-3 align-top">
+                                    <select
+                                      value={meal.section}
+                                      onChange={(e) => updateMeal(meal.id, "section", e.target.value)}
+                                      className="h-10 w-full rounded-2xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-900"
+                                      disabled={!includeMeals}
+                                    >
+                                      <option value="">Seleccionar</option>
+                                      {QUICK_SECTIONS.map((section) => (
+                                        <option key={`weekly-${meal.id}-${section}`} value={section}>
+                                          {section}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </td>
+                                  {QUICK_WEEK_DAYS.map((day) => (
+                                    <td key={`${meal.id}-${day}`} className="px-3 py-3 align-top">
+                                      <Input
+                                        value={meal.weeklyMealTexts?.[day] || ""}
+                                        onChange={(e) => updateWeeklyMealText(meal.id, day, e.target.value)}
+                                        className="h-10 rounded-2xl border-slate-200 bg-white text-xs"
+                                        placeholder="Alimento"
+                                        disabled={!includeMeals}
+                                      />
+                                    </td>
+                                  ))}
+                                  <td className="px-3 py-3 align-top">
+                                    <Input
+                                      value={meal.time}
+                                      onChange={(e) => updateMeal(meal.id, "time", e.target.value)}
+                                      className="h-10 rounded-2xl border-slate-200 bg-white text-xs"
+                                      placeholder="07:30"
+                                      disabled={!includeMeals}
+                                    />
+                                  </td>
+                                  <td className="px-3 py-3 align-top">
+                                    <Input
+                                      value={meal.portion}
+                                      onChange={(e) => updateMeal(meal.id, "portion", e.target.value)}
+                                      className="h-10 rounded-2xl border-slate-200 bg-white text-xs"
+                                      placeholder="2 porciones"
+                                      disabled={!includeMeals}
+                                    />
+                                  </td>
+                                  <td className="px-3 py-3 align-top">
+                                    <button
+                                      type="button"
+                                      onClick={() => removeMeal(meal.id)}
+                                      className="flex h-10 w-10 items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100"
+                                      disabled={!includeMeals}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                              <tr>
+                                <td colSpan={10} className="px-4 py-4">
+                                  <button
+                                    type="button"
+                                    onClick={addMeal}
+                                    className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-600 transition-colors hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
+                                    disabled={!includeMeals}
+                                  >
+                                    <Plus className="h-4 w-4" />
+                                    Agregar fila semanal
+                                  </button>
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  </section>
                 )}
-                </div>
-              </section>
-              )}
+              </div>
+            )}
 
               {currentStep === 1 && (
-              <section
-                ref={avoidFoodsSectionRef}
-                className={cn(
-                  "rounded-3xl border border-slate-200 bg-white p-10 shadow-sm",
-                  shouldHighlightAvoidFoodsSection && "border-rose-400 ring-4 ring-rose-100",
-                  !includeAvoidFoods && "opacity-55",
-                )}>
-                <div className="flex items-center justify-between">
+              <section ref={avoidFoodsSectionRef} className="rounded-3xl border border-slate-200 bg-white p-4 sm:p-10 shadow-sm">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
-                    <h2 className="text-xl font-black text-slate-900">
-                      Alimentos a evitar <span className="text-rose-600">*</span>
+                    <h2 className="text-lg font-black text-slate-900">
+                      Alimentos a evitar / Indicaciones
                     </h2>
                     <button
                       type="button"
                       onClick={() => setIncludeAvoidFoods((current) => !current)}
                       className={cn(
-                        "mt-3 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[11px] font-black uppercase tracking-widest transition-colors",
+                        "mt-2 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[11px] font-black uppercase tracking-widest transition-colors w-fit",
                         includeAvoidFoods
                           ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                           : "border-slate-200 bg-white text-slate-500",
@@ -2715,26 +3029,16 @@ export default function QuickDeliverableClient() {
                           includeAvoidFoods ? "bg-emerald-500" : "bg-slate-300",
                         )}
                       />
-                      {includeAvoidFoods ? "Ocultar seccion" : "Incluir seccion"}
+                      {includeAvoidFoods ? "Ocultar sección" : "Incluir sección"}
                     </button>
-                    <p className="mt-1 text-sm text-slate-500">
-                      Agrega filas simples para dejar restricciones o
-                      recordatorios rápidos.
+                    <p className="mt-1 text-xs sm:text-sm text-slate-500">
+                      Agrega filas simples para dejar restricciones o recordatorios rápidos.
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <label className="hidden items-center gap-2 text-sm font-medium text-slate-600">
-                      <input
-                        type="checkbox"
-                        checked={includeAvoidFoods}
-                        onChange={(e) => setIncludeAvoidFoods(e.target.checked)}
-                        className="h-4 w-4 rounded border-slate-300 text-emerald-600"
-                      />
-                      Incluir seccion
-                    </label>
                     <Button
                       variant="outline"
-                      className="h-11 rounded-2xl border-slate-200"
+                      className="h-11 rounded-2xl border-slate-200 w-full sm:w-auto justify-center"
                       onClick={addAvoidFoodRow}
                       disabled={!includeAvoidFoods}
                     >
@@ -2744,7 +3048,31 @@ export default function QuickDeliverableClient() {
                   </div>
                 </div>
 
-                <div className="mt-6 overflow-x-auto rounded-3xl border border-slate-200">
+                {/* Vista Móvil (< 768px) */}
+                <div className="block md:hidden space-y-2 mt-4">
+                  {avoidFoods.map((food) => (
+                    <div key={food.id} className="flex items-center gap-2">
+                      <Input
+                        value={food.value}
+                        onChange={(e) => updateAvoidFood(food.id, e.target.value)}
+                        className="h-10 flex-1 rounded-xl border-slate-200 bg-white text-xs font-medium"
+                        placeholder="Ej: bebidas azucaradas, frituras, alcohol..."
+                        disabled={!includeAvoidFoods}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeAvoidFood(food.id)}
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 text-rose-600"
+                        disabled={!includeAvoidFoods}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Vista Desktop (>= 768px) */}
+                <div className="hidden md:block mt-6 overflow-x-auto rounded-3xl border border-slate-200">
                   <table className="w-full min-w-[620px] bg-white">
                     <thead className="bg-slate-50">
                       <tr className="border-b border-slate-200">
@@ -2792,11 +3120,11 @@ export default function QuickDeliverableClient() {
               <section
                 ref={resourcesSectionRef}
                 className={cn(
-                  "rounded-3xl border border-slate-200 bg-white p-10 shadow-sm",
+                  "rounded-3xl border border-slate-200 bg-white p-4 sm:p-10 shadow-sm",
                   !includeResources && "opacity-55",
                 )}
               >
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
                     <h2 className="text-lg font-black text-slate-900">
                       Recursos específicos
@@ -2805,7 +3133,7 @@ export default function QuickDeliverableClient() {
                       type="button"
                       onClick={() => setIncludeResources((current) => !current)}
                       className={cn(
-                        "mt-3 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[11px] font-black uppercase tracking-widest transition-colors",
+                        "mt-2 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[11px] font-black uppercase tracking-widest transition-colors w-fit",
                         includeResources
                           ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                           : "border-slate-200 bg-white text-slate-500",
@@ -2817,25 +3145,16 @@ export default function QuickDeliverableClient() {
                           includeResources ? "bg-emerald-500" : "bg-slate-300",
                         )}
                       />
-                      {includeResources ? "Ocultar seccion" : "Incluir seccion"}
+                      {includeResources ? "Ocultar sección" : "Incluir sección"}
                     </button>
-                    <p className="mt-1 text-sm text-slate-500">
+                    <p className="mt-1 text-xs sm:text-sm text-slate-500">
                       Puedes sumar material breve adaptado al paciente.
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <label className="hidden items-center gap-2 text-sm font-medium text-slate-600">
-                      <input
-                        type="checkbox"
-                        checked={includeResources}
-                        onChange={(e) => setIncludeResources(e.target.checked)}
-                        className="h-4 w-4 rounded border-slate-300 text-emerald-600"
-                      />
-                      Incluir seccion
-                    </label>
                     <Button
                       variant="outline"
-                      className="h-10 rounded-2xl border-slate-200"
+                      className="h-10 rounded-2xl border-slate-200 w-full sm:w-auto justify-center"
                       onClick={openResourceModal}
                       disabled={!includeResources || isLoadingResources}
                     >
@@ -2849,7 +3168,7 @@ export default function QuickDeliverableClient() {
                   </div>
                 </div>
 
-                <div className="mt-5 overflow-x-auto rounded-3xl border border-slate-200">
+                <div className="mt-5 overflow-x-auto rounded-3xl border border-slate-200 hidden sm:block">
                   <table className="w-full min-w-[760px] bg-white">
                     <thead className="bg-slate-50">
                       <tr className="border-b border-slate-200">
@@ -2940,7 +3259,7 @@ export default function QuickDeliverableClient() {
                   </table>
                 </div>
 
-                <div className="hidden mt-5 space-y-3">
+                <div className="block sm:hidden mt-5 space-y-3">
                   {resolvedResourcePages.length > 0 ? (
                     resolvedResourcePages.map((resource, index) => (
                       <div
@@ -2948,7 +3267,7 @@ export default function QuickDeliverableClient() {
                         className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
                       >
                         <div className="flex items-center justify-between gap-3">
-                          <p className="font-bold text-slate-800">
+                          <p className="font-bold text-slate-800 text-sm">
                             {resource.title}
                           </p>
                           <button
@@ -2965,13 +3284,13 @@ export default function QuickDeliverableClient() {
                             <Trash2 className="h-4 w-4" />
                           </button>
                         </div>
-                        <p className="mt-2 line-clamp-4 whitespace-pre-wrap text-sm leading-6 text-slate-600">
+                        <p className="mt-2 line-clamp-4 whitespace-pre-wrap text-xs leading-5 text-slate-600">
                           {resource.content}
                         </p>
                       </div>
                     ))
                   ) : (
-                    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">
+                    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-xs text-slate-500 text-center">
                       Todavía no agregas recursos para este entregable.
                     </div>
                   )}
@@ -2980,8 +3299,8 @@ export default function QuickDeliverableClient() {
               )}
 
               {currentStep === 3 && (
-              <section ref={portionsSectionRef} className="rounded-3xl border border-slate-200 bg-white p-10 shadow-sm">
-                <div className="flex items-center justify-between gap-3">
+              <section ref={portionsSectionRef} className="rounded-3xl border border-slate-200 bg-white p-4 sm:p-10 shadow-sm">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
                     <h2 className="text-lg font-black text-slate-900">
                       Guía resumida de porciones
@@ -2990,7 +3309,7 @@ export default function QuickDeliverableClient() {
                       type="button"
                       onClick={() => setIncludePortionGuide((current) => !current)}
                       className={cn(
-                        "mt-3 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[11px] font-black uppercase tracking-widest transition-colors",
+                        "mt-2 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[11px] font-black uppercase tracking-widest transition-colors w-fit",
                         includePortionGuide
                           ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                           : "border-slate-200 bg-white text-slate-500",
@@ -3002,40 +3321,61 @@ export default function QuickDeliverableClient() {
                           includePortionGuide ? "bg-emerald-500" : "bg-slate-300",
                         )}
                       />
-                      {includePortionGuide ? "Ocultar seccion" : "Incluir seccion"}
+                      {includePortionGuide ? "Ocultar sección" : "Incluir sección"}
                     </button>
-                    <p className="mt-1 text-sm text-slate-500">
-                      Resumen profesional simple para que el paciente entienda
-                      referencias base.
+                    <p className="mt-1 text-xs sm:text-sm text-slate-500">
+                      Resumen profesional simple para que el paciente entienda referencias base.
                     </p>
                   </div>
-                  <label className="hidden items-center gap-2 text-sm font-medium text-slate-600">
-                    <input
-                      type="checkbox"
-                      checked={includePortionGuide}
-                      onChange={(e) =>
-                        setIncludePortionGuide(e.target.checked)
-                      }
-                      className="h-4 w-4 rounded border-slate-300 text-emerald-600"
-                    />
-                    Incluir seccion
-                  </label>
-                </div>
-                <div className="mt-5 flex justify-end">
-                  <Button
-                    variant="outline"
-                    className="h-10 rounded-2xl border-slate-200"
-                    onClick={addPortionGuideRow}
-                    disabled={!includePortionGuide}
-                  >
-                    <Plus className="mr-2 h-4 w-4" />
-                    Agregar fila
-                  </Button>
+                  <div className="flex justify-end">
+                    <Button
+                      variant="outline"
+                      className="h-10 rounded-2xl border-slate-200 w-full sm:w-auto justify-center"
+                      onClick={addPortionGuideRow}
+                      disabled={!includePortionGuide}
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      Agregar fila
+                    </Button>
+                  </div>
                 </div>
 
+                {/* Vista Móvil (< 768px) */}
+                <div className="block md:hidden space-y-2.5 mt-4">
+                  {portionGuideRows.map((row) => (
+                    <div key={row.id} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <Input
+                          value={row.category}
+                          onChange={(e) => updatePortionGuideRow(row.id, "category", e.target.value)}
+                          className="h-9 flex-1 rounded-xl border-slate-200 bg-white text-xs font-bold"
+                          placeholder="Categoría"
+                          disabled={!includePortionGuide}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removePortionGuideRow(row.id)}
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 text-rose-600"
+                          disabled={!includePortionGuide || portionGuideRows.length === 1}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                      <Input
+                        value={row.portion}
+                        onChange={(e) => updatePortionGuideRow(row.id, "portion", e.target.value)}
+                        className="h-9 rounded-xl border-slate-200 bg-white text-xs font-semibold"
+                        placeholder="Detalle de porción"
+                        disabled={!includePortionGuide}
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                {/* Vista Desktop (>= 768px) */}
                 <div
                   className={cn(
-                    "mt-4 overflow-x-auto rounded-2xl border border-slate-200",
+                    "hidden md:block mt-4 overflow-x-auto rounded-2xl border border-slate-200",
                     !includePortionGuide && "opacity-45",
                   )}
                 >
@@ -3231,16 +3571,16 @@ export default function QuickDeliverableClient() {
               </div>
             );
           })}
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">
             <Button
               variant="outline"
-              className="rounded-xl border-slate-200"
+              className="rounded-xl border-slate-200 w-full sm:w-auto justify-center"
               onClick={() => setIsResourceVariablesModalOpen(false)}
             >
               Cancelar
             </Button>
             <Button
-              className="rounded-xl bg-emerald-600 text-white hover:bg-emerald-700"
+              className="rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 w-full sm:w-auto justify-center"
               onClick={resolvePendingResourceVariables}
             >
               Importar recurso
@@ -3641,6 +3981,35 @@ export default function QuickDeliverableClient() {
               )}
               Generar pauta
             </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal para Seleccionar Imagen de Categoría */}
+      <Modal
+        isOpen={isImageSelectorOpen}
+        onClose={() => setIsImageSelectorOpen(false)}
+        title="Seleccionar imagen de categoría"
+        className="max-w-2xl"
+      >
+        <div className="p-4 space-y-4">
+          <p className="text-xs text-slate-500">
+            Elige la imagen ilustrativa que acompañará esta categoría de alimentos en el entregable.
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-h-[60vh] overflow-y-auto pr-1">
+            {Object.entries(CATEGORY_IMAGE_MAP).map(([catName, imgPath]) => (
+              <button
+                key={catName}
+                type="button"
+                onClick={() => selectCategoryImage(imgPath)}
+                className="flex flex-col items-center gap-2 p-3 rounded-2xl border border-slate-200 bg-white hover:border-indigo-500 hover:bg-indigo-50/50 hover:shadow-md transition-all cursor-pointer group text-left"
+              >
+                <div className="w-16 h-16 rounded-xl overflow-hidden bg-slate-100 flex items-center justify-center border border-slate-100 shrink-0">
+                  <img src={imgPath} alt={catName} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                </div>
+                <span className="text-xs font-bold text-slate-800 text-center line-clamp-2">{catName}</span>
+              </button>
+            ))}
           </div>
         </div>
       </Modal>

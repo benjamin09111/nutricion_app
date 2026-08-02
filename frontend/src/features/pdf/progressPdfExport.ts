@@ -1,6 +1,7 @@
 "use client";
 
 import type { ProgressPdfData } from "./ProgressPdfDocument";
+import { membershipService } from "@/features/memberships/services/membership.service";
 
 export async function downloadProgressPdf(data: ProgressPdfData): Promise<void> {
   const [{ pdf }, { ProgressPdfDocument }, React] = await Promise.all([
@@ -11,6 +12,7 @@ export async function downloadProgressPdf(data: ProgressPdfData): Promise<void> 
 
   const doc = React.createElement(ProgressPdfDocument, { data }) as any;
   const blob = await pdf(doc).toBlob();
+  await membershipService.consumeQuota("pdf.exports.total.limit");
 
   const safeName = (data.patientName || "Paciente")
     .replace(/\s+/g, "_")

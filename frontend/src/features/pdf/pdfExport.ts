@@ -7,7 +7,7 @@ import { membershipService } from "@/features/memberships/services/membership.se
  * Generates and downloads a Diet PDF on the client side.
  * Uses dynamic import to avoid SSR issues with @react-pdf/renderer.
  */
-export async function downloadDietPdf(data: DietPdfData): Promise<void> {
+export async function downloadDietPdf(data: DietPdfData, countQuota = true): Promise<void> {
     const [{ pdf }, { DietPdfDocument }, React] = await Promise.all([
         import("@react-pdf/renderer"),
         import("./DietPdfDocument"),
@@ -16,7 +16,9 @@ export async function downloadDietPdf(data: DietPdfData): Promise<void> {
 
     const doc = React.createElement(DietPdfDocument, { data }) as any;
     const blob = await pdf(doc).toBlob();
-    await membershipService.consumeQuota("pdf.monthly.limit");
+    if (countQuota) {
+      await membershipService.consumeQuota("pdf.exports.total.limit");
+    }
 
     const safeName = data.dietName.replace(/\s+/g, "_").replace(/[^\w-]/g, "") || "dieta_base";
     const url = URL.createObjectURL(blob);

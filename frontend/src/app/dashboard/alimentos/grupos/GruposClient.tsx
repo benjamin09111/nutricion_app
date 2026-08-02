@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -13,6 +13,7 @@ import {
   Plus,
   Search,
   Lock,
+  AlertCircle,
   Table2,
   UtensilsCrossed,
   Trash2,
@@ -238,7 +239,7 @@ export default function GruposClient({
 
   const getToken = useCallback(() => getAuthToken(), []);
   const isFreemium = String(currentPlan?.key || currentPlan?.slug || "").toLowerCase() === "free";
-  const freemiumGroupLimit = 2;
+  const freemiumGroupLimit = 1;
   const freemiumLimitReached = isFreemium && (freemiumGroupCount ?? groups.length) >= freemiumGroupLimit;
 
   const sourceTabToApiTab = useCallback((sourceTab: IngredientSourceTab) => {
@@ -881,7 +882,7 @@ export default function GruposClient({
       return;
     }
     if (freemiumLimitReached && !editingGroupId) {
-      toast.error("En FREEMIUM solo puedes crear 2 grupos. Elimina uno para crear otro.");
+      toast.error("En FREEMIUM solo puedes crear 1 grupo. Elimina uno para crear otro.");
       return;
     }
     const allIngredientIds = new Set([...Array.from(confirmedIngredientIds), ...Array.from(stagedIngredientIds)]);
@@ -1088,63 +1089,95 @@ export default function GruposClient({
       <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-3">
-            <div className="inline-flex rounded-2xl border border-slate-200/80 bg-slate-100/80 p-1">
-              {groupTabs.map(({ label, icon }) => (
-                <button
-                  key={label}
-                  type="button"
-                  onClick={() => {
-                    if (label === "Mis grupos") {
-                      setSelectedGroup(null);
-                      setMyGroupsTab("groups");
-                      setSelectedSourceGroup(null);
-                      setSelectedSourceIngredients([]);
-                      setActiveTab(label);
-                    } else {
-                      handleResetCreate();
-                      setActiveTab(label);
-                    }
-                  }}
-                  className={cn(
-                    "flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all",
-                    activeTab === label
-                      ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200/70"
-                      : "text-slate-500 hover:bg-white/70 hover:text-slate-700",
-                  )}
-                >
-                  {icon}
-                  {label}
-                </button>
-              ))}
+            <div className="grid grid-cols-2 sm:flex w-full sm:w-auto rounded-2xl border border-slate-200/80 bg-slate-100/80 p-1 gap-1">
+              {groupTabs.map(({ label, icon }) => {
+                const isCrearDisabled = label === "Crear grupo" && freemiumLimitReached && !editingGroupId;
+
+                const buttonEl = (
+                  <button
+                    key={label}
+                    type="button"
+                    disabled={isCrearDisabled}
+                    onClick={() => {
+                      if (isCrearDisabled) return;
+                      if (label === "Mis grupos") {
+                        setSelectedGroup(null);
+                        setMyGroupsTab("groups");
+                        setSelectedSourceGroup(null);
+                        setSelectedSourceIngredients([]);
+                        setActiveTab(label);
+                      } else {
+                        handleResetCreate();
+                        setActiveTab(label);
+                      }
+                    }}
+                    className={cn(
+                      "flex items-center justify-center gap-2 rounded-xl px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold transition-all whitespace-nowrap",
+                      activeTab === label
+                        ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200/70"
+                        : isCrearDisabled
+                        ? "cursor-not-allowed text-slate-400 opacity-80"
+                        : "text-slate-500 hover:bg-white/70 hover:text-slate-700",
+                    )}
+                  >
+                    {label === "Crear grupo" && isCrearDisabled ? (
+                      <AlertCircle size={16} className="text-amber-500 shrink-0" />
+                    ) : (
+                      icon
+                    )}
+                    {label}
+                  </button>
+                );
+
+                if (isCrearDisabled) {
+                  return (
+                    <div
+                      key={label}
+                      className="group relative flex-1 sm:flex-initial cursor-not-allowed whitespace-nowrap"
+                    >
+                      {buttonEl}
+                      <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col items-center pointer-events-none z-50 whitespace-nowrap animate-in fade-in zoom-in-95 duration-150">
+                        <div className="bg-slate-900 text-white text-[11px] font-semibold px-3 py-1.5 rounded-xl shadow-xl border border-slate-700 flex items-center gap-1.5">
+                          <AlertCircle size={14} className="text-amber-400 shrink-0" />
+                          <span>Ya cumpliste 1 grupo ya creado (Plan Freemium)</span>
+                        </div>
+                        <div className="w-2 h-2 bg-slate-900 rotate-45 -mt-1 border-r border-b border-slate-700" />
+                      </div>
+                    </div>
+                  );
+                }
+
+                return buttonEl;
+              })}
             </div>
 
             {isFreemium && (
               <div className="inline-flex items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2 text-xs font-semibold text-amber-800">
                 <Lock size={14} />
-                FREEMIUM: máximo 2 grupos
+                FREEMIUM: máximo 1 grupo
               </div>
             )}
           </div>
           <p className="max-w-3xl text-sm text-slate-500">
             {activeTab === "Mis grupos"
               ? "Explora tus grupos creados o revisa tus alimentos y los de la comunidad para agregarlos rápido a un grupo."
-              : "Selecciona ingredientes por categoría, busca por nombre y aplica filtros nutricionales antes de crear el grupo."}
+              : "Selecciona y ajusta ingredientes para armar tu grupo personalizado."}
           </p>
         </div>
 
-        <div className="shrink-0">{headerRight}</div>
+        {headerRight}
       </div>
 
-      {activeTab === "Crear grupo" && freemiumLimitReached && !editingGroupId && (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900">
-          Ya alcanzaste el límite de 2 grupos en FREEMIUM. Elimina uno para crear otro.
+      {freemiumLimitReached && activeTab === "Crear grupo" && (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs font-semibold text-rose-800">
+          Ya alcanzaste el límite de 1 grupo en FREEMIUM. Elimina uno para crear otro.
         </div>
       )}
 
       {activeTab === "Mis grupos" && (
         <div className="space-y-4">
             <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-100/80 p-1 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex flex-wrap gap-2">
+              <div className="grid grid-cols-1 sm:flex w-full sm:w-auto gap-1">
               {[
                 { key: "groups", label: "Mis grupos creados", icon: <Layers size={16} /> },
                 { key: "mine", label: "Mis alimentos creados", icon: <UtensilsCrossed size={16} /> },
@@ -1167,7 +1200,7 @@ export default function GruposClient({
                       void openPreviewSourceTab(tab.key as IngredientSourceTab);
                     }}
                     className={cn(
-                      "rounded-xl px-4 py-2 text-sm font-semibold transition-all",
+                      "flex items-center justify-center gap-2 rounded-xl px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold transition-all",
                       isSelected
                         ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200/70"
                         : "text-slate-500 hover:bg-white/70 hover:text-slate-700",
@@ -1838,6 +1871,7 @@ export default function GruposClient({
                     value={groupTags}
                     onChange={setGroupTags}
                     placeholder="Agrega etiquetas..."
+                    helperText="Presiona Enter para agregar la etiqueta o crearla si no existe."
                     className="rounded-xl border-slate-200 focus:border-indigo-500 focus:ring-indigo-500/20"
                   />
                 </div>

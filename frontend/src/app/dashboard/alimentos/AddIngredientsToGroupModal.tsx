@@ -8,7 +8,6 @@ import { Ingredient } from "@/features/foods";
 import { toast } from "sonner";
 import { Modal } from "@/components/ui/Modal";
 import { fetchApi } from "@/lib/api-base";
-import { getAuthToken } from "@/lib/auth-token";
 
 interface AddIngredientsToGroupModalProps {
   isOpen: boolean;
@@ -99,13 +98,6 @@ export default function AddIngredientsToGroupModal({
   const handleAdd = async () => {
     if (selectedIds.size === 0) return;
     setIsSubmitting(true);
-    const token = getAuthToken();
-    if (!token) {
-      toast.error("Sesión no válida");
-      setIsSubmitting(false);
-      return;
-    }
-
     try {
       const res = await fetchApi(
         `/ingredient-groups/${groupId}/ingredients`,
@@ -113,7 +105,6 @@ export default function AddIngredientsToGroupModal({
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({ ingredientIds: Array.from(selectedIds) }),
         },

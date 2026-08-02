@@ -32,6 +32,8 @@ export interface MembershipStatus {
     pdfUsed: number;
     aiUsed: number;
     calculatorUsed: number;
+    foodGroupsUsed?: number;
+    creationsUsed?: number;
   };
   billing?: {
     nextPaymentAt: string | null;
@@ -190,7 +192,7 @@ export const membershipService = {
 
   async consumeQuota(featureKey: string, amount = 1): Promise<{ usageCount: number | null; limit: number }> {
     const res = await api.post("/permissions/consume", { featureKey, amount });
-    return res.json();
+    return readJsonResponse<{ usageCount: number | null; limit: number }>(res);
   },
 
   // ─── Discount Codes (Admin) ────────────────────────────────────

@@ -14,25 +14,27 @@ import {
   CheckCircle2,
   X,
   Phone,
-  Link2,
   Lock,
   FileSpreadsheet,
   ShieldCheck,
+  Download,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Patient } from "@/features/patients";
+import { buildClinicalRecordDraft } from "@/features/patients/clinical-record";
 import { TagInput } from "@/components/ui/TagInput";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { toast } from "sonner";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
+import { UsageLimitBadge } from "@/components/shared/UsageLimitBadge";
 import { Pagination } from "@/components/ui/Pagination";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { TableLoadingRows } from "@/components/ui/TableLoadingRows";
 import { MobileCardLoadingList } from "@/components/ui/MobileCardLoadingList";
-import { getApiUrl } from "@/lib/api-base";
+import { fetchApi, getApiUrl } from "@/lib/api-base";
 import { formatDateOnlyForLocale } from "@/features/patients/utils/patient-helpers";
 import { usePatients } from "@/features/patients/hooks/usePatients";
 import { exportPatientsToExcel } from "@/features/pdf/patientsExcelExport";
@@ -40,6 +42,7 @@ import { useSubscription } from "@/context/SubscriptionContext";
 import { useScrollLock } from "@/hooks/useScrollLock";
 import { ShareFormModal } from "@/features/patients-intake/components/ShareFormModal";
 import { PrivacyInfoModal } from "@/features/patients/components/PrivacyInfoModal";
+import { buildClinicalRecordPdfData } from "@/features/patients/utils/clinical-record-export";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -71,8 +74,10 @@ export default function PatientsClient() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [patientToDelete, setPatientToDelete] = useState<Patient | null>(null);
   const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
-  const { limit } = useSubscription();
+  const { currentPlan, limit } = useSubscription();
 
+  const rawPatientLimit = currentPlan?.entitlements?.["patients.total.limit"] ?? currentPlan?.entitlements?.["patients.active.limit"];
+  const patientLimit = typeof rawPatientLimit === "number" ? rawPatientLimit : undefined;
   useScrollLock(isDeleteModalOpen);
 
   useEffect(() => {
@@ -94,6 +99,7 @@ export default function PatientsClient() {
       classificationTags,
       startDateFilter: "",
     });
+  const patientsUsed = meta.total;
 
   const handleTogglePatientStatus = async (patient: Patient) => {
     const newStatus = patient.status === "Active" ? "Inactive" : "Active";
@@ -135,11 +141,28 @@ export default function PatientsClient() {
     }
   };
 
+  const handleExportClinicalRecord = async (patient: Patient) => {
+    setIsExporting(true);
+    try {
+      const response = await fetchApi(`/patients/${patient.id}/clinical-record`);
+      const clinicalRecord = response.ok ? await response.json() : null;
+      const clinicalRecordDraft = buildClinicalRecordDraft(patient, clinicalRecord);
+      const { downloadClinicalRecordPdf } = await import("@/features/pdf/clinicalRecordPdfExport");
+      await downloadClinicalRecordPdf(buildClinicalRecordPdfData(patient, clinicalRecordDraft));
+      toast.success("Ficha clínica descargada");
+    } catch (error) {
+      console.error("Clinical Record PDF Error:", error);
+      toast.error("Error al generar la ficha clínica");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const filteredPatients = patients;
-  const activePatientLimit = limit("patients.active.limit");
+  const activePatientLimit = limit("patients.total.limit");
   const isPatientLimitReached =
     Number.isFinite(activePatientLimit) &&
-    meta.activeCount >= activePatientLimit;
+    meta.total >= activePatientLimit;
 
   const openPatientPreview = (patient: Patient) => {
     setPatientPreview(patient);
@@ -150,46 +173,53 @@ export default function PatientsClient() {
       title="Mis Pacientes"
       description="Gestiona a tus pacientes: puedes crear, ver su progreso a través del tiempo, crear un espacio de comunicación privado y mucho más."
       rightContent={
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <UsageLimitBadge
+            label="Pacientes"
+            usage={patientsUsed}
+            limit={patientLimit}
+          />
           <button
             type="button"
             onClick={() => setIsPrivacyModalOpen(true)}
             title="Protección y privacidad"
-            className="h-10 px-4 rounded-xl border border-indigo-200 text-indigo-600 hover:bg-indigo-50 font-medium transition-all flex items-center gap-2"
+            className="h-9 sm:h-10 px-3 sm:px-4 rounded-xl border border-indigo-200 text-indigo-600 hover:bg-indigo-50 font-medium transition-all flex items-center gap-1.5 sm:gap-2 shrink-0 cursor-pointer"
             aria-label="Ver información de protección y privacidad"
           >
             <ShieldCheck className="h-4 w-4 shrink-0" />
-            <span className="text-sm whitespace-nowrap">
-              Protección y privacidad
+            <span className="text-xs sm:text-sm whitespace-nowrap">
+              <span className="hidden sm:inline">Protección y privacidad</span>
+              <span className="sm:hidden">Privacidad</span>
             </span>
           </button>
           <Button
             variant="outline"
             disabled={isExporting || isLoading}
             onClick={handleExportPatientsExcel}
-            className="h-10 px-5 rounded-xl border-emerald-200 text-emerald-700 hover:bg-emerald-50 font-medium transition-all flex items-center gap-2"
+            className="h-9 sm:h-10 px-3 sm:px-5 rounded-xl border-emerald-200 text-emerald-700 hover:bg-emerald-50 font-medium transition-all flex items-center gap-1.5 sm:gap-2 shrink-0 cursor-pointer"
           >
             {isExporting ? (
-              <div className="h-4 w-4 border-2 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" />
+              <div className="h-4 w-4 border-2 border-emerald-200 border-t-emerald-600 rounded-full animate-spin shrink-0" />
             ) : (
-              <FileSpreadsheet className="h-4 w-4" />
+              <FileSpreadsheet className="h-4 w-4 shrink-0" />
             )}
-            <span className="text-sm whitespace-nowrap">Exportar Excel</span>
+            <span className="text-xs sm:text-sm whitespace-nowrap">
+              <span className="hidden sm:inline">Exportar Excel</span>
+              <span className="sm:hidden">Excel</span>
+            </span>
           </Button>
         </div>
       }
       className="pb-8"
     >
       <div className="space-y-4 mb-6">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-1 items-center gap-3 min-w-0">
-            <div className="pl-2 shrink-0">
-              <Search className="h-5 w-5 text-slate-400" />
-            </div>
+        <div className="grid grid-cols-1 items-center gap-3 lg:grid-cols-[minmax(0,1fr)_14rem_auto]">
+          <div className="relative min-w-0">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <Input
               type="search"
               placeholder="Buscar por nombre, rut o correo..."
-              className="h-10 text-sm border border-slate-200 bg-white focus-visible:border-indigo-500 placeholder:text-slate-400 font-medium"
+              className="h-10 border border-slate-200 bg-white pl-10 text-sm font-medium placeholder:text-slate-400 focus-visible:border-indigo-500"
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
@@ -198,8 +228,7 @@ export default function PatientsClient() {
             />
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-            <div className="w-full sm:w-[12rem] lg:w-[14rem]">
+          <div className="min-w-0">
               <div className="relative">
                 <TagInput
                   value={classificationTags}
@@ -212,6 +241,7 @@ export default function PatientsClient() {
                   className="h-10 rounded-xl bg-white border border-slate-200 text-sm"
                   singleSelect
                   tagsAbsolute
+                  helperText=""
                 />
                 {isLoading && (
                   <div className="absolute right-2 top-1/2 -translate-y-1/2">
@@ -219,43 +249,47 @@ export default function PatientsClient() {
                   </div>
                 )}
               </div>
-            </div>
-
-            <Button
-              variant="outline"
-              disabled
-              onClick={() => setIsShareModalOpen(true)}
-              className="h-10 px-5 rounded-xl border-indigo-200 text-indigo-400 bg-slate-50 font-medium transition-all gap-2 cursor-not-allowed"
-            >
-              <Lock className="h-4 w-4" />
-              <span className="text-sm whitespace-nowrap">Compartir formulario</span>
-            </Button>
-
-            <Button
-              onClick={() => {
-                if (isPatientLimitReached) {
-                  toast.error(
-                    "Has alcanzado el límite de pacientes activos de tu plan.",
-                  );
-                  return;
-                }
-                router.push("/dashboard/pacientes/new");
-              }}
-              disabled={isPatientLimitReached}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium h-10 px-6 rounded-xl shadow-sm transition-all gap-2"
-            >
-              <Plus
-                className="h-4 w-4 group-hover:rotate-90 transition-transform"
-                aria-hidden="true"
-              />
-              <span className="text-sm">
-                {isPatientLimitReached ? "Límite alcanzado" : "Crear paciente"}
-              </span>
-            </Button>
           </div>
+
+            <div className="flex w-full items-center gap-2 lg:w-auto lg:justify-end">
+              <Button
+                variant="outline"
+                disabled
+                onClick={() => setIsShareModalOpen(true)}
+                className="h-10 px-3 sm:px-5 flex-1 sm:flex-initial justify-center rounded-xl border-indigo-200 text-indigo-400 bg-slate-50 font-medium transition-all gap-1.5 sm:gap-2 cursor-not-allowed"
+              >
+                <Lock className="h-4 w-4 shrink-0" />
+                <span className="text-xs sm:text-sm whitespace-nowrap">
+                  <span className="hidden sm:inline">Compartir formulario</span>
+                  <span className="sm:hidden">Compartir</span>
+                </span>
+              </Button>
+
+              <Button
+                onClick={() => {
+                  if (isPatientLimitReached) {
+                    toast.error(
+                      "Has alcanzado el límite de pacientes activos de tu plan.",
+                    );
+                    return;
+                  }
+                  router.push("/dashboard/pacientes/new");
+                }}
+                disabled={isPatientLimitReached}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium h-10 px-4 sm:px-6 flex-1 sm:flex-initial justify-center rounded-xl shadow-sm transition-all gap-1.5 sm:gap-2"
+              >
+                <Plus
+                  className="h-4 w-4 shrink-0"
+                  aria-hidden="true"
+                />
+                <span className="text-xs sm:text-sm whitespace-nowrap">
+                  {isPatientLimitReached ? "Límite alcanzado" : "Crear paciente"}
+                </span>
+              </Button>
+            </div>
         </div>
 
-        <div className="flex items-center justify-between gap-4 px-1 py-2 sm:px-3">
+         <div className="flex flex-col items-start justify-between gap-3 px-1 py-2 sm:flex-row sm:items-center sm:gap-4 sm:px-3">
           <p className="text-xs font-medium text-slate-500 flex items-center gap-1.5 min-w-0 flex-wrap">
             <User className="h-4 w-4 shrink-0 text-slate-400" />
             <span>
@@ -445,6 +479,14 @@ export default function PatientsClient() {
                               <Eye className="w-4.5 h-4.5" />
                             </button>
                             <button
+                              onClick={() => handleExportClinicalRecord(patient)}
+                              className="group relative p-2.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
+                              title="Descargar ficha clínica PDF"
+                              disabled={isExporting}
+                            >
+                              <Download className="w-4.5 h-4.5" />
+                            </button>
+                            <button
                               onClick={() => handleTogglePatientStatus(patient)}
                               className="group relative p-2.5 text-slate-400 hover:bg-slate-100 rounded-xl transition-all"
                               title={patient.status === "Active" ? "Inhabilitar paciente" : "Habilitar paciente"}
@@ -565,7 +607,7 @@ export default function PatientsClient() {
                     )}
                   </div>
 
-                  <div className="flex items-center justify-between pt-4 border-t border-slate-50">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-slate-100">
                     <div className="text-xs font-semibold text-slate-400">
                       ID:{" "}
                       <span className="text-slate-600 ml-1">
@@ -573,48 +615,58 @@ export default function PatientsClient() {
                       </span>
                     </div>
                     <div
-                      className="flex items-center gap-2"
+                      className="flex items-center justify-between sm:justify-end gap-1.5"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <button
-                        onClick={() => openPatientPreview(patient)}
-                        className="p-2 text-slate-400 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 rounded-lg"
-                        title="Ver"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleTogglePatientStatus(patient)}
-                        className="p-2 bg-slate-50 rounded-lg"
-                        title={
-                          patient.status === "Active"
-                            ? "Inhabilitar"
-                            : "Habilitar"
-                        }
-                      >
-                        {patient.status === "Active" ? (
-                          <Ban className="w-4 h-4 text-emerald-600" />
-                        ) : (
-                          <CheckCircle2 className="w-4 h-4 text-indigo-600" />
-                        )}
-                      </button>
-                      <button
-                        onClick={() => {
-                          setPatientToDelete(patient);
-                          setIsDeleteModalOpen(true);
-                        }}
-                        className="p-2 text-slate-400 hover:text-rose-600 bg-slate-50 hover:bg-rose-50 rounded-lg"
-                        title="Eliminar paciente"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => openPatientPreview(patient)}
+                          className="p-2 text-slate-400 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 rounded-xl transition-all"
+                          title="Ver detalles"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleExportClinicalRecord(patient)}
+                          className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 bg-slate-50 rounded-xl transition-all"
+                          title="Descargar ficha clínica PDF"
+                          disabled={isExporting}
+                        >
+                          <Download className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleTogglePatientStatus(patient)}
+                          className="p-2 text-slate-400 hover:bg-slate-100 bg-slate-50 rounded-xl transition-all"
+                          title={
+                            patient.status === "Active"
+                              ? "Inhabilitar"
+                              : "Habilitar"
+                          }
+                        >
+                          {patient.status === "Active" ? (
+                            <Ban className="w-4 h-4 text-emerald-600" />
+                          ) : (
+                            <CheckCircle2 className="w-4 h-4 text-indigo-600" />
+                          )}
+                        </button>
+                        <button
+                          onClick={() => {
+                            setPatientToDelete(patient);
+                            setIsDeleteModalOpen(true);
+                          }}
+                          className="p-2 text-slate-400 hover:text-rose-600 bg-slate-50 hover:bg-rose-50 rounded-xl transition-all"
+                          title="Eliminar paciente"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                       <button
                         onClick={() =>
                           router.push(`/dashboard/pacientes/${patient.id}`)
                         }
-                        className="p-2 text-indigo-600 bg-indigo-50 rounded-lg ml-1 font-bold text-[10px] px-3 flex items-center gap-1 shadow-sm border border-indigo-100"
+                        className="py-2 px-3 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-xl font-bold text-xs flex items-center gap-1 shadow-sm border border-indigo-100 cursor-pointer"
                       >
-                        VER FICHA <ArrowRight className="w-3 h-3" />
+                        VER FICHA <ArrowRight className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
@@ -644,7 +696,7 @@ export default function PatientsClient() {
 
       {patientPreview && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-2xl rounded-3xl border border-slate-200 bg-white shadow-2xl">
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl border border-slate-200 bg-white shadow-2xl">
             <div className="flex items-start justify-between gap-4 border-b border-slate-100 p-6">
               <div className="flex items-center gap-4">
                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-indigo-100 bg-indigo-50 text-lg font-bold text-indigo-600">

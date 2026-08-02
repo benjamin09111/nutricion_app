@@ -46,7 +46,7 @@ function PlanUsageRing({ percent, limits, usage }: { percent: number; limits: Da
   const offset = circumference - (percent / 100) * circumference;
 
   return (
-    <div className="flex items-center gap-6">
+    <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6">
       <div className="relative flex-shrink-0">
         <svg width="112" height="112" viewBox="0 0 112 112">
           <circle
@@ -81,7 +81,7 @@ function PlanUsageRing({ percent, limits, usage }: { percent: number; limits: Da
           <span className="text-2xl font-bold text-slate-800">{percent}%</span>
         </div>
       </div>
-      <div className="space-y-2 text-xs text-slate-500">
+      <div className="w-full space-y-2 text-xs text-slate-500">
         <div className="flex items-center justify-between gap-4">
           <span>Pacientes</span>
           <span className="font-semibold text-slate-700">
@@ -170,11 +170,11 @@ export default function DashboardHomeClient() {
 
   return (
     <>
-      <div className="mx-auto max-w-7xl space-y-8 px-4 pb-8 sm:px-6">
+      <div className="w-full space-y-6 sm:space-y-8 pb-8">
         {/* Row 1: Welcome + Plan Usage */}
         <div
           className={cn(
-            "grid grid-cols-1 gap-6 pt-4",
+            "grid grid-cols-1 gap-4 sm:gap-6 pt-2 sm:pt-4",
             planUsage.isFree && "lg:grid-cols-2",
           )}
         >
@@ -183,18 +183,18 @@ export default function DashboardHomeClient() {
             <div className="inline-flex w-fit items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50/50 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-indigo-600">
               Panel de Control
             </div>
-            <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
+            <h1 className="mt-3 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl md:text-4xl">
               Centro de Trabajo Clínico
             </h1>
-            <p className="mt-2 max-w-xl text-base text-slate-500">
+            <p className="mt-2 max-w-xl text-sm sm:text-base text-slate-500">
               Gestiona tus pacientes, citas y proyectos nutricionales desde un solo lugar con eficiencia y profesionalismo.
             </p>
           </header>
 
           {/* Col 2: Plan Usage - only for FREE plan */}
           {planUsage.isFree && (
-            <Card className="overflow-hidden rounded-[2rem] border-slate-200 bg-white shadow-sm">
-              <CardContent className="p-6">
+            <Card className="overflow-hidden rounded-2xl border-slate-200 bg-white shadow-sm">
+              <CardContent className="p-5 sm:p-6">
                 <div className="mb-4 flex items-center gap-2">
                   <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-amber-600">
                     Plan Gratuito
@@ -207,13 +207,13 @@ export default function DashboardHomeClient() {
         </div>
 
         {/* Row 2: Stats Cards */}
-        <section className="grid grid-cols-1 gap-6 md:grid-cols-3">
+        <section className="grid grid-cols-1 gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {/* Patients Card */}
           <Card
-            className="group cursor-pointer overflow-hidden rounded-[2rem] border-slate-200 bg-white shadow-sm transition-all hover:shadow-md"
+            className="group cursor-pointer overflow-hidden rounded-2xl border-slate-200 bg-white shadow-sm transition-all hover:shadow-md"
             onClick={() => router.push("/dashboard/pacientes")}
           >
-            <CardContent className="p-8">
+            <CardContent className="p-5 sm:p-6 lg:p-8">
               <div className="flex items-start justify-between">
                 <div className="space-y-4">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 transition-colors group-hover:bg-indigo-600 group-hover:text-white">
@@ -221,7 +221,7 @@ export default function DashboardHomeClient() {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-slate-500">Pacientes totales</p>
-                    <h3 className="mt-1 text-4xl font-semibold text-slate-900">{patients.total}</h3>
+                    <h3 className="mt-1 text-3xl sm:text-4xl font-semibold text-slate-900">{patients.total}</h3>
                     <div className="mt-3 flex items-center gap-4 text-xs">
                       <span className="inline-flex items-center gap-1.5 font-medium text-emerald-600">
                         <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
@@ -241,10 +241,10 @@ export default function DashboardHomeClient() {
 
           {/* Consultations Card */}
           <Card
-            className="group cursor-pointer overflow-hidden rounded-[2rem] border-slate-200 bg-white shadow-sm transition-all hover:shadow-md"
+            className="group cursor-pointer overflow-hidden rounded-2xl border-slate-200 bg-white shadow-sm transition-all hover:shadow-md"
             onClick={() => router.push("/dashboard/consultas")}
           >
-            <CardContent className="p-8">
+            <CardContent className="p-5 sm:p-6 lg:p-8">
               <div className="flex items-start justify-between">
                 <div className="space-y-4">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 transition-colors group-hover:bg-emerald-600 group-hover:text-white">
@@ -252,7 +252,7 @@ export default function DashboardHomeClient() {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-slate-500">Consultas totales</p>
-                    <h3 className="mt-1 text-4xl font-semibold text-slate-900">{consultations.total}</h3>
+                    <h3 className="mt-1 text-3xl sm:text-4xl font-semibold text-slate-900">{consultations.total}</h3>
                     <p className="mt-2 text-xs font-medium text-slate-400">hasta la fecha</p>
                   </div>
                 </div>
@@ -262,8 +262,8 @@ export default function DashboardHomeClient() {
           </Card>
 
           {/* PDFs Card */}
-          <Card className="group overflow-hidden rounded-[2rem] border-slate-200 bg-white shadow-sm transition-all hover:shadow-md">
-            <CardContent className="p-8">
+          <Card className="group overflow-hidden rounded-2xl border-slate-200 bg-white shadow-sm transition-all hover:shadow-md sm:col-span-2 lg:col-span-1">
+            <CardContent className="p-5 sm:p-6 lg:p-8">
               <div className="flex items-start justify-between">
                 <div className="space-y-4">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-50 text-violet-600 transition-colors group-hover:bg-violet-600 group-hover:text-white">
@@ -271,7 +271,7 @@ export default function DashboardHomeClient() {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-slate-500">PDFs creados</p>
-                    <h3 className="mt-1 text-4xl font-semibold text-slate-900">
+                    <h3 className="mt-1 text-3xl sm:text-4xl font-semibold text-slate-900">
                       {pdfs.rapido + pdfs.pautas + pdfs.dietas + pdfs.recetas}
                     </h3>
                     <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
@@ -300,7 +300,7 @@ export default function DashboardHomeClient() {
         </section>
 
         {/* Row 3: Recent Sections */}
-        <section className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <section className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
           {/* Recent Creations */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -315,7 +315,7 @@ export default function DashboardHomeClient() {
             </div>
 
             {recentCreations.length === 0 ? (
-              <div className="rounded-[2rem] border border-dashed border-slate-200 bg-slate-50/50 p-8 text-center">
+              <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-6 sm:p-8 text-center">
                 <FileText className="mx-auto h-6 w-6 text-slate-300" />
                 <p className="mt-2 text-sm font-medium text-slate-400">Sin creaciones</p>
                 <Button
@@ -331,11 +331,11 @@ export default function DashboardHomeClient() {
                 {recentCreations.map((creation) => (
                   <div
                     key={creation.id}
-                    className="flex items-center justify-between rounded-2xl border border-slate-100 bg-white p-4 shadow-sm transition-all hover:border-indigo-100 hover:shadow-md cursor-pointer"
+                    className="flex items-center justify-between rounded-2xl border border-slate-100 bg-white p-3.5 sm:p-4 shadow-sm transition-all hover:border-indigo-100 hover:shadow-md cursor-pointer"
                     onClick={() => router.push("/dashboard/creaciones")}
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
                         <FileText className="h-4 w-4" />
                       </div>
                       <div className="min-w-0">
@@ -366,7 +366,7 @@ export default function DashboardHomeClient() {
             </div>
 
             {recentPatients.length === 0 ? (
-              <div className="rounded-[2rem] border border-dashed border-slate-200 bg-slate-50/50 p-8 text-center">
+              <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-6 sm:p-8 text-center">
                 <Users className="mx-auto h-6 w-6 text-slate-300" />
                 <p className="mt-2 text-sm font-medium text-slate-400">Sin pacientes</p>
                 <Button
@@ -382,7 +382,7 @@ export default function DashboardHomeClient() {
                 {recentPatients.map((patient) => (
                   <div
                     key={patient.id}
-                    className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm transition-all hover:border-indigo-100 hover:shadow-md cursor-pointer"
+                    className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-white p-3.5 sm:p-4 shadow-sm transition-all hover:border-indigo-100 hover:shadow-md cursor-pointer"
                     onClick={() => router.push(`/dashboard/pacientes/${patient.id}`)}
                   >
                     <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
@@ -399,7 +399,7 @@ export default function DashboardHomeClient() {
           </div>
 
           {/* Recent Consultations */}
-          <div className="space-y-4">
+          <div className="space-y-4 md:col-span-2 lg:col-span-1">
             <div className="flex items-center justify-between">
               <h2 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Consultas recientes</h2>
               <Button
@@ -412,7 +412,7 @@ export default function DashboardHomeClient() {
             </div>
 
             {recentConsultations.length === 0 ? (
-              <div className="rounded-[2rem] border border-dashed border-slate-200 bg-slate-50/50 p-8 text-center">
+              <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-6 sm:p-8 text-center">
                 <Stethoscope className="mx-auto h-6 w-6 text-slate-300" />
                 <p className="mt-2 text-sm font-medium text-slate-400">Sin consultas</p>
                 <Button
@@ -428,7 +428,7 @@ export default function DashboardHomeClient() {
                 {recentConsultations.map((consultation) => (
                   <div
                     key={consultation.id}
-                    className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm transition-all hover:border-emerald-100 hover:shadow-md cursor-pointer"
+                    className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-white p-3.5 sm:p-4 shadow-sm transition-all hover:border-emerald-100 hover:shadow-md cursor-pointer"
                     onClick={() => router.push(`/dashboard/consultas/${consultation.id}`)}
                   >
                     <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
@@ -447,7 +447,6 @@ export default function DashboardHomeClient() {
           </div>
         </section>
       </div>
-
     </>
   );
 }

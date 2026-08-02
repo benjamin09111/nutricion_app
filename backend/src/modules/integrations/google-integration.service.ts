@@ -85,16 +85,12 @@ export class GoogleIntegrationService {
   }
 
   private getAppSecret() {
-    const secret =
-      this.configService.get<string>('OAUTH_STATE_SECRET') ||
-      this.configService.get<string>('JWT_SECRET');
-
+    const secret = this.configService.get<string>('OAUTH_STATE_SECRET');
     if (!secret) {
       throw new BadRequestException(
-        'Configuración de seguridad incompleta en el servidor (OAUTH_STATE_SECRET / JWT_SECRET no configurado)',
+        'Configuración de seguridad incompleta en el servidor (OAUTH_STATE_SECRET no configurado)',
       );
     }
-
     return secret;
   }
 

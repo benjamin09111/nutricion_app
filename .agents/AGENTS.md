@@ -12,3 +12,4 @@
 - **Minimal Changes:** Always make surgical, minimal modifications. Do not over-engineer.
 - **Safety Boundaries:** Keep strict validations, security checks, error boundaries, and accessibility. Do not skip essential safety.
 - **Preserve User Edits (Immutable):** Never remove, overwrite, or erase custom classes (e.g. `mt-18`), layout tweaks, or manual code additions made by the user. Always respect and retain user edits strictly.
+- **Database Workflow (Immutable):** Before any Prisma or database task, read `../backend/DATABASES.md` and the root `AGENTS.md` database rules. Development uses only `_DEV` URLs; production uses standard URLs. Schema changes require one committed migration history shared by both environments.

@@ -33,7 +33,7 @@ import { Modal } from "@/components/ui/Modal";
 import { SaveCreationModal } from "@/components/ui/SaveCreationModal";
 import { ImportCreationModal } from "@/components/shared/ImportCreationModal";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
-import { NatyLoadingOverlay, NatyButton, PlanWizardShell, PromptPreviewButton } from "@/components/plans";
+import { NatyLoadingOverlay, NatyButton, PlanWizardShell } from "@/components/plans";
 import { ActionDockItem } from "@/components/ui/ActionDock";
 import { fetchApi, getApiUrl } from "@/lib/api-base";
 import { fetchCreation, saveCreation } from "@/lib/workflow";
@@ -1506,14 +1506,7 @@ export default function QuickRecipesClient() {
         description="Genera recetas rápidas reutilizando contexto clínico, restricciones y preferencias."
         step={{ number: "Express", label: "Receta rápida", icon: ChefHat, color: "text-amber-600" }}
         rightNavItems={actionItems}
-        rightContent={
-          <PromptPreviewButton
-            moduleName="Recetas"
-            endpoint="/recipes/quick-ai-fill"
-            buildPayload={buildRecipesPromptPayload}
-            expectedOutput="JSON con un arreglo dishes, incluyendo título, sección, descripción, preparación, porción, macros e ingredientes."
-          />
-        }
+        rightNavDesktopBreakpoint="lg"
         className="max-w-[68rem]"
       >
         <PlanWizardShell

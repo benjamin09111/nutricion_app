@@ -19,7 +19,7 @@ export function FormStepCard({
   return (
     <div
       className={cn(
-        "bg-white border border-slate-200 rounded-xl p-5 max-w-2xl",
+        "bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 w-full max-w-full",
         className
       )}
     >
