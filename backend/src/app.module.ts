@@ -17,7 +17,6 @@ import { IngredientGroupsModule } from './modules/ingredient-groups/ingredient-g
 import { RecipesModule } from './modules/recipes/recipes.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { CacheModule } from '@nestjs/cache-manager';
-import { redisStore } from 'cache-manager-redis-yet';
 import { HttpLoggerMiddleware } from './common/middleware/http-logger.middleware';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { CreationsModule } from './modules/creations/creations.module';
@@ -59,38 +58,9 @@ import { CopilotModule } from './modules/copilot/copilot.module';
     IngredientGroupsModule,
     RecipesModule,
     ScheduleModule.forRoot(),
-    CacheModule.registerAsync({
+    CacheModule.register({
       isGlobal: true,
-      useFactory: async () => {
-        const redisUrl = process.env.REDIS_URL;
-        if (redisUrl) {
-          try {
-            return {
-              store: await redisStore({ url: redisUrl }),
-              ttl: 300_000, // cache-manager-redis-yet uses milliseconds
-            };
-          } catch (error) {
-            if (process.env.NODE_ENV === 'production') {
-              throw new Error(
-                `REDIS_URL is configured but unavailable: ${
-                  error instanceof Error ? error.message : String(error)
-                }`,
-              );
-            }
-            console.warn(
-              '[Cache] Redis unavailable, falling back to in-memory cache:',
-              error instanceof Error ? error.message : error,
-            );
-          }
-        }
-        if (process.env.NODE_ENV === 'production') {
-          throw new Error(
-            'REDIS_URL is required in production for secure shared sessions',
-          );
-        }
-        // Fallback to in-memory store when Redis is not configured
-        return { ttl: 300 };
-      },
+      ttl: 300,
     }),
     DashboardModule,
     CreationsModule,
