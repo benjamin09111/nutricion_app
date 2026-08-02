@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/Input";
 import { toast } from "sonner";
 import { Modal } from "@/components/ui/Modal";
 import { fetchApi } from "@/lib/api-base";
-import { getAuthToken } from "@/lib/auth-token";
 
 interface RecipeSummary {
   id: string;
@@ -99,19 +98,11 @@ export default function AddRecipesToGroupModal({
   const handleAdd = async () => {
     if (selectedIds.size === 0) return;
     setIsSubmitting(true);
-    const token = getAuthToken();
-    if (!token) {
-      toast.error("Sesión no válida");
-      setIsSubmitting(false);
-      return;
-    }
-
     try {
       const res = await fetchApi(`/ingredient-groups/${groupId}/ingredients`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ recipeIds: Array.from(selectedIds) }),
       });

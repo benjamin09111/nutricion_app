@@ -1,6 +1,7 @@
 import { createHash } from 'crypto';
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -114,11 +115,18 @@ export class CreationsService {
       );
     }
 
+    if (type === 'SCREENING_TEST') {
+      await this.permissionsService.ensureAccess(
+        accountId,
+        PLAN_ENTITLEMENT_KEYS.SCREENING_TESTS_ACCESS,
+      );
+    }
+
     const creationLimit = await this.permissionsService.getFeatureLimit(
       accountId,
       PLAN_ENTITLEMENT_KEYS.CREATIONS_SAVE_LIMIT,
     );
-    if (creationLimit !== Infinity) {
+    if (type !== 'SCREENING_TEST' && creationLimit !== Infinity) {
       const creationsCount = await this.prisma.creation.count({
         where: { nutritionistId: resolvedNutritionistId },
       });
@@ -211,6 +219,17 @@ export class CreationsService {
       };
     }
 
+    if (type === 'SCREENING_TEST') {
+      const savedTests = await this.prisma.creation.count({
+        where: { nutritionistId: resolvedNutritionistId, type: 'SCREENING_TEST' },
+      });
+      await this.permissionsService.ensureWithinLimit(
+        accountId,
+        PLAN_ENTITLEMENT_KEYS.SCREENING_TESTS_SAVED_LIMIT,
+        savedTests,
+      );
+    }
+
     try {
       const creation = await this.prisma.creation.create({
         data: {
@@ -262,7 +281,28 @@ export class CreationsService {
     return creation;
   }
 
-  async delete(id: string, nutritionistId: string) {
+  async delete(id: string, nutritionistId: string, accountId: string) {
+    const creation = await this.prisma.creation.findFirst({
+      where: { id, nutritionistId },
+      select: { id: true, type: true },
+    });
+
+    if (!creation) {
+      throw new NotFoundException('La creación solicitada no existe o no tienes permiso para eliminarla.');
+    }
+
+    if (creation.type === 'SCREENING_TEST') {
+      const canDeleteTests = await this.permissionsService.checkFeatureAccess(
+        accountId,
+        PLAN_ENTITLEMENT_KEYS.SCREENING_TESTS_DELETE_ACCESS,
+      );
+      if (!canDeleteTests) {
+        throw new ForbiddenException(
+          'Los tests guardados no se pueden eliminar en el plan Freemium.',
+        );
+      }
+    }
+
     const result = await this.prisma.creation.deleteMany({
       where: { id, nutritionistId },
     });

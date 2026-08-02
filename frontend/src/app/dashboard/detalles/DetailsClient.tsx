@@ -28,7 +28,6 @@ import { Navbar_B } from "@/components/ui/Navbar_B";
 import { Modal } from "@/components/ui/Modal";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { toast } from "sonner";
-import Cookies from "js-cookie";
 import { cn } from "@/lib/utils";
 import { fetchApi } from "@/lib/api-base";
 import { getCurrentUser } from "@/lib/current-user";
@@ -84,13 +83,7 @@ export default function DetailsClient() {
   const fetchTags = async (retries = 3) => {
     setIsLoading(true);
     try {
-      const token =
-        Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const response = await fetchApi("/tags", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await fetchApi("/tags");
 
       if (response.ok) {
         const data = await response.json();
@@ -115,13 +108,7 @@ export default function DetailsClient() {
   const fetchMetrics = async () => {
     setMetricsLoading(true);
     try {
-      const token =
-        Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const response = await fetchApi("/metrics", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await fetchApi("/metrics");
 
       if (response.ok) {
         const data = await response.json();
@@ -287,12 +274,9 @@ export default function DetailsClient() {
     }
 
     try {
-      const token =
-        Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const response = await fetchApi("/tags", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
          body: JSON.stringify({
@@ -332,15 +316,10 @@ export default function DetailsClient() {
     const tagName = tagToDelete;
 
     try {
-      const token =
-        Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const backendTag = serverTags.find((t: any) => t.name === tagName);
       if (backendTag && backendTag.id) {
         const delReq = await fetchApi(`/tags/${backendTag.id}`, {
           method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
         });
         if (delReq.ok) {
           toast.success("Restricción eliminada");
@@ -369,12 +348,9 @@ export default function DetailsClient() {
     }
 
     try {
-      const token =
-        Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const response = await fetchApi("/metrics", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify(newMetric),
@@ -404,13 +380,8 @@ export default function DetailsClient() {
     if (!metricToDelete) return;
 
     try {
-      const token =
-        Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const response = await fetchApi(`/metrics/${metricToDelete.id}`, {
         method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
       });
 
       if (response.ok) {
@@ -487,7 +458,11 @@ export default function DetailsClient() {
                   }
                 }}
               >
-                <Plus className="w-4 h-4 mr-2" />
+                {!can("clinical_restrictions.create.access") ? (
+                  <Lock className="w-4 h-4 mr-2 text-amber-500" />
+                ) : (
+                  <Plus className="w-4 h-4 mr-2" />
+                )}
                 Nueva Restricción
               </Button>
             </div>
@@ -582,11 +557,26 @@ export default function DetailsClient() {
                   variant="outline"
                   className="rounded-2xl font-semibold border-indigo-100 text-indigo-600 hover:bg-indigo-50 w-full sm:w-auto shrink-0 justify-center"
                   onClick={() => {
-                    setNewTag("#");
-                    setIsAddModalOpen(true);
+                    if (!can("tags.create.access")) {
+                      window.dispatchEvent(
+                        new CustomEvent("show-freemium-upgrade", {
+                          detail: {
+                            description:
+                              "Crear nuevas etiquetas/hashtags es una característica exclusiva de los planes de pago. En el plan Freemium puedes usar los tags disponibles.",
+                          },
+                        })
+                      );
+                    } else {
+                      setNewTag("#");
+                      setIsAddModalOpen(true);
+                    }
                   }}
                 >
-                  <Plus className="w-4 h-4 mr-2" />
+                  {!can("tags.create.access") ? (
+                    <Lock className="w-4 h-4 mr-2 text-amber-500" />
+                  ) : (
+                    <Plus className="w-4 h-4 mr-2" />
+                  )}
                   Nuevo Tag
                 </Button>
               </div>
@@ -671,7 +661,11 @@ export default function DetailsClient() {
                 }
               }}
             >
-              <Plus className="w-4 h-4 mr-2" />
+              {!can("metrics.create.access") ? (
+                <Lock className="w-4 h-4 mr-2 text-amber-500" />
+              ) : (
+                <Plus className="w-4 h-4 mr-2" />
+              )}
               Nueva Métrica
             </Button>
           </div>

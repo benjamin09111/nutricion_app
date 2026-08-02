@@ -9,7 +9,6 @@ import { toast } from "sonner";
 import { TagInput } from "@/components/ui/TagInput";
 import { Ingredient } from "@/features/foods";
 import { fetchApi, getApiUrl } from "@/lib/api-base";
-import { getAuthToken } from "@/lib/auth-token";
 
 const ingredientSchema = z.object({
   name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
@@ -157,15 +156,10 @@ export default function CreateIngredientForm({
 
     setIsSubmitting(true);
     try {
-      const token = getAuthToken();
-      if (!token) {
-        throw new Error("Sesión no válida");
-      }
       const response = await fetchApi("/foods", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           ...data,

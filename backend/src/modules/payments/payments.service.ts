@@ -325,6 +325,8 @@ export class PaymentsService {
        pdfUsage,
       aiUsage,
       calculatorUsage,
+      totalFoodGroups,
+      totalCreations,
       pendingTransferCount,
     ] = await Promise.all([
        this.prisma.patient.count({
@@ -345,6 +347,12 @@ export class PaymentsService {
        this.planUsageService.getUsage(accountId, 'pdf.exports.total.limit'),
       this.planUsageService.getUsage(accountId, 'ai.calls.limit'),
       this.planUsageService.getUsage(accountId, 'clinical_calculator.limit'),
+      this.prisma.ingredientGroup.count({
+        where: { nutritionist: { accountId } },
+      }),
+      this.prisma.creation.count({
+        where: { nutritionist: { accountId } },
+      }),
       this.prisma.payment.count({
         where: {
           accountId,
@@ -396,6 +404,8 @@ export class PaymentsService {
         pdfUsed: pdfUsage,
         aiUsed: aiUsage,
         calculatorUsed: calculatorUsage,
+        foodGroupsUsed: totalFoodGroups,
+        creationsUsed: totalCreations,
       },
       billing: {
         nextPaymentAt,

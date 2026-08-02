@@ -48,7 +48,28 @@ WHERE NOT EXISTS (
     const safeCategoryName = escapeSql(row.categoryName);
     const safeUnit = escapeSql(row.unit);
 
-    parts.push(`INSERT INTO "ingredients" (
+    parts.push(`UPDATE "ingredients" i
+SET
+  "price" = ${row.price},
+  "unit" = '${safeUnit}',
+  "amount" = ${row.amount},
+  "calories" = ${row.calories},
+  "proteins" = ${row.proteins},
+  "lipids" = ${row.lipids},
+  "carbs" = ${row.carbs},
+  "sugars" = ${row.sugars},
+  "fiber" = ${row.fiber},
+  "sodium" = ${row.sodium},
+  "is_public" = TRUE,
+  "verified" = TRUE,
+  "category_id" = c."id",
+  "updated_at" = CURRENT_TIMESTAMP
+FROM "ingredient_categories" c
+WHERE lower(i."name") = lower('${safeName}')
+  AND i."brand_id" IS NULL
+  AND lower(c."name") = lower('${safeCategoryName}');
+
+INSERT INTO "ingredients" (
   "id",
   "name",
   "price",
@@ -64,8 +85,8 @@ WHERE NOT EXISTS (
   "is_public",
   "verified",
   "category_id",
-  "createdAt",
-  "updatedAt"
+  "created_at",
+  "updated_at"
 )
 SELECT
   gen_random_uuid()::text,

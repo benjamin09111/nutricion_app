@@ -9,7 +9,6 @@ import { DEFAULT_CONSTRAINTS } from "@/lib/constants";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { fetchApi } from "@/lib/api-base";
 import { useTheme } from "@/context/ThemeContext";
-import { getAuthToken } from "@/lib/auth-token";
 interface TagInputProps {
   value: string[];
   onChange: (tags: string[]) => void;
@@ -51,20 +50,12 @@ export function TagInput({
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [tagToDelete, setTagToDelete] = useState<string | null>(null);
 
-  const token = typeof window !== "undefined" ? getAuthToken() : "";
-
   useEffect(() => {
     let isMounted = true;
     const controller = new AbortController();
 
     const fetchTags = async () => {
       if (!fetchSuggestionsUrl) {
-        setFetchedSuggestions([]);
-        return;
-      }
-
-      // Avoid noisy network errors while auth/session is still bootstrapping
-      if (!token) {
         setFetchedSuggestions([]);
         return;
       }
@@ -78,7 +69,7 @@ export function TagInput({
 
         const response = await fetch(url, {
           signal: controller.signal,
-          headers: { Authorization: `Bearer ${token}` },
+          credentials: "include",
         });
         if (response.ok) {
           const data = await response.json();
@@ -114,7 +105,7 @@ export function TagInput({
       controller.abort();
       clearTimeout(timer);
     };
-  }, [inputValue, fetchSuggestionsUrl, token]);
+  }, [inputValue, fetchSuggestionsUrl]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
@@ -156,7 +147,6 @@ export function TagInput({
     try {
       const response = await fetchApi(`/tags/${encodeURIComponent(tagName)}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
         // Remove from current selection if present

@@ -18,6 +18,7 @@ import {
   Lock,
 } from "lucide-react";
 import { Input } from "@/components/ui/Input";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { FormStepCard } from "@/components/patient-form/FormStepCard";
 import { CollapsibleSection } from "@/components/patient-form/CollapsibleSection";
 import { CalculatedMetricsPanel } from "@/components/patient-form/CalculatedMetricsPanel";
@@ -141,7 +142,7 @@ function FieldLabel({
 
 function ReadOnlyField({ value, placeholder }: { value?: string | number | null; placeholder?: string }) {
   return (
-    <div className="h-10 flex items-center text-sm font-semibold text-slate-700 px-1">
+    <div className="flex min-h-10 min-w-0 max-w-full items-center break-words px-1 py-2 text-sm font-semibold text-slate-700">
       {value || <span className="text-slate-300">{placeholder || "—"}</span>}
     </div>
   );
@@ -303,7 +304,7 @@ export function PatientFichaClinicaTab({
   const editableTextareaClasses = "w-full rounded-xl bg-amber-50/40 border-2 border-amber-300/90 text-slate-900 text-sm font-semibold px-3 py-2 resize-none shadow-2xs focus:bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-400/30 transition-all";
 
   return (
-    <div className="animate-in fade-in duration-400 flex flex-col lg:flex-row gap-6">
+    <div className="flex w-full min-w-0 max-w-full flex-col gap-6 animate-in fade-in duration-400 lg:flex-row">
       <div className="flex-1 space-y-5 w-full min-w-0 max-w-full lg:max-w-4xl">
         {isEditing && (
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-amber-50 border-2 border-amber-300 rounded-2xl px-4 py-3 gap-3 shadow-sm animate-in fade-in duration-300">
@@ -370,7 +371,7 @@ export function PatientFichaClinicaTab({
                         className={cn(editableInputClasses, "pl-10")}
                       />
                     ) : (
-                      <div className="h-10 pl-10 flex items-center text-sm font-semibold text-slate-700">
+                      <div className="flex min-h-10 min-w-0 max-w-full items-center break-all py-2 pl-10 text-sm font-semibold text-slate-700">
                         {patient.email || <span className="text-slate-300">Sin email</span>}
                       </div>
                     )}
@@ -399,11 +400,11 @@ export function PatientFichaClinicaTab({
                 <div className="space-y-1.5">
                   <FieldLabel isEditable={isEditing}>Fecha de nacimiento</FieldLabel>
                   {isEditing ? (
-                    <Input
-                      type="date"
+                    <DatePicker
                       value={toDateOnly(editForm.birthDate)}
-                      onChange={(e) => updateField("birthDate", e.target.value)}
-                      className={editableInputClasses}
+                      onChange={(date) => updateField("birthDate", date)}
+                      placeholder="Seleccionar fecha..."
+                      mode="birthDate"
                     />
                   ) : (
                     <ReadOnlyField

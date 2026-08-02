@@ -13,6 +13,7 @@ import {
   Plus,
   Search,
   Lock,
+  AlertCircle,
   Table2,
   UtensilsCrossed,
   Trash2,
@@ -1089,33 +1090,65 @@ export default function GruposClient({
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-3">
             <div className="grid grid-cols-2 sm:flex w-full sm:w-auto rounded-2xl border border-slate-200/80 bg-slate-100/80 p-1 gap-1">
-              {groupTabs.map(({ label, icon }) => (
-                <button
-                  key={label}
-                  type="button"
-                  onClick={() => {
-                    if (label === "Mis grupos") {
-                      setSelectedGroup(null);
-                      setMyGroupsTab("groups");
-                      setSelectedSourceGroup(null);
-                      setSelectedSourceIngredients([]);
-                      setActiveTab(label);
-                    } else {
-                      handleResetCreate();
-                      setActiveTab(label);
-                    }
-                  }}
-                  className={cn(
-                    "flex items-center justify-center gap-2 rounded-xl px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold transition-all",
-                    activeTab === label
-                      ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200/70"
-                      : "text-slate-500 hover:bg-white/70 hover:text-slate-700",
-                  )}
-                >
-                  {icon}
-                  {label}
-                </button>
-              ))}
+              {groupTabs.map(({ label, icon }) => {
+                const isCrearDisabled = label === "Crear grupo" && freemiumLimitReached && !editingGroupId;
+
+                const buttonEl = (
+                  <button
+                    key={label}
+                    type="button"
+                    disabled={isCrearDisabled}
+                    onClick={() => {
+                      if (isCrearDisabled) return;
+                      if (label === "Mis grupos") {
+                        setSelectedGroup(null);
+                        setMyGroupsTab("groups");
+                        setSelectedSourceGroup(null);
+                        setSelectedSourceIngredients([]);
+                        setActiveTab(label);
+                      } else {
+                        handleResetCreate();
+                        setActiveTab(label);
+                      }
+                    }}
+                    className={cn(
+                      "flex items-center justify-center gap-2 rounded-xl px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold transition-all whitespace-nowrap",
+                      activeTab === label
+                        ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200/70"
+                        : isCrearDisabled
+                        ? "cursor-not-allowed text-slate-400 opacity-80"
+                        : "text-slate-500 hover:bg-white/70 hover:text-slate-700",
+                    )}
+                  >
+                    {label === "Crear grupo" && isCrearDisabled ? (
+                      <AlertCircle size={16} className="text-amber-500 shrink-0" />
+                    ) : (
+                      icon
+                    )}
+                    {label}
+                  </button>
+                );
+
+                if (isCrearDisabled) {
+                  return (
+                    <div
+                      key={label}
+                      className="group relative flex-1 sm:flex-initial cursor-not-allowed whitespace-nowrap"
+                    >
+                      {buttonEl}
+                      <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col items-center pointer-events-none z-50 whitespace-nowrap animate-in fade-in zoom-in-95 duration-150">
+                        <div className="bg-slate-900 text-white text-[11px] font-semibold px-3 py-1.5 rounded-xl shadow-xl border border-slate-700 flex items-center gap-1.5">
+                          <AlertCircle size={14} className="text-amber-400 shrink-0" />
+                          <span>Ya cumpliste 1 grupo ya creado (Plan Freemium)</span>
+                        </div>
+                        <div className="w-2 h-2 bg-slate-900 rotate-45 -mt-1 border-r border-b border-slate-700" />
+                      </div>
+                    </div>
+                  );
+                }
+
+                return buttonEl;
+              })}
             </div>
 
             {isFreemium && (

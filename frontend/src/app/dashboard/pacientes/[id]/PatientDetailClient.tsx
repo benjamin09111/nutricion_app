@@ -53,6 +53,7 @@ import { PatientConsultationsTab } from "@/features/patients/components/PatientC
 import { PatientProgressTab } from "@/features/patients/components/PatientProgressTab";
 import { PatientAcompanamientoTab } from "@/features/patients/components/PatientAcompanamientoTab";
 import { PatientCreationsTab } from "@/features/patients/components/PatientCreationsTab";
+import { PatientTestsTab } from "@/features/patients/components/PatientTestsTab";
 import { cn, formatDateOnlyForLocale } from "@/features/patients/utils/patient-helpers";
 import { formatPhone } from "@/lib/utils";
 
@@ -144,7 +145,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const router = useRouter();
   const state = usePatientDetailState({ id });
-  const { currentPlan } = useSubscription();
+  const { currentPlan, can, plan } = useSubscription();
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [showStatusConfirm, setShowStatusConfirm] = useState(false);
   const [isTogglingStatus, setIsTogglingStatus] = useState(false);
@@ -200,7 +201,10 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
     { label: "Seguimiento", disabled: false, hidden: true },
     { label: "Consultas", disabled: false },
     { label: "Planes", disabled: false },
-    { label: "Exámenes", disabled: true },
+    {
+      label: "Tests",
+      disabled: plan !== "free" && !can("screening_tests.access"),
+    },
   ];
 
   const latestConsultation = state.consultations.length > 0
@@ -208,7 +212,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
     : null;
 
   return (
-    <div className="max-w-7xl mx-auto pb-24 animate-in fade-in duration-500">
+    <div className="mx-auto w-full min-w-0 max-w-7xl pb-24 animate-in fade-in duration-500">
 
       {/* ── EXPORT LOADING OVERLAY ─────────────────────────────────────────── */}
       {state.isExporting && (
@@ -225,7 +229,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
 
       {/* ── PATIENT HERO ─────────────────────────────────────────────────── */}
       <div className="bg-white border-b border-slate-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="mx-auto w-full min-w-0 max-w-7xl px-4 sm:px-6">
 
           {/* Top bar: back + actions */}
           <div className="flex items-center justify-between h-14 gap-3">
@@ -348,14 +352,14 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
               </div>
             ) : (
               <h1 className={cn(
-                "text-xl font-black tracking-tight",
+                "min-w-0 break-words text-xl font-black tracking-tight",
                 patient.status === "Inactive" ? "text-slate-400" : "text-slate-900"
               )}>
                 {patient.fullName}
               </h1>
             )}
 
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 font-medium">
+            <div className="flex w-full min-w-0 flex-wrap items-center gap-x-4 gap-y-1 text-xs font-medium text-slate-500">
               {patient.gender && (
                 <span className="flex items-center gap-1">
                   <User className="w-3 h-3 text-slate-400" />
@@ -384,9 +388,9 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                 </span>
               )}
               {patient.email && (
-                <span className="flex items-center gap-1">
-                  <Mail className="w-3 h-3 text-slate-400" />
-                  {patient.email}
+                <span className="flex min-w-0 max-w-full items-center gap-1">
+                  <Mail className="h-3 w-3 shrink-0 text-slate-400" />
+                  <span className="min-w-0 break-all">{patient.email}</span>
                 </span>
               )}
               {patient.phone && (
@@ -594,8 +598,8 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       )}
 
       {/* ── TABS NAVBAR ────────────────────────────────────────────────── */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-5">
-        <div className="flex items-center overflow-x-auto no-scrollbar sm:flex-wrap rounded-2xl border border-slate-200 bg-slate-100/80 p-1.5 shadow-sm gap-1">
+      <div className="mx-auto w-full min-w-0 max-w-7xl overflow-hidden px-4 pt-5 sm:px-6">
+        <div className="no-scrollbar flex w-full min-w-0 max-w-full touch-pan-x items-center gap-1 overflow-x-auto overscroll-x-contain rounded-2xl border border-slate-200 bg-slate-100/80 p-1.5 shadow-sm sm:flex-wrap">
           {tabs.filter((t) => !t.hidden).map((tab) => (
             <button
               key={tab.label}
@@ -609,7 +613,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
               }}
               disabled={tab.disabled}
               className={cn(
-                "flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold transition-all rounded-xl shrink-0 sm:shrink flex-1 sm:flex-initial whitespace-nowrap",
+                "flex flex-none items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-3 py-2 text-xs font-bold transition-all sm:flex-initial",
                 tab.disabled || (isEditing && tab.label !== "Ficha clínica")
                   ? "text-slate-300 bg-transparent cursor-not-allowed"
                   : state.activeTab === tab.label
@@ -630,7 +634,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
       </div>
 
       {/* ── TAB CONTENT ──────────────────────────────────────────────────── */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-5 space-y-5">
+      <div className="mx-auto w-full min-w-0 max-w-7xl space-y-5 px-4 pt-5 sm:px-6">
 
         {state.activeTab === "Ficha clínica" && (
           <PatientFichaClinicaTab
@@ -714,6 +718,13 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
             patient={patient}
             portalOverview={state.portalOverview}
             fetchPortalOverview={state.fetchPortalOverview}
+          />
+        )}
+
+        {state.activeTab === "Tests" && (
+          <PatientTestsTab
+            patient={patient}
+            clinicalRecordDraft={state.clinicalRecordDraft}
           />
         )}
 

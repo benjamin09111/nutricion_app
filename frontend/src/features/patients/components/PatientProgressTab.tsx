@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { DatePicker } from "@/components/ui/DatePicker";
 import {
   FileText,
   Plus,
@@ -31,7 +32,7 @@ import { MetricTagInput } from "@/components/ui/metric-tag-input";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { Patient } from "@/features/patients";
 import { Consultation, Metric } from "@/features/consultations";
-import { buildMetricSeriesForKey, cn, normalizeMetricKey, toDateOnly } from "../utils/patient-helpers";
+import { cn, normalizeMetricKey, toDateOnly } from "../utils/patient-helpers";
 
 interface PatientProgressTabProps {
   patient: Patient;
@@ -86,7 +87,7 @@ interface PatientProgressTabProps {
 }
 
 export function PatientProgressTab({
-  consultations,
+  chartData,
   getAllMetricKeys,
   getMetricInfo,
   availableMetricSuggestions,
@@ -175,7 +176,10 @@ export function PatientProgressTab({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4 lg:gap-6 px-2">
         {getAllMetricKeys().map((key) => {
           const info = getMetricInfo(key);
-          const metricSeries = buildMetricSeriesForKey(consultations, key);
+          const metricSeries = chartData.filter((point) => {
+            const value = Number(point[key]);
+            return Object.prototype.hasOwnProperty.call(point, key) && Number.isFinite(value);
+          });
           const lastPoint =
             metricSeries.length > 0
               ? metricSeries[metricSeries.length - 1]
@@ -218,7 +222,10 @@ export function PatientProgressTab({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {getAllMetricKeys().map((key) => {
           const info = getMetricInfo(key);
-          const seriesData = buildMetricSeriesForKey(consultations, key);
+          const seriesData = chartData.filter((point) => {
+            const value = Number(point[key]);
+            return Object.prototype.hasOwnProperty.call(point, key) && Number.isFinite(value);
+          });
           const consultationPoints = seriesData;
           const hasEnoughPointsForChart = consultationPoints.length >= 2;
           const firstPoint = seriesData.length > 0 ? seriesData[0] : null;
@@ -477,17 +484,13 @@ export function PatientProgressTab({
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block">
                         Fecha del Registro
                       </label>
-                      <div className="relative">
-                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-emerald-500" />
-                        <input
-                          type="date"
-                          className="w-full h-11 pl-10 pr-4 rounded-xl bg-slate-50 border border-slate-100 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 outline-none transition-all font-semibold text-sm text-slate-700 cursor-pointer"
-                          value={metricForm.date}
-                          onChange={(e) =>
-                            setMetricForm({ ...metricForm, date: e.target.value })
-                          }
-                        />
-                      </div>
+                      <DatePicker
+                        value={metricForm.date}
+                        onChange={(date) =>
+                          setMetricForm({ ...metricForm, date })
+                        }
+                        placeholder="Seleccionar fecha..."
+                      />
                     </div>
                   </div>
                 </div>
@@ -938,11 +941,10 @@ function MetricRecordRow({
         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
           <Calendar className="w-3 h-3 text-emerald-500" /> Fecha
         </label>
-        <Input
-          type="date"
+        <DatePicker
           value={date}
-          onChange={(e) => setDate(e.target.value)}
-          className="h-12 bg-slate-50/50 border border-slate-200 focus:bg-white font-bold"
+          onChange={(d) => setDate(d)}
+          placeholder="Seleccionar fecha..."
         />
       </div>
 

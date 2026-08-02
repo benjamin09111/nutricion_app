@@ -24,9 +24,9 @@ export function CollapsibleSection({
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium"
+        className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left text-sm font-medium"
       >
-        <span>
+        <span className="min-w-0">
           {title}{" "}
           {optional && (
             <span className="text-slate-400 font-normal">(opcional)</span>

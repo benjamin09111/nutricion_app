@@ -13,6 +13,8 @@ describe('Freemium entitlements', () => {
     expect(free[PLAN_ENTITLEMENT_KEYS.FOOD_GROUPS_TOTAL_LIMIT]).toBe(1);
     expect(free[PLAN_ENTITLEMENT_KEYS.AI_OPERATIONS_TOTAL_LIMIT]).toBe(4);
     expect(free[PLAN_ENTITLEMENT_KEYS.CREATIONS_SAVE_LIMIT]).toBe(3);
+    expect(free[PLAN_ENTITLEMENT_KEYS.SCREENING_TESTS_SAVED_LIMIT]).toBe(2);
+    expect(free[PLAN_ENTITLEMENT_KEYS.SCREENING_TESTS_ACCESS]).toBe(true);
   });
 
   it('blocks restricted Freemium capabilities', () => {
@@ -23,5 +25,6 @@ describe('Freemium entitlements', () => {
     expect(free[PLAN_ENTITLEMENT_KEYS.CLINICAL_RESTRICTIONS_CREATE_ACCESS]).toBe(false);
     expect(free[PLAN_ENTITLEMENT_KEYS.METRICS_CREATE_ACCESS]).toBe(false);
     expect(free[PLAN_ENTITLEMENT_KEYS.CLINICAL_CALCULATOR_USE_ACCESS]).toBe(false);
+    expect(free[PLAN_ENTITLEMENT_KEYS.SCREENING_TESTS_DELETE_ACCESS]).toBe(false);
   });
 });

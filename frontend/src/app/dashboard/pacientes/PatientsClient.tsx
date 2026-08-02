@@ -14,7 +14,6 @@ import {
   CheckCircle2,
   X,
   Phone,
-  Link2,
   Lock,
   FileSpreadsheet,
   ShieldCheck,
@@ -30,6 +29,7 @@ import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { toast } from "sonner";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
+import { UsageLimitBadge } from "@/components/shared/UsageLimitBadge";
 import { Pagination } from "@/components/ui/Pagination";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { TableLoadingRows } from "@/components/ui/TableLoadingRows";
@@ -74,8 +74,10 @@ export default function PatientsClient() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [patientToDelete, setPatientToDelete] = useState<Patient | null>(null);
   const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
-  const { limit } = useSubscription();
+  const { currentPlan, limit } = useSubscription();
 
+  const rawPatientLimit = currentPlan?.entitlements?.["patients.total.limit"] ?? currentPlan?.entitlements?.["patients.active.limit"];
+  const patientLimit = typeof rawPatientLimit === "number" ? rawPatientLimit : undefined;
   useScrollLock(isDeleteModalOpen);
 
   useEffect(() => {
@@ -97,6 +99,7 @@ export default function PatientsClient() {
       classificationTags,
       startDateFilter: "",
     });
+  const patientsUsed = meta.total;
 
   const handleTogglePatientStatus = async (patient: Patient) => {
     const newStatus = patient.status === "Active" ? "Inactive" : "Active";
@@ -171,6 +174,11 @@ export default function PatientsClient() {
       description="Gestiona a tus pacientes: puedes crear, ver su progreso a través del tiempo, crear un espacio de comunicación privado y mucho más."
       rightContent={
         <div className="flex flex-wrap items-center gap-2">
+          <UsageLimitBadge
+            label="Pacientes"
+            usage={patientsUsed}
+            limit={patientLimit}
+          />
           <button
             type="button"
             onClick={() => setIsPrivacyModalOpen(true)}
@@ -205,15 +213,13 @@ export default function PatientsClient() {
       className="pb-8"
     >
       <div className="space-y-4 mb-6">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-1 items-center gap-2.5 min-w-0">
-            <div className="pl-2 shrink-0">
-              <Search className="h-5 w-5 text-slate-400" />
-            </div>
+        <div className="grid grid-cols-1 items-center gap-3 lg:grid-cols-[minmax(0,1fr)_14rem_auto]">
+          <div className="relative min-w-0">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <Input
               type="search"
               placeholder="Buscar por nombre, rut o correo..."
-              className="h-10 text-sm border border-slate-200 bg-white focus-visible:border-indigo-500 placeholder:text-slate-400 font-medium"
+              className="h-10 border border-slate-200 bg-white pl-10 text-sm font-medium placeholder:text-slate-400 focus-visible:border-indigo-500"
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
@@ -222,8 +228,7 @@ export default function PatientsClient() {
             />
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-            <div className="w-full sm:w-[12rem] lg:w-[14rem]">
+          <div className="min-w-0">
               <div className="relative">
                 <TagInput
                   value={classificationTags}
@@ -236,6 +241,7 @@ export default function PatientsClient() {
                   className="h-10 rounded-xl bg-white border border-slate-200 text-sm"
                   singleSelect
                   tagsAbsolute
+                  helperText=""
                 />
                 {isLoading && (
                   <div className="absolute right-2 top-1/2 -translate-y-1/2">
@@ -243,9 +249,9 @@ export default function PatientsClient() {
                   </div>
                 )}
               </div>
-            </div>
+          </div>
 
-            <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="flex w-full items-center gap-2 lg:w-auto lg:justify-end">
               <Button
                 variant="outline"
                 disabled
@@ -281,7 +287,6 @@ export default function PatientsClient() {
                 </span>
               </Button>
             </div>
-          </div>
         </div>
 
          <div className="flex flex-col items-start justify-between gap-3 px-1 py-2 sm:flex-row sm:items-center sm:gap-4 sm:px-3">

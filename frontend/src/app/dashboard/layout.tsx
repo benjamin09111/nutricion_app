@@ -91,7 +91,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
       </div>
 
       <div
-        className={`h-full min-h-screen flex flex-col transition-all duration-300 ${
+        className={`flex h-full min-h-screen min-w-0 flex-col transition-all duration-300 ${
           isSidebarCollapsed ? "lg:pl-20" : "lg:pl-[17rem]"
         }`}
       >
@@ -101,12 +101,12 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
         />
         <main
           className={cn(
-            isAdminView ? "flex-1 py-4 lg:py-4 xl:py-5" : "flex-1 py-6 lg:py-4 xl:py-8",
+            isAdminView ? "min-w-0 flex-1 py-4 lg:py-4 xl:py-5" : "min-w-0 flex-1 py-6 lg:py-4 xl:py-8",
             isAdminView && !isDarkMode && "bg-indigo-50/10",
           )}
         >
           <div
-            className={`mx-auto w-full ${
+            className={`mx-auto w-full min-w-0 ${
               isAdminView
                 ? "max-w-[96rem] px-3 sm:px-4 lg:px-4 xl:px-6"
                 : isRecipesModule

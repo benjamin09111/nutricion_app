@@ -25,7 +25,6 @@ import { Ingredient } from "@/features/foods";
 import { cn } from "@/lib/utils";
 import { useScrollLock } from "@/hooks/useScrollLock";
 import { fetchApi } from "@/lib/api-base";
-import { getAuthToken } from "@/lib/auth-token";
 import CreateIngredientModal from "./CreateIngredientModal";
 import ManageTagsModal from "./ManageTagsModal";
 import IngredientDetailsModal from "./IngredientDetailsModal";
@@ -72,7 +71,6 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
     setCatalogPool(initialData);
   }, [initialData]);
 
-  const getToken = useCallback(() => getAuthToken(), []);
   const canEditIngredient = (ingredient: Ingredient | null | undefined) => Boolean(ingredient?.isMine);
 
   const sourceTabToApiTab = useCallback((sourceTab: FoodSourceTab) => {
@@ -124,14 +122,6 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
       setData([]);
       setCatalogPool([]);
 
-      const token = getToken();
-      if (!token) {
-        clearSourceSwitchTimerRef.current = setTimeout(() => {
-          skipNextSearchFetchRef.current = false;
-        }, 0);
-        return;
-      }
-
       setIsLoadingIngredients(true);
       try {
         const queryParams = new URLSearchParams({
@@ -141,7 +131,6 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
 
         const response = await fetchApi(`/foods?${queryParams.toString()}`, {
           cache: "no-store",
-          headers: { Authorization: `Bearer ${token}` },
         });
 
         if (!response.ok) {
@@ -161,13 +150,10 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
         }, 0);
       }
     },
-    [getToken, sourceTabToApiTab, setSourceTabData, toast],
+    [sourceTabToApiTab, setSourceTabData, toast],
   );
 
   const fetchIngredients = useCallback(async (sourceTab: FoodSourceTab = activeSourceTab) => {
-    const token = getToken();
-    if (!token) return;
-
     setIsLoadingIngredients(true);
     try {
       const queryParams = new URLSearchParams({
@@ -180,7 +166,6 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
 
       const response = await fetchApi(`/foods?${queryParams.toString()}`, {
         cache: "no-store",
-        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!response.ok) {
@@ -195,7 +180,7 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
     } finally {
       setIsLoadingIngredients(false);
     }
-  }, [activeSourceTab, searchTerm, selectedCategory, selectedTag, getToken, sourceTabToApiTab]);
+  }, [activeSourceTab, searchTerm, selectedCategory, selectedTag, sourceTabToApiTab]);
 
   useEffect(() => {
     if (skipNextSearchFetchRef.current) {
@@ -293,9 +278,6 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
   };
 
   const handleTogglePreference = async (ingredientId: string, updates: any) => {
-    const token = getToken();
-    if (!token) return;
-
     const previousData = [...data];
     setData((current) =>
       current.map((item) => {
@@ -316,7 +298,6 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(updates),
       });
@@ -381,9 +362,6 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
   };
 
   const handleSaveEdit = async (id: string) => {
-    const token = getToken();
-    if (!token) return;
-
     const ingredientToEdit =
       data.find((item) => item.id === id) || catalogPool.find((item) => item.id === id) || null;
 
@@ -404,7 +382,6 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(updatePayload),
       });
@@ -428,15 +405,11 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
   };
 
   const handleShareToggle = async (ingredient: Ingredient) => {
-    const token = getToken();
-    if (!token) return;
-
     try {
       const response = await fetchApi(`/foods/${ingredient.id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ isPublic: !ingredient.isPublic }),
       });

@@ -13,7 +13,6 @@ import { toast } from "sonner";
 import { TagInput } from "@/components/ui/TagInput";
 import { Ingredient } from "@/features/foods";
 import { fetchApi, getApiUrl } from "@/lib/api-base";
-import { getAuthToken } from "@/lib/auth-token";
 
 interface ManageTagsModalProps {
   isOpen: boolean;
@@ -51,17 +50,12 @@ export default function ManageTagsModal({
     setIsSubmitting(true);
 
     try {
-      const token = getAuthToken();
-      if (!token) {
-        throw new Error("Sesión no válida");
-      }
       const response = await fetchApi(
         `/foods/${ingredient.id}/preferences`,
         {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
             tags: tags, // Send the full array of tag names

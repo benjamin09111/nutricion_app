@@ -20,6 +20,7 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { Textarea } from "@/components/ui/Textarea";
 import { Modal } from "@/components/ui/Modal";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
@@ -2313,11 +2314,10 @@ const [shareLinkUrl, setShareLinkUrl] = useState("");
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <label className="text-xs font-black uppercase tracking-widest text-slate-500">Fecha</label>
-              <Input
-                type="date"
+              <DatePicker
                 value={createDraft.date}
-                onChange={(event) => setCreateDraft((current) => ({ ...current, date: event.target.value }))}
-                className="h-12 rounded-xl"
+                onChange={(date) => setCreateDraft((current) => ({ ...current, date }))}
+                placeholder="Seleccionar fecha..."
               />
             </div>
             <div className="space-y-2">

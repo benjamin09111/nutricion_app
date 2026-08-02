@@ -5,9 +5,13 @@ Development and production differ only in connection URLs and stored data.
 
 ## Connections
 
+- `DATABASE=dev` selects the development database.
+- `DATABASE=prod` selects the production database.
 - Development runtime uses `DATABASE_URL_DEV` and `DIRECT_URL_DEV`.
 - Production runtime uses `DATABASE_URL` and `DIRECT_URL`.
-- Outside production, the backend refuses to start without the `_DEV` variables.
+- The backend refuses to start when `DATABASE` is missing or has another value.
+- Seeds and maintenance scripts refuse to run when `DATABASE=prod`, regardless
+  of `NODE_ENV`.
 
 ## Schema Changes
 

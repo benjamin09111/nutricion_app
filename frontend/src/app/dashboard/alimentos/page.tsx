@@ -6,7 +6,7 @@ import { fetchApi } from "@/lib/api-base";
 
 async function getIngredients(): Promise<Ingredient[]> {
   const cookieStore = await cookies();
-  const token = cookieStore.get("auth_token")?.value;
+  const token = cookieStore.get("auth_session")?.value;
 
   try {
     const res = await fetchApi("/foods?tab=app&limit=100", {

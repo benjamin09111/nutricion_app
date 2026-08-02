@@ -4,6 +4,7 @@ export enum CreationType {
   RECIPE = "Receta",
   FAST_DELIVERABLE = "Entregable Rápido",
   PAUTAS = "Pauta de Alimentación",
+  SCREENING_TEST = "Test de Tamizaje",
   OTHER = "Otro",
 }
 

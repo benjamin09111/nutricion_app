@@ -65,11 +65,21 @@
     {
       "routePatterns": ["/dashboard/pacientes/:id"],
       "moduleLabel": "Detalle del paciente",
-      "welcomeMessage": "Esta vista muestra toda la información de tu paciente.\n\n**Ficha clínica:** Información del paciente.\n\n**Progreso:** Puedes ver el avance del paciente según las métricas que hayas seleccionado, como el peso y su evolución en el tiempo. Para ello debes tomar nuevos registros manuales con Registrar métrica o registrarlos cuando realizas las consultas. También puedes descargar en PDF el seguimiento de un paciente.\n\n**Consultas:** Verás todas las consultas asociadas al paciente.\n\n**Planes:** Verás todos los planes creados asociados a ese paciente.\n\n**Exámenes:** Funcionalidad futura donde podrás subir exámenes de ese paciente y se registrará automáticamente la información.\n\nPuedes registrar una nueva consulta desde aquí mismo, arriba a la derecha. Si aprietas los tres puntitos, puedes ver opciones adicionales. También puedes editar cuando desees la información del paciente con el ícono de lápiz.",
+      "welcomeMessage": "Esta vista muestra toda la información de tu paciente.\n\n**Ficha clínica:** Información del paciente.\n\n**Progreso:** Puedes ver el avance del paciente según las métricas que hayas seleccionado, como el peso y su evolución en el tiempo. Para ello debes tomar nuevos registros manuales con Registrar métrica o registrarlos cuando realizas las consultas. También puedes descargar en PDF el seguimiento de un paciente.\n\n**Consultas:** Verás todas las consultas asociadas al paciente.\n\n**Planes:** Verás todos los planes creados asociados a ese paciente.\n\n**Tests:** Aplica y guarda evaluaciones de tamizaje nutricional validadas (MNA, NRS-2002, MUST, STRONGkids, Atalah). Los datos conocidos del paciente se pre-seleccionan automáticamente. Puedes guardar y descargar los resultados en PDF.\n\nPuedes registrar una nueva consulta desde aquí mismo, arriba a la derecha. Si aprietas los tres puntitos, puedes ver opciones adicionales. También puedes editar cuando desees la información del paciente con el ícono de lápiz.",
       "message": "",
       "links": [
         { "label": "Ir a consultas", "href": "/dashboard/consultas" },
         { "label": "Volver a pacientes", "href": "/dashboard/pacientes" }
+      ]
+    },
+    {
+      "routePatterns": ["/dashboard/herramientas/calculos"],
+      "moduleLabel": "Calculadora clínica",
+      "welcomeMessage": "Esta es la calculadora clínica avanzada.\n\nAquí puedes realizar cálculos antropométricos y energéticos (Mifflin-St Jeor, Harris-Benedict, OMS), ajustar requerimientos proteicos y evaluar riesgos. Además, puedes aplicar los **Tests de Tamizaje Nutricional** (MNA, NRS-2002, MUST, STRONGkids, Atalah) y guardar o exportar sus resultados.",
+      "message": "",
+      "links": [
+        { "label": "Ver pacientes", "href": "/dashboard/pacientes" },
+        { "label": "Ver creaciones", "href": "/dashboard/creaciones" }
       ]
     },
     {

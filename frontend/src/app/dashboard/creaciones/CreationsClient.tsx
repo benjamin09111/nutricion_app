@@ -25,6 +25,8 @@ import { Filtros_B } from "@/components/ui/Filtros_B";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
+import { ModuleLayout } from "@/components/shared/ModuleLayout";
+import { UsageLimitBadge } from "@/components/shared/UsageLimitBadge";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { Creation, CreationType } from "@/features/creations";
 import { Pagination } from "@/components/ui/Pagination";
@@ -58,7 +60,9 @@ export default function CreationsClient({
   onUpdate
 }: CreationsClientProps) {
   const router = useRouter();
-  const { can } = useSubscription();
+  const { usage, currentPlan, can } = useSubscription();
+  const canDeleteScreeningTests = can("screening_tests.delete.access");
+
   const [selectedType, setSelectedType] = useState<CreationType | "Todos">("Todos");
   const [selectedTag, setSelectedTag] = useState<string>("Todos");
   const [searchTerm, setSearchTerm] = useState("");
@@ -67,6 +71,10 @@ export default function CreationsClient({
   const [localCreations, setLocalCreations] = useState<Creation[]>(initialData);
   const [isLoading, setIsLoading] = useState(initialData.length === 0);
   const itemsPerPage = 7;
+
+  const rawCreationsLimit = currentPlan?.entitlements?.["creations.save.limit"];
+  const creationsLimit = typeof rawCreationsLimit === "number" ? rawCreationsLimit : undefined;
+  const creationsUsed = usage?.creationsUsed ?? localCreations.length;
 
   const mapBackendTypeToFrontend = (type: string): CreationType => {
     switch (type) {
@@ -80,6 +88,8 @@ export default function CreationsClient({
         return CreationType.FAST_DELIVERABLE;
       case "PAUTAS":
         return CreationType.PAUTAS;
+      case "SCREENING_TEST":
+        return CreationType.SCREENING_TEST;
       default:
         return CreationType.OTHER;
     }
@@ -235,6 +245,10 @@ export default function CreationsClient({
         const { downloadQuickRecipesPdf } = await import("@/features/pdf/quickRecipesPdfExport");
         await downloadQuickRecipesPdf(buildQuickRecipesData(raw));
         toast.success("PDF de recetas descargado correctamente.");
+      } else if (item.type === CreationType.SCREENING_TEST) {
+        const { downloadScreeningTestPdf } = await import("@/features/pdf/screeningTestPdfExport");
+        await downloadScreeningTestPdf(raw);
+        toast.success("PDF del test descargado correctamente.");
       } else {
         toast.info("Exportación PDF para este tipo próximamente.");
       }
@@ -617,20 +631,24 @@ export default function CreationsClient({
               <Share2 className="h-4 w-4" />
             </button>
           )}
-          <div className="w-px h-4 bg-slate-200 mx-1" />
-          <button
-            onClick={() => handleDelete(item.id)}
-            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all cursor-pointer"
-            title="Eliminar"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
+          {(item.type !== CreationType.SCREENING_TEST || canDeleteScreeningTests) && (
+            <>
+              <div className="w-px h-4 bg-slate-200 mx-1" />
+              <button
+                onClick={() => handleDelete(item.id)}
+                className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all cursor-pointer"
+                title="Eliminar"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </>
+          )}
         </div>
       ),
     },
   ];
 
-  return (
+  const content = (
     <div className="space-y-6">
       {!isInsidePatientDetail && (
         <div className="flex items-start gap-3 px-4 py-3 rounded-2xl bg-indigo-50 border border-indigo-100 text-indigo-800 text-xs font-semibold">
@@ -1118,4 +1136,24 @@ export default function CreationsClient({
       />
     </div>
   );
+
+  if (!isInsidePatientDetail) {
+    return (
+      <ModuleLayout
+        title="Mis Creaciones"
+        description="Aquí encontrarás todo lo que has creado para tus pacientes, puedes filtrar, buscar y volver a descargar tus creaciones que hayas guardado, ya sea en el módulo de entregable personalizable o en entregables rápidos."
+        rightContent={
+          <UsageLimitBadge
+            label="Creaciones"
+            usage={creationsUsed}
+            limit={creationsLimit}
+          />
+        }
+      >
+        {content}
+      </ModuleLayout>
+    );
+  }
+
+  return content;
 }

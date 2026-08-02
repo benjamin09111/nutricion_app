@@ -48,6 +48,11 @@ export class TagsController {
         req.user.id,
         PLAN_ENTITLEMENT_KEYS.CLINICAL_RESTRICTIONS_CREATE_ACCESS,
       );
+    } else {
+      await this.permissionsService.ensureAccess(
+        req.user.id,
+        PLAN_ENTITLEMENT_KEYS.TAGS_CREATE_ACCESS,
+      );
     }
     const nutritionistId = req.user.nutritionistId;
     return this.tagsService.findOrCreate(name, nutritionistId);

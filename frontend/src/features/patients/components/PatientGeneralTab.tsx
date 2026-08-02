@@ -18,6 +18,7 @@ import {
   Stethoscope,
 } from "lucide-react";
 import { Input } from "@/components/ui/Input";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { Button } from "@/components/ui/Button";
 import { Patient, ActivityLevel } from "@/features/patients";
 import { formatRut } from "@/lib/rut-utils";
@@ -234,11 +235,11 @@ export function PatientGeneralTab({
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Nacimiento</label>
                 {isEditing ? (
-                  <Input
-                    type="date"
-                    className="h-9 rounded-xl bg-slate-50 border-transparent text-sm font-semibold"
+                  <DatePicker
                     value={toDateOnly(editForm.birthDate)}
-                    onChange={(e) => updateField("birthDate", e.target.value)}
+                    onChange={(val) => updateField("birthDate", val)}
+                    placeholder="Nacimiento..."
+                    mode="birthDate"
                   />
                 ) : (
                   <div className="h-9 flex items-center text-sm font-semibold text-slate-700 px-1">

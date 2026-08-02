@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import { Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { fetchApi } from "@/lib/api-base";
-import { getAuthToken } from "@/lib/auth-token";
+import { ModuleLayout } from "@/components/shared/ModuleLayout";
+import { UsageLimitBadge } from "@/components/shared/UsageLimitBadge";
+import { useSubscription } from "@/context/SubscriptionContext";
 import GruposClient from "./GruposClient";
 import RecipeGroupsClient from "./RecipeGroupsClient";
 import type { Ingredient } from "@/features/foods";
@@ -36,20 +38,17 @@ export default function GruposHubClient({ ingredients, recipes }: GruposHubClien
   const [activeTab, setActiveTab] = useState<HubTab>("Ingredientes");
   const [ingredientGroupsCount, setIngredientGroupsCount] = useState(0);
   const [recipeGroupsCount, setRecipeGroupsCount] = useState(0);
+  const { usage, currentPlan } = useSubscription();
+
+  const rawGroupsLimit = currentPlan?.entitlements?.["food_groups.total.limit"];
+  const groupsLimit = typeof rawGroupsLimit === "number" ? rawGroupsLimit : undefined;
 
   useEffect(() => {
     const loadCounts = async () => {
-      const token = getAuthToken();
-      if (!token) return;
-
       try {
         const [ingredientRes, recipeRes] = await Promise.all([
-          fetchApi("/ingredient-groups?type=INGREDIENT", {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          fetchApi("/ingredient-groups?type=RECIPE", {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
+          fetchApi("/ingredient-groups?type=INGREDIENT"),
+          fetchApi("/ingredient-groups?type=RECIPE"),
         ]);
 
         if (ingredientRes.ok) {
@@ -70,6 +69,7 @@ export default function GruposHubClient({ ingredients, recipes }: GruposHubClien
   }, []);
 
   const totalGroupsCount = ingredientGroupsCount + recipeGroupsCount;
+  const groupsUsed = usage?.foodGroupsUsed ?? totalGroupsCount;
 
   const hubTabs = (
     <div className="grid grid-cols-2 sm:flex w-full sm:w-auto rounded-2xl border border-slate-200/80 bg-slate-100/80 p-1 gap-1">
@@ -103,22 +103,33 @@ export default function GruposHubClient({ ingredients, recipes }: GruposHubClien
   );
 
   return (
-    <div className="space-y-6">
+    <ModuleLayout
+      title="Grupos"
+      description="Crea y gestiona grupos de ingredientes y recetas para organizar tus pautas y consultar información nutricional consolidada."
+      rightContent={
+        <div className="flex flex-wrap items-center gap-2.5">
+          <UsageLimitBadge
+            label="Grupos"
+            usage={groupsUsed}
+            limit={groupsLimit}
+          />
+          {hubTabs}
+        </div>
+      }
+    >
       {activeTab === "Ingredientes" ? (
         <GruposClient
           initialIngredients={ingredients}
-          headerRight={hubTabs}
           freemiumGroupCount={totalGroupsCount}
           onGroupCountChange={setIngredientGroupsCount}
         />
       ) : (
         <RecipeGroupsClient
           initialRecipes={recipes}
-          headerRight={hubTabs}
           freemiumGroupCount={totalGroupsCount}
           onGroupCountChange={setRecipeGroupsCount}
         />
       )}
-    </div>
+    </ModuleLayout>
   );
 }

@@ -57,6 +57,7 @@ export default function LandingPage() {
   });
   const visiblePlans = plans.filter((plan) => plan.isActive);
   const sortedPlans = sortPlansWithPopularInCenter(visiblePlans);
+  const proPlan = visiblePlans.find((plan) => plan.slug === "pro");
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -353,12 +354,17 @@ export default function LandingPage() {
             </div>
 
             {/* Launch Offer Banner */}
-            <div className="flex justify-center mb-10">
-              <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-3 text-sm font-bold text-white shadow-xl">
-                <Sparkles className="h-4 w-4" />
-                OFERTA DE LANZAMIENTO: $19.990/mes para las primeras 20 personas (Precio regular $25.000)
+            {proPlan && (
+              <div className="flex justify-center mb-10">
+                <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-3 text-sm font-bold text-white shadow-xl">
+                  <Sparkles className="h-4 w-4" />
+                  <span>
+                    OFERTA DE LANZAMIENTO: ${Number(proPlan.price).toLocaleString("es-CL")}/mes para las primeras 20 personas
+                    {Number(proPlan.price) < 25000 && " (Precio regular $25.000)"}
+                  </span>
+                </div>
               </div>
-            </div>
+            )}
 
             <div
               className={cn(
@@ -408,7 +414,7 @@ export default function LandingPage() {
                           {plan.name}
                         </h3>
                         <div className="flex flex-col items-center justify-center gap-1">
-                          {plan.slug === "pro" && (
+                           {plan.slug === "pro" && Number(plan.price) < 25000 && (
                             <span className="text-sm font-semibold text-slate-400 line-through">
                               $25.000 / mes
                             </span>

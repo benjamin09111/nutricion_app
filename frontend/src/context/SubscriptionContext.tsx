@@ -42,6 +42,8 @@ export interface MembershipState {
     pdfUsed: number;
     aiUsed: number;
     calculatorUsed: number;
+    foodGroupsUsed?: number;
+    creationsUsed?: number;
   };
   billing?: {
     nextPaymentAt: string | null;

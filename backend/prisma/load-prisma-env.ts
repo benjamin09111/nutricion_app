@@ -42,9 +42,16 @@ export function loadPrismaEnv() {
   const isProduction = ['production', 'prod'].includes(
     (runtimeNodeEnv || process.env.NODE_ENV || '').toLowerCase(),
   );
-  if (isProduction) {
+  const selectedDatabase = (process.env.DATABASE || '').trim().toLowerCase();
+  if (isProduction || selectedDatabase === 'prod') {
     throw new Error(
       'Prisma seed and maintenance scripts are disabled in production. Use reviewed migrations for production changes.',
+    );
+  }
+
+  if (selectedDatabase !== 'dev') {
+    throw new Error(
+      'DATABASE must be set to dev for Prisma seed and maintenance scripts.',
     );
   }
 

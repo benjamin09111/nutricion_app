@@ -38,7 +38,7 @@ export type TabType =
   | "Seguimiento"
   | "Consultas"
   | "Planes"
-  | "Exámenes";
+  | "Tests";
 
 interface UsePatientDetailStateProps {
   id: string;

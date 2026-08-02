@@ -109,6 +109,7 @@ export function MembershipPlanSection({
 
   const currentPrice = Number(currentPlan?.price || 0);
   const canChangePlan = currentPrice === 0;
+  const proPlan = availablePlans.find((p) => p.slug === "pro");
   const nextPaymentLabel = useMemo(() => {
     if (currentPrice === 0) return "Sin cobro";
     return formatDate(billing?.nextPaymentAt || subscriptionEndsAt?.toISOString() || null);
@@ -132,9 +133,14 @@ export function MembershipPlanSection({
         limit: currentPlan?.entitlements?.["pdf.exports.total.limit"] ?? currentPlan?.entitlements?.["pdf.monthly.limit"],
       },
       {
-        label: "Seguimientos privados activos",
-        usage: usage?.followupsPrivateActive ?? 0,
-        limit: currentPlan?.entitlements?.["followups.private.active.limit"],
+        label: "Grupos creados (alimentos / recetas)",
+        usage: usage?.foodGroupsUsed ?? 0,
+        limit: currentPlan?.entitlements?.["food_groups.total.limit"],
+      },
+      {
+        label: "Creaciones guardadas (Pautas / Entregables / Tests)",
+        usage: usage?.creationsUsed ?? 0,
+        limit: currentPlan?.entitlements?.["creations.save.limit"],
       },
       {
         label: "Calculadora clínica",
@@ -417,10 +423,15 @@ export function MembershipPlanSection({
               </div>
             )}
 
-            <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-2 text-xs font-bold text-white shadow-lg mb-6">
-              <Sparkles className="h-3.5 w-3.5" />
-              OFERTA DE LANZAMIENTO: $19.990/mes para las primeras 20 personas (Precio regular $25.000)
-            </div>
+            {proPlan && (
+              <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-2 text-xs font-bold text-white shadow-lg mb-6">
+                <Sparkles className="h-3.5 w-3.5" />
+                <span>
+                  OFERTA DE LANZAMIENTO: ${Number(proPlan.price).toLocaleString("es-CL")}/mes para las primeras 20 personas
+                  {Number(proPlan.price) < 25000 && " (Precio regular $25.000)"}
+                </span>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6">
@@ -485,7 +496,7 @@ export function MembershipPlanSection({
                           {plan.name}
                         </p>
                         <div className="flex items-baseline gap-2">
-                          {plan.slug === "pro" && (
+                          {plan.slug === "pro" && Number(plan.price) < 25000 && (
                             <p className="text-sm font-semibold text-slate-400 line-through">$25.000</p>
                           )}
                           <p className={cn("font-black text-xl", isPopular ? "text-indigo-600" : "text-slate-900")}>
