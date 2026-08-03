@@ -128,7 +128,10 @@ export class CreationsService {
     );
     if (type !== 'SCREENING_TEST' && creationLimit !== Infinity) {
       const creationsCount = await this.prisma.creation.count({
-        where: { nutritionistId: resolvedNutritionistId },
+        where: {
+          nutritionistId: resolvedNutritionistId,
+          type: { not: 'SCREENING_TEST' },
+        },
       });
 
       if (creationsCount >= creationLimit) {

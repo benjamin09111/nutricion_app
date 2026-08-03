@@ -17,7 +17,9 @@ import {
   Bike,
   Trees,
   Trophy,
+  Lock,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useRouter } from "next/navigation";
@@ -48,6 +50,7 @@ export default function FitnessClient() {
   const router = useRouter();
   const [patient, setPatient] = useState<PatientData | null>(null);
   const [fitnessState, setFitnessState] = useState(DEFAULT_FITNESS_STATE);
+  const fitnessAvailable = false;
 
   useEffect(() => {
     const stored = localStorage.getItem("nutri_patient");
@@ -63,6 +66,12 @@ export default function FitnessClient() {
         console.error(e);
       }
     }
+  }, []);
+
+  useEffect(() => {
+    toast.info("Próximamente", {
+      description: "El módulo Fitness estará disponible en futuras actualizaciones.",
+    });
   }, []);
 
   const toggleCategory = (cat: FitnessCategory) => {
@@ -82,6 +91,21 @@ export default function FitnessClient() {
       [cat]: { ...prev[cat], [field]: value },
     }));
   };
+
+  if (!fitnessAvailable) {
+    return (
+      <div className="mx-auto flex min-h-[28rem] max-w-2xl flex-col items-center justify-center rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+        <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
+          <Lock className="h-6 w-6" />
+        </div>
+        <h1 className="text-xl font-bold text-slate-900">Fitness y Entrenamiento</h1>
+        <p className="mt-2 text-sm text-slate-500">Este módulo estará disponible en futuras actualizaciones.</p>
+        <Button variant="outline" className="mt-6 rounded-xl" onClick={() => router.back()}>
+          Volver
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 pb-20 fade-in animate-in duration-700">

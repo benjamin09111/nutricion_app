@@ -17,7 +17,7 @@ const plans = [
     features: [
       '✓ 4 pacientes totales',
       '✓ 3 consultas guardadas',
-      '✓ 3 PDFs generados',
+      '✓ 6 PDFs generados',
       '✓ 6 seguimientos privados activos',
       '✓ Base de ingredientes',
       'X Usar la calculadora clínica',

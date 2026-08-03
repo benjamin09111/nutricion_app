@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   BookOpen,
+  ChevronDown,
   ExternalLink,
   FileText,
   Hash,
@@ -28,6 +29,7 @@ import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { Navbar_B, NavbarSection } from "@/components/ui/Navbar_B";
 import { Filtros_B } from "@/components/ui/Filtros_B";
 import { useAdmin } from "@/context/AdminContext";
+import { useSubscription } from "@/context/SubscriptionContext";
 import { cn } from "@/lib/utils";
 import { fetchApi } from "@/lib/api-base";
 
@@ -40,7 +42,7 @@ type LibrarySource = "system" | "community";
 const RESOURCE_TABS: NavbarSection[] = [
   { id: "library", label: "Biblioteca", icon: BookOpen },
   { id: "mine", label: "Mis recursos", icon: UserIcon },
-  { id: "coverIntro", label: "Portada e introducción", icon: Lock },
+  { id: "coverIntro", label: "Portada e introducción", icon: BookOpen },
   { id: "restrictions", label: "Restricciones alimenticias", icon: ShieldCheck },
 ];
 
@@ -101,7 +103,10 @@ const introType = (r: Resource) => (norm(`${r.title} ${r.tags.join(" ")}`).inclu
 
 export function ResourcesClient() {
   useAdmin();
+  const { can, isLoading: isSubscriptionLoading } = useSubscription();
   const router = useRouter();
+  const resourcesLocked = !isSubscriptionLoading && !can("resources.create.access");
+  const canEditResources = can("resources.edit.access");
   const [resources, setResources] = useState<Resource[]>([]);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -121,6 +126,16 @@ export function ResourcesClient() {
   const [onlyMineIntros, setOnlyMineIntros] = useState(false);
   const [resourceToPreview, setResourceToPreview] = useState<Resource | null>(null);
   const [resourceToDelete, setResourceToDelete] = useState<Resource | null>(null);
+
+  const resourceTabs = RESOURCE_TABS.map((tab) =>
+    tab.id === "mine" && resourcesLocked ? { ...tab, icon: Lock } : tab,
+  );
+
+  const showResourcesUpgrade = (description: string) => {
+    window.dispatchEvent(
+      new CustomEvent("show-freemium-upgrade", { detail: { description } }),
+    );
+  };
 
   useEffect(() => {
     fetchResources();
@@ -143,6 +158,28 @@ export function ResourcesClient() {
   }, [libraryBase, librarySearch, sectionFilter, libraryTags]);
 
   const groupedLibrary = useMemo(() => LIBRARY_CATEGORIES.filter((c) => c.id !== "all").map((category) => ({ category, resources: filteredLibrary.filter((r) => r.category === category.id).slice(0, 12) })).filter((x) => x.resources.length), [filteredLibrary]);
+
+  const [openCategoryIds, setOpenCategoryIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (groupedLibrary.length > 0 && openCategoryIds.length === 0) {
+      setOpenCategoryIds([groupedLibrary[0].category.id]);
+    }
+  }, [groupedLibrary, openCategoryIds.length]);
+
+  const toggleCategory = (catId: string) => {
+    setOpenCategoryIds((prev) =>
+      prev.includes(catId) ? prev.filter((id) => id !== catId) : [...prev, catId],
+    );
+  };
+
+  const toggleAllCategories = () => {
+    if (openCategoryIds.length === groupedLibrary.length) {
+      setOpenCategoryIds([]);
+    } else {
+      setOpenCategoryIds(groupedLibrary.map((g) => g.category.id));
+    }
+  };
   const filteredMine = useMemo(() => {
     const q = norm(mineSearch);
     return myResources.filter((r) => {
@@ -219,6 +256,10 @@ export function ResourcesClient() {
   }
 
   function openCreate(kind: "general" | "cover" | "intro" | "restriction" = "general") {
+    if (resourcesLocked) {
+      showResourcesUpgrade("Crear recursos propios está disponible en los planes de pago.");
+      return;
+    }
     if (kind === "general") {
       router.push("/dashboard/recursos/nuevo");
     } else if (kind === "restriction") {
@@ -229,6 +270,10 @@ export function ResourcesClient() {
   }
 
   function openEdit(resource: Resource) {
+    if (!canEditResources) {
+      showResourcesUpgrade("Editar recursos propios está disponible en los planes de pago.");
+      return;
+    }
     router.push(`/dashboard/recursos/editar/${resource.id}`);
   }
 
@@ -277,7 +322,7 @@ export function ResourcesClient() {
                 {resource.title}
               </h3>
             </div>
-            {resource.isMine && (
+            {resource.isMine && canEditResources && (
               <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full shrink-0 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50" onClick={() => openEdit(resource)}>
                 <Pencil className="h-3.5 w-3.5" />
               </Button>
@@ -334,14 +379,27 @@ export function ResourcesClient() {
     >
       <div className="space-y-6 pb-20">
         <Navbar_B
-          sections={RESOURCE_TABS}
-          activeTab={mainTab}
-          onTabChange={(id) => setMainTab(id as MainTab)}
+           sections={resourceTabs}
+           activeTab={mainTab}
+           onTabChange={(id) => {
+             if (id === "mine" && resourcesLocked) {
+               showResourcesUpgrade("La gestión de recursos propios está disponible en los planes de pago.");
+               return;
+             }
+             setMainTab(id as MainTab);
+           }}
           activeColor="text-indigo-600"
         />
 
-        {mainTab === "library" && (
-          <>
+         {isLoading ? (
+           <div className="flex min-h-[20rem] flex-col items-center justify-center rounded-2xl border border-slate-100 bg-white shadow-sm">
+             <Loader2 className="mb-4 h-10 w-10 animate-spin text-indigo-500" />
+             <p className="text-sm font-medium text-slate-400">Cargando recursos...</p>
+           </div>
+         ) : (
+           <>
+         {mainTab === "library" && (
+            <>
             <Filtros_B
               searchValue={librarySearch}
               onSearchChange={setLibrarySearch}
@@ -394,28 +452,74 @@ export function ResourcesClient() {
               }
             />
 
-            {isLoading ? (
-              <div className="flex min-h-[20rem] flex-col items-center justify-center rounded-2xl border border-slate-100 bg-white shadow-sm">
-                <Loader2 className="mb-4 h-10 w-10 animate-spin text-indigo-500" />
-                <p className="text-sm font-medium text-slate-400">Cargando biblioteca...</p>
-              </div>
-            ) : sectionFilter === "all" && !librarySearch.trim() && libraryTags.length === 0 ? (
-              <div className="space-y-10">
-                {groupedLibrary.map(({ category, resources }) => (
-                  <section key={category.id} className="space-y-5">
-                    <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                      <h3 className="text-xl font-semibold text-slate-800">{category.label}</h3>
-                      <span className="text-xs font-medium text-slate-400 uppercase tracking-widest">
-                        {resources.length} recursos disponibles
-                      </span>
+            {sectionFilter === "all" && !librarySearch.trim() && libraryTags.length === 0 ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-end pb-1">
+                  <button
+                    type="button"
+                    onClick={toggleAllCategories}
+                    className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors cursor-pointer"
+                  >
+                    {openCategoryIds.length === groupedLibrary.length
+                      ? "Contraer todas las secciones"
+                      : "Expandir todas las secciones"}
+                  </button>
+                </div>
+                {groupedLibrary.map(({ category, resources }) => {
+                  const isOpen = openCategoryIds.includes(category.id);
+                  const cover = coverCfg(category.id);
+
+                  return (
+                    <div
+                      key={category.id}
+                      className="rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden transition-all"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => toggleCategory(category.id)}
+                        className="w-full flex items-center justify-between p-4 sm:p-5 text-left hover:bg-slate-50/80 transition-colors cursor-pointer select-none group"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div
+                            className="h-7 w-1.5 rounded-full shrink-0"
+                            style={{
+                              background: `linear-gradient(135deg, ${cover.gradientFrom}, ${cover.gradientTo})`,
+                            }}
+                          />
+                          <div className="min-w-0">
+                            <h3 className="text-lg sm:text-xl font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                              {category.label}
+                            </h3>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3 shrink-0">
+                          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                            {resources.length} {resources.length === 1 ? "recurso" : "recursos"}
+                          </span>
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-500 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
+                            <ChevronDown
+                              className={cn(
+                                "h-4 w-4 transition-transform duration-300",
+                                isOpen && "rotate-180",
+                              )}
+                            />
+                          </div>
+                        </div>
+                      </button>
+
+                      {isOpen && (
+                        <div className="border-t border-slate-100 p-4 sm:p-5 bg-slate-50/40 animate-in fade-in slide-in-from-top-2 duration-300">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                            {resources.map((resource) => (
+                              <Card key={resource.id} resource={resource} />
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                      {resources.map((resource) => (
-                        <Card key={resource.id} resource={resource} />
-                      ))}
-                    </div>
-                  </section>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -433,7 +537,7 @@ export function ResourcesClient() {
             )}
           </>
         )}
-        {mainTab === "coverIntro" && (
+         {mainTab === "coverIntro" && (
           <div className="space-y-8">
             {[{ title: "Portadas", list: coverResources, kind: "cover" as const }, { title: "Introducciones", list: introResources, kind: "intro" as const }].map((block) => (
               <div key={block.title}>
@@ -468,7 +572,7 @@ export function ResourcesClient() {
                       </div>
                     </div>
                   ) : (
-                    <Button className="rounded-xl px-4 h-10 font-semibold" onClick={() => openCreate(block.kind)}>
+                    <Button className="rounded-xl px-4 h-10 font-semibold" onClick={() => openCreate(block.kind)} disabled={resourcesLocked}>
                       <Plus className="mr-2 h-4 w-4" />
                       Crear introducción
                     </Button>
@@ -505,7 +609,7 @@ export function ResourcesClient() {
                       <p className="mt-4 line-clamp-3 text-sm leading-6 text-slate-500 font-medium">{short(plain(resource.content || ""), 150)}</p>
                       <div className="mt-auto flex items-center justify-between pt-6 border-t border-slate-100/50">
                         <Button variant="ghost" className="rounded-full px-0 text-xs font-semibold text-indigo-600 hover:bg-transparent" onClick={() => setResourceToPreview(resource)}>Ver recurso</Button>
-                        {resource.isMine && (
+                        {resource.isMine && canEditResources && (
                           <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-slate-400 hover:text-emerald-700 hover:bg-emerald-100/50" onClick={() => openEdit(resource)}>
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
@@ -517,9 +621,9 @@ export function ResourcesClient() {
               </div>
             ))}
           </div>
-        )}
+         )}
 
-        {mainTab === "restrictions" && (
+         {mainTab === "restrictions" && (
           <>
             <Filtros_B
               searchValue={restrictionSearch}
@@ -541,7 +645,14 @@ export function ResourcesClient() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setRestrictionSource("mine")}
+                    onClick={() => {
+                      if (resourcesLocked) {
+                        showResourcesUpgrade("La gestión de recursos propios está disponible en los planes de pago.");
+                        return;
+                      }
+                      setRestrictionSource("mine");
+                    }}
+                    disabled={resourcesLocked}
                     className={cn(
                       "rounded-lg px-4 py-1.5 text-xs font-semibold uppercase tracking-wider transition-all",
                       restrictionSource === "mine"
@@ -564,8 +675,8 @@ export function ResourcesClient() {
                       className="h-10"
                     />
                   </div>
-                  {restrictionSource === "mine" && (
-                    <Button className="h-10 rounded-xl px-4 font-semibold w-full sm:w-auto" onClick={() => openCreate("restriction")}>
+                   {restrictionSource === "mine" && (
+                     <Button className="h-10 rounded-xl px-4 font-semibold w-full sm:w-auto" onClick={() => openCreate("restriction")} disabled={resourcesLocked}>
                       <Plus className="mr-2 h-4 w-4" />
                       Nuevo recurso
                     </Button>
@@ -574,12 +685,7 @@ export function ResourcesClient() {
               }
             />
 
-            {isLoading ? (
-              <div className="flex min-h-[20rem] flex-col items-center justify-center rounded-2xl border border-slate-100 bg-white shadow-sm">
-                <Loader2 className="mb-4 h-10 w-10 animate-spin text-emerald-600" />
-                <p className="text-sm font-medium text-slate-400">Cargando restricciones alimenticias...</p>
-              </div>
-            ) : filteredRestrictionResources.length > 0 ? (
+             {filteredRestrictionResources.length > 0 ? (
               <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {filteredRestrictionResources.map((resource) => (
                   <Card key={resource.id} resource={resource} />
@@ -597,7 +703,7 @@ export function ResourcesClient() {
                     : "Crea un recurso para una restricción alimenticia o ajusta la búsqueda."}
                 </p>
                 {restrictionSource === "mine" && (
-                  <Button className="mt-5 h-10 rounded-xl px-4 font-semibold w-full sm:w-auto" onClick={() => openCreate("restriction")}>
+                   <Button className="mt-5 h-10 rounded-xl px-4 font-semibold w-full sm:w-auto" onClick={() => openCreate("restriction")} disabled={resourcesLocked}>
                     <Plus className="mr-2 h-4 w-4" />
                     Crear recurso
                   </Button>
@@ -605,9 +711,9 @@ export function ResourcesClient() {
               </div>
             )}
           </>
-        )}
+         )}
 
-        {mainTab === "mine" && (
+         {mainTab === "mine" && (
           <>
             <Filtros_B
               searchValue={mineSearch}
@@ -635,7 +741,7 @@ export function ResourcesClient() {
                       </option>
                     ))}
                   </select>
-                  <Button className="rounded-xl px-4 h-10 font-semibold w-full sm:w-auto" onClick={() => openCreate("general")}>
+                  <Button className="rounded-xl px-4 h-10 font-semibold w-full sm:w-auto" onClick={() => openCreate("general")} disabled={resourcesLocked}>
                     <Plus className="mr-2 h-4 w-4" />
                     Nuevo
                   </Button>
@@ -643,7 +749,7 @@ export function ResourcesClient() {
               }
             />
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {filteredMine.length > 0 ? filteredMine.map((resource) => (
                   <Card key={resource.id} resource={resource} />
                 )) : (
@@ -655,15 +761,17 @@ export function ResourcesClient() {
                     <p className="mt-1 text-sm text-slate-400 max-w-xs">
                       Crea tu primer recurso para comenzar a construir tu biblioteca personal.
                     </p>
-                    <Button className="mt-6 rounded-xl px-6 h-11 font-semibold" onClick={() => openCreate("general")}>
+                    <Button className="mt-6 rounded-xl px-6 h-11 font-semibold" onClick={() => openCreate("general")} disabled={resourcesLocked}>
                       <Plus className="mr-2 h-4 w-4" />
                       Crear recurso
                     </Button>
                   </div>
-                )}
-              </div>
-            </>
-          )}
+            )}
+             </div>
+           </>
+         )}
+           </>
+         )}
 
       </div>
 

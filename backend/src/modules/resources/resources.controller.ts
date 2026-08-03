@@ -17,6 +17,7 @@ import {
   SPECIAL_FEATURES,
   isAdminRole,
 } from '../permissions/permissions.constants';
+import { PLAN_ENTITLEMENT_KEYS } from '../memberships/plan-entitlements';
 
 @Controller('resources')
 @UseGuards(AuthGuard, PermissionsGuard)
@@ -28,7 +29,7 @@ export class ResourcesController {
   findAll(@Request() req: any) {
     const nutritionistId = req.user.nutritionistId;
     const isAdmin = isAdminRole(req.user.role);
-    return this.resourcesService.findAll(nutritionistId, isAdmin);
+    return this.resourcesService.findAll(nutritionistId, isAdmin, req.user.id);
   }
 
   @Get('sections')
@@ -37,6 +38,7 @@ export class ResourcesController {
   }
 
   @Post('sections')
+  @RequireFeatures(PLAN_ENTITLEMENT_KEYS.RESOURCES_CREATE_ACCESS)
   createSection(@Request() req: any, @Body() data: any) {
     const isAdmin = isAdminRole(req.user.role);
     const nutritionistId = isAdmin
@@ -51,10 +53,11 @@ export class ResourcesController {
   findOne(@Param('id') id: string, @Request() req: any) {
     const nutritionistId = req.user.nutritionistId;
     const isAdmin = isAdminRole(req.user.role);
-    return this.resourcesService.findOne(id, nutritionistId, isAdmin);
+    return this.resourcesService.findOne(id, nutritionistId, isAdmin, req.user.id);
   }
 
   @Post()
+  @RequireFeatures(PLAN_ENTITLEMENT_KEYS.RESOURCES_CREATE_ACCESS)
   create(@Request() req: any, @Body() data: any) {
     const isAdmin = isAdminRole(req.user.role);
     const nutritionistId = isAdmin
@@ -80,6 +83,7 @@ export class ResourcesController {
   }
 
   @Patch(':id')
+  @RequireFeatures(PLAN_ENTITLEMENT_KEYS.RESOURCES_EDIT_ACCESS)
   update(@Param('id') id: string, @Request() req: any, @Body() data: any) {
     const nutritionistId = req.user.nutritionistId;
     const isAdmin = isAdminRole(req.user.role);
@@ -89,6 +93,7 @@ export class ResourcesController {
   }
 
   @Delete(':id')
+  @RequireFeatures(PLAN_ENTITLEMENT_KEYS.RESOURCES_EDIT_ACCESS)
   remove(@Param('id') id: string, @Request() req: any) {
     const nutritionistId = req.user.nutritionistId;
     const isAdmin = isAdminRole(req.user.role);

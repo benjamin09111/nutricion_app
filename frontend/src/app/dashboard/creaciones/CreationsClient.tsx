@@ -60,7 +60,7 @@ export default function CreationsClient({
   onUpdate
 }: CreationsClientProps) {
   const router = useRouter();
-  const { usage, currentPlan, can } = useSubscription();
+  const { usage, currentPlan, can, isLoading: isSubscriptionLoading } = useSubscription();
   const canDeleteScreeningTests = can("screening_tests.delete.access");
 
   const [selectedType, setSelectedType] = useState<CreationType | "Todos">("Todos");
@@ -74,7 +74,13 @@ export default function CreationsClient({
 
   const rawCreationsLimit = currentPlan?.entitlements?.["creations.save.limit"];
   const creationsLimit = typeof rawCreationsLimit === "number" ? rawCreationsLimit : undefined;
-  const creationsUsed = usage?.creationsUsed ?? localCreations.length;
+  const creationsUsed = usage?.creationsUsed ?? localCreations.filter(
+    (creation) => creation.type !== CreationType.SCREENING_TEST,
+  ).length;
+  const hasResolvedCreationUsage = !isSubscriptionLoading &&
+    currentPlan !== null &&
+    typeof rawCreationsLimit === "number" &&
+    typeof usage?.creationsUsed === "number";
 
   const mapBackendTypeToFrontend = (type: string): CreationType => {
     switch (type) {
@@ -1149,11 +1155,13 @@ export default function CreationsClient({
         title="Mis Creaciones"
         description="Aquí encontrarás todo lo que has creado para tus pacientes, puedes filtrar, buscar y volver a descargar tus creaciones que hayas guardado, ya sea en el módulo de entregable personalizable o en entregables rápidos."
         rightContent={
-          <UsageLimitBadge
-            label="Creaciones"
-            usage={creationsUsed}
-            limit={creationsLimit}
-          />
+          hasResolvedCreationUsage ? (
+            <UsageLimitBadge
+              label="Creaciones"
+              usage={creationsUsed}
+              limit={creationsLimit}
+            />
+          ) : null
         }
       >
         {content}

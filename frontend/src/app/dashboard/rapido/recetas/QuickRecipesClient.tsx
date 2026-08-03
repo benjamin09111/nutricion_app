@@ -498,6 +498,7 @@ export default function QuickRecipesClient() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isGeneratingWeekly, setIsGeneratingWeekly] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [isHydrating, setIsHydrating] = useState(true);
   const [currentStep, setCurrentStep] = useState(0);
   const [isFoodReferenceBookOpen, setIsFoodReferenceBookOpen] = useState(false);
 
@@ -506,8 +507,12 @@ export default function QuickRecipesClient() {
   }, [setSidebarCollapsed]);
 
   useEffect(() => {
+    if (creationId) return;
     const draft = localStorage.getItem(DRAFT_KEY);
-    if (!draft) return;
+    if (!draft) {
+      setIsHydrating(false);
+      return;
+    }
     try {
       const parsed = JSON.parse(draft) as Record<string, unknown>;
       setTitle(typeof parsed.title === "string" ? parsed.title : DEFAULT_TITLE);
@@ -552,10 +557,13 @@ export default function QuickRecipesClient() {
       setAllowExternalFoods(parsed.allowExternalFoods === true);
     } catch (error) {
       console.error("Error loading quick recipes draft", error);
+    } finally {
+      setIsHydrating(false);
     }
-  }, []);
+  }, [creationId]);
 
   useEffect(() => {
+    if (isHydrating) return;
     localStorage.setItem(
       DRAFT_KEY,
       JSON.stringify({
@@ -602,6 +610,7 @@ export default function QuickRecipesClient() {
     isManualPatientExpanded,
     skipInstructions,
     allowExternalFoods,
+    isHydrating,
   ]);
 
   useEffect(() => {
@@ -678,6 +687,8 @@ export default function QuickRecipesClient() {
       } catch (error) {
         console.error(error);
         toast.error("No se pudo cargar la receta rápida.");
+      } finally {
+        setIsHydrating(false);
       }
     };
     void loadCreation();
@@ -799,6 +810,7 @@ export default function QuickRecipesClient() {
     );
   };
   const applyImportedCreation = (creation: ImportedCreation) => {
+    if (isHydrating) return;
     if (creation.type !== "DIET") {
       toast.error("Solo puedes importar dietas en este módulo.");
       return;
@@ -874,6 +886,7 @@ export default function QuickRecipesClient() {
   };
 
   const generateWithAi = async (mode: "single" | "weekly"): Promise<boolean> => {
+    if (isHydrating) return false;
     if (mode === "single") {
       setIsGenerating(true);
     } else {
@@ -1187,6 +1200,7 @@ export default function QuickRecipesClient() {
   };
 
   const handleSaveToCreations = async () => {
+    if (isHydrating) return;
     if (!title.trim()) {
       toast.error("Por favor ingresa un título antes de guardar.");
       return;
@@ -1234,6 +1248,7 @@ export default function QuickRecipesClient() {
   };
 
   const handleReset = () => {
+    if (isHydrating) return;
     setTitle(DEFAULT_TITLE);
     setDietName(DEFAULT_DIET_NAME);
     setNutritionistNotes("");
@@ -1296,6 +1311,7 @@ export default function QuickRecipesClient() {
   });
 
   const handleExportPdf = async () => {
+    if (isHydrating) return;
     if (!selectedPatient) {
       toast.error("Primero importa un paciente para exportar el PDF.");
       return;
@@ -1383,9 +1399,16 @@ export default function QuickRecipesClient() {
   const hasGenerationTarget = mealGenerationTargets.some(
     (target) => target.enabled && target.count > 0,
   );
-  const goBack = () => setCurrentStep((step) => Math.max(0, step - 1));
-  const goNext = () => setCurrentStep((step) => Math.min(WIZARD_STEPS.length - 1, step + 1));
+  const goBack = () => {
+    if (isHydrating) return;
+    setCurrentStep((step) => Math.max(0, step - 1));
+  };
+  const goNext = () => {
+    if (isHydrating) return;
+    setCurrentStep((step) => Math.min(WIZARD_STEPS.length - 1, step + 1));
+  };
   const handleWizardNext = async () => {
+    if (isHydrating) return;
     if (currentStep === 2) {
       await generateWithAi("single");
       return;
@@ -1397,6 +1420,7 @@ export default function QuickRecipesClient() {
     goNext();
   };
   const handleStepClick = (step: number) => {
+    if (isHydrating) return;
     if (
       step >= 2 &&
       !skipInstructions &&
@@ -1523,11 +1547,18 @@ export default function QuickRecipesClient() {
         title="Recetas"
         description="Genera recetas rápidas reutilizando contexto clínico, restricciones y preferencias."
         step={{ number: "Express", label: "Receta rápida", icon: ChefHat, color: "text-amber-600" }}
-        rightNavItems={actionItems}
+         rightNavItems={isHydrating ? [] : actionItems}
         rightNavDesktopBreakpoint="lg"
         className="max-w-[68rem]"
       >
-        <PlanWizardShell
+         {isHydrating ? (
+           <div className="flex min-h-[24rem] items-center justify-center rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+             <div className="flex items-center gap-3 text-sm font-semibold text-slate-500">
+               <Loader2 className="h-5 w-5 animate-spin text-amber-600" />
+               Preparando las recetas...
+             </div>
+           </div>
+         ) : <PlanWizardShell
           steps={WIZARD_STEPS}
           currentStep={currentStep}
           completedSteps={completedSteps}
@@ -2391,7 +2422,7 @@ export default function QuickRecipesClient() {
             </section>
           )}
         </div>
-        </PlanWizardShell>
+         </PlanWizardShell>}
       </ModuleLayout>
 
       <Modal

@@ -15,6 +15,7 @@ import {
   X,
   Share2,
   Layers,
+  Lock,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
@@ -25,6 +26,7 @@ import { Ingredient } from "@/features/foods";
 import { cn } from "@/lib/utils";
 import { useScrollLock } from "@/hooks/useScrollLock";
 import { fetchApi } from "@/lib/api-base";
+import { useSubscription } from "@/context/SubscriptionContext";
 import CreateIngredientModal from "./CreateIngredientModal";
 import ManageTagsModal from "./ManageTagsModal";
 import IngredientDetailsModal from "./IngredientDetailsModal";
@@ -37,6 +39,18 @@ type FoodSourceTab = "catalog" | "mine" | "community";
 
 export default function FoodsClient({ initialData }: FoodsClientProps) {
   const router = useRouter();
+  const { can, isLoading: isSubscriptionLoading } = useSubscription();
+  const foodCreationLocked = !isSubscriptionLoading && !can("ingredients.create.access");
+
+  const showFoodUpgrade = () => {
+    window.dispatchEvent(
+      new CustomEvent("show-freemium-upgrade", {
+        detail: {
+          description: "Crear alimentos propios está disponible en los planes de pago.",
+        },
+      }),
+    );
+  };
 
   const [data, setData] = useState<Ingredient[]>(initialData);
   const [catalogPool, setCatalogPool] = useState<Ingredient[]>(initialData);
@@ -477,10 +491,19 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
             Grupos
           </Button>
           <Button
-            onClick={() => setIsCreateModalOpen(true)}
-            className="h-10 flex-1 justify-center rounded-xl bg-indigo-600 gap-2 whitespace-nowrap font-semibold text-white shadow-sm hover:bg-indigo-700 lg:flex-none lg:px-5"
+            onClick={() => {
+              if (foodCreationLocked) {
+                showFoodUpgrade();
+                return;
+              }
+              setIsCreateModalOpen(true);
+            }}
+            className={cn(
+              "h-10 flex-1 justify-center rounded-xl bg-indigo-600 gap-2 whitespace-nowrap font-semibold text-white shadow-sm hover:bg-indigo-700 lg:flex-none lg:px-5",
+              foodCreationLocked && "cursor-not-allowed opacity-75",
+            )}
           >
-            <Plus size={18} />
+            {foodCreationLocked ? <Lock size={18} /> : <Plus size={18} />}
             Nuevo Alimento
           </Button>
         </div>

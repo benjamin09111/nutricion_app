@@ -48,7 +48,7 @@ type Group = {
 interface RecipeGroupsClientProps {
   initialRecipes: RecipeSummary[];
   headerRight?: React.ReactNode;
-  freemiumGroupCount?: number;
+  freemiumGroupCount?: number | null;
   onGroupCountChange?: (count: number) => void;
 }
 
@@ -70,7 +70,7 @@ export default function RecipeGroupsClient({
   const [activeTab, setActiveTab] = useState<GroupTab>("Mis grupos");
   const [recipes, setRecipes] = useState<RecipeSummary[]>(initialRecipes);
   const [groups, setGroups] = useState<Group[]>([]);
-  const [isLoadingGroups, setIsLoadingGroups] = useState(false);
+  const [isLoadingGroups, setIsLoadingGroups] = useState(true);
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
 
@@ -93,38 +93,44 @@ export default function RecipeGroupsClient({
   const [selectedCurrentPage, setSelectedCurrentPage] = useState(1);
   const [isCreateSubmitting, setIsCreateSubmitting] = useState(false);
 
-  const { currentPlan } = useSubscription();
+  const { currentPlan, isLoading: isSubscriptionLoading } = useSubscription();
 
   useScrollLock(isDeleteConfirmOpen);
 
   const getToken = () => getAuthToken();
   const isFreemium = String(currentPlan?.key || currentPlan?.slug || "").toLowerCase() === "free";
   const freemiumGroupLimit = 1;
-  const freemiumLimitReached = isFreemium && (freemiumGroupCount ?? groups.length) >= freemiumGroupLimit;
+  const hasAuthoritativeGroupCount = typeof freemiumGroupCount === "number";
+  const freemiumLimitReached =
+    isFreemium && hasAuthoritativeGroupCount && freemiumGroupCount >= freemiumGroupLimit;
+  const isCreateFlowLoading = isSubscriptionLoading || isLoadingGroups || !hasAuthoritativeGroupCount;
+  const isCreateFlowBlocked = !editingGroupId && (isCreateFlowLoading || freemiumLimitReached);
 
   useEffect(() => {
     setRecipes(initialRecipes);
   }, [initialRecipes]);
 
   const fetchGroups = useCallback(async () => {
-    const token = getToken();
-    if (!token) return;
-
     setIsLoadingGroups(true);
     try {
+      const token = getToken();
+      const headers: Record<string, string> = {};
+      if (token) headers.Authorization = `Bearer ${token}`;
+
       const res = await fetchApi("/ingredient-groups?type=RECIPE", {
-        headers: { Authorization: `Bearer ${token}` },
+        headers,
       });
       if (!res.ok) return;
       const data = await res.json();
-      setGroups(Array.isArray(data) ? data : []);
-      onGroupCountChange?.(Array.isArray(data) ? data.length : 0);
+      const groupArray = Array.isArray(data) ? data : [];
+      setGroups(groupArray);
+      onGroupCountChange?.(groupArray.length);
     } catch (error) {
       console.error("Error fetching recipe groups:", error);
     } finally {
       setIsLoadingGroups(false);
     }
-  }, [onGroupCountChange]);
+  }, [getToken, onGroupCountChange]);
 
   useEffect(() => {
     fetchGroups();
@@ -308,6 +314,10 @@ export default function RecipeGroupsClient({
   };
 
   const handleCreateGroup = async () => {
+    if (isCreateFlowLoading && !editingGroupId) {
+      toast.info("Espera a que se cargue la información de tus grupos.");
+      return;
+    }
     const name = groupName.trim();
     if (!name) {
       toast.error("Escribe un nombre para el grupo");
@@ -387,7 +397,7 @@ export default function RecipeGroupsClient({
           <div className="flex flex-wrap items-center gap-3">
             <div className="inline-flex rounded-2xl border border-slate-200/80 bg-slate-100/80 p-1">
               {groupTabs.map(({ label, icon }) => {
-                const isCrearDisabled = label === "Crear grupo" && freemiumLimitReached && !editingGroupId;
+                const isCrearDisabled = label === "Crear grupo" && isCreateFlowBlocked;
 
                 const buttonEl = (
                   <button
@@ -414,7 +424,11 @@ export default function RecipeGroupsClient({
                     )}
                   >
                     {label === "Crear grupo" && isCrearDisabled ? (
-                      <AlertCircle size={16} className="text-amber-500 shrink-0" />
+                      isCreateFlowLoading ? (
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-indigo-600" />
+                      ) : (
+                        <AlertCircle size={16} className="text-amber-500 shrink-0" />
+                      )
                     ) : (
                       icon
                     )}
@@ -432,7 +446,11 @@ export default function RecipeGroupsClient({
                       <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col items-center pointer-events-none z-50 whitespace-nowrap animate-in fade-in zoom-in-95 duration-150">
                         <div className="bg-slate-900 text-white text-[11px] font-semibold px-3 py-1.5 rounded-xl shadow-xl border border-slate-700 flex items-center gap-1.5">
                           <AlertCircle size={14} className="text-amber-400 shrink-0" />
-                          <span>Ya cumpliste 1 grupo ya creado (Plan Freemium)</span>
+                          <span>
+                            {isCreateFlowLoading
+                              ? "Cargando información de grupos..."
+                              : "Ya cumpliste 1 grupo ya creado (Plan Freemium)"}
+                          </span>
                         </div>
                         <div className="w-2 h-2 bg-slate-900 rotate-45 -mt-1 border-r border-b border-slate-700" />
                       </div>
@@ -484,8 +502,9 @@ export default function RecipeGroupsClient({
                 <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-500">
                   Puedes crear colecciones de platos para reutilizarlas en dietas, entregables y flujos rápidos.
                 </p>
-                <Button
-                  onClick={() => setActiveTab("Crear grupo")}
+                   <Button
+                   onClick={() => setActiveTab("Crear grupo")}
+                   disabled={isCreateFlowBlocked}
                   className="mt-5 bg-indigo-600 text-white hover:bg-indigo-700 font-semibold px-6 py-2.5 rounded-xl transition-all active:scale-95"
                 >
                   <FolderPlus size={16} className="mr-2" />
@@ -760,7 +779,7 @@ export default function RecipeGroupsClient({
                         </span>
                       </div>
                     </Button>
-                    <Button type="button" onClick={handleCreateGroup} disabled={selectedCount === 0 || !groupName.trim() || isCreateSubmitting || freemiumLimitReached} className="w-full h-[52px] cursor-pointer rounded-[1.25rem] bg-indigo-600 px-4 text-white shadow-sm transition-all hover:bg-indigo-700">
+                    <Button type="button" onClick={handleCreateGroup} disabled={selectedCount === 0 || !groupName.trim() || isCreateSubmitting || isCreateFlowBlocked} className="w-full h-[52px] cursor-pointer rounded-[1.25rem] bg-indigo-600 px-4 text-white shadow-sm transition-all hover:bg-indigo-700">
                       <div className="flex items-center justify-center gap-2">
                         {isCreateSubmitting ? (
                           <span className="inline-block h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-white/30 border-t-white" />

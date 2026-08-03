@@ -24,6 +24,7 @@ import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { calculateBMI, calculateGET, getIdealWeightRange, calculateAge } from "@/lib/nutrition-formulas";
 import { formatRut, validateRut } from "@/lib/rut-utils";
 import { fetchApi, getApiUrl } from "@/lib/api-base";
+import { useSubscription } from "@/context/SubscriptionContext";
 
 const STEPS = [
   "Identificación",
@@ -80,11 +81,26 @@ interface PatientFormPageProps {
 export function PatientFormPage({ onBack }: PatientFormPageProps) {
   const router = useRouter();
   const { draft, updateDraft, clearDraft, isLoaded } = usePatientDraft();
+  const { currentPlan, entitlements, usage, isLoading: isSubscriptionLoading, isDeveloper } = useSubscription();
   const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+
+  const rawPatientLimit = currentPlan?.entitlements?.["patients.total.limit"] ??
+    currentPlan?.entitlements?.["patients.active.limit"] ??
+    entitlements["patients.total.limit"] ?? entitlements["patients.active.limit"];
+  const patientLimit = isDeveloper
+    ? Number.POSITIVE_INFINITY
+    : typeof rawPatientLimit === "number"
+      ? (rawPatientLimit < 0 ? Number.POSITIVE_INFINITY : rawPatientLimit)
+      : undefined;
+  const patientCreationBlocked =
+    isSubscriptionLoading || typeof usage?.patientsActive !== "number" || patientLimit === undefined;
+  const patientLimitReached =
+    !patientCreationBlocked && Number.isFinite(patientLimit) &&
+    typeof usage?.patientsActive === "number" && usage.patientsActive >= patientLimit;
 
   const customVariableMap = useMemo(
     () => new Map((draft.customVariables || []).map((item) => [item.key, item])),
@@ -170,6 +186,12 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
   }, [currentStep, draft.fullName, draft.email, draft.birthDate, draft.weight, draft.height]);
 
   async function handleSave() {
+    if (patientCreationBlocked || patientLimitReached) {
+      toast.info(patientLimitReached
+        ? "Has alcanzado el límite de pacientes de tu plan."
+        : "Estamos verificando el uso de tu plan. Intenta nuevamente en unos segundos.");
+      return;
+    }
     const errors = validateCurrentStep();
     if (errors.length > 0) {
       setValidationErrors(errors);
@@ -324,6 +346,12 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
   }
 
   const handleQuickCreate = async () => {
+    if (patientCreationBlocked || patientLimitReached) {
+      toast.info(patientLimitReached
+        ? "Has alcanzado el límite de pacientes de tu plan."
+        : "Estamos verificando el uso de tu plan. Intenta nuevamente en unos segundos.");
+      return;
+    }
     if (!quickName || quickName.length < 2) { toast.error("Nombre requerido"); return; }
     if (!quickEmail || !quickEmail.includes("@")) { toast.error("Email válido requerido"); return; }
     if (quickRut && !validateRut(quickRut)) { toast.error("El RUT ingresado no es válido."); return; }
@@ -884,7 +912,7 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
                   <RotateCcw className="w-4 h-4 mr-1.5" />
                   Reiniciar
                 </Button>
-                <Button type="button" onClick={handleQuickCreate} disabled={isSaving} className="w-full rounded-xl px-6 bg-indigo-600 text-white font-bold sm:w-auto">{isSaving ? "Guardando..." : "Crear Paciente"}</Button>
+                 <Button type="button" onClick={handleQuickCreate} disabled={isSaving || patientCreationBlocked || patientLimitReached} className="w-full rounded-xl px-6 bg-indigo-600 text-white font-bold sm:w-auto">{isSaving ? "Guardando..." : patientCreationBlocked ? "Verificando límite..." : patientLimitReached ? "Límite alcanzado" : "Crear Paciente"}</Button>
               </div>
             </div>
           </FormStepCard>
@@ -925,8 +953,8 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
             onBack={goBack}
             onNext={goNext}
             isFirstStep={currentStep === 0}
-            nextDisabled={isSaving}
-            nextLabel={currentStep === STEPS.length - 1 ? (isSaving ? "Guardando..." : "Guardar") : "Continuar"}
+             nextDisabled={isSaving || patientCreationBlocked || patientLimitReached}
+             nextLabel={currentStep === STEPS.length - 1 ? (isSaving ? "Guardando..." : patientCreationBlocked ? "Verificando límite..." : patientLimitReached ? "Límite alcanzado" : "Guardar") : "Continuar"}
             className="mt-0 flex-1 max-w-none"
           />
           <Button type="button" onClick={() => setShowResetConfirm(true)} variant="ghost" className="w-full rounded-xl px-4 text-rose-500 font-bold hover:bg-rose-50 sm:w-auto sm:ml-3">

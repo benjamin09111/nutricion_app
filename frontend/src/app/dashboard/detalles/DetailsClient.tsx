@@ -90,8 +90,7 @@ export default function DetailsClient() {
         setServerTags(data);
         setTags(data.map((t: any) => t.name));
       } else {
-        setTags([]);
-        setServerTags([]);
+        throw new Error("Unable to load tags");
       }
     } catch (error) {
       if (retries > 0) {
@@ -99,10 +98,11 @@ export default function DetailsClient() {
       } else {
         console.error("Error fetching tags", error);
         toast.error("Error al cargar las restricciones");
+        setIsLoading(false);
       }
-    } finally {
-      setIsLoading(false);
+      return;
     }
+    setIsLoading(false);
   };
 
   const fetchMetrics = async () => {
@@ -440,10 +440,10 @@ export default function DetailsClient() {
                   Restricciones clínicas disponibles en Nutrinet. Si conoces y utilizas otra, no dudes en agregarla. Se utilizan en las dietas.
                 </p>
               </div>
-              <Button
+               <Button
                 variant="outline"
                 className="rounded-2xl font-semibold border-slate-200 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 w-full sm:w-auto shrink-0 justify-center"
-                onClick={() => {
+                 onClick={() => {
                    if (!can("clinical_restrictions.create.access")) {
                     window.dispatchEvent(
                       new CustomEvent("show-freemium-upgrade", {
@@ -455,9 +455,10 @@ export default function DetailsClient() {
                     );
                   } else {
                     setIsAddModalOpen(true);
-                  }
-                }}
-              >
+                   }
+                 }}
+                 disabled={isLoading}
+               >
                 {!can("clinical_restrictions.create.access") ? (
                   <Lock className="w-4 h-4 mr-2 text-amber-500" />
                 ) : (
@@ -569,9 +570,10 @@ export default function DetailsClient() {
                     } else {
                       setNewTag("#");
                       setIsAddModalOpen(true);
-                    }
-                  }}
-                >
+                   }
+                 }}
+                 disabled={isLoading}
+               >
                   {!can("tags.create.access") ? (
                     <Lock className="w-4 h-4 mr-2 text-amber-500" />
                   ) : (
@@ -581,7 +583,11 @@ export default function DetailsClient() {
                 </Button>
               </div>
 
-              {!isLoading && hashTags.length === 0 && searchQuery === "" ? (
+              {isLoading ? (
+                <div className="p-8 flex items-center justify-center">
+                  <div className="h-10 w-10 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin" />
+                </div>
+              ) : hashTags.length === 0 && searchQuery === "" ? (
                 <div className="p-12 flex flex-col items-center justify-center text-slate-300 bg-slate-50/30 m-4 sm:m-8 rounded-2xl border border-dashed border-slate-200">
                   <Hash className="w-12 h-12 mb-4 opacity-20" />
                   <p className="text-sm font-semibold uppercase tracking-widest text-center">No hay etiquetas creadas</p>
@@ -643,10 +649,10 @@ export default function DetailsClient() {
                 pacientes.
               </p>
             </div>
-            <Button
+             <Button
               variant="outline"
               className="rounded-2xl font-semibold border-slate-200 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 w-full sm:w-auto shrink-0 justify-center"
-              onClick={() => {
+               onClick={() => {
                 if (!can("metrics.create.access")) {
                   window.dispatchEvent(
                     new CustomEvent("show-freemium-upgrade", {
@@ -658,9 +664,10 @@ export default function DetailsClient() {
                   );
                 } else {
                   setIsAddMetricModalOpen(true);
-                }
-              }}
-            >
+                 }
+               }}
+               disabled={metricsLoading}
+             >
               {!can("metrics.create.access") ? (
                 <Lock className="w-4 h-4 mr-2 text-amber-500" />
               ) : (

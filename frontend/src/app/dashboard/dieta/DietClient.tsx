@@ -148,9 +148,17 @@ export default function DietClient({ initialFoods }: DietClientProps) {
           icon: GraduationCap,
           color: "text-emerald-600",
         }}
-        rightNavItems={actionItems}
-        rightNavDesktopBreakpoint="lg"
-      >
+         rightNavItems={state.isHydrating ? [] : actionItems}
+         rightNavDesktopBreakpoint="lg"
+       >
+        {state.isHydrating ? (
+          <div className="flex min-h-[24rem] items-center justify-center rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+            <div className="flex items-center gap-3 text-sm font-semibold text-slate-500">
+              <Loader2 className="h-5 w-5 animate-spin text-emerald-600" />
+              Preparando la dieta...
+            </div>
+          </div>
+        ) : <>
         <WorkflowContextBanner
           projectName={state.currentProjectName}
           patientName={state.selectedPatient?.fullName || null}
@@ -384,8 +392,9 @@ export default function DietClient({ initialFoods }: DietClientProps) {
           creationDescription={state.creationDescription}
           setCreationDescription={state.setCreationDescription}
           handleSaveWithDescription={state.handleSaveWithDescription}
-        />
-      </ModuleLayout>
+         />
+        </>}
+       </ModuleLayout>
     </>
   );
 }
