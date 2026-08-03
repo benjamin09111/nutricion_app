@@ -116,7 +116,7 @@ export default function CreateIngredientForm({
   enableGroupAssignment = false,
 }: CreateIngredientFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [shareWithCommunity, setShareWithCommunity] = useState(true);
+  const [shareWithCommunity, setShareWithCommunity] = useState(false);
   const [assignmentMode, setAssignmentMode] = useState<IngredientAssignmentDraft["mode"]>("none");
   const [selectedGroupId, setSelectedGroupId] = useState("");
   const [newGroupName, setNewGroupName] = useState("");
@@ -164,7 +164,7 @@ export default function CreateIngredientForm({
         body: JSON.stringify({
           ...data,
           price: 0,
-          isPublic: shareWithCommunity,
+          isPublic: false,
         }),
       });
 
@@ -184,7 +184,7 @@ export default function CreateIngredientForm({
             : { mode: "new", groupName: newGroupName.trim() };
 
       reset();
-      setShareWithCommunity(true);
+      setShareWithCommunity(false);
       setAssignmentMode("none");
       setSelectedGroupId("");
       setNewGroupName("");
@@ -431,20 +431,25 @@ export default function CreateIngredientForm({
           </div>
         </div>
 
-        <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
-          <label className="flex cursor-pointer items-start gap-3">
+        <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+          <label className="flex items-start gap-3 cursor-not-allowed opacity-75">
             <input
               type="checkbox"
-              checked={shareWithCommunity}
-              onChange={(e) => setShareWithCommunity(e.target.checked)}
-              className="mt-1 h-4 w-4 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500"
+              disabled
+              checked={false}
+              className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-400"
             />
             <div>
-              <p className="text-sm font-semibold text-emerald-900">
-                Compartir con la comunidad Nutri
-              </p>
-              <p className="mt-1 text-xs leading-5 text-emerald-800/80">
-                Activo por defecto. Desactívalo si este alimento es solo para tu consulta.
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-semibold text-slate-800">
+                  Compartir con la comunidad Nutri
+                </p>
+                <span className="rounded-full bg-slate-200/80 px-2 py-0.5 text-[10px] font-bold text-slate-600">
+                  Próximamente
+                </span>
+              </div>
+              <p className="mt-1 text-xs leading-5 text-slate-500">
+                En el MVP los alimentos creados son de uso privado para tus pautas y recetas. La función de compartir con la comunidad estará disponible próximamente.
               </p>
             </div>
           </label>
