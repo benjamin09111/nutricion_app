@@ -4,16 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Search,
-  Star,
-  Ban,
-  Info,
-  Pencil,
-  Tag,
   BadgeCheck,
   Plus,
-  Check,
-  X,
-  Share2,
   Layers,
   Lock,
 } from "lucide-react";
@@ -27,8 +19,6 @@ import { cn } from "@/lib/utils";
 import { useScrollLock } from "@/hooks/useScrollLock";
 import { fetchApi } from "@/lib/api-base";
 import { useSubscription } from "@/context/SubscriptionContext";
-import CreateIngredientModal from "./CreateIngredientModal";
-import ManageTagsModal from "./ManageTagsModal";
 import IngredientDetailsModal from "./IngredientDetailsModal";
 
 interface FoodsClientProps {
@@ -40,16 +30,35 @@ type FoodSourceTab = "catalog" | "mine" | "community";
 export default function FoodsClient({ initialData }: FoodsClientProps) {
   const router = useRouter();
   const { can, isLoading: isSubscriptionLoading } = useSubscription();
-  const foodCreationLocked = !isSubscriptionLoading && !can("ingredients.create.access");
+  const foodSourcesLocked = !isSubscriptionLoading && !can("ingredients.create.access");
 
-  const showFoodUpgrade = () => {
+  const showFoodUpgrade = (customDescription?: string) => {
     window.dispatchEvent(
       new CustomEvent("show-freemium-upgrade", {
         detail: {
-          description: "Crear alimentos propios está disponible en los planes de pago.",
+          description: customDescription || "Ver y gestionar alimentos propios o de la comunidad está disponible en los planes de pago.",
         },
       }),
     );
+  };
+
+  const handleTabClick = (sourceTab: FoodSourceTab) => {
+    if (sourceTab === "catalog") {
+      loadSourceTab("catalog");
+      return;
+    }
+
+    if (sourceTab === "community") {
+      toast.info("La pestaña Comunidad estará disponible próximamente en futuras versiones del MVP.");
+      return;
+    }
+
+    if (isSubscriptionLoading || foodSourcesLocked) {
+      showFoodUpgrade("Acceder a tus propios alimentos está disponible en los planes de pago.");
+      return;
+    }
+
+    loadSourceTab(sourceTab);
   };
 
   const [data, setData] = useState<Ingredient[]>(initialData);
@@ -59,33 +68,28 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("Todos");
   const [selectedTag, setSelectedTag] = useState("Todos");
+  const [selectedUnit, setSelectedUnit] = useState("Todas las unidades");
+  const [selectedProfile, setSelectedProfile] = useState("Todos los tipos");
   const [currentPage, setCurrentPage] = useState(1);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editValues, setEditValues] = useState<any>({});
-
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
-  const [isTagsModalOpen, setIsTagsModalOpen] = useState(false);
   const [selectedIngredient, setSelectedIngredient] = useState<Ingredient | null>(null);
-  const [selectedIngredientForTags, setSelectedIngredientForTags] = useState<Ingredient | null>(null);
 
   const sourceCacheRef = useRef<Record<FoodSourceTab, Ingredient[]>>({
     catalog: initialData,
     mine: [],
     community: [],
   });
-  const skipNextSearchFetchRef = useRef(false);
+  const skipNextSearchFetchRef = useRef(true);
   const clearSourceSwitchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const isAnyModalOpen = isCreateModalOpen || isDetailsModalOpen || isTagsModalOpen;
+  const isAnyModalOpen = isDetailsModalOpen;
   useScrollLock(isAnyModalOpen);
 
   useEffect(() => {
     setData(initialData);
     setCatalogPool(initialData);
+    sourceCacheRef.current.catalog = initialData;
   }, [initialData]);
-
-  const canEditIngredient = (ingredient: Ingredient | null | undefined) => Boolean(ingredient?.isMine);
 
   const sourceTabToApiTab = useCallback((sourceTab: FoodSourceTab) => {
     switch (sourceTab) {
@@ -109,6 +113,11 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
 
   const loadSourceTab = useCallback(
     async (sourceTab: FoodSourceTab) => {
+      if (sourceTab !== "catalog" && (isSubscriptionLoading || foodSourcesLocked)) {
+        showFoodUpgrade("Acceder a tus propios alimentos o la comunidad está disponible en los planes de pago.");
+        return;
+      }
+
       if (clearSourceSwitchTimerRef.current) {
         clearTimeout(clearSourceSwitchTimerRef.current);
         clearSourceSwitchTimerRef.current = null;
@@ -116,20 +125,18 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
 
       skipNextSearchFetchRef.current = true;
       setActiveSourceTab(sourceTab);
-      setEditingId(null);
-      setEditValues({});
       setSearchTerm("");
       setSelectedCategory("Todos");
       setSelectedTag("Todos");
+      setSelectedUnit("Todas las unidades");
+      setSelectedProfile("Todos los tipos");
       setCurrentPage(1);
 
       const cachedItems = sourceCacheRef.current[sourceTab];
-      if (cachedItems?.length > 0) {
+      if (cachedItems && cachedItems.length > 0) {
         setData(cachedItems);
         setCatalogPool(cachedItems);
-        clearSourceSwitchTimerRef.current = setTimeout(() => {
-          skipNextSearchFetchRef.current = false;
-        }, 0);
+        setIsLoadingIngredients(false);
         return;
       }
 
@@ -159,12 +166,9 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
         toast.error("No se pudo cargar el catálogo de ingredientes");
       } finally {
         setIsLoadingIngredients(false);
-        clearSourceSwitchTimerRef.current = setTimeout(() => {
-          skipNextSearchFetchRef.current = false;
-        }, 0);
       }
     },
-    [sourceTabToApiTab, setSourceTabData, toast],
+    [sourceTabToApiTab, setSourceTabData, isSubscriptionLoading, foodSourcesLocked],
   );
 
   const fetchIngredients = useCallback(async (sourceTab: FoodSourceTab = activeSourceTab) => {
@@ -198,6 +202,7 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
 
   useEffect(() => {
     if (skipNextSearchFetchRef.current) {
+      skipNextSearchFetchRef.current = false;
       return;
     }
 
@@ -223,7 +228,7 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, selectedCategory, selectedTag]);
+  }, [searchTerm, selectedCategory, selectedTag, selectedUnit, selectedProfile]);
 
   const categories = useMemo(
     () => [
@@ -235,6 +240,26 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
       ),
     ],
     [catalogPool],
+  );
+
+  const units = useMemo(() => {
+    const unitSet = new Set<string>();
+    catalogPool.forEach((item) => {
+      if (item.unit) unitSet.add(item.unit);
+    });
+    return ["Todas las unidades", ...Array.from(unitSet).sort((a, b) => a.localeCompare(b, "es"))];
+  }, [catalogPool]);
+
+  const profileOptions = useMemo(
+    () => [
+      "Todos los tipos",
+      "Alto en Proteínas",
+      "Alto en Calorías",
+      "Alto en Fibra",
+      "Bajo en Calorías",
+      "Bajo en Sodio",
+    ],
+    [],
   );
 
   const allTags = useMemo(() => {
@@ -251,10 +276,39 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
   }, [categories, selectedCategory]);
 
   useEffect(() => {
+    if (!units.includes(selectedUnit)) setSelectedUnit("Todas las unidades");
+  }, [units, selectedUnit]);
+
+  useEffect(() => {
     if (!allTags.includes(selectedTag)) setSelectedTag("Todos");
   }, [allTags, selectedTag]);
 
-  const filteredIngredients = data;
+  const filteredIngredients = useMemo(() => {
+    return data.filter((item) => {
+      if (selectedUnit !== "Todas las unidades" && item.unit !== selectedUnit) {
+        return false;
+      }
+
+      if (selectedProfile === "Alto en Proteínas" && (item.proteins ?? 0) < 10) {
+        return false;
+      }
+      if (selectedProfile === "Alto en Calorías" && (item.calories ?? 0) < 250) {
+        return false;
+      }
+      if (selectedProfile === "Alto en Fibra" && (item.fiber ?? 0) < 3) {
+        return false;
+      }
+      if (selectedProfile === "Bajo en Calorías" && (item.calories ?? 0) > 50) {
+        return false;
+      }
+      if (selectedProfile === "Bajo en Sodio" && (item.sodium ?? 0) > 140) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [data, selectedUnit, selectedProfile]);
+
   const itemsPerPage = 15;
   const totalPages = Math.max(1, Math.ceil(filteredIngredients.length / itemsPerPage));
   const paginatedIngredients = useMemo(() => {
@@ -277,6 +331,8 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
     setSearchTerm("");
     setSelectedCategory("Todos");
     setSelectedTag("Todos");
+    setSelectedUnit("Todas las unidades");
+    setSelectedProfile("Todos los tipos");
     setCurrentPage(1);
     await loadSourceTab("mine");
   };
@@ -284,168 +340,6 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
   const handleDetailsClick = (ingredient: Ingredient) => {
     setSelectedIngredient(ingredient);
     setIsDetailsModalOpen(true);
-  };
-
-  const handleManageTags = (ingredient: Ingredient) => {
-    setSelectedIngredientForTags(ingredient);
-    setIsTagsModalOpen(true);
-  };
-
-  const handleTogglePreference = async (ingredientId: string, updates: any) => {
-    const previousData = [...data];
-    setData((current) =>
-      current.map((item) => {
-        if (item.id !== ingredientId) return item;
-
-        const existingPref = item.preferences?.[0] || {
-          isFavorite: false,
-          isNotRecommended: false,
-          tags: [],
-        };
-
-        return { ...item, preferences: [{ ...existingPref, ...updates }] };
-      }),
-    );
-
-    try {
-      const response = await fetchApi(`/foods/${ingredientId}/preferences`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(updates),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        let errorData: any = {};
-        try {
-          errorData = JSON.parse(errorText);
-        } catch {
-          errorData = { message: errorText || "Error desconocido" };
-        }
-        throw new Error(errorData.message || "Error al actualizar preferencias");
-      }
-
-      if (updates.isFavorite) toast.success("Añadido a Favoritos ⭐");
-      else if (updates.isNotRecommended) toast.success("Marcado como No Recomendado 🚫");
-      else if (updates.isFavorite === false && updates.isNotRecommended === false) toast.success("Preferencia eliminada");
-
-      const patched = (current: Ingredient[]) =>
-        current.map((item) =>
-          item.id === ingredientId
-            ? { ...item, preferences: [{ ...(item.preferences?.[0] || {}), ...updates }] }
-            : item,
-        );
-      setCatalogPool(patched);
-      sourceCacheRef.current[activeSourceTab] = patched(sourceCacheRef.current[activeSourceTab]);
-      await fetchIngredients(activeSourceTab);
-    } catch (error: any) {
-      console.error("Toggle preference error:", error);
-      setData(previousData);
-      toast.error(error.message || "No se pudo actualizar la preferencia");
-    }
-  };
-
-  const handleStartEdit = (ingredient: Ingredient) => {
-    if (!canEditIngredient(ingredient)) {
-      toast.error("Solo puedes editar ingredientes creados por ti.");
-      return;
-    }
-
-    setEditingId(ingredient.id);
-    setEditValues({
-      name: ingredient.name,
-      brand: ingredient.brand?.name || "",
-      price: ingredient.price,
-      amount: ingredient.amount,
-      unit: ingredient.unit,
-      calories: ingredient.calories,
-      proteins: ingredient.proteins,
-      carbs: ingredient.carbs,
-      lipids: ingredient.lipids,
-      sugars: ingredient.sugars || 0,
-      fiber: ingredient.fiber || 0,
-      sodium: ingredient.sodium || 0,
-    });
-  };
-
-  const handleCancelEdit = () => {
-    setEditingId(null);
-    setEditValues({});
-  };
-
-  const handleSaveEdit = async (id: string) => {
-    const ingredientToEdit =
-      data.find((item) => item.id === id) || catalogPool.find((item) => item.id === id) || null;
-
-    if (!canEditIngredient(ingredientToEdit)) {
-      setEditingId(null);
-      setEditValues({});
-      toast.error("Solo puedes editar ingredientes creados por ti.");
-      return;
-    }
-
-    const updatePayload = {
-      ...editValues,
-      ...(ingredientToEdit?.isDraft ? { isDraft: false } : {}),
-    };
-
-    try {
-      const response = await fetchApi(`/foods/${id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(updatePayload),
-      });
-
-      if (!response.ok) throw new Error("Error al actualizar");
-
-      const updatedFood = await response.json();
-      setData((current) => current.map((item) => (item.id === id ? { ...item, ...updatedFood } : item)));
-      toast.success(ingredientToEdit?.isDraft ? "Borrador completado correctamente" : "Ingrediente actualizado");
-      setEditingId(null);
-      setEditValues({});
-      const patched = (current: Ingredient[]) =>
-        current.map((item) => (item.id === id ? { ...item, ...updatedFood } : item));
-      setCatalogPool(patched);
-      sourceCacheRef.current[activeSourceTab] = patched(sourceCacheRef.current[activeSourceTab]);
-      await fetchIngredients(activeSourceTab);
-    } catch (error) {
-      console.error("Update error:", error);
-      toast.error("No se pudo actualizar el ingrediente");
-    }
-  };
-
-  const handleShareToggle = async (ingredient: Ingredient) => {
-    try {
-      const response = await fetchApi(`/foods/${ingredient.id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ isPublic: !ingredient.isPublic }),
-      });
-
-      if (!response.ok) throw new Error("Error al compartir");
-
-      setData((current) =>
-        current.map((item) => (item.id === ingredient.id ? { ...item, isPublic: !ingredient.isPublic } : item)),
-      );
-
-      toast.success(ingredient.isPublic ? "Ingrediente dejado de compartir" : "Ingrediente compartido con la comunidad 🌍");
-      const patched = (current: Ingredient[]) =>
-        current.map((item) =>
-          item.id === ingredient.id ? { ...item, isPublic: !ingredient.isPublic } : item,
-        );
-      setCatalogPool(patched);
-      sourceCacheRef.current[activeSourceTab] = patched(sourceCacheRef.current[activeSourceTab]);
-      await fetchIngredients(activeSourceTab);
-    } catch (error) {
-      console.error("Share error:", error);
-      toast.error("No se pudo actualizar el estado de compartido");
-    }
   };
 
   return (
@@ -463,21 +357,40 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
               { key: "catalog", label: "Catálogo NutriNet" },
               { key: "mine", label: "Mis alimentos" },
               { key: "community", label: "Comunidad" },
-            ].map((tab) => (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => loadSourceTab(tab.key as FoodSourceTab)}
-                className={cn(
-                  "rounded-xl px-2 sm:px-4 py-2 text-xs sm:text-sm font-semibold transition-all",
-                  activeSourceTab === tab.key
-                    ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200/70"
-                    : "text-slate-500 hover:bg-white/70 hover:text-slate-700",
-                )}
-              >
-                {tab.label}
-              </button>
-            ))}
+            ].map((tab) => {
+              const isDisabledTab = tab.key === "community";
+              const isLocked = tab.key === "mine" && (isSubscriptionLoading || foodSourcesLocked);
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => handleTabClick(tab.key as FoodSourceTab)}
+                  title={
+                    isDisabledTab
+                      ? "Próximamente en futuras versiones"
+                      : isLocked
+                        ? "Disponible en planes de pago"
+                        : undefined
+                  }
+                  className={cn(
+                    "flex items-center justify-center gap-1.5 rounded-xl px-2 sm:px-4 py-2 text-xs sm:text-sm font-semibold transition-all",
+                    activeSourceTab === tab.key
+                      ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200/70"
+                      : "text-slate-500 hover:bg-white/70 hover:text-slate-700",
+                    isDisabledTab && "opacity-60 cursor-not-allowed hover:bg-transparent text-slate-400",
+                    isLocked && "opacity-80 hover:bg-amber-50/50 hover:text-amber-700",
+                  )}
+                >
+                  <span>{tab.label}</span>
+                  {isDisabledTab && (
+                    <span className="rounded-full bg-slate-200/80 px-1.5 py-0.5 text-[9px] font-bold text-slate-500">
+                      Próximamente
+                    </span>
+                  )}
+                  {isLocked && <Lock className="h-3.5 w-3.5 shrink-0 text-slate-400" />}
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -492,38 +405,36 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
           </Button>
           <Button
             onClick={() => {
-              if (foodCreationLocked) {
+              if (foodSourcesLocked) {
                 showFoodUpgrade();
                 return;
               }
-              setIsCreateModalOpen(true);
+              router.push("/dashboard/alimentos/nuevo");
             }}
             className={cn(
               "h-10 flex-1 justify-center rounded-xl bg-indigo-600 gap-2 whitespace-nowrap font-semibold text-white shadow-sm hover:bg-indigo-700 lg:flex-none lg:px-5",
-              foodCreationLocked && "cursor-not-allowed opacity-75",
+              foodSourcesLocked && "opacity-75",
             )}
           >
-            {foodCreationLocked ? <Lock size={18} /> : <Plus size={18} />}
+            {foodSourcesLocked ? <Lock size={18} /> : <Plus size={18} />}
             Nuevo Alimento
           </Button>
         </div>
       </div>
 
       <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm lg:p-5">
-        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px_220px]">
-          <div className="relative min-w-0">
-            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-              <Search className="h-4 w-4 text-slate-300" aria-hidden="true" />
-            </div>
-            <Input
-              type="search"
-              placeholder="Buscar alimento o marca..."
-              className="h-10 rounded-xl border-slate-200 bg-white pl-10 text-sm placeholder:text-slate-400 focus-visible:border-indigo-500"
+        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          <div className="relative w-full">
+            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
                 setCurrentPage(1);
               }}
+              placeholder="Buscar por nombre o marca..."
+              className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-4 text-xs sm:text-sm font-medium text-slate-700 outline-none transition-colors placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
             />
           </div>
 
@@ -536,20 +447,46 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
             }}
             placeholder="Categoría"
             className="w-full"
-            triggerClassName="h-10 rounded-xl"
+            triggerClassName="h-10 rounded-xl text-xs sm:text-sm"
           />
 
           <SearchableSelect
-            options={allTags}
-            value={selectedTag}
+            options={units}
+            value={selectedUnit}
             onChange={(value) => {
-              setSelectedTag(value);
+              setSelectedUnit(value);
               setCurrentPage(1);
             }}
-            placeholder="Tag"
+            placeholder="Unidad de medida"
             className="w-full"
-            triggerClassName="h-10 rounded-xl"
+            triggerClassName="h-10 rounded-xl text-xs sm:text-sm"
           />
+
+          <SearchableSelect
+            options={profileOptions}
+            value={selectedProfile}
+            onChange={(value) => {
+              setSelectedProfile(value);
+              setCurrentPage(1);
+            }}
+            placeholder="Tipo / Perfil"
+            className="w-full"
+            triggerClassName="h-10 rounded-xl text-xs sm:text-sm"
+          />
+
+          {activeSourceTab !== "catalog" && (
+            <SearchableSelect
+              options={allTags}
+              value={selectedTag}
+              onChange={(value) => {
+                setSelectedTag(value);
+                setCurrentPage(1);
+              }}
+              placeholder="Tag"
+              className="w-full"
+              triggerClassName="h-10 rounded-xl text-xs sm:text-sm"
+            />
+          )}
         </div>
       </div>
 
@@ -560,17 +497,10 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
         {isLoadingIngredients && (
           <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-indigo-600">
             <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-indigo-100 border-t-indigo-500" />
-            Actualizando
+            Cargando
           </div>
         )}
       </div>
-
-      {isLoadingIngredients && (
-        <div className="mx-2 flex items-center gap-3 rounded-2xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm font-medium text-indigo-700 shadow-sm">
-          <span className="h-4 w-4 animate-spin rounded-full border-2 border-indigo-200 border-t-indigo-600" />
-          Cargando {activeSourceTab === "catalog" ? "catálogo" : activeSourceTab === "mine" ? "mis alimentos" : "comunidad"}...
-        </div>
-      )}
 
       <div className="space-y-4">
         {/* Desktop Table View */}
@@ -580,7 +510,9 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
               <thead className="bg-slate-50/50">
                 <tr>
                   <th className="border-b border-slate-100 px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-widest text-slate-500">Alimento</th>
-                  <th className="border-b border-slate-100 px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-widest text-slate-500">Marca</th>
+                  {activeSourceTab !== "catalog" && (
+                    <th className="border-b border-slate-100 px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-widest text-slate-500">Marca</th>
+                  )}
                   <th className="border-b border-slate-100 px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-widest text-slate-500">Categoría</th>
                   <th className="border-b border-slate-100 px-5 py-3 text-center text-[10px] font-semibold uppercase tracking-widest text-slate-500">Unidad</th>
                   <th className="border-b border-slate-100 px-2 py-3 text-center text-[10px] font-semibold uppercase tracking-widest text-slate-500">Cals</th>
@@ -590,152 +522,125 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
                   <th className="border-b border-slate-100 px-2 py-3 text-center text-[10px] font-semibold uppercase tracking-widest text-slate-500">Sug</th>
                   <th className="border-b border-slate-100 px-2 py-3 text-center text-[10px] font-semibold uppercase tracking-widest text-slate-500">Fib</th>
                   <th className="border-b border-slate-100 px-2 py-3 text-center text-[10px] font-semibold uppercase tracking-widest text-slate-500">Na</th>
-                  <th className="border-b border-slate-100 px-5 py-3 text-center text-[10px] font-semibold uppercase tracking-widest text-slate-500">Tags</th>
-                  <th className="border-b border-slate-100 px-5 py-3 text-right text-[10px] font-semibold uppercase tracking-widest text-slate-500">Acciones</th>
+                  {activeSourceTab !== "catalog" && (
+                    <th className="border-b border-slate-100 px-5 py-3 text-center text-[10px] font-semibold uppercase tracking-widest text-slate-500">Tags</th>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white">
-                {paginatedIngredients.length > 0 ? (
+                {isLoadingIngredients && data.length === 0 ? (
+                  Array.from({ length: 6 }).map((_, i) => (
+                    <tr key={i} className="animate-pulse">
+                      <td className="px-5 py-3.5 align-middle">
+                        <div className="h-4 w-36 rounded-lg bg-slate-100" />
+                      </td>
+                      {activeSourceTab !== "catalog" && (
+                        <td className="px-5 py-3.5 align-middle">
+                          <div className="h-4 w-20 rounded-lg bg-slate-100" />
+                        </td>
+                      )}
+                      <td className="px-5 py-3.5 align-middle">
+                        <div className="h-5 w-24 rounded-full bg-slate-100" />
+                      </td>
+                      <td className="px-5 py-3.5 align-middle text-center">
+                        <div className="mx-auto h-4 w-10 rounded-lg bg-slate-100" />
+                      </td>
+                      <td className="px-2 py-3.5 align-middle text-center">
+                        <div className="mx-auto h-4 w-8 rounded-lg bg-slate-100" />
+                      </td>
+                      <td className="px-2 py-3.5 align-middle text-center">
+                        <div className="mx-auto h-4 w-8 rounded-lg bg-slate-100" />
+                      </td>
+                      <td className="px-2 py-3.5 align-middle text-center">
+                        <div className="mx-auto h-4 w-8 rounded-lg bg-slate-100" />
+                      </td>
+                      <td className="px-2 py-3.5 align-middle text-center">
+                        <div className="mx-auto h-4 w-8 rounded-lg bg-slate-100" />
+                      </td>
+                      <td className="px-2 py-3.5 align-middle text-center">
+                        <div className="mx-auto h-4 w-8 rounded-lg bg-slate-100" />
+                      </td>
+                      <td className="px-2 py-3.5 align-middle text-center">
+                        <div className="mx-auto h-4 w-8 rounded-lg bg-slate-100" />
+                      </td>
+                      <td className="px-2 py-3.5 align-middle text-center">
+                        <div className="mx-auto h-4 w-8 rounded-lg bg-slate-100" />
+                      </td>
+                      {activeSourceTab !== "catalog" && (
+                        <td className="px-5 py-3.5 align-middle">
+                          <div className="mx-auto h-4 w-16 rounded-lg bg-slate-100" />
+                        </td>
+                      )}
+                    </tr>
+                  ))
+                ) : paginatedIngredients.length > 0 ? (
                   paginatedIngredients.map((ingredient) => (
-                    <tr key={ingredient.id} className="group transition-colors hover:bg-slate-50/50">
-                      <td className="px-5 py-2.5 align-middle">
-                        {editingId === ingredient.id && canEditIngredient(ingredient) ? (
-                          <Input
-                            value={editValues.name}
-                            onChange={(e) => setEditValues({ ...editValues, name: e.target.value })}
-                            className="h-8 w-full text-sm"
-                          />
-                        ) : (
-                          <div className="flex min-w-0 items-center gap-2">
-                            <span className="truncate text-sm font-medium text-slate-900">{ingredient.name}</span>
-                            {ingredient.isDraft && (
-                              <span className="inline-flex items-center rounded-lg bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-700 ring-1 ring-inset ring-amber-200">
-                                Borrador
-                              </span>
-                            )}
-                            {ingredient.verified && <BadgeCheck className="h-4 w-4 shrink-0 text-emerald-500" />}
-                          </div>
-                        )}
+                    <tr
+                      key={ingredient.id}
+                      onClick={() => handleDetailsClick(ingredient)}
+                      className="group cursor-pointer transition-colors hover:bg-indigo-50/40"
+                    >
+                      <td className="px-5 py-3 align-middle">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span className="truncate text-sm font-medium text-slate-900 group-hover:text-indigo-600 transition-colors">
+                            {ingredient.name}
+                          </span>
+                          {ingredient.isDraft && (
+                            <span className="inline-flex items-center rounded-lg bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-700 ring-1 ring-inset ring-amber-200">
+                              Borrador
+                            </span>
+                          )}
+                          {ingredient.verified && <BadgeCheck className="h-4 w-4 shrink-0 text-emerald-500" />}
+                        </div>
                       </td>
-                      <td className="px-5 py-2.5 align-middle text-sm text-slate-500">
-                        {editingId === ingredient.id && canEditIngredient(ingredient) ? (
-                          <Input
-                            value={editValues.brand}
-                            onChange={(e) => setEditValues({ ...editValues, brand: e.target.value })}
-                            className="h-8 w-full text-sm"
-                          />
-                        ) : (
-                          ingredient.brand?.name || "-"
-                        )}
-                      </td>
-                      <td className="px-5 py-2.5 align-middle text-sm text-slate-500">
-                        <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">
+                      {activeSourceTab !== "catalog" && (
+                        <td className="px-5 py-3 align-middle text-sm text-slate-500">
+                          {ingredient.brand?.name || "-"}
+                        </td>
+                      )}
+                      <td className="px-5 py-3 align-middle text-sm text-slate-500">
+                        <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
                           {ingredient.category?.name || "General"}
                         </span>
                       </td>
-                      <td className="px-5 py-2.5 align-middle text-center text-sm text-slate-500">{ingredient.unit}</td>
-                      <td className="px-2 py-2.5 align-middle text-center">
-                        {editingId === ingredient.id && canEditIngredient(ingredient) ? (
-                          <Input type="number" step="0.1" value={editValues.calories} onChange={(e) => setEditValues({ ...editValues, calories: Number(e.target.value) })} className="mx-auto h-8 w-16 text-xs" />
-                        ) : (
-                          <span className="text-xs font-medium text-slate-600">{ingredient.calories}</span>
-                        )}
+                      <td className="px-5 py-3 align-middle text-center text-sm text-slate-500">{ingredient.unit}</td>
+                      <td className="px-2 py-3 align-middle text-center">
+                        <span className="text-xs font-medium text-slate-700">{ingredient.calories}</span>
                       </td>
-                      <td className="px-2 py-2.5 align-middle text-center">
-                        {editingId === ingredient.id && canEditIngredient(ingredient) ? (
-                          <Input type="number" step="0.1" value={editValues.proteins} onChange={(e) => setEditValues({ ...editValues, proteins: Number(e.target.value) })} className="mx-auto h-8 w-16 text-xs" />
-                        ) : (
-                          <span className="text-xs font-semibold text-blue-600">{ingredient.proteins}g</span>
-                        )}
+                      <td className="px-2 py-3 align-middle text-center">
+                        <span className="text-xs font-semibold text-blue-600">{ingredient.proteins}g</span>
                       </td>
-                      <td className="px-2 py-2.5 align-middle text-center">
-                        {editingId === ingredient.id && canEditIngredient(ingredient) ? (
-                          <Input type="number" step="0.1" value={editValues.lipids} onChange={(e) => setEditValues({ ...editValues, lipids: Number(e.target.value) })} className="mx-auto h-8 w-16 text-xs" />
-                        ) : (
-                          <span className="text-xs font-semibold text-red-600">{ingredient.lipids}g</span>
-                        )}
+                      <td className="px-2 py-3 align-middle text-center">
+                        <span className="text-xs font-semibold text-red-600">{ingredient.lipids}g</span>
                       </td>
-                      <td className="px-2 py-2.5 align-middle text-center">
-                        {editingId === ingredient.id && canEditIngredient(ingredient) ? (
-                          <Input type="number" step="0.1" value={editValues.carbs} onChange={(e) => setEditValues({ ...editValues, carbs: Number(e.target.value) })} className="mx-auto h-8 w-16 text-xs" />
-                        ) : (
-                          <span className="text-xs font-semibold text-emerald-600">{ingredient.carbs}g</span>
-                        )}
+                      <td className="px-2 py-3 align-middle text-center">
+                        <span className="text-xs font-semibold text-emerald-600">{ingredient.carbs}g</span>
                       </td>
-                      <td className="px-2 py-2.5 align-middle text-center">
-                        {editingId === ingredient.id && canEditIngredient(ingredient) ? (
-                          <Input type="number" step="0.1" value={editValues.sugars} onChange={(e) => setEditValues({ ...editValues, sugars: Number(e.target.value) })} className="mx-auto h-8 w-16 text-xs" />
-                        ) : (
-                          <span className="text-xs text-slate-500">{ingredient.sugars || 0}g</span>
-                        )}
+                      <td className="px-2 py-3 align-middle text-center">
+                        <span className="text-xs text-slate-500">{ingredient.sugars || 0}g</span>
                       </td>
-                      <td className="px-2 py-2.5 align-middle text-center">
-                        {editingId === ingredient.id && canEditIngredient(ingredient) ? (
-                          <Input type="number" step="0.1" value={editValues.fiber} onChange={(e) => setEditValues({ ...editValues, fiber: Number(e.target.value) })} className="mx-auto h-8 w-16 text-xs" />
-                        ) : (
-                          <span className="text-xs text-slate-500">{ingredient.fiber || 0}g</span>
-                        )}
+                      <td className="px-2 py-3 align-middle text-center">
+                        <span className="text-xs text-slate-500">{ingredient.fiber || 0}g</span>
                       </td>
-                      <td className="px-2 py-2.5 align-middle text-center">
-                        {editingId === ingredient.id && canEditIngredient(ingredient) ? (
-                          <Input type="number" step="0.1" value={editValues.sodium} onChange={(e) => setEditValues({ ...editValues, sodium: Number(e.target.value) })} className="mx-auto h-8 w-16 text-xs" />
-                        ) : (
-                          <span className="text-xs text-slate-500">{ingredient.sodium || 0}mg</span>
-                        )}
+                      <td className="px-2 py-3 align-middle text-center">
+                        <span className="text-xs text-slate-500">{ingredient.sodium || 0}mg</span>
                       </td>
-                      <td className="px-5 py-2.5 align-middle">
-                        <div className="flex flex-wrap justify-center gap-1.5">
-                          {(ingredient.preferences?.[0]?.tags || ingredient.tags || []).slice(0, 2).map((tag: any) => (
-                            <span key={tag.id} className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-medium text-indigo-600">
-                              #{tag.name}
-                            </span>
-                          ))}
-                        </div>
-                      </td>
-                      <td className="px-5 py-2.5 align-middle text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          {editingId === ingredient.id && canEditIngredient(ingredient) ? (
-                            <>
-                              <Button variant="ghost" size="icon" onClick={() => handleSaveEdit(ingredient.id)} className="h-8 w-8 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700">
-                                <Check size={16} />
-                              </Button>
-                              <Button variant="ghost" size="icon" onClick={handleCancelEdit} className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-700">
-                                <X size={16} />
-                              </Button>
-                            </>
-                          ) : (
-                            <>
-                              <Button variant="ghost" size="icon" onClick={() => handleDetailsClick(ingredient)} className="h-8 w-8 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600">
-                                <Info size={16} />
-                              </Button>
-                              <Button variant="ghost" size="icon" onClick={() => handleManageTags(ingredient)} className="h-8 w-8 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600">
-                                <Tag size={16} />
-                              </Button>
-                              {canEditIngredient(ingredient) && (
-                                <Button variant="ghost" size="icon" onClick={() => handleStartEdit(ingredient)} className="h-8 w-8 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600" title="Editar ingrediente">
-                                  <Pencil size={16} />
-                                </Button>
-                              )}
-                              <Button variant="ghost" size="icon" onClick={() => handleTogglePreference(ingredient.id, { isFavorite: !ingredient.preferences?.[0]?.isFavorite })} className={cn("h-8 w-8 transition-colors", ingredient.preferences?.[0]?.isFavorite ? "text-amber-400 hover:bg-amber-50 hover:text-amber-500" : "text-slate-400 hover:bg-amber-50 hover:text-amber-400")}>
-                                <Star size={16} fill={ingredient.preferences?.[0]?.isFavorite ? "currentColor" : "none"} />
-                              </Button>
-                              <Button variant="ghost" size="icon" onClick={() => handleTogglePreference(ingredient.id, { isNotRecommended: !ingredient.preferences?.[0]?.isNotRecommended })} className={cn("h-8 w-8 transition-colors", ingredient.preferences?.[0]?.isNotRecommended ? "text-red-500 hover:bg-red-50 hover:text-red-600" : "text-slate-400 hover:bg-red-50 hover:text-red-500")}>
-                                <Ban size={16} />
-                              </Button>
-                              {ingredient.isMine && (
-                                <Button variant="ghost" size="icon" onClick={() => handleShareToggle(ingredient)} className={cn("h-8 w-8 transition-colors", ingredient.isPublic ? "text-emerald-500 hover:bg-emerald-50 hover:text-emerald-600" : "text-slate-400 hover:bg-emerald-50 hover:text-emerald-500")} title={ingredient.isPublic ? "Dejar de compartir" : "Compartir con la comunidad"}>
-                                  <Share2 size={16} />
-                                </Button>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      </td>
+                      {activeSourceTab !== "catalog" && (
+                        <td className="px-5 py-3 align-middle">
+                          <div className="flex flex-wrap justify-center gap-1.5">
+                            {(ingredient.preferences?.[0]?.tags || ingredient.tags || []).slice(0, 2).map((tag: any) => (
+                              <span key={tag.id} className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-medium text-indigo-600">
+                                #{tag.name}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={13} className="py-16 text-center">
+                    <td colSpan={activeSourceTab === "catalog" ? 10 : 12} className="py-16 text-center">
                       <div className="flex flex-col items-center gap-3">
                         <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-slate-100 bg-slate-50">
                           <Search className="h-7 w-7 text-slate-300" />
@@ -752,12 +657,25 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
 
         {/* Mobile Cards View */}
         <div className="lg:hidden space-y-3">
-          {paginatedIngredients.length > 0 ? (
+          {isLoadingIngredients && data.length === 0 ? (
+            Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="animate-pulse space-y-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+                <div className="h-4 w-40 rounded-lg bg-slate-100" />
+                <div className="h-3 w-24 rounded-lg bg-slate-100" />
+                <div className="grid grid-cols-4 gap-1.5">
+                  <div className="h-10 rounded-xl bg-slate-100" />
+                  <div className="h-10 rounded-xl bg-slate-100" />
+                  <div className="h-10 rounded-xl bg-slate-100" />
+                  <div className="h-10 rounded-xl bg-slate-100" />
+                </div>
+              </div>
+            ))
+          ) : paginatedIngredients.length > 0 ? (
             paginatedIngredients.map((ingredient) => (
               <div
                 key={ingredient.id}
                 onClick={() => handleDetailsClick(ingredient)}
-                className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3 cursor-pointer active:scale-[0.99] transition-all"
+                className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3 cursor-pointer active:scale-[0.99] transition-all hover:border-indigo-200 hover:shadow-md"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -771,24 +689,9 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
                       {ingredient.verified && <BadgeCheck className="h-4 w-4 text-emerald-500 shrink-0" />}
                     </div>
                     <p className="text-xs text-slate-500 font-medium mt-0.5">
-                      {ingredient.brand?.name || "Sin marca"} ·{" "}
+                      {activeSourceTab !== "catalog" && ingredient.brand?.name ? `${ingredient.brand.name} · ` : ""}
                       <span className="text-indigo-600 font-semibold">{ingredient.category?.name || "General"}</span>
                     </p>
-                  </div>
-
-                  <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
-                    <button
-                      onClick={() => handleTogglePreference(ingredient.id, { isFavorite: !ingredient.preferences?.[0]?.isFavorite })}
-                      className={cn("p-1.5 rounded-lg transition-colors", ingredient.preferences?.[0]?.isFavorite ? "text-amber-400 bg-amber-50" : "text-slate-300 hover:text-amber-400")}
-                    >
-                      <Star size={18} fill={ingredient.preferences?.[0]?.isFavorite ? "currentColor" : "none"} />
-                    </button>
-                    <button
-                      onClick={() => handleTogglePreference(ingredient.id, { isNotRecommended: !ingredient.preferences?.[0]?.isNotRecommended })}
-                      className={cn("p-1.5 rounded-lg transition-colors", ingredient.preferences?.[0]?.isNotRecommended ? "text-red-500 bg-red-50" : "text-slate-300 hover:text-red-400")}
-                    >
-                      <Ban size={18} />
-                    </button>
                   </div>
                 </div>
 
@@ -812,41 +715,26 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
                   </div>
                 </div>
 
-                {/* Footer with actions */}
-                <div className="flex items-center justify-between pt-2 border-t border-slate-100" onClick={(e) => e.stopPropagation()}>
-                  <div className="flex items-center gap-1 flex-wrap">
-                    {(ingredient.preferences?.[0]?.tags || ingredient.tags || []).slice(0, 2).map((tag: any) => (
-                      <span key={tag.id} className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-600">
+                {/* Footer with tags */}
+                {activeSourceTab !== "catalog" && (ingredient.preferences?.[0]?.tags || ingredient.tags || []).length > 0 && (
+                  <div className="flex flex-wrap gap-1 pt-1 border-t border-slate-100">
+                    {(ingredient.preferences?.[0]?.tags || ingredient.tags || []).map((tag: any) => (
+                      <span key={tag.id} className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-medium text-indigo-600">
                         #{tag.name}
                       </span>
                     ))}
                   </div>
-
-                  <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="icon" onClick={() => handleDetailsClick(ingredient)} className="h-8 w-8 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600">
-                      <Info size={16} />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => handleManageTags(ingredient)} className="h-8 w-8 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600">
-                      <Tag size={16} />
-                    </Button>
-                    {canEditIngredient(ingredient) && (
-                      <Button variant="ghost" size="icon" onClick={() => handleStartEdit(ingredient)} className="h-8 w-8 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600">
-                        <Pencil size={16} />
-                      </Button>
-                    )}
-                    {ingredient.isMine && (
-                      <Button variant="ghost" size="icon" onClick={() => handleShareToggle(ingredient)} className={cn("h-8 w-8 transition-colors", ingredient.isPublic ? "text-emerald-500 hover:bg-emerald-50" : "text-slate-400 hover:bg-emerald-50")}>
-                        <Share2 size={16} />
-                      </Button>
-                    )}
-                  </div>
-                </div>
+                )}
               </div>
             ))
           ) : (
-            <div className="bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 p-8 text-center">
-              <Search className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-              <p className="text-slate-500 text-sm font-medium">No se encontraron alimentos</p>
+            <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center">
+              <div className="flex flex-col items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-100 bg-slate-50">
+                  <Search className="h-6 w-6 text-slate-300" />
+                </div>
+                <p className="text-sm font-medium text-slate-500">No se encontraron alimentos</p>
+              </div>
             </div>
           )}
         </div>
@@ -860,24 +748,6 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
         isOpen={isDetailsModalOpen}
         onClose={() => setIsDetailsModalOpen(false)}
         ingredient={selectedIngredient}
-      />
-
-      <ManageTagsModal
-        isOpen={isTagsModalOpen}
-        onClose={() => setIsTagsModalOpen(false)}
-        ingredient={selectedIngredientForTags}
-        availableTags={allTags.filter((tag) => tag !== "Todos")}
-          onSuccess={async () => {
-            toast.success("Tags actualizados");
-            await fetchIngredients(activeSourceTab);
-          }}
-        />
-
-      <CreateIngredientModal
-        isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        onSuccess={handleCreateIngredientSuccess}
-        availableTags={allTags.filter((tag) => tag !== "Todos")}
       />
     </div>
   );
