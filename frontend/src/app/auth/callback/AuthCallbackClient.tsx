@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { fetchApi } from "@/lib/api-base";
@@ -28,10 +28,16 @@ type Props = {
 export default function AuthCallbackClient({ fallbackMessage }: Props = {}) {
   const params = useSearchParams();
   const router = useRouter();
+  const hasStartedRef = useRef(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [message, setMessage] = useState(fallbackMessage || "Finalizando inicio de sesión...");
 
   useEffect(() => {
+    // The URL is cleaned below, which can cause useSearchParams to update.
+    // Do not interpret that second render as a failed authentication.
+    if (hasStartedRef.current) return;
+    hasStartedRef.current = true;
+
     const ticket = params.get("ticket");
     const next = resolveSafePostAuthPath(params.get("next"));
 
@@ -41,9 +47,7 @@ export default function AuthCallbackClient({ fallbackMessage }: Props = {}) {
       return;
     }
 
-    if (ticket) {
-      window.history.replaceState({}, "", window.location.pathname);
-    }
+    window.history.replaceState({}, "", window.location.pathname);
 
     const hydrate = async () => {
       try {
@@ -94,9 +98,8 @@ export default function AuthCallbackClient({ fallbackMessage }: Props = {}) {
         setIsRedirecting(true);
         setMessage("Inicio de sesión exitoso. Preparando tu espacio de trabajo...");
 
-        // Give the success state a brief paint while the destination is prefetched.
+        // Keep the dedicated callback loader visible until navigation begins.
         router.prefetch(destination);
-        await new Promise((resolve) => window.setTimeout(resolve, 250));
         router.replace(destination);
       } catch (error) {
         console.error("Auth callback error:", error);

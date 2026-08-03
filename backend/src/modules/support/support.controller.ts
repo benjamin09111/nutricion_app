@@ -8,6 +8,7 @@ import {
   UseGuards,
   Request,
   Delete,
+  ForbiddenException,
   UnauthorizedException,
 } from '@nestjs/common';
 import type { Request as ExpressRequest } from 'express';
@@ -20,16 +21,22 @@ import {
   SPECIAL_FEATURES,
   isStaffRole,
 } from '../permissions/permissions.constants';
+import { PermissionsService } from '../permissions/permissions.service';
 
 type JwtRequest = ExpressRequest & {
   user: {
+    id: string;
     email: string;
+    role?: string;
   };
 };
 
 @Controller('support')
 export class SupportController {
-  constructor(private readonly supportService: SupportService) {}
+  constructor(
+    private readonly supportService: SupportService,
+    private readonly permissionsService: PermissionsService,
+  ) {}
 
   private getUserEmail(req: JwtRequest): string {
     return (req as unknown as { user: { email: string } }).user.email;
@@ -45,10 +52,29 @@ export class SupportController {
   @UseGuards(AuthGuard, PermissionsGuard)
   @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
   @Post('feedback')
-  createFeedback(
+  async createFeedback(
     @Request() req: JwtRequest,
     @Body() body: import('./dto/create-feedback.dto').CreateFeedbackDto,
   ) {
+    const accessSnapshot = await this.permissionsService.getAccessSnapshot(
+      req.user.id,
+    );
+    const freemiumAllowedTypes = new Set([
+      'FEEDBACK',
+      'TESTIMONIO',
+      'COMPLAINT',
+    ]);
+
+    if (
+      !isStaffRole(req.user.role || '') &&
+      accessSnapshot?.currentPlanKey === 'free' &&
+      !freemiumAllowedTypes.has(body.type)
+    ) {
+      throw new ForbiddenException(
+        'Esta categoría de feedback está disponible solo en planes de pago.',
+      );
+    }
+
     return this.supportService.create({
       ...body,
       email: this.getUserEmail(req),

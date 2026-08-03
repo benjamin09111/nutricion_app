@@ -16,6 +16,7 @@
     "db:check:dev": "node scripts/check-prisma-dev.js",
     "db:migrate:prod": "node scripts/safe-migrate.js",
     "db:seed:catalog:safe": "node scripts/safe-seed-catalog.js",
+    "db:sync:plans": "tsx prisma/sync-membership-plans.ts",
     "db:seed:admin:dev": "tsx prisma/seed-dev-admin.ts",
     "db:cleanup:clinical-metrics:dev": "tsx prisma/cleanup-clinical-metric-contamination.ts",
     "db:backfill:freemium": "tsx prisma/backfill-freemium-nutritionists.ts",

@@ -200,6 +200,10 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                 setDeliveryDate={setDeliveryDate}
                 description={state.creationDescription}
                 setDescription={state.setCreationDescription}
+                planObjective={state.planObjective}
+                setPlanObjective={state.setPlanObjective}
+                showPlanObjectiveInPdf={state.showPlanObjectiveInPdf}
+                setShowPlanObjectiveInPdf={state.setShowPlanObjectiveInPdf}
                 showGeneralInfo
                 showClinicalRestriction
               />

@@ -1,10 +1,44 @@
-import { PrismaClient } from '@prisma/client';
-import { loadPrismaEnv } from './load-prisma-env';
-import { getMembershipPlanEntitlements } from '../src/modules/memberships/plan-entitlements';
-
-loadPrismaEnv();
+const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient();
+
+const freeEntitlements = {
+  "patients.active.limit": 4,
+  "patients.total.limit": 4,
+  "consultations.saved.limit": 3,
+  "consultations.monthly.limit": 3,
+  "pdf.exports.total.limit": 3,
+  "pdf.monthly.limit": 3,
+  "followups.private.active.limit": 6,
+  "ingredients.base_catalog.access": true,
+  "clinical_calculator.limit": 0,
+  "food_groups.total.limit": 1,
+  "ai.operations.total.limit": 4,
+  "ai.calls.limit": 4,
+  "creations.save.limit": 3,
+  "patients.edit.allowed": false,
+  "creations.edit.allowed": false,
+  "details.custom.create.allowed": false
+};
+
+const proEntitlements = {
+  "patients.active.limit": -1,
+  "patients.total.limit": -1,
+  "consultations.saved.limit": -1,
+  "consultations.monthly.limit": -1,
+  "pdf.exports.total.limit": -1,
+  "pdf.monthly.limit": -1,
+  "followups.private.active.limit": -1,
+  "ingredients.base_catalog.access": true,
+  "clinical_calculator.limit": -1,
+  "food_groups.total.limit": -1,
+  "ai.operations.total.limit": -1,
+  "ai.calls.limit": -1,
+  "creations.save.limit": -1,
+  "patients.edit.allowed": true,
+  "creations.edit.allowed": true,
+  "details.custom.create.allowed": true
+};
 
 const plans = [
   {
@@ -29,11 +63,10 @@ const plans = [
       'X Crear Detalles personalizados',
     ],
     maxPatients: 4,
-    maxStorage: null,
     isPopular: false,
     isActive: true,
     displayOrder: 1,
-    entitlements: getMembershipPlanEntitlements('free'),
+    entitlements: freeEntitlements,
   },
   {
     name: 'Pro',
@@ -54,16 +87,15 @@ const plans = [
       '✓ Generación de boletas SII',
     ],
     maxPatients: null,
-    maxStorage: null,
     isPopular: true,
     isActive: true,
     displayOrder: 3,
-    entitlements: getMembershipPlanEntitlements('pro'),
+    entitlements: proEntitlements,
   },
 ];
 
 async function sync() {
-  console.log('🔄 Syncing membership plans in database...');
+  console.log('🔄 Sincronizando planes de membresía en la base de datos de producción...');
   for (const plan of plans) {
     const existing =
       (await prisma.membershipPlan.findUnique({ where: { slug: plan.slug } })) ||
@@ -74,20 +106,20 @@ async function sync() {
         where: { id: existing.id },
         data: plan,
       });
-      console.log(`✅ Plan '${plan.name}' actualizado.`);
+      console.log(`✅ Plan '${plan.name}' (slug: ${plan.slug}, precio: $${plan.price}) actualizado.`);
     } else {
       await prisma.membershipPlan.create({ data: plan });
-      console.log(`✅ Plan '${plan.name}' creado.`);
+      console.log(`✅ Plan '${plan.name}' (slug: ${plan.slug}, precio: $${plan.price}) creado.`);
     }
   }
 }
 
 sync()
-  .then(() => console.log('🎉 Membership plans synced successfully.'))
-  .catch((error) => {
-    console.error('❌ Error syncing membership plans:', error);
-    process.exitCode = 1;
+  .then(() => {
+    console.log('🎉 Planes sincronizados exitosamente.');
+    process.exit(0);
   })
-  .finally(async () => {
-    await prisma.$disconnect();
+  .catch((err) => {
+    console.error('❌ Error al sincronizar planes:', err);
+    process.exit(1);
   });

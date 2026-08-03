@@ -38,6 +38,8 @@ export interface FastDeliverablePdfData {
   paragraphs?: FastDeliverableParagraphItem[];
   nutritionistName?: string | null;
   nutritionistEmail?: string | null;
+  planObjective?: string;
+  showPlanObjectiveInPdf?: boolean;
   meals: FastMealPlanItem[];
   avoidFoods: string[];
   resources: FastDeliverableResourcePage[];
@@ -133,6 +135,12 @@ const styles = StyleSheet.create({
   metaText: {
     fontSize: 8.5,
     color: "#475569",
+  },
+  objective: {
+    fontSize: 9,
+    color: "#065f46",
+    fontFamily: "Helvetica-Bold",
+    marginBottom: 4,
   },
   patientMetaRow: {
     fontSize: 8.5,
@@ -379,6 +387,9 @@ export function FastDeliverablePdfDocument({
           <View style={styles.headerLeft}>
             <Text style={styles.brand}>NutriNet</Text>
             <Text style={styles.title}>{data.name || "Entregable Rápido"}</Text>
+            {data.showPlanObjectiveInPdf && data.planObjective?.trim() ? (
+              <Text style={styles.objective}>Objetivo: {data.planObjective.trim()}</Text>
+            ) : null}
             <Text style={styles.metaText}>
               {patientName ? `Paciente: ${patientName}` : "Entregable Express"}
               {data.clinicalRestriction ? ` • Restricción: ${data.clinicalRestriction}` : ""}
