@@ -350,9 +350,12 @@ export class PaymentsService {
       this.prisma.ingredientGroup.count({
         where: { nutritionist: { accountId } },
       }),
-      this.prisma.creation.count({
-        where: { nutritionist: { accountId } },
-      }),
+       this.prisma.creation.count({
+         where: {
+           nutritionist: { accountId },
+           type: { not: 'SCREENING_TEST' },
+         },
+       }),
       this.prisma.payment.count({
         where: {
           accountId,

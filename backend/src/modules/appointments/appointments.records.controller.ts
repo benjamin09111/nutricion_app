@@ -13,9 +13,12 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import type { AppointmentRequest } from './appointments.types';
 import { resolveNutritionistIdFromRequest } from './appointments-auth';
+import { PermissionsGuard } from '../permissions/permissions.guard';
+import { RequireFeatures } from '../permissions/permissions.decorator';
+import { PLAN_ENTITLEMENT_KEYS } from '../memberships/plan-entitlements';
 
 @Controller('appointments')
-@UseGuards(ApiKeyGuard)
+@UseGuards(ApiKeyGuard, PermissionsGuard)
 export class AppointmentsRecordsController {
   constructor(
     private readonly appointmentsService: AppointmentsService,
@@ -23,6 +26,7 @@ export class AppointmentsRecordsController {
   ) {}
 
   @Get()
+  @RequireFeatures(PLAN_ENTITLEMENT_KEYS.APPOINTMENTS_ACCESS)
   async listAppointments(
     @Request() request: AppointmentRequest,
     @Query('calendarId') calendarId?: string,
@@ -44,6 +48,7 @@ export class AppointmentsRecordsController {
   }
 
   @Post()
+  @RequireFeatures(PLAN_ENTITLEMENT_KEYS.APPOINTMENTS_ACCESS)
   async createAppointment(
     @Request() request: AppointmentRequest,
     @Body() body: CreateAppointmentDto,

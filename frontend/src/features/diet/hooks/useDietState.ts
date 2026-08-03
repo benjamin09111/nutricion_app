@@ -232,6 +232,7 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
     null,
   );
   const [editingCreationId, setEditingCreationId] = useState<string | null>(null);
+  const [isHydrating, setIsHydrating] = useState(true);
 
   const { isSidebarCollapsed } = useDashboardShell();
 
@@ -781,6 +782,7 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
     const loadFromBackend = async (id: string, retries = 3) => {
       if (!id || id === "undefined" || id === "null") {
         localStorage.removeItem("currentDietEditId");
+        setIsHydrating(false);
         return;
       }
 
@@ -799,20 +801,24 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
               id,
             );
             localStorage.removeItem("currentDietEditId");
+            setIsHydrating(false);
             return;
           }
 
-          try {
-            const data = JSON.parse(text);
-            handleImportCreation(data);
-          } catch (parseError) {
-            console.error("Error parseando JSON de la creación:", parseError);
+            try {
+              const data = JSON.parse(text);
+              handleImportCreation(data);
+              setIsHydrating(false);
+            } catch (parseError) {
+              console.error("Error parseando JSON de la creación:", parseError);
+              setIsHydrating(false);
+            }
+          } else if (response.status === 404) {
+            localStorage.removeItem("currentDietEditId");
+            setIsHydrating(false);
+          } else {
+            throw new Error(`Server error: ${response.status}`);
           }
-        } else if (response.status === 404) {
-          localStorage.removeItem("currentDietEditId");
-        } else {
-          throw new Error(`Server error: ${response.status}`);
-        }
       } catch {
         if (retries > 0) {
           setTimeout(() => loadFromBackend(id, retries - 1), 2000);
@@ -820,6 +826,7 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
           console.warn(
             "Error al cargar la creación para editar (backend no disponible)",
           );
+          setIsHydrating(false);
         }
       } finally {
         if (retries === 0) localStorage.removeItem("currentDietEditId");
@@ -846,18 +853,20 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
         setCustomGroups(draft.customGroups || []);
         setCustomConstraints(draft.customConstraints || []);
         setFoodStatus({ ...statuses, ...draft.foodStatus });
+        setIsHydrating(false);
         return;
       } catch (e) {
         console.error("Error loading draft", e);
       }
     }
     setFoodStatus(statuses);
+    setIsHydrating(false);
   }, [initialFoods, projectIdFromUrl, creationIdFromUrl]);
 
   useEffect(() => {
     if (!projectIdFromUrl) return;
 
-    const loadProjectContext = async () => {
+  const loadProjectContext = async () => {
       setIsProjectLoading(true);
       try {
         const project = await fetchProject(projectIdFromUrl);
@@ -883,6 +892,7 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
         toast.error("No se pudo cargar el proyecto en Dieta.");
       } finally {
         setIsProjectLoading(false);
+        setIsHydrating(false);
       }
     };
 
@@ -1035,6 +1045,7 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
   };
 
   useEffect(() => {
+    if (isHydrating) return;
     const timeout = setTimeout(() => {
       saveDraft();
     }, 1000);
@@ -1051,6 +1062,7 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
     macroSettings,
     manualAdditions,
     foodStatus,
+    isHydrating,
   ]);
 
   const toggleConstraint = (id: string) => {
@@ -1144,6 +1156,7 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
   };
 
   const handleSave = async () => {
+    if (isHydrating) return;
     if (!dietName.trim()) {
       toast.error("Por favor, asigna un nombre a la dieta.");
       return;
@@ -1185,6 +1198,7 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
   };
 
   const handleSaveWithDescription = async () => {
+    if (isHydrating) return;
     try {
       const savedCreation = await saveCreation(
         buildDietCreationPayload(creationDescription),
@@ -1232,6 +1246,7 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
   }, [manualAdditions, foodStatus]);
 
   const performExportPdf = async () => {
+    if (isHydrating) return;
     if (!includedFoods.length) {
       toast.error("No hay alimentos en la dieta para exportar.");
       return;
@@ -1299,6 +1314,7 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
   }, [includedFoods]);
 
   const continueToRecipes = async () => {
+    if (isHydrating) return;
     if (!dietName.trim()) {
       toast.error("Por favor, asigna un nombre a la dieta antes de continuar.");
       return;
@@ -1554,6 +1570,7 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
   };
 
   const resetDiet = () => {
+    if (isHydrating) return;
     clearDietDraftStorage();
     resetDietState();
     toast.success("Dieta reiniciada.");
@@ -2250,6 +2267,7 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
     setCurrentProjectMode,
     editingCreationId,
     setEditingCreationId,
+    isHydrating,
     flowMode,
 
     isSidebarCollapsed,

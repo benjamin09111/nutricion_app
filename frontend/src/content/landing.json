@@ -2,7 +2,8 @@
   "hero": {
     "badge": "Software para nutricionistas en Chile",
     "titleLine1": "GESTIONA",
-    "titleLine2": "Tu consulta nutricional.",
+    "titleWords": ["GESTIONA", "ORGANIZA", "MODERNIZA"],
+    "titleLine2": "Tu consulta nutricional",
     "description": "NutriNet es la plataforma todo-en-uno para nutricionistas en Chile: gestiona pacientes, automatiza dietas y organiza tu consulta profesional.",
     "ctaButton": "Inicia con Google"
   },
@@ -28,7 +29,7 @@
       }
     ]
   },
-"pricing": {
+  "pricing": {
     "titleLine1": "PLANES",
     "titleLine2": "Pensados para tu crecimiento"
   },
@@ -44,7 +45,6 @@
     "formSubmit": "Enviar mensaje",
     "encryptionText": "Tu mensaje llegará a contacto@nutrinet.cl."
   },
-
   "footer": {
     "brand": "nutrinet",
     "line1": "Plataforma creada en Chile para nutricionistas.",

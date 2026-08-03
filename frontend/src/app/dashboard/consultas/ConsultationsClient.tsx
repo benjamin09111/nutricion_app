@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   CalendarDays,
   Plus,
@@ -43,11 +43,20 @@ export default function ConsultationsClient() {
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [consultationToDelete, setConsultationToDelete] = useState<string | null>(null);
-  const { usage, currentPlan } = useSubscription();
+  const { usage, currentPlan, entitlements, isLoading: isSubscriptionLoading } = useSubscription();
+  const [fallbackUsage, setFallbackUsage] = useState<number | undefined>(undefined);
+  const [isFallbackUsageLoading, setIsFallbackUsageLoading] = useState(true);
+  const consultationsRequestRef = useRef(0);
 
-  const rawConsultationLimit = currentPlan?.entitlements?.["consultations.saved.limit"] ?? currentPlan?.entitlements?.["consultations.monthly.limit"];
+  const rawConsultationLimit = currentPlan?.entitlements?.["consultations.saved.limit"] ??
+    currentPlan?.entitlements?.["consultations.monthly.limit"] ??
+    entitlements["consultations.saved.limit"] ?? entitlements["consultations.monthly.limit"];
   const consultationLimit = typeof rawConsultationLimit === "number" ? rawConsultationLimit : undefined;
-  const consultationsUsed = usage?.consultationsUsed ?? meta.total ?? 0;
+  const consultationsUsed = usage?.consultationsUsed ?? fallbackUsage;
+  const consultationCreationBlocked =
+    isSubscriptionLoading || isFallbackUsageLoading || consultationsUsed === undefined || consultationLimit === undefined;
+  const isConsultationLimitReached =
+    !consultationCreationBlocked && Number.isFinite(consultationLimit) && consultationsUsed >= consultationLimit;
 
   useScrollLock(isDeleteModalOpen);
 
@@ -70,6 +79,7 @@ export default function ConsultationsClient() {
   };
 
   const fetchConsultations = async (retries = 3) => {
+    const requestId = ++consultationsRequestRef.current;
     setIsLoading(true);
     try {
       const queryParams = new URLSearchParams({
@@ -88,6 +98,7 @@ export default function ConsultationsClient() {
 
       if (response.ok) {
         const result: ConsultationsResponse = await response.json();
+        if (requestId !== consultationsRequestRef.current) return;
         setConsultations(result.data);
         setMeta(result.meta);
       } else {
@@ -107,6 +118,26 @@ export default function ConsultationsClient() {
   useEffect(() => {
     fetchConsultations();
   }, [page, debouncedSearchTerm, patientIdFromQuery, dateFrom, dateTo]);
+
+  useEffect(() => {
+    if (usage?.consultationsUsed !== undefined) {
+      setIsFallbackUsageLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setIsFallbackUsageLoading(true);
+    fetchApi("/consultations?page=1&limit=1&type=CLINICAL", { headers: getAuthHeaders() })
+      .then(async (response) => {
+        if (!response.ok || cancelled) return;
+        const result: ConsultationsResponse = await response.json();
+        setFallbackUsage(result.meta.total);
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setIsFallbackUsageLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [usage?.consultationsUsed]);
 
   const handleDelete = async () => {
     if (!consultationToDelete) return;
@@ -135,11 +166,15 @@ export default function ConsultationsClient() {
       title="Mis Consultas"
       description="Espacio con todas tus consultas realizadas. Puedes filtrar por paciente y ver el detalle de cada sesión. Todas se conectan con tus pacientes."
       rightContent={
-        <UsageLimitBadge
-          label="Consultas"
-          usage={consultationsUsed}
-          limit={consultationLimit}
-        />
+        consultationsUsed !== undefined ? (
+          <UsageLimitBadge
+            label="Consultas"
+            usage={consultationsUsed}
+            limit={consultationLimit}
+          />
+        ) : (
+          <span className="text-xs font-semibold text-slate-400">Verificando uso...</span>
+        )
       }
       className="pb-8"
     >
@@ -187,12 +222,23 @@ export default function ConsultationsClient() {
                 className="w-full sm:w-36"
               />
             </div>
-            <button
-              onClick={() => router.push("/dashboard/consultas/nueva")}
-              className="flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm rounded-xl transition-all shadow-sm active:scale-95 cursor-pointer w-full sm:w-auto shrink-0"
-            >
+             <button
+               onClick={() => {
+                 if (consultationCreationBlocked) {
+                   toast.info("Estamos verificando el uso de tu plan. Intenta nuevamente en unos segundos.");
+                   return;
+                 }
+                 if (isConsultationLimitReached) {
+                   toast.error("Has alcanzado el límite de consultas de tu plan.");
+                   return;
+                 }
+                 router.push("/dashboard/consultas/nueva");
+               }}
+               disabled={consultationCreationBlocked || isConsultationLimitReached}
+               className="flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm rounded-xl transition-all shadow-sm active:scale-95 cursor-pointer w-full sm:w-auto shrink-0 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
+             >
               <Plus className="w-4 h-4 shrink-0" />
-              <span>Nueva Consulta</span>
+               <span>{consultationCreationBlocked ? "Verificando límite..." : isConsultationLimitReached ? "Límite alcanzado" : "Nueva Consulta"}</span>
             </button>
           </div>
         </div>

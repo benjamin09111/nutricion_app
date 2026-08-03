@@ -38,7 +38,7 @@ export function TagInput({
   openDirection = "down",
   singleSelect = false,
   tagsAbsolute = false,
-  helperText = "Presiona Enter para agregar la etiqueta o crearla si no existe.",
+  helperText,
 }: TagInputProps) {
   const { isDarkMode } = useTheme();
   const [inputValue, setInputValue] = useState("");

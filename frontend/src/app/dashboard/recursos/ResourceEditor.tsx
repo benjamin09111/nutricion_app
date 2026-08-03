@@ -21,6 +21,7 @@ import { NutriDocsEditor } from "@/components/ui/NutriDocsEditor";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { cn } from "@/lib/utils";
 import { fetchApi } from "@/lib/api-base";
+import { useSubscription } from "@/context/SubscriptionContext";
 
 const CATEGORIES = [
   { id: "portada", label: "Portada e introducción" },
@@ -61,10 +62,14 @@ interface ResourceEditorProps {
 export function ResourceEditor({ initialData, editingId }: ResourceEditorProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { can, isLoading: isSubscriptionLoading } = useSubscription();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isIntro = !editingId && searchParams.get("type") === "intro";
   const isRestriction = !editingId && searchParams.get("category") === "restricciones";
+  const editorLocked = !isSubscriptionLoading && !can(
+    editingId ? "resources.edit.access" : "resources.create.access",
+  );
 
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -87,6 +92,21 @@ export function ResourceEditor({ initialData, editingId }: ResourceEditorProps) 
   });
 
   const [availableTags, setAvailableTags] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!editorLocked) return;
+
+    window.dispatchEvent(
+      new CustomEvent("show-freemium-upgrade", {
+        detail: {
+          description: editingId
+            ? "Editar recursos propios está disponible en los planes de pago."
+            : "Crear recursos propios está disponible en los planes de pago.",
+        },
+      }),
+    );
+    router.replace("/dashboard/recursos");
+  }, [editingId, editorLocked, router]);
 
   useEffect(() => {
     fetchTags();
@@ -158,6 +178,16 @@ export function ResourceEditor({ initialData, editingId }: ResourceEditorProps) 
   }
 
   async function handleSave() {
+    if (editorLocked) {
+      window.dispatchEvent(
+        new CustomEvent("show-freemium-upgrade", {
+          detail: {
+            description: "La gestión de recursos propios está disponible en los planes de pago.",
+          },
+        }),
+      );
+      return;
+    }
     if (!formData.title.trim()) return toast.error("El título es obligatorio.");
     if (!formData.category) return toast.error("La categoría es obligatoria.");
     if (formatChoice === "HTML" && !formData.content.trim())
@@ -194,6 +224,16 @@ export function ResourceEditor({ initialData, editingId }: ResourceEditorProps) 
       setIsSaving(false);
     }
   }
+
+  if (isSubscriptionLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="h-10 w-10 animate-spin text-indigo-500" />
+      </div>
+    );
+  }
+
+  if (editorLocked) return null;
 
   return (
     <ModuleLayout

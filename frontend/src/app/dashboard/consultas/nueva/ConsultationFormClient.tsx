@@ -42,6 +42,7 @@ import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { fetchApi, getApiUrl } from "@/lib/api-base";
 import { formatRut } from "@/lib/rut-utils";
+import { useSubscription } from "@/context/SubscriptionContext";
 
 function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
@@ -88,12 +89,33 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
     const [isPatientsLoading, setIsPatientsLoading] = useState(false);
     const [isPatientDataLoading, setIsPatientDataLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const { usage, currentPlan, entitlements, isLoading: isSubscriptionLoading, isDeveloper } = useSubscription();
+    const [fallbackUsage, setFallbackUsage] = useState<number | undefined>(undefined);
+    const [isUsageLoading, setIsUsageLoading] = useState(!id);
     const [isPatientInfoEditing, setIsPatientInfoEditing] = useState(false);
     const [hasClearedPatientSelection, setHasClearedPatientSelection] = useState(false);
     const [activityLevel, setActivityLevel] = useState<string>("sedentario");
     const [isPatientAccordionOpen, setIsPatientAccordionOpen] = useState(false);
 
     const [patients, setPatients] = useState<{ id: string; fullName: string; status?: string }[]>([]);
+
+    const rawConsultationLimit = currentPlan?.entitlements?.["consultations.saved.limit"] ??
+        currentPlan?.entitlements?.["consultations.monthly.limit"] ??
+        entitlements["consultations.saved.limit"] ?? entitlements["consultations.monthly.limit"];
+    const consultationLimit = isDeveloper
+        ? Number.POSITIVE_INFINITY
+        : typeof rawConsultationLimit === "number"
+            ? (rawConsultationLimit < 0 ? Number.POSITIVE_INFINITY : rawConsultationLimit)
+            : undefined;
+    const consultationsUsed = usage?.consultationsUsed ?? fallbackUsage;
+    const consultationCreationBlocked = !id && (
+        isSubscriptionLoading || isUsageLoading || consultationsUsed === undefined || consultationLimit === undefined
+    );
+    const consultationLimitReached = !consultationCreationBlocked && !id &&
+        Number.isFinite(consultationLimit) &&
+        typeof consultationLimit === "number" &&
+        typeof consultationsUsed === "number" &&
+        consultationsUsed >= consultationLimit;
 
     const activePatients = useMemo(() => {
         return patients
@@ -215,6 +237,26 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
             fetchConsultation();
         }
     }, [id]);
+
+    useEffect(() => {
+        if (id || usage?.consultationsUsed !== undefined) {
+            setIsUsageLoading(false);
+            return;
+        }
+        let cancelled = false;
+        setIsUsageLoading(true);
+        fetchApi("/consultations?page=1&limit=1&type=CLINICAL", { headers: getAuthHeaders() })
+            .then(async (response) => {
+                if (!response.ok || cancelled) return;
+                const result: { meta?: { total?: number } } = await response.json();
+                if (typeof result.meta?.total === "number") setFallbackUsage(result.meta.total);
+            })
+            .catch(() => undefined)
+            .finally(() => {
+                if (!cancelled) setIsUsageLoading(false);
+            });
+        return () => { cancelled = true; };
+    }, [id, usage?.consultationsUsed]);
 
     // Force sync patientId from query when creating new if it changes
     useEffect(() => {
@@ -399,6 +441,12 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (consultationCreationBlocked || consultationLimitReached) {
+            toast.info(consultationLimitReached
+                ? "Has alcanzado el límite de consultas de tu plan."
+                : "Estamos verificando el uso de tu plan. Intenta nuevamente en unos segundos.");
+            return;
+        }
         if (!formData.patientId) {
             toast.error("Seleccione un paciente");
             return;
@@ -622,12 +670,12 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                             <RotateCcw className="w-4 h-4 inline mr-2" />
                             Reiniciar
                         </button>
-                        <button
-                            type="submit"
-                            disabled={isSaving}
+                             <button
+                                 type="submit"
+                                 disabled={isSaving || consultationCreationBlocked || consultationLimitReached}
                             className={cn(
                                 "h-10 px-5 rounded-xl font-semibold text-[10px] uppercase tracking-widest transition-all active:scale-95 cursor-pointer flex items-center gap-2",
-                                isSaving ? "bg-slate-100 text-slate-400" : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200",
+                                 isSaving || consultationCreationBlocked || consultationLimitReached ? "bg-slate-100 text-slate-400 cursor-not-allowed" : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200",
                             )}
                         >
                             {isSaving ? (
@@ -635,7 +683,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                             ) : (
                                 <Save className="w-4 h-4" />
                             )}
-                            Guardar
+                             {consultationCreationBlocked ? "Verificando límite..." : consultationLimitReached ? "Límite alcanzado" : "Guardar"}
                         </button>
                     </div>
 
@@ -673,12 +721,12 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                             <RotateCcw className="w-4 h-4 inline mr-1" />
                             Reiniciar
                         </button>
-                        <button
-                            type="submit"
-                            disabled={isSaving}
+                         <button
+                             type="submit"
+                             disabled={isSaving || consultationCreationBlocked || consultationLimitReached}
                             className={cn(
                                 "flex-[2] sm:flex-none h-10 px-5 rounded-xl font-semibold text-[10px] uppercase tracking-widest transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-2",
-                                isSaving ? "bg-slate-100 text-slate-400" : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200",
+                                 isSaving || consultationCreationBlocked || consultationLimitReached ? "bg-slate-100 text-slate-400 cursor-not-allowed" : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200",
                             )}
                         >
                             {isSaving ? (
@@ -686,7 +734,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                             ) : (
                                 <>
                                     <Save className="w-4 h-4" />
-                                    Guardar
+                                    {consultationCreationBlocked ? "Verificando límite..." : consultationLimitReached ? "Límite alcanzado" : "Guardar"}
                                 </>
                             )}
                         </button>

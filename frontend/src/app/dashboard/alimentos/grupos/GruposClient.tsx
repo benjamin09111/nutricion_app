@@ -100,7 +100,7 @@ type IngredientAssignmentDraft =
 interface GruposClientProps {
   initialIngredients: Ingredient[];
   headerRight?: React.ReactNode;
-  freemiumGroupCount?: number;
+  freemiumGroupCount?: number | null;
   onGroupCountChange?: (count: number) => void;
 }
 
@@ -164,7 +164,7 @@ export default function GruposClient({
   const [activeTab, setActiveTab] = useState<GroupTab>("Mis grupos");
   const [ingredients, setIngredients] = useState<IngredientWithMetrics[]>(initialIngredients as IngredientWithMetrics[]);
   const [groups, setGroups] = useState<Group[]>([]);
-  const [isLoadingGroups, setIsLoadingGroups] = useState(false);
+  const [isLoadingGroups, setIsLoadingGroups] = useState(true);
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
   const [isLoadingSelectedGroup, setIsLoadingSelectedGroup] = useState(false);
@@ -220,7 +220,11 @@ export default function GruposClient({
   const [activeIngredientSource, setActiveIngredientSource] = useState<IngredientSourceTab>("catalog");
   const [allIngredients, setAllIngredients] = useState<IngredientWithMetrics[]>(initialIngredients as IngredientWithMetrics[]);
 
-  const { currentPlan } = useSubscription();
+  const {
+    currentPlan,
+    can,
+    isLoading: isSubscriptionLoading,
+  } = useSubscription();
   const didInitialIngredientFetchRef = useRef(false);
   const sourceCacheRef = useRef<Record<IngredientSourceTab, IngredientWithMetrics[]>>({
     catalog: initialIngredients as IngredientWithMetrics[],
@@ -239,8 +243,23 @@ export default function GruposClient({
 
   const getToken = useCallback(() => getAuthToken(), []);
   const isFreemium = String(currentPlan?.key || currentPlan?.slug || "").toLowerCase() === "free";
+  const foodSourcesLocked = !isSubscriptionLoading && !can("ingredients.create.access");
   const freemiumGroupLimit = 1;
-  const freemiumLimitReached = isFreemium && (freemiumGroupCount ?? groups.length) >= freemiumGroupLimit;
+  const hasAuthoritativeGroupCount = typeof freemiumGroupCount === "number";
+  const freemiumLimitReached =
+    isFreemium && hasAuthoritativeGroupCount && freemiumGroupCount >= freemiumGroupLimit;
+  const isCreateFlowLoading = isSubscriptionLoading || isLoadingGroups || !hasAuthoritativeGroupCount;
+  const isCreateFlowBlocked = !editingGroupId && (isCreateFlowLoading || freemiumLimitReached);
+
+  const showFoodUpgrade = () => {
+    window.dispatchEvent(
+      new CustomEvent("show-freemium-upgrade", {
+        detail: {
+          description: "Crear alimentos propios y acceder a fuentes personalizadas está disponible en los planes de pago.",
+        },
+      }),
+    );
+  };
 
   const sourceTabToApiTab = useCallback((sourceTab: IngredientSourceTab) => {
     switch (sourceTab) {
@@ -422,18 +441,20 @@ export default function GruposClient({
   }, [activeIngredientSource]);
 
   const fetchGroups = useCallback(async () => {
-    const token = getToken();
-    if (!token) return;
-
     setIsLoadingGroups(true);
     try {
+      const token = getToken();
+      const headers: Record<string, string> = {};
+      if (token) headers.Authorization = `Bearer ${token}`;
+
       const res = await fetchApi("/ingredient-groups?type=INGREDIENT", {
-        headers: { Authorization: `Bearer ${token}` },
+        headers,
       });
       if (res.ok) {
         const data = await res.json();
-        setGroups(Array.isArray(data) ? data : []);
-        onGroupCountChange?.(Array.isArray(data) ? data.length : 0);
+        const groupArray = Array.isArray(data) ? data : [];
+        setGroups(groupArray);
+        onGroupCountChange?.(groupArray.length);
       }
     } catch (error) {
       console.error("Error fetching groups:", error);
@@ -876,13 +897,17 @@ export default function GruposClient({
   };
 
   const handleCreateGroup = async () => {
+    if (isCreateFlowLoading && !editingGroupId) {
+      toast.info("Espera a que se cargue la información de tus grupos.");
+      return;
+    }
     const name = groupName.trim();
     if (!name) {
       toast.error("Escribe un nombre para el grupo");
       return;
     }
     if (freemiumLimitReached && !editingGroupId) {
-      toast.error("En FREEMIUM solo puedes crear 1 grupo. Elimina uno para crear otro.");
+      toast.error("No puedes crear más grupos con tu plan actual.");
       return;
     }
     const allIngredientIds = new Set([...Array.from(confirmedIngredientIds), ...Array.from(stagedIngredientIds)]);
@@ -996,6 +1021,10 @@ export default function GruposClient({
   };
 
   const createGroupWithIngredient = async (groupName: string, ingredient: IngredientWithMetrics) => {
+    if (isCreateFlowBlocked) {
+      toast.info("Espera a que se cargue la información de tus grupos.");
+      return;
+    }
     const token = getToken();
     if (!token) {
       toast.error("Sesión no válida");
@@ -1091,7 +1120,7 @@ export default function GruposClient({
           <div className="flex flex-wrap items-center gap-3">
             <div className="grid grid-cols-2 sm:flex w-full sm:w-auto rounded-2xl border border-slate-200/80 bg-slate-100/80 p-1 gap-1">
               {groupTabs.map(({ label, icon }) => {
-                const isCrearDisabled = label === "Crear grupo" && freemiumLimitReached && !editingGroupId;
+                const isCrearDisabled = label === "Crear grupo" && isCreateFlowBlocked;
 
                 const buttonEl = (
                   <button
@@ -1121,7 +1150,11 @@ export default function GruposClient({
                     )}
                   >
                     {label === "Crear grupo" && isCrearDisabled ? (
-                      <AlertCircle size={16} className="text-amber-500 shrink-0" />
+                      isCreateFlowLoading ? (
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-indigo-600" />
+                      ) : (
+                        <AlertCircle size={16} className="text-amber-500 shrink-0" />
+                      )
                     ) : (
                       icon
                     )}
@@ -1139,7 +1172,11 @@ export default function GruposClient({
                       <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col items-center pointer-events-none z-50 whitespace-nowrap animate-in fade-in zoom-in-95 duration-150">
                         <div className="bg-slate-900 text-white text-[11px] font-semibold px-3 py-1.5 rounded-xl shadow-xl border border-slate-700 flex items-center gap-1.5">
                           <AlertCircle size={14} className="text-amber-400 shrink-0" />
-                          <span>Ya cumpliste 1 grupo ya creado (Plan Freemium)</span>
+                          <span>
+                            {isCreateFlowLoading
+                              ? "Cargando información de grupos..."
+                              : "Ya cumpliste 1 grupo ya creado (Plan Freemium)"}
+                          </span>
                         </div>
                         <div className="w-2 h-2 bg-slate-900 rotate-45 -mt-1 border-r border-b border-slate-700" />
                       </div>
@@ -1151,12 +1188,6 @@ export default function GruposClient({
               })}
             </div>
 
-            {isFreemium && (
-              <div className="inline-flex items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2 text-xs font-semibold text-amber-800">
-                <Lock size={14} />
-                FREEMIUM: máximo 1 grupo
-              </div>
-            )}
           </div>
           <p className="max-w-3xl text-sm text-slate-500">
             {activeTab === "Mis grupos"
@@ -1168,12 +1199,6 @@ export default function GruposClient({
         {headerRight}
       </div>
 
-      {freemiumLimitReached && activeTab === "Crear grupo" && (
-        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs font-semibold text-rose-800">
-          Ya alcanzaste el límite de 1 grupo en FREEMIUM. Elimina uno para crear otro.
-        </div>
-      )}
-
       {activeTab === "Mis grupos" && (
         <div className="space-y-4">
             <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-100/80 p-1 sm:flex-row sm:items-center sm:justify-between">
@@ -1182,14 +1207,21 @@ export default function GruposClient({
                 { key: "groups", label: "Mis grupos creados", icon: <Layers size={16} /> },
                 { key: "mine", label: "Mis alimentos creados", icon: <UtensilsCrossed size={16} /> },
                 { key: "community", label: "Alimentos de la comunidad", icon: <UtensilsCrossed size={16} /> },
-              ].map((tab) => {
-                const isSelected = myGroupsTab === tab.key;
-                return (
-                  <button
-                    key={tab.key}
-                    type="button"
-                    onClick={() => {
-                      if (tab.key === "groups") {
+                ].map((tab) => {
+                  const isSelected = myGroupsTab === tab.key;
+                  const isFoodSourceLocked =
+                    foodSourcesLocked && (tab.key === "mine" || tab.key === "community");
+                  return (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      aria-disabled={isFoodSourceLocked}
+                      onClick={() => {
+                        if (isFoodSourceLocked) {
+                          showFoodUpgrade();
+                          return;
+                        }
+                        if (tab.key === "groups") {
                         setMyGroupsTab("groups");
                         setSelectedSourceGroup(null);
                         setSelectedSourceIngredients([]);
@@ -1201,12 +1233,15 @@ export default function GruposClient({
                     }}
                     className={cn(
                       "flex items-center justify-center gap-2 rounded-xl px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold transition-all",
-                      isSelected
-                        ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200/70"
-                        : "text-slate-500 hover:bg-white/70 hover:text-slate-700",
-                    )}
-                  >
-                    {tab.label}
+                        isSelected
+                          ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200/70"
+                          : isFoodSourceLocked
+                            ? "cursor-not-allowed text-slate-400"
+                            : "text-slate-500 hover:bg-white/70 hover:text-slate-700",
+                      )}
+                    >
+                      {isFoodSourceLocked ? <Lock size={16} /> : tab.icon}
+                      {tab.label}
                   </button>
                 );
               })}
@@ -1295,8 +1330,9 @@ export default function GruposClient({
                   <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-500">
                     Puedes crear colecciones de ingredientes para reutilizarlas en dietas, entregables y flujos rápidos.
                   </p>
-                  <Button
-                    onClick={() => setActiveTab("Crear grupo")}
+                   <Button
+                     onClick={() => setActiveTab("Crear grupo")}
+                     disabled={isCreateFlowBlocked}
                     className="mt-5 rounded-xl bg-indigo-600 px-6 py-2.5 font-semibold text-white transition-all hover:bg-indigo-700 active:scale-95"
                   >
                     <FolderPlus size={16} className="mr-2" />
@@ -1619,10 +1655,16 @@ export default function GruposClient({
                     {myGroupsTab === "mine" && (
                       <Button
                         type="button"
-                        onClick={() => setSourceViewMode("create")}
+                        onClick={() => {
+                          if (foodSourcesLocked) {
+                            showFoodUpgrade();
+                            return;
+                          }
+                          setSourceViewMode("create");
+                        }}
                         className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-700"
                       >
-                        <Plus size={14} className="mr-2" />
+                        {foodSourcesLocked ? <Lock size={14} className="mr-2" /> : <Plus size={14} className="mr-2" />}
                         Nuevo alimento
                       </Button>
                     )}
@@ -2342,7 +2384,7 @@ export default function GruposClient({
                     totalSelectedCount === 0 ||
                     !groupName.trim() ||
                     isCreateSubmitting ||
-                    freemiumLimitReached ||
+                     isCreateFlowBlocked ||
                     (editingGroupId ? !hasGroupChanges : false)
                   }
                   className="w-full h-[52px] cursor-pointer rounded-xl bg-indigo-600 px-4 text-white shadow-sm transition-all hover:bg-indigo-700"
@@ -2391,10 +2433,12 @@ export default function GruposClient({
               <Button
                 type="button"
                 onClick={() => {
+                  if (isCreateFlowBlocked) return;
                   setIsAddToGroupOpen(false);
                   setIngredientToAdd(null);
                   setActiveTab("Crear grupo");
                 }}
+                disabled={isCreateFlowBlocked}
                 className="mt-4 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700"
               >
                 Crear grupo

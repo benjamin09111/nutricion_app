@@ -2,10 +2,15 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import * as fs from 'fs';
 import { join } from 'path';
+import { PermissionsService } from '../permissions/permissions.service';
+import { PLAN_ENTITLEMENT_KEYS } from '../memberships/plan-entitlements';
 
 @Injectable()
 export class ResourcesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly permissionsService: PermissionsService,
+  ) {}
 
   private extractVariables(content: string): string[] {
     const regex = /\{([a-zA-Z0-9_\- ]+)\}/g;
@@ -38,14 +43,19 @@ export class ResourcesService {
     );
   }
 
-  async findAll(nutritionistId: string, isAdmin: boolean) {
-    void isAdmin;
+  async findAll(nutritionistId: string, isAdmin: boolean, accountId: string) {
+    const canUseOwnResources = isAdmin || await this.permissionsService.checkFeatureAccess(
+      accountId,
+      PLAN_ENTITLEMENT_KEYS.RESOURCES_CREATE_ACCESS,
+    );
     const whereClause = {
-      OR: [
-        { nutritionistId: null },
-        { isPublic: true },
-        ...(nutritionistId ? [{ nutritionistId }] : []),
-      ] as any[],
+      OR: canUseOwnResources
+        ? [
+            { nutritionistId: null },
+            { isPublic: true },
+            ...(nutritionistId ? [{ nutritionistId }] : []),
+          ]
+        : [{ nutritionistId: null }],
     };
 
     const resources = await this.prisma.resource.findMany({
@@ -61,12 +71,19 @@ export class ResourcesService {
     );
   }
 
-  async findOne(id: string, nutritionistId: string, isAdmin: boolean) {
-    void isAdmin;
+  async findOne(id: string, nutritionistId: string, isAdmin: boolean, accountId: string) {
+    const canUseOwnResources = isAdmin || await this.permissionsService.checkFeatureAccess(
+      accountId,
+      PLAN_ENTITLEMENT_KEYS.RESOURCES_CREATE_ACCESS,
+    );
     const ownershipFilters = [
       { nutritionistId: null },
-      { isPublic: true },
-      ...(nutritionistId ? [{ nutritionistId }] : []),
+      ...(canUseOwnResources
+        ? [
+            { isPublic: true },
+            ...(nutritionistId ? [{ nutritionistId }] : []),
+          ]
+        : []),
     ];
 
     const resource = await this.prisma.resource.findFirst({

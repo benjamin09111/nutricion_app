@@ -87,11 +87,21 @@ const getPatientAge = (patient: CalculatorPatient): number | null => {
 };
 
 export default function CalculosClient() {
-  const { can, isLoading: isSubscriptionLoading } = useSubscription();
+  const {
+    can,
+    plan,
+    currentPlan,
+    isDeveloper,
+    isLoading: isSubscriptionLoading,
+  } = useSubscription();
+
   const calculatorLocked =
     isSubscriptionLoading || !can("clinical_calculator.use.access");
   const screeningTestsLocked =
     isSubscriptionLoading || !can("screening_tests.access");
+  const patientImportLocked =
+    isSubscriptionLoading ||
+    (!isDeveloper && (plan === "free" || currentPlan?.slug === "free" || currentPlan?.key === "free"));
   // 1. PASO ESENCIAL (Siempre visible)
   const [gender, setGender] = useState<"Masculino" | "Femenino">("Femenino");
   const [weight, setWeight] = useState("");
@@ -364,6 +374,18 @@ export default function CalculosClient() {
   };
 
   const openPatientImportModal = async () => {
+    if (patientImportLocked) {
+      window.dispatchEvent(
+        new CustomEvent("show-freemium-upgrade", {
+          detail: {
+            feature: "Importar datos de paciente",
+            description:
+              "La importación de datos de pacientes en la calculadora clínica está disponible únicamente en los planes de pago.",
+          },
+        }),
+      );
+      return;
+    }
     setIsPatientModalOpen(true);
     setIsLoadingPatients(true);
     setPatientsError(null);
@@ -412,6 +434,15 @@ export default function CalculosClient() {
   const isCriticalAlert = isSevereWeightLoss || isMalnourishedMna;
   const isModerateAlert = !isCriticalAlert && (isSignificantWeightLoss || isRiskMna);
 
+  if (isSubscriptionLoading) {
+    return (
+      <div className="flex min-h-[20rem] flex-col items-center justify-center rounded-2xl border border-slate-100 bg-white shadow-sm">
+        <Loader2 className="mb-4 h-10 w-10 animate-spin text-indigo-500" />
+        <p className="text-sm font-medium text-slate-400">Verificando permisos...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="relative max-w-7xl mx-auto pb-24 px-4 sm:px-6">
 
@@ -433,10 +464,28 @@ export default function CalculosClient() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => void openPatientImportModal()}
-            className="text-xs border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 font-semibold h-8 rounded-xl flex-1 sm:flex-none justify-center"
+            onClick={() => {
+              if (patientImportLocked) {
+                window.dispatchEvent(
+                  new CustomEvent("show-freemium-upgrade", {
+                    detail: {
+                      feature: "Importar datos de paciente",
+                      description:
+                        "La importación de datos de pacientes en la calculadora clínica está disponible únicamente en los planes de pago.",
+                    },
+                  }),
+                );
+                return;
+              }
+              void openPatientImportModal();
+            }}
+            className="text-xs border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 font-semibold h-8 rounded-xl flex-1 sm:flex-none justify-center gap-1"
           >
-            <UserRound className="w-3.5 h-3.5 mr-1 text-emerald-600 shrink-0" />
+            {patientImportLocked ? (
+              <Lock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+            ) : (
+              <UserRound className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+            )}
             <span>{selectedPatient ? "Cambiar paciente" : "Importar paciente"}</span>
           </Button>
 

@@ -25,9 +25,12 @@ import { resolveNutritionistIdFromRequest } from './appointments-auth';
 import { GoogleIntegrationService } from '../integrations/google-integration.service';
 import type { Response } from 'express';
 import { resolveRequiredUrl } from '../../common/utils/runtime-url.util';
+import { PermissionsGuard } from '../permissions/permissions.guard';
+import { RequireFeatures } from '../permissions/permissions.decorator';
+import { PLAN_ENTITLEMENT_KEYS } from '../memberships/plan-entitlements';
 
 @Controller('calendars')
-@UseGuards(ApiKeyGuard)
+@UseGuards(ApiKeyGuard, PermissionsGuard)
 export class AppointmentsController {
   constructor(
     private readonly appointmentsService: AppointmentsService,
@@ -36,6 +39,7 @@ export class AppointmentsController {
   ) {}
 
   @Get('me')
+  @RequireFeatures(PLAN_ENTITLEMENT_KEYS.APPOINTMENTS_ACCESS)
   async getMyCalendar(@Request() request: AppointmentRequest) {
     const nutritionistId = await resolveNutritionistIdFromRequest(
       request,
@@ -46,6 +50,7 @@ export class AppointmentsController {
 
   @Post('me')
   @HttpCode(HttpStatus.OK)
+  @RequireFeatures(PLAN_ENTITLEMENT_KEYS.APPOINTMENTS_ACCESS)
   async createOrGetCalendar(@Request() request: AppointmentRequest) {
     const nutritionistId = await resolveNutritionistIdFromRequest(
       request,
@@ -92,6 +97,7 @@ export class AppointmentsController {
 
   @Post('me/default-schedule')
   @HttpCode(HttpStatus.OK)
+  @RequireFeatures(PLAN_ENTITLEMENT_KEYS.APPOINTMENTS_ACCESS)
   async setDefaultSchedule(@Request() request: AppointmentRequest) {
     const nutritionistId = await resolveNutritionistIdFromRequest(
       request,
@@ -101,6 +107,7 @@ export class AppointmentsController {
   }
 
   @Get(':id')
+  @RequireFeatures(PLAN_ENTITLEMENT_KEYS.APPOINTMENTS_ACCESS)
   async getCalendar(
     @Param('id') calendarId: string,
     @Request() request: AppointmentRequest,
@@ -116,6 +123,7 @@ export class AppointmentsController {
   }
 
   @Put(':id/schedule')
+  @RequireFeatures(PLAN_ENTITLEMENT_KEYS.APPOINTMENTS_ACCESS)
   async updateSchedule(
     @Param('id') calendarId: string,
     @Request() request: AppointmentRequest,
@@ -133,6 +141,7 @@ export class AppointmentsController {
   }
 
   @Put(':id/availability/rules')
+  @RequireFeatures(PLAN_ENTITLEMENT_KEYS.APPOINTMENTS_ACCESS)
   async updateAvailabilityRules(
     @Param('id') calendarId: string,
     @Request() request: AppointmentRequest,
@@ -158,6 +167,7 @@ export class AppointmentsController {
   }
 
   @Post(':id/booking-links')
+  @RequireFeatures(PLAN_ENTITLEMENT_KEYS.APPOINTMENTS_ACCESS)
   async createBookingLink(
     @Param('id') calendarId: string,
     @Request() request: AppointmentRequest,
@@ -183,6 +193,7 @@ export class AppointmentsController {
   }
 
   @Get(':id/availability/rules')
+  @RequireFeatures(PLAN_ENTITLEMENT_KEYS.APPOINTMENTS_ACCESS)
   async getAvailabilityRules(
     @Param('id') calendarId: string,
     @Request() request: AppointmentRequest,
@@ -198,6 +209,7 @@ export class AppointmentsController {
   }
 
   @Get(':id/requests')
+  @RequireFeatures(PLAN_ENTITLEMENT_KEYS.APPOINTMENTS_ACCESS)
   async getCalendarRequests(
     @Param('id') calendarId: string,
     @Request() request: AppointmentRequest,
@@ -215,6 +227,7 @@ export class AppointmentsController {
   }
 
   @Get(':id/view/week')
+  @RequireFeatures(PLAN_ENTITLEMENT_KEYS.APPOINTMENTS_ACCESS)
   async getWeekView(
     @Param('id') calendarId: string,
     @Request() request: AppointmentRequest,
@@ -233,6 +246,7 @@ export class AppointmentsController {
   }
 
   @Post(':id/appointments')
+  @RequireFeatures(PLAN_ENTITLEMENT_KEYS.APPOINTMENTS_ACCESS)
   async createAppointment(
     @Param('id') calendarId: string,
     @Request() request: AppointmentRequest,
@@ -250,6 +264,10 @@ export class AppointmentsController {
   }
 
   @Post(':id/google/connect')
+  @RequireFeatures(
+    PLAN_ENTITLEMENT_KEYS.APPOINTMENTS_ACCESS,
+    PLAN_ENTITLEMENT_KEYS.GOOGLE_CALENDAR_SYNC,
+  )
   async connectGoogleCalendar(
     @Param('id') calendarId: string,
     @Request() request: AppointmentRequest,
@@ -277,6 +295,10 @@ export class AppointmentsController {
   }
 
   @Get(':id/google/status')
+  @RequireFeatures(
+    PLAN_ENTITLEMENT_KEYS.APPOINTMENTS_ACCESS,
+    PLAN_ENTITLEMENT_KEYS.GOOGLE_CALENDAR_SYNC,
+  )
   async getGoogleStatus(
     @Param('id') calendarId: string,
     @Request() request: AppointmentRequest,
@@ -304,6 +326,10 @@ export class AppointmentsController {
   }
 
   @Post(':id/google/resync')
+  @RequireFeatures(
+    PLAN_ENTITLEMENT_KEYS.APPOINTMENTS_ACCESS,
+    PLAN_ENTITLEMENT_KEYS.GOOGLE_CALENDAR_SYNC,
+  )
   async resyncGoogleCalendar(
     @Param('id') calendarId: string,
     @Request() request: AppointmentRequest,
@@ -318,6 +344,10 @@ export class AppointmentsController {
   }
 
   @Delete(':id/google/disconnect')
+  @RequireFeatures(
+    PLAN_ENTITLEMENT_KEYS.APPOINTMENTS_ACCESS,
+    PLAN_ENTITLEMENT_KEYS.GOOGLE_CALENDAR_SYNC,
+  )
   async disconnectGoogleCalendar(
     @Param('id') calendarId: string,
     @Request() request: AppointmentRequest,
@@ -340,6 +370,10 @@ export class AppointmentsController {
   }
 
   @Patch(':id/google/integration')
+  @RequireFeatures(
+    PLAN_ENTITLEMENT_KEYS.APPOINTMENTS_ACCESS,
+    PLAN_ENTITLEMENT_KEYS.GOOGLE_CALENDAR_SYNC,
+  )
   async updateGoogleIntegration(
     @Param('id') calendarId: string,
     @Request() request: AppointmentRequest,
@@ -381,6 +415,10 @@ export class AppointmentsController {
   }
 
   @Get(':id/google/diagnostics')
+  @RequireFeatures(
+    PLAN_ENTITLEMENT_KEYS.APPOINTMENTS_ACCESS,
+    PLAN_ENTITLEMENT_KEYS.GOOGLE_CALENDAR_SYNC,
+  )
   async getGoogleDiagnostics(
     @Param('id') calendarId: string,
     @Request() request: AppointmentRequest,
@@ -407,6 +445,7 @@ export class AppointmentsController {
   }
 
   @Post('appointments/:appointmentId/approve')
+  @RequireFeatures(PLAN_ENTITLEMENT_KEYS.APPOINTMENTS_ACCESS)
   async approveAppointment(
     @Param('appointmentId') appointmentId: string,
     @Request() request: AppointmentRequest,
@@ -433,6 +472,7 @@ export class AppointmentsController {
   }
 
   @Post('appointments/:appointmentId/reject')
+  @RequireFeatures(PLAN_ENTITLEMENT_KEYS.APPOINTMENTS_ACCESS)
   async rejectAppointment(
     @Param('appointmentId') appointmentId: string,
     @Request() request: AppointmentRequest,
@@ -450,6 +490,7 @@ export class AppointmentsController {
   }
 
   @Post('appointments/:appointmentId/cancel')
+  @RequireFeatures(PLAN_ENTITLEMENT_KEYS.APPOINTMENTS_ACCESS)
   async cancelAppointment(
     @Param('appointmentId') appointmentId: string,
     @Request() request: AppointmentRequest,

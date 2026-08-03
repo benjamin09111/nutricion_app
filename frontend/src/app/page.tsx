@@ -23,6 +23,7 @@ import { getMembershipFeatureDisplay } from "@/features/memberships/utils/featur
 import { type MembershipPlan } from "@/features/memberships/services/membership.service";
 import { sortPlansWithPopularInCenter } from "@/features/memberships/utils/sort-plans";
 import LandingContactForm from "@/components/landing/LandingContactForm";
+import { RotatingWord } from "@/components/landing/RotatingWord";
 
 const toMembershipPlanArray = (value: unknown): MembershipPlan[] => {
   if (Array.isArray(value)) return value as MembershipPlan[];
@@ -222,14 +223,14 @@ export default function LandingPage() {
 
               <div className="space-y-2">
                 <h1
-                  className="text-4xl font-black leading-none tracking-tight sm:text-5xl lg:text-8xl"
+                  className="text-3xl font-black leading-none tracking-tight sm:text-5xl lg:text-7xl xl:text-8xl min-h-[1.1em] flex items-center justify-center overflow-visible px-2"
                   style={{
-                    WebkitTextStroke: "4px #a6c261",
+                    WebkitTextStroke: "3px #a6c261",
                     color: "transparent",
                     fontWeight: 900,
                   }}
                 >
-                  {content.hero.titleLine1}
+                  <RotatingWord words={content.hero.titleWords || [content.hero.titleLine1]} />
                 </h1>
                 <div className="flex flex-col items-center justify-center gap-2 sm:flex-row sm:gap-3">
                   <span className="text-2xl font-bold tracking-tight text-[#a88aed] sm:text-3xl lg:text-5xl">

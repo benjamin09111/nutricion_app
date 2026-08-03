@@ -14,6 +14,20 @@ import { getCurrentUser, setCurrentUser } from "@/lib/current-user";
 
 export type SubscriptionPlan = "free" | "trial" | "pro";
 export type SubscriptionStatus = "active" | "expired" | "cancelled";
+type Entitlements = Record<string, boolean | number>;
+
+const getValidatedEntitlements = (value: unknown): Entitlements | null => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+
+  const entries = Object.entries(value);
+  if (entries.length === 0 || entries.some(([, entry]) =>
+    typeof entry !== "boolean" && !(typeof entry === "number" && Number.isFinite(entry)),
+  )) {
+    return null;
+  }
+
+  return Object.fromEntries(entries) as Entitlements;
+};
 
 export interface MembershipState {
   plan: SubscriptionPlan;
@@ -25,7 +39,7 @@ export interface MembershipState {
   daysRemaining: number | null;
   requiresPlanSelection: boolean;
   hasPendingTransfer: boolean;
-  entitlements: Record<string, boolean | number>;
+  entitlements: Entitlements;
   currentPlan: {
     id: string;
     name: string;
@@ -33,7 +47,7 @@ export interface MembershipState {
     key?: string;
     price: number;
     features: string[];
-    entitlements?: Record<string, boolean | number>;
+    entitlements?: Entitlements;
   } | null;
   usage?: {
     patientsActive: number;
@@ -56,6 +70,7 @@ interface SubscriptionContextType extends MembershipState {
   refreshSubscription: () => Promise<void>;
   forceUpdatePlan: (plan: SubscriptionPlan) => void;
   isLoading: boolean;
+  membershipError: string | null;
   isDeveloper: boolean;
   features: { canGenerateDiet: boolean; canExportPDF: boolean; patientLimit: number; hasBranding: boolean };
   can: (featureKey: string) => boolean;
@@ -80,11 +95,12 @@ export function SubscriptionProvider({
   const [daysRemaining, setDaysRemaining] = useState<number | null>(null);
   const [requiresPlanSelection, setRequiresPlanSelection] = useState(false);
   const [hasPendingTransfer, setHasPendingTransfer] = useState(false);
-  const [entitlements, setEntitlements] = useState<Record<string, boolean | number>>({});
+  const [entitlements, setEntitlements] = useState<Entitlements>({});
   const [currentPlan, setCurrentPlan] = useState<MembershipState["currentPlan"]>(null);
   const [usage, setUsage] = useState<MembershipState["usage"]>(undefined);
   const [billing, setBilling] = useState<MembershipState["billing"]>(undefined);
   const [isLoading, setIsLoading] = useState(true);
+  const [membershipError, setMembershipError] = useState<string | null>(null);
   const isDeveloper = role === "NUTRITIONIST_DEVELOPER";
 
   const getLimitValue = useCallback(
@@ -111,7 +127,10 @@ export function SubscriptionProvider({
 
   const applyStoredUserSnapshot = useCallback(() => {
     const user = getCurrentUser();
-    if (!user) return;
+    if (!user) return false;
+
+    const storedEntitlements = getValidatedEntitlements(user.currentPlan?.entitlements);
+    if (storedEntitlements) setEntitlements(storedEntitlements);
 
     // El rol NO se toma del snapshot local (cookie manipulable); sólo llega
     // desde `/auth/me`. Aquí sólo se rehidratan datos de plan para la UI.
@@ -136,6 +155,8 @@ export function SubscriptionProvider({
     if (user.membershipSelected === true || user.requiresPlanSelection === false) {
       setRequiresPlanSelection(false);
     }
+
+    return Boolean(storedEntitlements);
   }, []);
 
   const computePlan = useCallback(
@@ -160,6 +181,8 @@ export function SubscriptionProvider({
   );
 
   const refreshSubscription = useCallback(async () => {
+    setIsLoading(true);
+    setMembershipError(null);
     try {
       const data = await membershipService.getStatus();
       const key = computePlan(data.currentPlan, data.accountPlan);
@@ -174,7 +197,11 @@ export function SubscriptionProvider({
       setDaysRemaining(data.subscription?.daysRemaining ?? null);
       setRequiresPlanSelection(data.requiresPlanSelection);
       setHasPendingTransfer(data.hasPendingTransfer || false);
-      setEntitlements(data.entitlements || {});
+      const fetchedEntitlements = getValidatedEntitlements(data.entitlements);
+      if (!fetchedEntitlements) {
+        throw new Error("La respuesta de membresía no contiene permisos válidos.");
+      }
+      setEntitlements(fetchedEntitlements);
       setCurrentPlan(data.currentPlan);
       setUsage(data.usage);
       setBilling(data.billing);
@@ -204,7 +231,10 @@ export function SubscriptionProvider({
       }
     } catch (error) {
       console.error("Error al obtener estado de suscripción:", error);
-      applyStoredUserSnapshot();
+      const restoredStoredEntitlements = applyStoredUserSnapshot();
+      if (!restoredStoredEntitlements) {
+        setMembershipError("No se pudo verificar tu membresía. Intenta nuevamente.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -254,6 +284,7 @@ export function SubscriptionProvider({
         refreshSubscription,
         forceUpdatePlan,
         isLoading,
+        membershipError,
         isDeveloper,
         features: planFeatures,
         can,

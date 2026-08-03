@@ -41,19 +41,19 @@ export class ApiKeyGuard implements CanActivate {
             string,
             string | string[] | undefined
           >;
-          const nutritionistId =
-            typeof decoded.sub === 'string'
-              ? decoded.sub
-              : decoded.nutritionistId;
+          const accountId = decoded.sub;
+          const nutritionistId = decoded.nutritionistId;
 
-          if (typeof nutritionistId !== 'string' || !nutritionistId) {
+          if (typeof accountId !== 'string' || !accountId) {
             return false;
           }
 
-          headers['x-nutritionist-id'] = nutritionistId;
+          if (typeof nutritionistId === 'string' && nutritionistId) {
+            headers['x-nutritionist-id'] = nutritionistId;
+          }
           headers['x-api-key'] = 'from-jwt';
           (request as any).user = {
-            id: nutritionistId,
+            id: accountId,
             nutritionistId,
           };
           return true;

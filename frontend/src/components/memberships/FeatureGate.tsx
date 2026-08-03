@@ -16,7 +16,18 @@ export function FeatureGate({
   fallback,
   message,
 }: FeatureGateProps) {
-  const { can } = useSubscription();
+  const { can, isLoading } = useSubscription();
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-[16rem] items-center justify-center rounded-3xl border border-slate-100 bg-white p-8 shadow-sm">
+        <div className="flex flex-col items-center gap-3 text-sm font-semibold text-slate-400">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-indigo-100 border-t-indigo-600" />
+          Verificando permisos...
+        </div>
+      </div>
+    );
+  }
 
   if (can(feature)) {
     return <>{children}</>;

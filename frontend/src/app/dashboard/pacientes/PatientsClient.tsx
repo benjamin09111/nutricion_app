@@ -74,9 +74,11 @@ export default function PatientsClient() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [patientToDelete, setPatientToDelete] = useState<Patient | null>(null);
   const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
-  const { currentPlan, limit } = useSubscription();
+  const { currentPlan, entitlements, usage, isLoading: isSubscriptionLoading, isDeveloper } = useSubscription();
 
-  const rawPatientLimit = currentPlan?.entitlements?.["patients.total.limit"] ?? currentPlan?.entitlements?.["patients.active.limit"];
+  const rawPatientLimit = currentPlan?.entitlements?.["patients.total.limit"] ??
+    currentPlan?.entitlements?.["patients.active.limit"] ??
+    entitlements["patients.total.limit"] ?? entitlements["patients.active.limit"];
   const patientLimit = typeof rawPatientLimit === "number" ? rawPatientLimit : undefined;
   useScrollLock(isDeleteModalOpen);
 
@@ -91,7 +93,7 @@ export default function PatientsClient() {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  const { patients, meta, isLoading, togglePatientStatus, deletePatient, isDeleting } =
+  const { patients, meta, isLoading, isFetching, togglePatientStatus, deletePatient, isDeleting } =
     usePatients({
       page,
       searchTerm: debouncedSearchTerm,
@@ -99,7 +101,14 @@ export default function PatientsClient() {
       classificationTags,
       startDateFilter: "",
     });
-  const patientsUsed = meta.total;
+  const patientDataPending = isLoading || isFetching;
+  const subscriptionPatientsUsed = usage?.patientsActive;
+  const hasAuthoritativePatientCount =
+    typeof subscriptionPatientsUsed === "number" ||
+    (!isLoading && !isFetching && !showInactive && !debouncedSearchTerm && classificationTags.length === 0);
+  const patientsUsed = typeof subscriptionPatientsUsed === "number"
+    ? subscriptionPatientsUsed
+    : hasAuthoritativePatientCount ? meta.total : undefined;
 
   const handleTogglePatientStatus = async (patient: Patient) => {
     const newStatus = patient.status === "Active" ? "Inactive" : "Active";
@@ -159,10 +168,20 @@ export default function PatientsClient() {
   };
 
   const filteredPatients = patients;
-  const activePatientLimit = limit("patients.total.limit");
+  const rawActivePatientLimit = currentPlan?.entitlements?.["patients.total.limit"] ??
+    currentPlan?.entitlements?.["patients.active.limit"];
+  const activePatientLimit = isDeveloper
+    ? Number.POSITIVE_INFINITY
+    : typeof rawActivePatientLimit === "number"
+      ? (rawActivePatientLimit < 0 ? Number.POSITIVE_INFINITY : rawActivePatientLimit)
+      : undefined;
+  const patientCreationBlocked =
+    isSubscriptionLoading || !hasAuthoritativePatientCount || activePatientLimit === undefined;
   const isPatientLimitReached =
+    !patientCreationBlocked &&
     Number.isFinite(activePatientLimit) &&
-    meta.total >= activePatientLimit;
+    typeof patientsUsed === "number" &&
+    patientsUsed >= activePatientLimit;
 
   const openPatientPreview = (patient: Patient) => {
     setPatientPreview(patient);
@@ -174,11 +193,15 @@ export default function PatientsClient() {
       description="Gestiona a tus pacientes: puedes crear, ver su progreso a través del tiempo, crear un espacio de comunicación privado y mucho más."
       rightContent={
         <div className="flex flex-wrap items-center gap-2">
-          <UsageLimitBadge
-            label="Pacientes"
-            usage={patientsUsed}
-            limit={patientLimit}
-          />
+          {patientsUsed !== undefined ? (
+            <UsageLimitBadge
+              label="Pacientes"
+              usage={patientsUsed}
+              limit={patientLimit}
+            />
+          ) : (
+            <span className="text-xs font-semibold text-slate-400">Verificando uso...</span>
+          )}
           <button
             type="button"
             onClick={() => setIsPrivacyModalOpen(true)}
@@ -194,7 +217,7 @@ export default function PatientsClient() {
           </button>
           <Button
             variant="outline"
-            disabled={isExporting || isLoading}
+            disabled={isExporting || patientDataPending}
             onClick={handleExportPatientsExcel}
             className="h-9 sm:h-10 px-3 sm:px-5 rounded-xl border-emerald-200 text-emerald-700 hover:bg-emerald-50 font-medium transition-all flex items-center gap-1.5 sm:gap-2 shrink-0 cursor-pointer"
           >
@@ -243,7 +266,7 @@ export default function PatientsClient() {
                   tagsAbsolute
                   helperText=""
                 />
-                {isLoading && (
+                {patientDataPending && (
                   <div className="absolute right-2 top-1/2 -translate-y-1/2">
                     <div className="h-4 w-4 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
                   </div>
@@ -267,7 +290,11 @@ export default function PatientsClient() {
 
               <Button
                 onClick={() => {
-                  if (isPatientLimitReached) {
+                   if (patientCreationBlocked) {
+                     toast.info("Estamos verificando el uso de tu plan. Intenta nuevamente en unos segundos.");
+                     return;
+                   }
+                   if (isPatientLimitReached) {
                     toast.error(
                       "Has alcanzado el límite de pacientes activos de tu plan.",
                     );
@@ -275,7 +302,7 @@ export default function PatientsClient() {
                   }
                   router.push("/dashboard/pacientes/new");
                 }}
-                disabled={isPatientLimitReached}
+                 disabled={patientCreationBlocked || isPatientLimitReached}
                 className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium h-10 px-4 sm:px-6 flex-1 sm:flex-initial justify-center rounded-xl shadow-sm transition-all gap-1.5 sm:gap-2"
               >
                 <Plus
@@ -283,7 +310,11 @@ export default function PatientsClient() {
                   aria-hidden="true"
                 />
                 <span className="text-xs sm:text-sm whitespace-nowrap">
-                  {isPatientLimitReached ? "Límite alcanzado" : "Crear paciente"}
+                   {isSubscriptionLoading || !hasAuthoritativePatientCount
+                     ? "Verificando límite..."
+                     : isPatientLimitReached
+                       ? "Límite alcanzado"
+                       : "Crear paciente"}
                 </span>
               </Button>
             </div>
@@ -355,7 +386,7 @@ export default function PatientsClient() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50 bg-white">
-                {isLoading ? (
+                {patientDataPending ? (
                   <TableLoadingRows columns={5} rows={5} />
                 ) : filteredPatients.length > 0 ? (
                   filteredPatients.map((patient) => {
@@ -370,10 +401,17 @@ export default function PatientsClient() {
                     return (
                       <tr
                         key={patient.id}
-                        onClick={() =>
-                          router.push(`/dashboard/pacientes/${patient.id}`)
-                        }
-                        className="hover:bg-slate-50 transition-colors group cursor-pointer"
+                          onClick={() => {
+                            if (!patientDataPending) {
+                              router.push(`/dashboard/pacientes/${patient.id}`);
+                            }
+                          }}
+                        className={cn(
+                          "transition-colors group",
+                          patientDataPending
+                            ? "cursor-wait opacity-70"
+                            : "cursor-pointer hover:bg-slate-50",
+                        )}
                       >
                         <td className="px-6 py-4">
                           <div className="flex items-center">
@@ -431,8 +469,9 @@ export default function PatientsClient() {
                           onClick={(e) => e.stopPropagation()}
                         >
                           <div className="flex items-center justify-center gap-2">
-                            <button
-                              type="button"
+                               <button
+                                type="button"
+                                disabled={patientDataPending}
                               onClick={() => handleTogglePatientStatus(patient)}
                               className={cn(
                                 "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2",
@@ -471,23 +510,25 @@ export default function PatientsClient() {
                           onClick={(e) => e.stopPropagation()}
                         >
                           <div className="flex items-center justify-end gap-1">
-                            <button
+                             <button
                               onClick={() => openPatientPreview(patient)}
+                              disabled={patientDataPending}
                               className="group relative p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
                               title="Ver detalles"
                             >
                               <Eye className="w-4.5 h-4.5" />
                             </button>
-                            <button
+                             <button
                               onClick={() => handleExportClinicalRecord(patient)}
                               className="group relative p-2.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
                               title="Descargar ficha clínica PDF"
-                              disabled={isExporting}
+                               disabled={isExporting || patientDataPending}
                             >
                               <Download className="w-4.5 h-4.5" />
                             </button>
-                            <button
+                             <button
                               onClick={() => handleTogglePatientStatus(patient)}
+                              disabled={patientDataPending}
                               className="group relative p-2.5 text-slate-400 hover:bg-slate-100 rounded-xl transition-all"
                               title={patient.status === "Active" ? "Inhabilitar paciente" : "Habilitar paciente"}
                             >
@@ -497,8 +538,9 @@ export default function PatientsClient() {
                                 <CheckCircle2 className="w-4.5 h-4.5 text-indigo-600" />
                               )}
                             </button>
-                            <button
+                             <button
                               onClick={() => {
+                                if (patientDataPending) return;
                                 setPatientToDelete(patient);
                                 setIsDeleteModalOpen(true);
                               }}
@@ -533,7 +575,7 @@ export default function PatientsClient() {
 
         {/* Mobile Card View */}
         <div className="lg:hidden space-y-4">
-          {isLoading ? (
+          {patientDataPending ? (
             <MobileCardLoadingList rows={3} />
           ) : filteredPatients.length > 0 ? (
             filteredPatients.map((patient) => {

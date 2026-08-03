@@ -521,6 +521,7 @@ export default function QuickDeliverableClient() {
   const [isImportCreationModalOpen, setIsImportCreationModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [isHydrating, setIsHydrating] = useState(true);
   const [showValidationHighlights, setShowValidationHighlights] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [isFoodReferenceBookOpen, setIsFoodReferenceBookOpen] = useState(false);
@@ -533,26 +534,33 @@ export default function QuickDeliverableClient() {
   const summarySectionRef = useRef<HTMLElement | null>(null);
 
   const goToStep = useCallback((step: number) => {
+    if (isHydrating) return;
     setCurrentStep(Math.max(0, Math.min(step, WIZARD_STEPS.length - 1)));
-  }, []);
+  }, [isHydrating]);
 
   const goBack = useCallback(() => {
+    if (isHydrating) return;
     setCurrentStep((prev) => Math.max(0, prev - 1));
-  }, []);
+  }, [isHydrating]);
 
   const goNext = useCallback(() => {
+    if (isHydrating) return;
     setCurrentStep((prev) => Math.min(WIZARD_STEPS.length - 1, prev + 1));
-  }, []);
+  }, [isHydrating]);
 
   useEffect(() => {
     setSidebarCollapsed(true);
   }, [setSidebarCollapsed]);
 
   useEffect(() => {
+    if (creationId) return;
     const quickDraft = localStorage.getItem("nutri_quick_deliverable_draft");
     const pautaDraft = localStorage.getItem("nutri_pauta_alimentacion_draft");
     const draft = quickDraft || pautaDraft;
-    if (!draft) return;
+    if (!draft) {
+      setIsHydrating(false);
+      return;
+    }
     try {
       const parsed = JSON.parse(draft);
       setTitle(parsed.title ?? "");
@@ -633,10 +641,13 @@ export default function QuickDeliverableClient() {
       setIsManualPatientExpanded(parsed.isManualPatientExpanded === true);
     } catch (error) {
       console.error("Error loading draft", error);
+    } finally {
+      setIsHydrating(false);
     }
-  }, []);
+  }, [creationId]);
 
   useEffect(() => {
+    if (isHydrating) return;
     localStorage.setItem(
       "nutri_quick_deliverable_draft",
       JSON.stringify({
@@ -689,6 +700,7 @@ export default function QuickDeliverableClient() {
     portionGuideRows,
     selectedPatient,
     isManualPatientExpanded,
+    isHydrating,
   ]);
 
   useEffect(() => {
@@ -839,6 +851,8 @@ export default function QuickDeliverableClient() {
       } catch (error) {
         console.error(error);
         toast.error("No se pudo cargar el entregable.");
+      } finally {
+        setIsHydrating(false);
       }
     };
 
@@ -1003,6 +1017,7 @@ export default function QuickDeliverableClient() {
   };
 
   const generatePautaWithAi = async () => {
+    if (isHydrating) return;
     setIsGeneratingPautaAi(true);
     try {
       const response = await fetchApi("/recipes/quick-ai-fill", {
@@ -1152,6 +1167,7 @@ export default function QuickDeliverableClient() {
   }, [filteredCreatedRecipes, meals]);
 
   const applyImportedQuickCreation = (creation: ImportedCreation) => {
+    if (isHydrating) return;
     if (creation.type !== "FAST_DELIVERABLE") {
       toast.error("Solo puedes importar entregables rápidos en este módulo.");
       return;
@@ -1370,6 +1386,7 @@ export default function QuickDeliverableClient() {
   };
 
   const generateMealsWithAi = async () => {
+    if (isHydrating) return;
     if (quickAiMealTargets.length === 0) {
       toast.error("No hay espacios vacios con categoria para rellenar.");
       return;
@@ -1925,6 +1942,7 @@ export default function QuickDeliverableClient() {
   });
 
   const handleExportPdf = async () => {
+    if (isHydrating) return;
     if (!validateRequiredSections()) {
       toast.error("Completa las secciones marcadas para generar el PDF.");
       return;
@@ -1943,6 +1961,7 @@ export default function QuickDeliverableClient() {
   };
 
   const handleSaveToCreations = async () => {
+    if (isHydrating) return;
     if (!validateRequiredSections()) {
       toast.error("Completa las secciones marcadas antes de guardar la creación.");
       return;
@@ -2007,6 +2026,7 @@ export default function QuickDeliverableClient() {
   };
 
   const resetQuickDeliverable = () => {
+    if (isHydrating) return;
     setTitle("");
     setDeliveryDate(new Date().toISOString().slice(0, 10));
     setQuickHashtags("");
@@ -2106,7 +2126,7 @@ export default function QuickDeliverableClient() {
         onClick: resetQuickDeliverable,
       },
     ],
-    [selectedPatient.fullName, isLoadingPatients, missingRequirements, hasChanges, isExportingPdf],
+    [selectedPatient.fullName, isLoadingPatients, missingRequirements, hasChanges, isExportingPdf, isHydrating],
   );
 
   return (
@@ -2119,10 +2139,18 @@ export default function QuickDeliverableClient() {
         title="Entregable Rápido"
         description="Crea un entregable express de una sola hoja con horarios, indicaciones, alimentos a evitar, recursos y una guía breve de porciones."
         className="max-w-[68rem]"
-        rightNavItems={actionItems}
+         rightNavItems={isHydrating ? [] : actionItems}
         rightNavDesktopBreakpoint="lg"
       >
-        <WorkflowContextBanner
+         {isHydrating ? (
+           <div className="flex min-h-[24rem] items-center justify-center rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+             <div className="flex items-center gap-3 text-sm font-semibold text-slate-500">
+               <Loader2 className="h-5 w-5 animate-spin text-emerald-600" />
+               Preparando el entregable...
+             </div>
+           </div>
+         ) : <>
+         <WorkflowContextBanner
           projectName={currentProjectName}
           mode={currentProjectMode}
           moduleLabel="Rápido"
@@ -3571,8 +3599,9 @@ export default function QuickDeliverableClient() {
               </section>
               )}
         </PlanWizardShell>
-        </div>
-      </ModuleLayout>
+         </div>
+         </>}
+       </ModuleLayout>
 
       <Modal
         isOpen={isResourceVariablesModalOpen}

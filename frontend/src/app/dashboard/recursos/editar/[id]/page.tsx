@@ -1,20 +1,37 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Cookies from "js-cookie";
 import { Loader2 } from "lucide-react";
 import { ResourceEditor } from "../../ResourceEditor";
 import { fetchApi } from "@/lib/api-base";
+import { useSubscription } from "@/context/SubscriptionContext";
 
 export default function EditarRecursoPage() {
   const { id } = useParams();
+  const router = useRouter();
+  const { can, isLoading: isSubscriptionLoading } = useSubscription();
+  const canEditResources = can("resources.edit.access");
   const [resource, setResource] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (id) fetchResource();
-  }, [id]);
+    if (id && !isSubscriptionLoading && canEditResources) fetchResource();
+  }, [id, isSubscriptionLoading, canEditResources]);
+
+  useEffect(() => {
+    if (isSubscriptionLoading || canEditResources) return;
+
+    window.dispatchEvent(
+      new CustomEvent("show-freemium-upgrade", {
+        detail: {
+          description: "Editar recursos propios está disponible en los planes de pago.",
+        },
+      }),
+    );
+    router.replace("/dashboard/recursos");
+  }, [canEditResources, isSubscriptionLoading, router]);
 
   async function fetchResource() {
     try {
@@ -31,7 +48,7 @@ export default function EditarRecursoPage() {
     }
   }
 
-  if (loading) {
+  if (isSubscriptionLoading || loading || !canEditResources) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-10 w-10 animate-spin text-emerald-500" />

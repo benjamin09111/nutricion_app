@@ -20,6 +20,7 @@ import { CacheTTL } from '@nestjs/cache-manager';
 import { PermissionsGuard } from '../permissions/permissions.guard';
 import { RequireFeatures } from '../permissions/permissions.decorator';
 import { SPECIAL_FEATURES } from '../permissions/permissions.constants';
+import { PLAN_ENTITLEMENT_KEYS } from '../memberships/plan-entitlements';
 
 @Controller('foods')
 @UseInterceptors(HttpCacheInterceptor)
@@ -29,7 +30,7 @@ export class FoodsController {
 
   @Post()
   @UseGuards(AuthGuard, PermissionsGuard)
-  @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
+  @RequireFeatures(PLAN_ENTITLEMENT_KEYS.INGREDIENTS_CREATE_ACCESS)
   create(@Body() createFoodDto: CreateFoodDto, @Request() req: any) {
     return this.foodsService.create(createFoodDto, req.user.id);
   }
