@@ -123,6 +123,8 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
   // -- State --
   const [dietName, setDietName] = useState("");
   const [dietTags, setDietTags] = useState<string[]>([]);
+  const [planObjective, setPlanObjective] = useState("");
+  const [showPlanObjectiveInPdf, setShowPlanObjectiveInPdf] = useState(false);
   const [activeConstraints, setActiveConstraints] = useState<string[]>([]);
   const [macroSettings, setMacroSettings] = useState<MacroSettings>(
     createDefaultMacroSettings(),
@@ -337,6 +339,8 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
       content: {
         dietName,
         dietTags,
+        planObjective,
+        showPlanObjectiveInPdf,
         activeConstraints,
         macroSettings,
         macroTargets,
@@ -675,6 +679,8 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
         setEditingCreationId(creation.id);
         setDietName(creation.name || "");
         setDietTags(creation.tags || []);
+        setPlanObjective(typeof content.planObjective === "string" ? content.planObjective : "");
+        setShowPlanObjectiveInPdf(content.showPlanObjectiveInPdf === true);
         setActiveConstraints(content.activeConstraints || []);
         setMacroSettings(content.macroSettings || createDefaultMacroSettings());
         setManualAdditions(content.manualAdditions || content.foods || []);
@@ -832,6 +838,8 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
         const draft = JSON.parse(savedDraft);
         setDietName(draft.dietName || "");
         setDietTags(draft.dietTags || []);
+        setPlanObjective(typeof draft.planObjective === "string" ? draft.planObjective : "");
+        setShowPlanObjectiveInPdf(draft.showPlanObjectiveInPdf === true);
         setActiveConstraints(draft.activeConstraints || []);
         setMacroSettings(draft.macroSettings || createDefaultMacroSettings());
         setManualAdditions(draft.manualAdditions || []);
@@ -987,6 +995,12 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
           overrides.dietName !== undefined ? overrides.dietName : dietName,
         dietTags:
           overrides.dietTags !== undefined ? overrides.dietTags : dietTags,
+        planObjective:
+          overrides.planObjective !== undefined ? overrides.planObjective : planObjective,
+        showPlanObjectiveInPdf:
+          overrides.showPlanObjectiveInPdf !== undefined
+            ? overrides.showPlanObjectiveInPdf
+            : showPlanObjectiveInPdf,
         activeConstraints:
           overrides.activeConstraints !== undefined
             ? overrides.activeConstraints
@@ -1029,6 +1043,8 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
   }, [
     dietName,
     dietTags,
+    planObjective,
+    showPlanObjectiveInPdf,
     activeConstraints,
     customGroups,
     customConstraints,
@@ -1231,6 +1247,8 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
       await downloadDietPdf({
         dietName,
         dietTags,
+        planObjective: planObjective.trim() || undefined,
+        showPlanObjectiveInPdf,
         activeConstraints,
         patientName: selectedPatient?.fullName,
         foods: includedFoods.map((f) => ({
@@ -1291,6 +1309,8 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
       ...(draft.diet || {}),
       name: dietName,
       tags: dietTags,
+      planObjective,
+      showPlanObjectiveInPdf,
       activeConstraints,
       macroSettings,
       macroTargets,
@@ -1506,6 +1526,8 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
   const resetDietState = () => {
     setDietName("");
     setDietTags([]);
+    setPlanObjective("");
+    setShowPlanObjectiveInPdf(false);
     setActiveConstraints([]);
     setMacroSettings(createDefaultMacroSettings());
     setFoodStatus(createBaseFoodStatus() as any);
@@ -2090,6 +2112,10 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
     setDietName,
     dietTags,
     setDietTags,
+    planObjective,
+    setPlanObjective,
+    showPlanObjectiveInPdf,
+    setShowPlanObjectiveInPdf,
     activeConstraints,
     setActiveConstraints,
     macroSettings,

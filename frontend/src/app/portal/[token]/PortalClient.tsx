@@ -248,6 +248,8 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
     return {
       dietName: raw.name,
       dietTags: raw.tags || [],
+      planObjective: typeof raw.content?.planObjective === "string" ? raw.content.planObjective : undefined,
+      showPlanObjectiveInPdf: raw.content?.showPlanObjectiveInPdf === true,
       activeConstraints: raw.content?.activeConstraints || [],
       patientName: raw.metadata?.patientName || raw.content?.patientMeta?.fullName,
       foods,
@@ -286,7 +288,9 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
       clinicalRestriction:
         typeof rawContent.clinicalRestriction === "string"
           ? rawContent.clinicalRestriction
-          : (typeof rawContent.restriction === "string" ? rawContent.restriction : null),
+            : (typeof rawContent.restriction === "string" ? rawContent.restriction : null),
+      planObjective: typeof rawContent.planObjective === "string" ? rawContent.planObjective : undefined,
+      showPlanObjectiveInPdf: rawContent.showPlanObjectiveInPdf === true,
       contentMode:
         (rawContent.contentMode as any) ||
         (rawContent.pautaEditorMode as any) ||
@@ -323,6 +327,8 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
       typeof raw.content?.nutritionistNotes === "string"
         ? raw.content.nutritionistNotes
         : undefined,
+    planObjective: typeof raw.content?.planObjective === "string" ? raw.content.planObjective : undefined,
+    showPlanObjectiveInPdf: raw.content?.showPlanObjectiveInPdf === true,
     dishes: Array.isArray(raw.content?.dishes) ? raw.content.dishes : [],
     generatedAt:
       typeof raw.content?.updatedAt === "string"

@@ -467,6 +467,8 @@ export default function QuickDeliverableClient() {
   const [deliveryDate, setDeliveryDate] = useState(new Date().toISOString().slice(0, 10));
   const [quickHashtags, setQuickHashtags] = useState("");
   const [quickDescription, setQuickDescription] = useState("");
+  const [planObjective, setPlanObjective] = useState("");
+  const [showPlanObjectiveInPdf, setShowPlanObjectiveInPdf] = useState(false);
   const [planMode, setPlanMode] = useState<QuickPlanMode>("single");
   const [meals, setMeals] = useState<QuickMeal[]>([
     createMeal("Desayuno"),
@@ -557,6 +559,8 @@ export default function QuickDeliverableClient() {
       setDeliveryDate(parsed.deliveryDate || new Date().toISOString().slice(0, 10));
       setQuickHashtags(parsed.quickHashtags || "");
       setQuickDescription(parsed.quickDescription || "");
+      setPlanObjective(parsed.planObjective || "");
+      setShowPlanObjectiveInPdf(parsed.showPlanObjectiveInPdf === true);
       setPlanMode(parsed.planMode === "weekly" ? "weekly" : "single");
       setContentMode(
         parsed.contentMode === "paragraphs" || parsed.pautaEditorMode === "paragraphs"
@@ -640,6 +644,8 @@ export default function QuickDeliverableClient() {
         deliveryDate,
         quickHashtags,
         quickDescription,
+        planObjective,
+        showPlanObjectiveInPdf,
         planMode,
         contentMode,
         hasClinicalRestriction,
@@ -664,6 +670,8 @@ export default function QuickDeliverableClient() {
     deliveryDate,
     quickHashtags,
     quickDescription,
+    planObjective,
+    showPlanObjectiveInPdf,
     planMode,
     contentMode,
     hasClinicalRestriction,
@@ -694,6 +702,8 @@ export default function QuickDeliverableClient() {
         setDeliveryDate(content.deliveryDate || new Date().toISOString().slice(0, 10));
         setQuickHashtags(content.quickHashtags || "");
         setQuickDescription(content.quickDescription || "");
+        setPlanObjective(content.planObjective || "");
+        setShowPlanObjectiveInPdf(content.showPlanObjectiveInPdf === true);
         setPlanMode(content.planMode === "weekly" ? "weekly" : "single");
 
         const isPautaType = creation.type === "PAUTAS";
@@ -797,6 +807,8 @@ export default function QuickDeliverableClient() {
           deliveryDate: content.deliveryDate || new Date().toISOString().slice(0, 10),
           quickHashtags: content.quickHashtags || "",
           quickDescription: content.quickDescription || "",
+          planObjective: content.planObjective || "",
+          showPlanObjectiveInPdf: content.showPlanObjectiveInPdf === true,
           planMode: content.planMode === "weekly" ? "weekly" : "single",
           contentMode: isParagraphsMode ? "paragraphs" : "table",
           hasClinicalRestriction: content.hasClinicalRestriction ?? Boolean(restriction),
@@ -873,6 +885,8 @@ export default function QuickDeliverableClient() {
       deliveryDate,
       quickHashtags,
       quickDescription,
+      planObjective,
+      showPlanObjectiveInPdf,
       planMode,
       meals: meals.map(m => ({
         id: m.id,
@@ -907,6 +921,8 @@ export default function QuickDeliverableClient() {
     deliveryDate,
     quickHashtags,
     quickDescription,
+    planObjective,
+    showPlanObjectiveInPdf,
     planMode,
     meals,
     avoidFoods,
@@ -1174,6 +1190,8 @@ export default function QuickDeliverableClient() {
     );
     setQuickHashtags(typeof content.quickHashtags === "string" ? content.quickHashtags : "");
     setQuickDescription(typeof content.quickDescription === "string" ? content.quickDescription : "");
+    setPlanObjective(typeof content.planObjective === "string" ? content.planObjective : "");
+    setShowPlanObjectiveInPdf(content.showPlanObjectiveInPdf === true);
     setPlanMode(content.planMode === "weekly" ? "weekly" : "single");
     setMeals(importedMeals.length > 0 ? importedMeals : [createMeal("Desayuno")]);
     setAvoidFoods(
@@ -1807,6 +1825,8 @@ export default function QuickDeliverableClient() {
       deliveryDate,
       hashtags: quickHashtags.split(",").map((t) => t.trim()).filter(Boolean),
       description: quickDescription.trim() || null,
+      planObjective: planObjective.trim() || undefined,
+      showPlanObjectiveInPdf,
       patientName: selectedPatient?.fullName || null,
       nutritionistName,
       nutritionistEmail,
@@ -1938,6 +1958,8 @@ export default function QuickDeliverableClient() {
           deliveryDate,
           quickHashtags,
           quickDescription,
+          planObjective,
+          showPlanObjectiveInPdf,
           planMode,
           meals,
           avoidFoods: validAvoidFoods,
@@ -1989,6 +2011,8 @@ export default function QuickDeliverableClient() {
     setDeliveryDate(new Date().toISOString().slice(0, 10));
     setQuickHashtags("");
     setQuickDescription("");
+    setPlanObjective("");
+    setShowPlanObjectiveInPdf(false);
     setPlanMode("single");
     setMeals([createMeal("Desayuno"), createMeal("Almuerzo"), createMeal("Cena")]);
     setAvoidFoods([createAvoidFoodRow()]);
@@ -2150,6 +2174,24 @@ export default function QuickDeliverableClient() {
                 className="min-h-[60px] rounded-xl border-slate-200 bg-slate-50 text-sm"
                 placeholder="Notas internas sobre este entregable..."
               />
+            </div>
+            <div className="px-6 pt-3 space-y-2">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Objetivo del plan <span className="normal-case font-medium text-slate-400">(opcional)</span></p>
+              <Textarea
+                value={planObjective}
+                onChange={(e) => setPlanObjective(e.target.value)}
+                className="min-h-[60px] rounded-xl border-slate-200 bg-slate-50 text-sm"
+                placeholder="Ej: Pérdida de grasa enfocada en alimentos simples"
+              />
+              <label className="flex w-fit cursor-pointer items-center gap-2 text-xs font-semibold text-slate-600">
+                <input
+                  type="checkbox"
+                  checked={showPlanObjectiveInPdf}
+                  onChange={(e) => setShowPlanObjectiveInPdf(e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                />
+                Mostrar objetivo al inicio del PDF
+              </label>
             </div>
           </details>
 

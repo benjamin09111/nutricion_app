@@ -195,7 +195,7 @@ async function main() {
       price: 39990,
       currency: 'CLP',
       billingPeriod: 'monthly',
-      features: ['✓ Pacientes ilimitados', '✓ Consultas ilimitadas', '✓ PDFs ilimitados', '✓ Relleno automático de IA', '✓ Gestión de citas', '✓ Google Calendar', '✓ Portal de nutricionista', '✓ Boletas SII'],
+      features: ['✓ Pacientes ilimitados', '✓ Consultas ilimitadas', '✓ PDFs ilimitados', '✓ Relleno automático de IA', '✓ Gestión de citas', '✓ Portal de nutricionista', '✓ Boletas SII'],
       maxPatients: null,
       isPopular: false,
       displayOrder: 3,

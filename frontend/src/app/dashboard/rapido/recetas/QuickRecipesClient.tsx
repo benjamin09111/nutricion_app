@@ -446,6 +446,8 @@ export default function QuickRecipesClient() {
   const [deliveryDate, setDeliveryDate] = useState(new Date().toISOString().slice(0, 10));
   const [quickHashtags, setQuickHashtags] = useState("");
   const [quickDescription, setQuickDescription] = useState("");
+  const [planObjective, setPlanObjective] = useState("");
+  const [showPlanObjectiveInPdf, setShowPlanObjectiveInPdf] = useState(false);
   const [allowedFoodsMainText, setAllowedFoodsMainText] = useState("");
   const [restrictedFoodsText, setRestrictedFoodsText] = useState("");
   const [specialConsiderations, setSpecialConsiderations] = useState("");
@@ -524,6 +526,8 @@ export default function QuickRecipesClient() {
       );
       setQuickHashtags(typeof parsed.quickHashtags === "string" ? parsed.quickHashtags : "");
       setQuickDescription(typeof parsed.quickDescription === "string" ? parsed.quickDescription : "");
+      setPlanObjective(typeof parsed.planObjective === "string" ? parsed.planObjective : "");
+      setShowPlanObjectiveInPdf(parsed.showPlanObjectiveInPdf === true);
       setAllowedFoodsMainText(toTextAreaValue(parsed.allowedFoodsMain));
       setRestrictedFoodsText(toTextAreaValue(parsed.restrictedFoods));
       setSpecialConsiderations(
@@ -561,6 +565,8 @@ export default function QuickRecipesClient() {
         deliveryDate,
         quickHashtags,
         quickDescription,
+        planObjective,
+        showPlanObjectiveInPdf,
         allowedFoodsMain: parseLines(allowedFoodsMainText),
         restrictedFoods: parseLines(restrictedFoodsText),
         specialConsiderations,
@@ -582,6 +588,8 @@ export default function QuickRecipesClient() {
     deliveryDate,
     quickHashtags,
     quickDescription,
+    planObjective,
+    showPlanObjectiveInPdf,
     allowedFoodsMainText,
     restrictedFoodsText,
     specialConsiderations,
@@ -639,6 +647,8 @@ export default function QuickRecipesClient() {
         );
         setQuickHashtags(typeof content.quickHashtags === "string" ? content.quickHashtags : "");
         setQuickDescription(typeof content.quickDescription === "string" ? content.quickDescription : "");
+        setPlanObjective(typeof content.planObjective === "string" ? content.planObjective : "");
+        setShowPlanObjectiveInPdf(content.showPlanObjectiveInPdf === true);
         setAllowedFoodsMainText(toTextAreaValue(content.allowedFoodsMain));
         setRestrictedFoodsText(toTextAreaValue(content.restrictedFoods));
         setSpecialConsiderations(
@@ -810,6 +820,8 @@ export default function QuickRecipesClient() {
     setDeliveryDate(new Date().toISOString().slice(0, 10));
     setQuickHashtags("");
     setQuickDescription("");
+    setPlanObjective(typeof content.planObjective === "string" ? content.planObjective : "");
+    setShowPlanObjectiveInPdf(content.showPlanObjectiveInPdf === true);
     const dietFoodsText =
       toTextAreaValueFromFoods(content.foods) ||
       toTextAreaValueFromFoods(content.includedFoods) ||
@@ -1088,6 +1100,8 @@ export default function QuickRecipesClient() {
     deliveryDate,
     quickHashtags,
     quickDescription,
+    planObjective,
+    showPlanObjectiveInPdf,
     allowedFoodsMain: parseLines(allowedFoodsMainText),
     restrictedFoods: parseLines(restrictedFoodsText),
     specialConsiderations,
@@ -1226,6 +1240,8 @@ export default function QuickRecipesClient() {
     setDeliveryDate(new Date().toISOString().slice(0, 10));
     setQuickHashtags("");
     setQuickDescription("");
+    setPlanObjective("");
+    setShowPlanObjectiveInPdf(false);
     setAllowedFoodsMainText("");
     setRestrictedFoodsText("");
     setSpecialConsiderations("");
@@ -1250,6 +1266,8 @@ export default function QuickRecipesClient() {
     dietName: dietName.trim() || DEFAULT_DIET_NAME,
     patientName: selectedPatient?.fullName || null,
     nutritionistNotes: nutritionistNotes.trim() || undefined,
+    planObjective: planObjective.trim() || undefined,
+    showPlanObjectiveInPdf,
     allowedFoodsMain: parseLines(allowedFoodsMainText),
     restrictedFoods: parseLines(restrictedFoodsText),
     specialConsiderations: specialConsiderations.trim() || undefined,
@@ -1566,6 +1584,24 @@ export default function QuickRecipesClient() {
                 className="min-h-[72px] rounded-xl border-slate-200 bg-slate-50 text-sm"
                 placeholder="Notas internas sobre este entregable..."
               />
+            </div>
+            <div className="mt-4 space-y-2">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Objetivo del plan <span className="normal-case font-medium text-slate-400">(opcional)</span></p>
+              <Textarea
+                value={planObjective}
+                onChange={(event) => setPlanObjective(event.target.value)}
+                className="min-h-[72px] rounded-xl border-slate-200 bg-slate-50 text-sm"
+                placeholder="Ej: Pérdida de grasa enfocada en alimentos simples"
+              />
+              <label className="flex w-fit cursor-pointer items-center gap-2 text-xs font-semibold text-slate-600">
+                <input
+                  type="checkbox"
+                  checked={showPlanObjectiveInPdf}
+                  onChange={(event) => setShowPlanObjectiveInPdf(event.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                />
+                Mostrar objetivo al inicio del PDF
+              </label>
             </div>
             {selectedPatient?.fullName?.trim() ? (
               <details className="group mt-4 rounded-2xl border border-slate-200 bg-white" open>

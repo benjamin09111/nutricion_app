@@ -27,6 +27,8 @@ export interface DietPdfData {
     dietName: string;
     dietTags?: string[];
     activeConstraints?: string[];
+    planObjective?: string;
+    showPlanObjectiveInPdf?: boolean;
     patientName?: string;
     foods: DietFood[];
     generatedAt?: string;
@@ -70,6 +72,13 @@ const S = StyleSheet.create({
         fontSize: 13,
         color: colors.primaryLight,
         marginBottom: 20,
+    },
+    coverObjective: {
+        fontSize: 11,
+        color: colors.white,
+        fontFamily: "Helvetica-Bold",
+        lineHeight: 1.4,
+        marginBottom: 12,
     },
     coverPatientBadge: {
         backgroundColor: "rgba(255,255,255,0.15)",
@@ -332,6 +341,9 @@ function CoverPage({ data }: { data: DietPdfData }) {
             <View style={S.coverTop}>
                 <Text style={S.coverEyebrow}>Plan Nutricional · Dieta Base</Text>
                 <Text style={S.coverTitle}>{data.dietName || "Plan Alimentario"}</Text>
+                {data.showPlanObjectiveInPdf && data.planObjective?.trim() && (
+                    <Text style={S.coverObjective}>Objetivo: {data.planObjective.trim()}</Text>
+                )}
                 <Text style={S.coverSubtitle}>
                     {data.foods.length} alimentos · {Object.keys(groupFoods(data.foods)).length} grupos alimenticios
                 </Text>

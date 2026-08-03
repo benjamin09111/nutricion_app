@@ -48,6 +48,8 @@ export interface QuickRecipesPdfData {
   dietName?: string;
   patientName?: string | null;
   nutritionistNotes?: string;
+  planObjective?: string;
+  showPlanObjectiveInPdf?: boolean;
   finalNotes?: string;
   allowedFoodsMain?: string[];
   restrictedFoods?: string[];
@@ -298,9 +300,12 @@ export function QuickRecipesPdfDocument({ data }: { data: QuickRecipesPdfData })
     <Document>
       <Page size="A4" style={styles.page}>
         <View style={styles.header}>
-          <Text style={styles.brand}>NutriNet</Text>
-          <Text style={styles.docTitle}>{data.title || "Recetas Rápidas"}</Text>
-          <View style={styles.metaRow}>
+           <Text style={styles.brand}>NutriNet</Text>
+           <Text style={styles.docTitle}>{data.title || "Recetas Rápidas"}</Text>
+           {data.showPlanObjectiveInPdf && data.planObjective?.trim() ? (
+             <Text style={styles.boxText}>Objetivo: {data.planObjective.trim()}</Text>
+           ) : null}
+           <View style={styles.metaRow}>
             {data.dietName ? <Text style={styles.meta}>Dieta: {data.dietName}</Text> : null}
             {data.patientName ? <Text style={styles.meta}>Paciente: {data.patientName}</Text> : null}
             <Text style={styles.meta}>Generado: {generatedAt}</Text>

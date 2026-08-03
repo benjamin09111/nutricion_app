@@ -13,6 +13,7 @@ import {
   AlertTriangle,
   Loader2,
   Calendar,
+  Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -21,6 +22,7 @@ import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { fetchApi } from "@/lib/api-base";
 import { getAuthToken } from "@/lib/auth-token";
+import { useSubscription } from "@/context/SubscriptionContext";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -35,6 +37,7 @@ const feedbackSchema = z.object({
 type FeedbackFormData = z.infer<typeof feedbackSchema>;
 
 export function FeedbackForm() {
+  const { plan } = useSubscription();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -56,6 +59,7 @@ export function FeedbackForm() {
   });
 
   const selectedType = watch("type");
+  const isFreemium = plan === "free";
 
   const onSubmit = async (data: FeedbackFormData) => {
     setIsSubmitting(true);
@@ -126,11 +130,12 @@ export function FeedbackForm() {
                 {[
                   { id: "feedback", label: "Feedback", icon: MessageSquare, color: "indigo" },
                   { id: "testimonio", label: "Testimonio", icon: CheckCircle2, color: "green" },
-                  { id: "idea", label: "Idea", icon: Lightbulb, color: "amber" },
+                  { id: "idea", label: "Idea", icon: Lightbulb, color: "amber", paidOnly: true },
                   { id: "complaint", label: "Problema", icon: AlertTriangle, color: "rose" },
-                  { id: "reunion", label: "Reunión", icon: Calendar, color: "purple" },
+                  { id: "reunion", label: "Reunión", icon: Calendar, color: "purple", paidOnly: true },
                 ].map((item) => {
                   const isSelected = selectedType === item.id;
+                  const isLocked = isFreemium && item.paidOnly;
                   const colorMap: Record<string, string> = {
                     indigo: "indigo",
                     green: "emerald",
@@ -143,14 +148,24 @@ export function FeedbackForm() {
                   return (
                     <div
                       key={item.id}
-                      onClick={() =>
-                        setValue("type", item.id as FeedbackFormData["type"])
-                      }
+                      onClick={() => {
+                        if (isLocked) {
+                          window.dispatchEvent(
+                            new CustomEvent("show-freemium-upgrade", {
+                              detail: { feature: "Ideas y solicitudes de reunión" },
+                            }),
+                          );
+                          return;
+                        }
+                        setValue("type", item.id as FeedbackFormData["type"]);
+                      }}
                       className={cn(
-                        "cursor-pointer relative overflow-hidden rounded-xl border-2 p-2.5 sm:p-3 transition-all duration-200 hover:shadow-xs active:scale-95 text-center flex flex-col items-center gap-1.5",
-                        isSelected
-                          ? `border-${color}-500 bg-${color}-50 text-${color}-700`
-                          : "border-slate-100 bg-slate-50 text-slate-500 hover:border-slate-200 hover:bg-slate-100",
+                        "group cursor-pointer relative overflow-visible rounded-xl border-2 p-2.5 sm:p-3 transition-all duration-200 hover:shadow-xs active:scale-95 text-center flex flex-col items-center gap-1.5",
+                        isLocked
+                          ? "border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed opacity-75"
+                          : isSelected
+                            ? `border-${color}-500 bg-${color}-50 text-${color}-700`
+                            : "border-slate-100 bg-slate-50 text-slate-500 hover:border-slate-200 hover:bg-slate-100",
                       )}
                     >
                       <item.icon
@@ -159,10 +174,18 @@ export function FeedbackForm() {
                           isSelected ? `text-${color}-600` : "text-slate-300",
                         )}
                       />
-                      <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider">
-                        {item.label}
-                      </span>
-                      {isSelected && (
+                       <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider">
+                         {item.label}
+                       </span>
+                       {isLocked && (
+                         <>
+                           <Lock className="absolute top-1.5 right-1.5 h-3.5 w-3.5 text-slate-400" />
+                           <span className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 w-44 -translate-x-1/2 rounded-xl bg-slate-900 px-3 py-2 text-[10px] font-medium normal-case tracking-normal text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
+                             Disponible solo en planes de pago.
+                           </span>
+                         </>
+                       )}
+                       {isSelected && (
                         <div className={cn("absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full", `bg-${color}-500`)} />
                       )}
                     </div>
