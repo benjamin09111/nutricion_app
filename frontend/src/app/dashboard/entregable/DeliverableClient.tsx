@@ -54,6 +54,7 @@ import Cookies from "js-cookie";
 import { fetchApi } from "@/lib/api-base";
 import { getCurrentUser, setCurrentUser } from "@/lib/current-user";
 import { membershipService } from "@/features/memberships/services/membership.service";
+import { getPdfQuotaKey } from "@/features/pdf/pdfQuota";
 import {
   fetchCreation,
   fetchProject,
@@ -1169,7 +1170,7 @@ export default function DeliverableClient() {
       const blob = await pdf(
         <StandardTemplate data={draftData} config={config} />,
       ).toBlob();
-      await membershipService.consumeQuota("pdf.exports.total.limit");
+      await membershipService.consumeQuota("pdf.exports.total.limit", 1, getPdfQuotaKey("standard-deliverable", draftData));
 
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -1281,7 +1282,7 @@ export default function DeliverableClient() {
         })
       );
 
-      await membershipService.consumeQuota("pdf.exports.total.limit");
+      await membershipService.consumeQuota("pdf.exports.total.limit", 1, getPdfQuotaKey("standard-deliverable", draftData));
       generatedFiles.forEach(({ blob, task, index }) => {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");

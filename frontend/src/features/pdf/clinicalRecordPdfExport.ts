@@ -2,12 +2,13 @@
 
 import type { ClinicalRecordPdfData } from "./ClinicalRecordPdfDocument";
 import { membershipService } from "@/features/memberships/services/membership.service";
+import { getPdfQuotaKey } from "./pdfQuota";
 
 /**
  * Generates and downloads a Clinical Record PDF on the client side.
  * Uses dynamic import to avoid SSR issues with @react-pdf/renderer.
  */
-export async function downloadClinicalRecordPdf(data: ClinicalRecordPdfData): Promise<void> {
+export async function downloadClinicalRecordPdf(data: ClinicalRecordPdfData, quotaKey?: string): Promise<void> {
   const [{ pdf }, { ClinicalRecordPdfDocument }, React] = await Promise.all([
     import("@react-pdf/renderer"),
     import("./ClinicalRecordPdfDocument"),
@@ -16,7 +17,7 @@ export async function downloadClinicalRecordPdf(data: ClinicalRecordPdfData): Pr
 
   const doc = React.createElement(ClinicalRecordPdfDocument, { data }) as any;
   const blob = await pdf(doc).toBlob();
-  await membershipService.consumeQuota("pdf.exports.total.limit");
+  await membershipService.consumeQuota("pdf.exports.total.limit", 1, getPdfQuotaKey("clinical-record", data, quotaKey));
 
   const safeName = (data.patientName || "Paciente")
     .replace(/\s+/g, "_")

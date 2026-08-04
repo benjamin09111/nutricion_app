@@ -5,6 +5,7 @@ import { GraduationCap, ChevronDown, ChevronUp, Calculator, User, Filter, Sparkl
 import { Button } from "@/components/ui/Button";
 import { ActionDockItem } from "@/components/ui/ActionDock";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
+import { ModuleUsageBadges } from "@/components/shared/ModuleUsageBadges";
 import { WorkflowContextBanner } from "@/components/shared/WorkflowContextBanner";
 import { PlanWizardShell } from "@/components/plans";
 import { MarketPrice } from "@/features/foods";
@@ -86,6 +87,23 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     0,
   );
 
+  const completedSteps = useMemo(() => {
+    const fullStepCompletion = [
+      Boolean(state.dietName.trim()),
+      totalSelectedFoods > 0 || state.dietTags.length > 0,
+      meals.length > 0,
+      cartItems.length > 0,
+    ];
+    const completion = state.flowMode === "quick"
+      ? fullStepCompletion.slice(0, 2)
+      : fullStepCompletion;
+
+    return completion.reduce<number[]>((completed, isComplete, index) => {
+      if (isComplete) completed.push(index);
+      return completed;
+    }, []);
+  }, [state.dietName, totalSelectedFoods, state.dietTags.length, state.flowMode, meals.length, cartItems.length]);
+
   const actionItems: ActionDockItem[] = useMemo(
     () => [
       {
@@ -148,6 +166,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
           icon: GraduationCap,
           color: "text-emerald-600",
         }}
+         rightContent={<ModuleUsageBadges />}
          rightNavItems={state.isHydrating ? [] : actionItems}
          rightNavDesktopBreakpoint="lg"
        >
@@ -169,7 +188,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         <PlanWizardShell
           steps={wizardSteps}
           currentStep={currentStep}
-          completedSteps={Array.from({ length: currentStep }, (_, index) => index)}
+           completedSteps={completedSteps}
           onStepClick={handleStepClick}
           onBack={goBack}
           onNext={goNext}
@@ -210,8 +229,6 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                 setDescription={state.setCreationDescription}
                 planObjective={state.planObjective}
                 setPlanObjective={state.setPlanObjective}
-                showPlanObjectiveInPdf={state.showPlanObjectiveInPdf}
-                setShowPlanObjectiveInPdf={state.setShowPlanObjectiveInPdf}
                 showGeneralInfo
                 showClinicalRestriction
               />

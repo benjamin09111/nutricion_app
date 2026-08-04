@@ -2,11 +2,11 @@ import { StyleSheet } from "@react-pdf/renderer";
 
 // -- Color Palette --
 export const colors = {
-    primary: "#10b981",       // emerald-500
-    primaryDark: "#059669",   // emerald-600
-    primaryLight: "#d1fae5",  // emerald-100
-    secondary: "#6366f1",     // indigo-500
-    secondaryLight: "#e0e7ff",
+    primary: "#7c5cac",
+    primaryDark: "#5f438f",
+    primaryLight: "#eee8f7",
+    secondary: "#9b79c6",
+    secondaryLight: "#f5f1fa",
     slate900: "#0f172a",
     slate700: "#334155",
     slate500: "#64748b",
@@ -28,6 +28,8 @@ export const shared = StyleSheet.create({
         paddingTop: 30,
         paddingBottom: 48,
         paddingHorizontal: 32,
+        fontSize: 10,
+        lineHeight: 1.5,
     },
     // Header band at top of each page
     pageHeader: {
@@ -36,17 +38,17 @@ export const shared = StyleSheet.create({
         alignItems: "center",
         marginBottom: 16,
         paddingBottom: 8,
-        borderBottom: `2px solid ${colors.primaryLight}`,
+        borderBottom: `3px solid ${colors.primary}`,
     },
     pageHeaderTitle: {
-        fontSize: 9,
+        fontSize: 10,
         color: colors.slate500,
         fontFamily: "Helvetica",
         textTransform: "uppercase",
         letterSpacing: 1,
     },
     pageHeaderBrand: {
-        fontSize: 8,
+        fontSize: 9,
         color: colors.primary,
         fontFamily: "Helvetica-Bold",
     },
@@ -73,14 +75,15 @@ export const shared = StyleSheet.create({
     },
     // Section title
     sectionTitle: {
-        fontSize: 13,
+        fontSize: 17,
         fontFamily: "Helvetica-Bold",
-        color: colors.slate900,
+        color: colors.primaryDark,
         marginBottom: 8,
-        marginTop: 14,
+        marginTop: 16,
+        lineHeight: 1.2,
     },
     sectionSubtitle: {
-        fontSize: 10,
+        fontSize: 11,
         color: colors.slate500,
         marginBottom: 14,
     },
@@ -149,11 +152,11 @@ export const shared = StyleSheet.create({
         backgroundColor: colors.slate50,
     },
     tableCell: {
-        fontSize: 8.5,
+        fontSize: 9,
         color: colors.slate700,
     },
     tableCellBold: {
-        fontSize: 8.5,
+        fontSize: 9,
         color: colors.slate900,
         fontFamily: "Helvetica-Bold",
     },

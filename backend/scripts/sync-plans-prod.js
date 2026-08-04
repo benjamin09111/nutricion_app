@@ -3,8 +3,8 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 const freeEntitlements = {
-  "patients.active.limit": 4,
-  "patients.total.limit": 4,
+  "patients.active.limit": 3,
+  "patients.total.limit": 3,
   "consultations.saved.limit": 3,
   "consultations.monthly.limit": 3,
   "pdf.exports.total.limit": 3,
@@ -49,7 +49,7 @@ const plans = [
     currency: 'CLP',
     billingPeriod: 'monthly',
     features: [
-      '✓ 4 pacientes totales',
+      '✓ 3 pacientes totales',
       '✓ 3 consultas guardadas',
       '✓ 3 PDFs generados',
       '✓ 6 seguimientos privados activos',

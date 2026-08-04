@@ -1,5 +1,4 @@
-import { PlanSelector } from "@/components/memberships/PlanSelector";
-import { SubscriptionProvider } from "@/context/SubscriptionContext";
+import { PlanPageClient } from "./PlanPageClient";
 
 export const metadata = {
   title: "Elige tu plan | NutriNet",
@@ -7,9 +6,5 @@ export const metadata = {
 };
 
 export default function PlanPage() {
-  return (
-    <SubscriptionProvider>
-      <PlanSelector />
-    </SubscriptionProvider>
-  );
+  return <PlanPageClient />;
 }

@@ -9,13 +9,13 @@ const styles = StyleSheet.create({
   page: {
     padding: 30,
     fontFamily: "Helvetica",
-    fontSize: 9,
-    color: "#1e293b",
+    fontSize: 10,
+    color: "#251d32",
     backgroundColor: "#ffffff",
   },
   header: {
     borderBottomWidth: 1.5,
-    borderBottomColor: "#4f46e5",
+    borderBottomColor: "#7c5cac",
     borderBottomStyle: "solid",
     paddingBottom: 10,
     marginBottom: 15,
@@ -24,22 +24,22 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   title: {
-    fontSize: 16,
+    fontSize: 23,
     fontFamily: "Helvetica-Bold",
-    color: "#0f172a",
+    color: "#3f2c5f",
   },
   subtitle: {
-    fontSize: 9,
+    fontSize: 10,
     color: "#64748b",
     marginTop: 2,
   },
   brand: {
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: "Helvetica-Bold",
-    color: "#4f46e5",
+    color: "#7c5cac",
   },
   patientBox: {
-    backgroundColor: "#f8fafc",
+    backgroundColor: "#f5f1fa",
     borderRadius: 8,
     padding: 10,
     marginBottom: 15,
@@ -47,7 +47,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   patientText: {
-    fontSize: 9,
+    fontSize: 10,
     color: "#334155",
   },
   bold: {
@@ -69,7 +69,7 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   scoreText: {
-    fontSize: 20,
+    fontSize: 26,
     fontFamily: "Helvetica-Bold",
     color: "#0f172a",
   },
@@ -82,9 +82,9 @@ const styles = StyleSheet.create({
     color: "#ffffff",
   },
   sectionTitle: {
-    fontSize: 10,
+    fontSize: 14,
     fontFamily: "Helvetica-Bold",
-    color: "#4f46e5",
+    color: "#7c5cac",
     borderBottomWidth: 1,
     borderBottomColor: "#e2e8f0",
     borderBottomStyle: "solid",
@@ -101,19 +101,19 @@ const styles = StyleSheet.create({
     borderBottomStyle: "solid",
   },
   questionLabel: {
-    fontSize: 8.5,
+    fontSize: 9.5,
     color: "#334155",
     width: "75%",
   },
   questionValue: {
-    fontSize: 8.5,
+    fontSize: 9.5,
     fontFamily: "Helvetica-Bold",
     color: "#0f172a",
     width: "25%",
     textAlign: "right",
   },
   recBox: {
-    backgroundColor: "#f8fafc",
+    backgroundColor: "#f5f1fa",
     borderRadius: 8,
     padding: 10,
     marginTop: 15,
@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   recText: {
-    fontSize: 8.5,
+    fontSize: 9.5,
     color: "#334155",
     lineHeight: 1.3,
   },

@@ -190,9 +190,13 @@ export const membershipService = {
     return res.json();
   },
 
-  async consumeQuota(featureKey: string, amount = 1): Promise<{ usageCount: number | null; limit: number }> {
-    const res = await api.post("/permissions/consume", { featureKey, amount });
-    return readJsonResponse<{ usageCount: number | null; limit: number }>(res);
+  async consumeQuota(featureKey: string, amount = 1, dedupeKey?: string): Promise<{ usageCount: number | null; limit: number }> {
+    const res = await api.post("/permissions/consume", { featureKey, amount, dedupeKey });
+    const usage = await readJsonResponse<{ usageCount: number | null; limit: number }>(res);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("membership-usage-updated"));
+    }
+    return usage;
   },
 
   // ─── Discount Codes (Admin) ────────────────────────────────────

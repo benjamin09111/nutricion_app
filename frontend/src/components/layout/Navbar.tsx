@@ -122,7 +122,7 @@ export function Navbar({
   return (
     <div
       className={cn(
-        "dashboard-nav-bg sticky top-0 z-40 flex h-16 min-w-0 shrink-0 items-center gap-x-2 border-b px-3 backdrop-blur-xl sm:gap-x-6 sm:px-6 lg:px-8 transition-colors",
+        "dashboard-nav-bg sticky top-0 z-[100] flex h-16 min-w-0 shrink-0 items-center gap-x-2 border-b px-3 backdrop-blur-xl sm:gap-x-6 sm:px-6 lg:px-8 transition-colors",
         isAdminView && !isDarkMode && "bg-indigo-50/50 border-indigo-100",
         isAdminView && isDarkMode && "border-indigo-400/20",
       )}
@@ -463,7 +463,7 @@ export function Navbar({
             {isProfileOpen && (
               <div
                 className={cn(
-                  "absolute right-0 z-10 mt-2.5 w-56 max-w-[calc(100vw-2rem)] origin-top-right rounded-xl border py-2 shadow-lg ring-1 animate-in fade-in zoom-in-95 duration-100 focus:outline-none",
+                    "absolute right-0 z-[110] mt-2.5 w-56 max-w-[calc(100vw-2rem)] origin-top-right rounded-xl border py-2 shadow-lg ring-1 animate-in fade-in zoom-in-95 duration-100 focus:outline-none",
                   isDarkMode
                     ? "border-emerald-400/14 bg-slate-950/96 ring-black/20"
                     : "border-slate-100 bg-white ring-slate-900/5",

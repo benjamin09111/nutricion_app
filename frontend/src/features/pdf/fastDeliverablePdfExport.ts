@@ -2,10 +2,12 @@
 
 import type { FastDeliverablePdfData } from "./FastDeliverablePdfDocument";
 import { membershipService } from "@/features/memberships/services/membership.service";
+import { getPdfQuotaKey } from "./pdfQuota";
 
 export async function downloadFastDeliverablePdf(
   data: FastDeliverablePdfData,
   countQuota = true,
+  quotaKey?: string,
 ): Promise<void> {
   const [{ pdf }, { FastDeliverablePdfDocument }, React] = await Promise.all([
     import("@react-pdf/renderer"),
@@ -16,7 +18,7 @@ export async function downloadFastDeliverablePdf(
   const doc = React.createElement(FastDeliverablePdfDocument, { data });
   const blob = await pdf(doc as unknown as Parameters<typeof pdf>[0]).toBlob();
   if (countQuota) {
-    await membershipService.consumeQuota("pdf.exports.total.limit");
+    await membershipService.consumeQuota("pdf.exports.total.limit", 1, getPdfQuotaKey("fast-deliverable", data, quotaKey));
   }
 
   const safeName =

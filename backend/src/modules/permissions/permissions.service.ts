@@ -79,7 +79,6 @@ export class PermissionsService {
       return null;
     }
 
-    const membershipSelectedAt = account.membershipSelectedAt;
     const existingSubscriptionStartDate = account.subscription?.startDate;
 
     let subscriptionSelectable = isSubscriptionSelectable({
@@ -93,7 +92,6 @@ export class PermissionsService {
     });
 
     let hasPlanSelectionHistory =
-      Boolean(account.membershipSelectedAt) ||
       account.plan !== 'FREE' ||
       account.payments.length > 0 ||
       subscriptionSelectable;
@@ -119,7 +117,6 @@ export class PermissionsService {
           where: { id: accountId },
           data: {
             plan: 'FREE',
-            membershipSelectedAt: membershipSelectedAt || now,
             subscriptionEndsAt: null,
           },
         });
@@ -151,7 +148,6 @@ export class PermissionsService {
         },
       });
       subscriptionSelectable = true;
-      hasPlanSelectionHistory = true;
     }
 
     const currentPlan =
@@ -223,7 +219,6 @@ export class PermissionsService {
     }
 
     const hasPlanSelectionHistory =
-      Boolean(account.membershipSelectedAt) ||
       account.plan !== 'FREE' ||
       Boolean(account.payments?.length) ||
       isSubscriptionSelectable(account);

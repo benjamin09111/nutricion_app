@@ -98,9 +98,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     backgroundColor: "#ffffff",
     fontFamily: "Helvetica",
-    color: "#0f172a",
-    fontSize: 9,
-    lineHeight: 1.4,
+    color: "#251d32",
+    fontSize: 10,
+    lineHeight: 1.5,
   },
   header: {
     flexDirection: "row",
@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     marginBottom: 16,
     paddingBottom: 12,
-    borderBottom: "2px solid #059669",
+    borderBottom: "4px solid #7c5cac",
   },
   headerLeft: {
     flex: 1,
@@ -119,31 +119,32 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   brand: {
-    fontSize: 9,
+    fontSize: 10,
     fontFamily: "Helvetica-Bold",
-    color: "#059669",
+    color: "#7c5cac",
     marginBottom: 2,
     textTransform: "uppercase",
     letterSpacing: 1,
   },
   title: {
-    fontSize: 16,
+    fontSize: 24,
     fontFamily: "Helvetica-Bold",
-    color: "#0f172a",
-    marginBottom: 4,
+    color: "#3f2c5f",
+    marginBottom: 6,
+    lineHeight: 1.15,
   },
   metaText: {
-    fontSize: 8.5,
+    fontSize: 9.5,
     color: "#475569",
   },
   objective: {
-    fontSize: 9,
-    color: "#065f46",
+    fontSize: 11,
+    color: "#5f438f",
     fontFamily: "Helvetica-Bold",
     marginBottom: 4,
   },
   patientMetaRow: {
-    fontSize: 8.5,
+    fontSize: 9,
     color: "#334155",
     marginBottom: 2,
   },
@@ -155,76 +156,65 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   sectionTitle: {
-    fontSize: 10.5,
+    fontSize: 15,
     fontFamily: "Helvetica-Bold",
-    color: "#059669",
-    marginBottom: 8,
-    letterSpacing: 0.2,
+    color: "#ffffff",
+    backgroundColor: "#7c5cac",
+    marginBottom: 10,
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    letterSpacing: 0.1,
   },
   paragraphContainer: {
-    marginTop: 8,
-    padding: 10,
-    border: "1px solid #e2e8f0",
-    borderRadius: 6,
-    backgroundColor: "#f8fafc",
+    marginTop: 10,
+    marginBottom: 8,
   },
   paragraphTitle: {
-    fontSize: 10,
+    fontSize: 13,
     fontFamily: "Helvetica-Bold",
-    color: "#0f172a",
-    marginBottom: 4,
-    paddingBottom: 4,
-    borderBottom: "1px solid #e2e8f0",
+    color: "#5f438f",
+    marginBottom: 3,
   },
   paragraphSubtitle: {
-    fontSize: 8.5,
+    fontSize: 9.5,
     color: "#475569",
     marginBottom: 6,
   },
   paragraphContent: {
     flexDirection: "row",
-    gap: 12,
     alignItems: "flex-start",
+    justifyContent: "space-between",
   },
   paragraphInfo: {
-    flex: 1,
-    backgroundColor: "#ffffff",
-    border: "1px solid #e2e8f0",
-    borderRadius: 4,
-    padding: 8,
+    width: "49%",
+    flexGrow: 0,
   },
-  foodList: {
-    flex: 1,
-  },
-  foodItem: {
-    fontSize: 8.5,
+  foodText: {
+    fontSize: 10.5,
     color: "#334155",
-    marginBottom: 2,
-    paddingLeft: 4,
+    lineHeight: 1.7,
   },
   imageContainer: {
-    width: 118,
-    minHeight: 104,
+    width: "49%",
+    height: 220,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#ffffff",
-    border: "1px solid #e2e8f0",
-    borderRadius: 6,
-    padding: 4,
+    overflow: "hidden",
   },
   categoryImage: {
-    width: 104,
-    height: 96,
+    width: "100%",
+    height: "100%",
     objectFit: "contain",
   },
   tableHeader: {
     flexDirection: "row",
-    backgroundColor: "#ecfdf5",
-    borderTop: "1px solid #a7f3d0",
-    borderLeft: "1px solid #a7f3d0",
-    borderRight: "1px solid #a7f3d0",
-    borderBottom: "1px solid #a7f3d0",
-    paddingVertical: 6,
+    backgroundColor: "#5f438f",
+    borderTop: "1px solid #5f438f",
+    borderLeft: "1px solid #5f438f",
+    borderRight: "1px solid #5f438f",
+    borderBottom: "1px solid #5f438f",
+    paddingVertical: 8,
     paddingHorizontal: 8,
   },
   tableRow: {
@@ -232,7 +222,7 @@ const styles = StyleSheet.create({
     borderLeft: "1px solid #e2e8f0",
     borderRight: "1px solid #e2e8f0",
     borderBottom: "1px solid #e2e8f0",
-    paddingVertical: 7,
+    paddingVertical: 8,
     paddingHorizontal: 8,
   },
   tableRowEven: {
@@ -254,14 +244,14 @@ const styles = StyleSheet.create({
     width: "20%",
   },
   cellHeaderText: {
-    fontSize: 8,
+    fontSize: 9,
     fontFamily: "Helvetica-Bold",
-    color: "#047857",
+    color: "#ffffff",
     textTransform: "uppercase",
     letterSpacing: 0.3,
   },
   mutedText: {
-    fontSize: 8.5,
+    fontSize: 9.5,
     color: "#64748b",
     fontStyle: "italic",
   },
@@ -278,7 +268,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   chipText: {
-    fontSize: 8.5,
+    fontSize: 9.5,
     color: "#c2410c",
     fontFamily: "Helvetica-Bold",
   },
@@ -314,26 +304,26 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   resourceTitle: {
-    fontSize: 10,
+    fontSize: 13,
     fontFamily: "Helvetica-Bold",
-    color: "#0f172a",
+    color: "#5f438f",
     marginBottom: 4,
   },
   resourceHeading: {
-    fontSize: 9.5,
+    fontSize: 11,
     fontFamily: "Helvetica-Bold",
-    color: "#0f172a",
+    color: "#5f438f",
     marginTop: 5,
     marginBottom: 3,
   },
   resourceParagraph: {
-    fontSize: 8.5,
+    fontSize: 9.5,
     color: "#334155",
     lineHeight: 1.4,
     marginBottom: 5,
   },
   resourceBullet: {
-    fontSize: 8.5,
+    fontSize: 9.5,
     color: "#334155",
     lineHeight: 1.4,
     marginBottom: 3,
@@ -354,7 +344,7 @@ const styles = StyleSheet.create({
   },
   footerBrand: {
     fontFamily: "Helvetica-Bold",
-    color: "#059669",
+    color: "#7c5cac",
   },
 });
 
@@ -387,7 +377,7 @@ export function FastDeliverablePdfDocument({
           <View style={styles.headerLeft}>
             <Text style={styles.brand}>NutriNet</Text>
             <Text style={styles.title}>{data.name || "Entregable Rápido"}</Text>
-            {data.showPlanObjectiveInPdf && data.planObjective?.trim() ? (
+             {data.planObjective?.trim() ? (
               <Text style={styles.objective}>Objetivo: {data.planObjective.trim()}</Text>
             ) : null}
             <Text style={styles.metaText}>
@@ -424,27 +414,23 @@ export function FastDeliverablePdfDocument({
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Pautas alimenticias</Text>
             {data.paragraphs!.map((paragraph, index) => (
-              <View key={index} style={styles.paragraphContainer}>
-                <Text style={styles.paragraphTitle}>{paragraph.title}</Text>
-                {paragraph.subtitle ? (
-                  <Text style={styles.paragraphSubtitle}>{paragraph.subtitle}</Text>
-                ) : null}
+              <View key={index} style={styles.paragraphContainer} wrap={false}>
                 <View style={styles.paragraphContent}>
-                  <View style={styles.paragraphInfo}>
-                    <View style={styles.foodList}>
-                      {paragraph.foods.map((food, foodIndex) => (
-                        <Text key={foodIndex} style={styles.foodItem}>
-                          • {food}
-                        </Text>
-                      ))}
-                    </View>
+                  <View style={paragraph.imagePath ? styles.paragraphInfo : { width: "100%" }}>
+                    <Text style={styles.paragraphTitle}>{paragraph.title}</Text>
+                    {paragraph.subtitle ? (
+                      <Text style={styles.paragraphSubtitle}>{paragraph.subtitle}</Text>
+                    ) : null}
+                    <Text style={styles.foodText}>
+                      {paragraph.foods.map((food) => `• ${food}`).join("\n")}
+                    </Text>
                   </View>
-                  {paragraph.imagePath && (
+                  {paragraph.imagePath ? (
                     <View style={styles.imageContainer}>
                       {/* eslint-disable-next-line jsx-a11y/alt-text -- @react-pdf Image has no alt prop. */}
                       <Image src={paragraph.imagePath} style={styles.categoryImage} />
                     </View>
-                  )}
+                  ) : null}
                 </View>
               </View>
             ))}
@@ -528,6 +514,7 @@ export function FastDeliverablePdfDocument({
               <View
                 key={`${resource.resourceId}-${index}`}
                 style={styles.resourceCard}
+                wrap={false}
               >
                 <Text style={styles.resourceTitle}>{resource.title}</Text>
                 {parseResourceContent(resource.content)
@@ -550,9 +537,19 @@ export function FastDeliverablePdfDocument({
           </View>
         ) : null}
 
-        {/* Guía rápida de porciones (Hoja aparte al final) */}
-        {data.portionGuide && data.portionGuide.length > 0 ? (
-          <View break style={styles.section}>
+        {/* Pie de página estático en todas las páginas */}
+        <View style={styles.footer} fixed>
+          <Text style={styles.footerBrand}>NutriNet</Text>
+          <Text>
+            {nutritionistName}
+            {nutritionistEmail ? ` (${nutritionistEmail})` : ""}
+          </Text>
+        </View>
+      </Page>
+
+      {data.portionGuide && data.portionGuide.length > 0 ? (
+        <Page size="A4" style={styles.page}>
+          <View style={styles.section}>
             <Text style={styles.sectionTitle}>Guía rápida de porciones</Text>
             <View style={styles.portionHeader}>
               <Text style={[styles.portionCategory, styles.cellHeaderText]}>
@@ -575,17 +572,16 @@ export function FastDeliverablePdfDocument({
               </View>
             ))}
           </View>
-        ) : null}
 
-        {/* Pie de página estático en todas las páginas */}
-        <View style={styles.footer} fixed>
-          <Text style={styles.footerBrand}>NutriNet</Text>
-          <Text>
-            {nutritionistName}
-            {nutritionistEmail ? ` (${nutritionistEmail})` : ""}
-          </Text>
-        </View>
-      </Page>
+          <View style={styles.footer} fixed>
+            <Text style={styles.footerBrand}>NutriNet</Text>
+            <Text>
+              {nutritionistName}
+              {nutritionistEmail ? ` (${nutritionistEmail})` : ""}
+            </Text>
+          </View>
+        </Page>
+      ) : null}
     </Document>
   );
 }

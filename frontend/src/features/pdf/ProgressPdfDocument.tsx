@@ -34,12 +34,12 @@ const S = StyleSheet.create({
     marginBottom: 14,
   },
   coverBrand: {
-    fontSize: 20,
+    fontSize: 27,
     fontFamily: "Helvetica-Bold",
     color: colors.white,
   },
   coverSubtitle: {
-    fontSize: 9,
+    fontSize: 11,
     color: "rgba(255,255,255,0.75)",
     fontFamily: "Helvetica",
     marginTop: 2,
@@ -50,7 +50,7 @@ const S = StyleSheet.create({
     marginTop: 2,
   },
   patientName: {
-    fontSize: 16,
+    fontSize: 22,
     fontFamily: "Helvetica-Bold",
     color: colors.white,
     marginTop: 8,
@@ -79,7 +79,7 @@ const S = StyleSheet.create({
   },
 
   chartTitle: {
-    fontSize: 8.5,
+    fontSize: 10.5,
     fontFamily: "Helvetica-Bold",
     color: colors.slate900,
     marginBottom: 3,
@@ -111,7 +111,7 @@ const S = StyleSheet.create({
     alignItems: "center",
   },
   statValue: {
-    fontSize: 10,
+    fontSize: 12,
     fontFamily: "Helvetica-Bold",
     color: colors.slate900,
   },
@@ -129,7 +129,7 @@ const S = StyleSheet.create({
     marginBottom: 8,
   },
   sectionTitle: {
-    fontSize: 9,
+    fontSize: 13,
     fontFamily: "Helvetica-Bold",
     color: colors.primary,
     textTransform: "uppercase" as const,
@@ -161,11 +161,11 @@ const S = StyleSheet.create({
     alignItems: "center",
   },
   tableCell: {
-    fontSize: 7.5,
+    fontSize: 8.5,
     color: colors.slate700,
   },
   tableCellBold: {
-    fontSize: 7.5,
+    fontSize: 8.5,
     fontFamily: "Helvetica-Bold",
     color: colors.slate900,
   },
