@@ -8,7 +8,7 @@ import { AppointmentsRecordsController } from './appointments.records.controller
 const requiredFeatures = (controller: object, method: string) =>
   Reflect.getMetadata(
     REQUIRED_FEATURES_KEY,
-    (controller as Record<string, unknown>)[method],
+    (controller as Record<string, any>)[method],
   );
 
 describe('Appointment entitlement protection', () => {

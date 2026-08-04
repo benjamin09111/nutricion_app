@@ -93,7 +93,9 @@ export function OnboardingWizard({ nutritionistEmail, nutritionistName }: Onboar
   }, []);
 
   const freePlan = plans.find((p) => Number(p.price) === 0);
-  const paidPlans = plans.filter((p) => Number(p.price) > 0);
+  const paidPlans = plans.filter(
+    (p) => Number(p.price) > 0 && String(p.slug || p.name || "").toLowerCase() !== "pro" && Number(p.price) !== 39990
+  );
 
   const goNext = () => {
     if (currentStep < STEPS.length - 1) {
@@ -108,20 +110,14 @@ export function OnboardingWizard({ nutritionistEmail, nutritionistName }: Onboar
     }
   };
 
-  const handleSelectFree = async (plan: MembershipPlan) => {
+  const handleSelectFree = (plan?: MembershipPlan) => {
     setIsSubmittingFree(true);
-    try {
-      const result = await membershipService.selectFreePlan(plan.id);
-      syncMembershipToStoredUser(result.membershipStatus, plan);
-      localStorage.setItem("nutri_welcome_pending", "true");
-      toast.success(`Plan ${plan.name} activado correctamente`);
-      await refreshSubscription();
-      goToDashboard();
-    } catch (error: unknown) {
-      toast.error(error instanceof Error ? error.message : "Error al activar plan");
-    } finally {
-      setIsSubmittingFree(false);
+    localStorage.setItem("nutri_welcome_pending", "true");
+    if (plan?.id) {
+      membershipService.selectFreePlan(plan.id).catch(() => {});
     }
+    toast.success("¡Bienvenido a NutriNet!");
+    goToDashboard();
   };
 
   const handleSelectPaidPlan = (plan: MembershipPlan) => {
@@ -131,7 +127,7 @@ export function OnboardingWizard({ nutritionistEmail, nutritionistName }: Onboar
   const handlePaymentSuccess = async () => {
     localStorage.setItem("nutri_welcome_pending", "true");
     await refreshSubscription();
-    router.push("/dashboard");
+    goToDashboard();
   };
 
   const renderStepContent = () => {

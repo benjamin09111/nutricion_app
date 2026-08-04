@@ -66,7 +66,7 @@ export function Navbar({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
 
-  const { isAdminView } = useAdmin();
+  const { isAdmin, isAdminView, toggleViewMode } = useAdmin();
   const { planName, currentPlan, hasPendingTransfer } = useSubscription();
   const { unreadCount, notifications, markAsRead, markAllAsRead } =
     useNotifications();
@@ -122,7 +122,7 @@ export function Navbar({
   return (
     <div
       className={cn(
-        "dashboard-nav-bg sticky top-0 z-[100] flex h-16 min-w-0 shrink-0 items-center gap-x-2 border-b px-3 backdrop-blur-xl sm:gap-x-6 sm:px-6 lg:px-8 transition-colors",
+        "dashboard-nav-bg sticky top-0 z-30 flex h-16 min-w-0 shrink-0 items-center gap-x-2 border-b px-3 backdrop-blur-xl sm:gap-x-6 sm:px-6 lg:px-8 transition-colors",
         isAdminView && !isDarkMode && "bg-indigo-50/50 border-indigo-100",
         isAdminView && isDarkMode && "border-indigo-400/20",
       )}
@@ -154,6 +154,22 @@ export function Navbar({
 
         <div className="flex min-w-0 flex-1 items-center gap-x-1 sm:gap-x-4 lg:gap-x-6">
           <div className="flex min-w-0 flex-1 items-center justify-end gap-x-1.5 sm:gap-x-4 lg:gap-x-8">
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={toggleViewMode}
+                className={cn(
+                  "inline-flex cursor-pointer items-center gap-1.5 sm:gap-2 rounded-full border px-3 py-1.5 text-xs font-bold transition-all shrink-0 shadow-sm active:scale-95",
+                  isAdminView
+                    ? "border-indigo-300 bg-indigo-600 text-white hover:bg-indigo-700"
+                    : "border-emerald-300 bg-emerald-600 text-white hover:bg-emerald-700",
+                )}
+                title="Cambiar entre Vista Administrador y Vista Nutricionista"
+              >
+                <span>{isAdminView ? "Vista Admin ⚙️" : "Vista Nutricionista 🥗"}</span>
+              </button>
+            )}
+
             {!isAdminView && (
               <Link
                 href="/dashboard/actualizaciones"

@@ -26,14 +26,18 @@ import LandingContactForm from "@/components/landing/LandingContactForm";
 import { RotatingWord } from "@/components/landing/RotatingWord";
 
 const toMembershipPlanArray = (value: unknown): MembershipPlan[] => {
-  if (Array.isArray(value)) return value as MembershipPlan[];
-  if (value && typeof value === "object") {
+  let list: MembershipPlan[] = [];
+  if (Array.isArray(value)) {
+    list = value as MembershipPlan[];
+  } else if (value && typeof value === "object") {
     const payload = value as { data?: unknown; plans?: unknown; items?: unknown };
-    if (Array.isArray(payload.data)) return payload.data as MembershipPlan[];
-    if (Array.isArray(payload.plans)) return payload.plans as MembershipPlan[];
-    if (Array.isArray(payload.items)) return payload.items as MembershipPlan[];
+    if (Array.isArray(payload.data)) list = payload.data as MembershipPlan[];
+    else if (Array.isArray(payload.plans)) list = payload.plans as MembershipPlan[];
+    else if (Array.isArray(payload.items)) list = payload.items as MembershipPlan[];
   }
-  return [];
+  return list.filter(
+    (p) => String(p.slug || p.name || "").toLowerCase() !== "pro"
+  );
 };
 
 export default function LandingPage() {
@@ -58,7 +62,7 @@ export default function LandingPage() {
   });
   const visiblePlans = plans.filter((plan) => plan.isActive);
   const sortedPlans = sortPlansWithPopularInCenter(visiblePlans);
-  const proPlan = visiblePlans.find((plan) => plan.slug === "pro");
+  const paidPlan = visiblePlans.find((plan) => plan.price > 0);
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -355,13 +359,13 @@ export default function LandingPage() {
             </div>
 
             {/* Launch Offer Banner */}
-            {proPlan && (
+            {paidPlan && (
               <div className="flex justify-center mb-10">
                 <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-3 text-sm font-bold text-white shadow-xl">
                   <Sparkles className="h-4 w-4" />
                   <span>
-                    OFERTA DE LANZAMIENTO: ${Number(proPlan.price).toLocaleString("es-CL")}/mes para las primeras 20 personas
-                    {Number(proPlan.price) < 25000 && " (Precio regular $25.000)"}
+                    OFERTA DE LANZAMIENTO: ${Number(paidPlan.price).toLocaleString("es-CL")}/mes para las primeras 20 personas
+                    {Number(paidPlan.price) < 25000 && " (Precio regular $25.000)"}
                   </span>
                 </div>
               </div>

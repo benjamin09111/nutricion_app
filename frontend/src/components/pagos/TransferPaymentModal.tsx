@@ -183,15 +183,14 @@ export function TransferPaymentModal({
               <h3 className="text-2xl font-black tracking-tight text-slate-900">
               ¡Gracias! Tu solicitud quedó registrada
             </h3>
-            <p className="text-slate-500 max-w-sm mx-auto">
-              En breve tu plan será actualizado. Te avisaremos por correo cuando quede activo.
-              Luego deberás iniciar sesión nuevamente para ver el cambio.
+            <p className="text-slate-500 max-w-md mx-auto leading-relaxed text-sm">
+              Hemos recibido tu aviso de transferencia. Tu plan será verificado y actualizado manualmente a la brevedad. Mientras tanto, puedes ingresar y usar tu espacio de trabajo en NutriNet.
             </p>
             <Button
               onClick={handleClose}
-              className="h-12 px-8 rounded-xl font-bold bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer"
+              className="h-12 px-8 rounded-xl font-bold bg-indigo-600 hover:bg-indigo-700 text-white cursor-pointer shadow-lg shadow-indigo-200"
             >
-              Cerrar
+              Ir al Dashboard
             </Button>
           </div>
         ) : (

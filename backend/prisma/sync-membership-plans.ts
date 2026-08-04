@@ -10,7 +10,7 @@ const plans = [
   {
     name: 'Freemium',
     slug: 'free',
-    description: 'Ideal para nutricionistas que están comenzando su consulta.',
+    description: 'Ideal para nutricionistas que están conociendo y explorando Nutrinet.',
     price: 0,
     currency: 'CLP',
     billingPeriod: 'monthly',
@@ -36,34 +36,36 @@ const plans = [
     entitlements: getMembershipPlanEntitlements('free'),
   },
   {
-    name: 'Pro',
-    slug: 'pro',
-    description: 'Plan profesional completo para automatizar y crecer.',
-    price: 39990,
+    name: 'Plus',
+    slug: 'plus',
+    description: 'Plan completo para potenciar tu consulta profesional.',
+    price: 19990,
     currency: 'CLP',
     billingPeriod: 'monthly',
     features: [
       '✓ Pacientes ilimitados',
       '✓ Consultas ilimitadas',
-      '✓ PDFs ilimitados',
-      '✓ Seguimientos ilimitados',
-      '✓ IA ilimitada',
-      '✓ Relleno automático de IA',
-      '✓ Gestión de citas y horarios',
-      '✓ Portal de nutricionista',
-      '✓ Generación de boletas SII',
+      '✓ PDFs y planes ilimitados',
+      '✓ Tabla de ingredientes',
     ],
     maxPatients: null,
     maxStorage: null,
     isPopular: true,
     isActive: true,
-    displayOrder: 3,
-    entitlements: getMembershipPlanEntitlements('pro'),
+    displayOrder: 2,
+    entitlements: getMembershipPlanEntitlements('plus'),
   },
 ];
 
 async function sync() {
   console.log('🔄 Syncing membership plans in database...');
+
+  // Deactivate pro plan if it exists
+  await prisma.membershipPlan.updateMany({
+    where: { slug: 'pro' },
+    data: { isActive: false },
+  });
+
   for (const plan of plans) {
     const existing =
       (await prisma.membershipPlan.findUnique({ where: { slug: plan.slug } })) ||

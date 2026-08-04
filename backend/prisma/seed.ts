@@ -165,7 +165,7 @@ async function main() {
     {
       name: 'Freemium',
       slug: 'free',
-      description: 'Ideal para nutricionistas que están comenzando su consulta.',
+      description: 'Ideal para nutricionistas que están conociendo y explorando Nutrinet.',
       price: 0,
       currency: 'CLP',
       billingPeriod: 'monthly',
@@ -189,19 +189,29 @@ async function main() {
       entitlements: getMembershipPlanEntitlements('free'),
     },
     {
-      name: 'Pro',
-      slug: 'pro',
-      description: 'Plan profesional completo para automatizar y crecer.',
-      price: 39990,
+      name: 'Plus',
+      slug: 'plus',
+      description: 'Plan completo para potenciar tu consulta profesional.',
+      price: 19990,
       currency: 'CLP',
       billingPeriod: 'monthly',
-      features: ['✓ Pacientes ilimitados', '✓ Consultas ilimitadas', '✓ PDFs ilimitados', '✓ Relleno automático de IA', '✓ Gestión de citas', '✓ Portal de nutricionista', '✓ Boletas SII'],
+      features: [
+        '✓ Pacientes ilimitados',
+        '✓ Consultas ilimitadas',
+        '✓ PDFs y planes ilimitados',
+        '✓ Tabla de ingredientes',
+      ],
       maxPatients: null,
-      isPopular: false,
-      displayOrder: 3,
-      entitlements: getMembershipPlanEntitlements('pro'),
+      isPopular: true,
+      displayOrder: 2,
+      entitlements: getMembershipPlanEntitlements('plus'),
     }
   ];
+
+  await prisma.membershipPlan.updateMany({
+    where: { slug: 'pro' },
+    data: { isActive: false },
+  });
 
   for (const plan of plans) {
     await prisma.membershipPlan.upsert({

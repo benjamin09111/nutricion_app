@@ -10,14 +10,20 @@ async function readJsonResponse<T>(res: Response): Promise<T> {
 }
 
 export const normalizeMembershipPlansResponse = (value: unknown): MembershipPlan[] => {
-  if (Array.isArray(value)) return value as MembershipPlan[];
-  if (value && typeof value === "object") {
+  let list: MembershipPlan[] = [];
+  if (Array.isArray(value)) {
+    list = value as MembershipPlan[];
+  } else if (value && typeof value === "object") {
     const payload = value as { data?: unknown; plans?: unknown; items?: unknown };
-    if (Array.isArray(payload.data)) return payload.data as MembershipPlan[];
-    if (Array.isArray(payload.plans)) return payload.plans as MembershipPlan[];
-    if (Array.isArray(payload.items)) return payload.items as MembershipPlan[];
+    if (Array.isArray(payload.data)) list = payload.data as MembershipPlan[];
+    else if (Array.isArray(payload.plans)) list = payload.plans as MembershipPlan[];
+    else if (Array.isArray(payload.items)) list = payload.items as MembershipPlan[];
   }
-  return [];
+  return list.filter((p) => {
+    const key = String(p.slug || p.name || "").toLowerCase();
+    const price = Number(p.price || 0);
+    return key !== "pro" && price !== 39990;
+  });
 };
 
 export interface MembershipStatus {

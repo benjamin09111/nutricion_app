@@ -109,7 +109,7 @@ export function MembershipPlanSection({
 
   const currentPrice = Number(currentPlan?.price || 0);
   const canChangePlan = currentPrice === 0;
-  const proPlan = availablePlans.find((p) => p.slug === "pro");
+  const featuredPlan = availablePlans.find((p) => p.price > 0);
   const nextPaymentLabel = useMemo(() => {
     if (currentPrice === 0) return "Sin cobro";
     return formatDate(billing?.nextPaymentAt || subscriptionEndsAt?.toISOString() || null);
@@ -170,7 +170,7 @@ export function MembershipPlanSection({
         plans.filter((p) => {
           if (p.id === currentPlan?.id) return false;
           const planKey = String(p.slug || p.name || "").toLowerCase();
-          return planKey === "free" || planKey === "pro";
+          return planKey === "free" || planKey === "plus";
         }),
       );
     } catch {
@@ -423,12 +423,12 @@ export function MembershipPlanSection({
               </div>
             )}
 
-            {proPlan && (
+            {featuredPlan && (
               <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-2 text-xs font-bold text-white shadow-lg mb-6">
                 <Sparkles className="h-3.5 w-3.5" />
                 <span>
-                  OFERTA DE LANZAMIENTO: ${Number(proPlan.price).toLocaleString("es-CL")}/mes para las primeras 20 personas
-                  {Number(proPlan.price) < 25000 && " (Precio regular $25.000)"}
+                  OFERTA DE LANZAMIENTO: ${Number(featuredPlan.price).toLocaleString("es-CL")}/mes para las primeras 20 personas
+                  {Number(featuredPlan.price) < 25000 && " (Precio regular $25.000)"}
                 </span>
               </div>
             )}
@@ -496,7 +496,7 @@ export function MembershipPlanSection({
                           {plan.name}
                         </p>
                         <div className="flex items-baseline gap-2">
-                          {plan.slug === "pro" && Number(plan.price) < 25000 && (
+                          {Number(plan.price) > 0 && Number(plan.price) < 25000 && (
                             <p className="text-sm font-semibold text-slate-400 line-through">$25.000</p>
                           )}
                           <p className={cn("font-black text-xl", isPopular ? "text-indigo-600" : "text-slate-900")}>

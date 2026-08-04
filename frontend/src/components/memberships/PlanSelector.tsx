@@ -46,23 +46,18 @@ export function PlanSelector() {
   const email = user?.email || "";
   const fullName = user?.nutritionist?.fullName || "";
 
-  const freePlan = plans.find((p) => Number(p.price) === 0);
-  const allPlans = sortPlansWithPopularInCenter(plans);
+  const filteredPlans = plans.filter(
+    (p) => String(p.slug || p.name || "").toLowerCase() !== "pro" && Number(p.price) !== 39990
+  );
+  const freePlan = filteredPlans.find((p) => Number(p.price) === 0);
+  const allPlans = sortPlansWithPopularInCenter(filteredPlans);
 
-  const handleSelectFree = async (plan: MembershipPlan) => {
+  const handleSelectFree = (plan: MembershipPlan) => {
     setSubmittingId(plan.id);
-    try {
-      const result = await membershipService.selectFreePlan(plan.id);
-      syncMembershipToStoredUser(result.membershipStatus, plan);
-      localStorage.setItem(WELCOME_KEY, "true");
-      toast.success(`Plan ${plan.name} activado correctamente`);
-      await refreshSubscription();
-      goToDashboard();
-    } catch (error: unknown) {
-      toast.error(error instanceof Error ? error.message : "Error al activar plan");
-    } finally {
-      setSubmittingId(null);
-    }
+    localStorage.setItem(WELCOME_KEY, "true");
+    membershipService.selectFreePlan(plan.id).catch(() => {});
+    toast.success("¡Bienvenido a NutriNet!");
+    goToDashboard();
   };
 
   const handleSelectPaidPlan = (plan: MembershipPlan) => {

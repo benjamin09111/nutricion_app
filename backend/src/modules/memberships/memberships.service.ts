@@ -46,7 +46,14 @@ export class MembershipsService {
 
   async findActive() {
     const plans = await this.prisma.membershipPlan.findMany({
-      where: { isActive: true },
+      where: {
+        isActive: true,
+        NOT: [
+          { slug: { mode: 'insensitive', equals: 'pro' } },
+          { name: { mode: 'insensitive', equals: 'pro' } },
+          { price: 39990 },
+        ],
+      },
       orderBy: { displayOrder: 'asc' },
     });
     return plans.map(normalizeMembershipPlan);

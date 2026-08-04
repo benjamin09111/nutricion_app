@@ -185,7 +185,7 @@ export class PermissionsService {
             }
           : null;
 
-    const requiresPlanSelection = !hasPlanSelectionHistory;
+    const requiresPlanSelection = false;
 
     return {
       account,

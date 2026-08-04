@@ -80,22 +80,45 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
 
   const isAdmin = checkIsAdmin(role);
   const isWorker = checkIsWorker(role);
-  const isAdminView = isAdmin || isWorker;
-  const viewMode: ViewMode = isAdminView ? "ADMIN" : "NUTRITIONIST";
+  const [viewMode, setViewMode] = useState<ViewMode>("ADMIN");
 
   useEffect(() => {
-    if (!isLoading && isAdminView) {
-      if (pathname === "/dashboard") {
-        router.push("/dashboard/admin");
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("nutri_admin_view_mode");
+      if (stored === "NUTRITIONIST" || stored === "ADMIN") {
+        setViewMode(stored as ViewMode);
       }
     }
-  }, [pathname, isAdminView, router, isLoading]);
+  }, []);
+
+  useEffect(() => {
+    if (pathname.startsWith("/dashboard/admin")) {
+      setViewMode("ADMIN");
+    }
+  }, [pathname]);
 
   const toggleViewMode = () => {
-    console.warn(
-      "View switching is disabled for Admins to ensure data isolation.",
-    );
+    setViewMode((prev) => {
+      const next = prev === "ADMIN" ? "NUTRITIONIST" : "ADMIN";
+      if (typeof window !== "undefined") {
+        localStorage.setItem("nutri_admin_view_mode", next);
+      }
+      if (next === "ADMIN" && !pathname.startsWith("/dashboard/admin")) {
+        router.push("/dashboard/admin");
+      } else if (next === "NUTRITIONIST" && pathname.startsWith("/dashboard/admin")) {
+        router.push("/dashboard");
+      }
+      return next;
+    });
   };
+
+  const isAdminView = (isAdmin || isWorker) && viewMode === "ADMIN";
+
+  useEffect(() => {
+    if (!isLoading && isAdminView && pathname === "/dashboard") {
+      router.push("/dashboard/admin");
+    }
+  }, [pathname, isAdminView, router, isLoading]);
 
   const value = {
     role,

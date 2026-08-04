@@ -33,6 +33,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useDashboardShell } from "@/context/DashboardShellContext";
 import { useTheme } from "@/context/ThemeContext";
+import { useAdmin } from "@/context/AdminContext";
 import { useState } from "react";
 
 interface SidebarItem {
@@ -129,6 +130,7 @@ export function Sidebar({ onItemClick, isMobile = false }: SidebarProps = {}) {
   const pathname = usePathname();
   const { isSidebarCollapsed, toggleSidebarCollapsed, isSidebarToggleHighlighted } = useDashboardShell();
   const { isDarkMode } = useTheme();
+  const { isAdmin, toggleViewMode } = useAdmin();
   const shouldCollapse = !isMobile && isSidebarCollapsed && !onItemClick;
 
   const SIDEBAR_GROUPS_STORAGE_KEY = "nutri_dashboard_sidebar_open_groups";
@@ -229,6 +231,18 @@ export function Sidebar({ onItemClick, isMobile = false }: SidebarProps = {}) {
           {isSidebarCollapsed ? <PanelLeftOpen className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
         </button>
       </div>
+
+      {isAdmin && !shouldCollapse && (
+        <button
+          type="button"
+          onClick={() => toggleViewMode()}
+          className="w-full flex items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50/90 hover:bg-indigo-100 text-indigo-700 font-bold px-3 py-2 text-xs transition-colors cursor-pointer"
+          title="Cambiar al panel de administración"
+        >
+          <span>Ir a Vista Administrador</span>
+          <span>⚙️</span>
+        </button>
+      )}
 
       <nav className="flex flex-1 flex-col mt-2">
         <ul role="list" className="flex flex-1 flex-col gap-y-2">

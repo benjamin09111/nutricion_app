@@ -226,7 +226,7 @@ export function AdminSidebar({ onItemClick, isMobile = false }: AdminSidebarProp
     }
     return null;
   };
-  const { role } = useAdmin();
+  const { role, toggleViewMode } = useAdmin();
   const isWorker = role === "WORKER";
 
   const visibleGroups = groups
@@ -248,7 +248,7 @@ export function AdminSidebar({ onItemClick, isMobile = false }: AdminSidebarProp
     >
       <div
         className={cn(
-          "flex h-16 shrink-0 items-center sticky top-0 z-10 dashboard-sidebar-bg",
+          "flex h-16 shrink-0 items-center justify-between sticky top-0 z-10 dashboard-sidebar-bg",
           !isMobile && isSidebarCollapsed ? "justify-center -mx-2 px-2" : "-mx-4 px-4 pl-6",
         )}
       >
@@ -263,6 +263,19 @@ export function AdminSidebar({ onItemClick, isMobile = false }: AdminSidebarProp
           />
         </div>
       </div>
+
+      {(isMobile || !isSidebarCollapsed) && (
+        <button
+          type="button"
+          onClick={() => toggleViewMode()}
+          className="w-full flex items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50/90 hover:bg-indigo-100 text-indigo-700 font-bold px-3 py-2 text-xs transition-colors cursor-pointer"
+          title="Cambiar a la vista de nutricionista para acceder a dietas, pacientes y herramientas"
+        >
+          <span>Ir a Vista Nutricionista</span>
+          <span>🥗</span>
+        </button>
+      )}
+
       <nav className="flex flex-1 flex-col mt-2">
         <ul role="list" className="flex flex-1 flex-col gap-y-3">
           {visibleGroups.map((group) => (
@@ -280,7 +293,9 @@ export function AdminSidebar({ onItemClick, isMobile = false }: AdminSidebarProp
                 <ul role="list" className="-mx-2 space-y-0.5">
                 {group.items.map((item) => {
                   const isActive =
-                    pathname === item.href || pathname.startsWith(item.href);
+                    item.href === "/dashboard/admin"
+                      ? pathname === "/dashboard/admin"
+                      : pathname === item.href || (pathname.startsWith(item.href) && item.href !== "/dashboard/admin");
                   const itemBadge = getItemBadge(item);
 
                   if (item.locked) return null;
