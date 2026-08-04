@@ -44,10 +44,19 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       // SEGURIDAD: el rol se pide siempre al backend. No se siembra ni se hace
       // fallback con cookies/localStorage porque el usuario puede editarlos.
       try {
-        const response = await fetchApi("/auth/me");
+        let response: Response | null = null;
+        for (let attempt = 0; attempt < 2; attempt += 1) {
+          response = await fetchApi("/auth/me");
+          if (response.ok || response.status === 401) break;
+          await new Promise((resolve) => window.setTimeout(resolve, 400));
+        }
 
-        if (!response.ok) {
-          throw new Error("No se pudo sincronizar la sesión");
+        if (!response?.ok) {
+          console.warn(
+            `No se pudo sincronizar la sesión (HTTP ${response?.status ?? "sin respuesta"}).`,
+          );
+          setRole(null);
+          return;
         }
 
         const data = await response.json();
@@ -58,7 +67,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
           setCurrentUser(user);
         }
       } catch (error) {
-        console.error("Error syncing admin session:", error);
+        console.warn("No se pudo sincronizar el rol de la sesión:", error);
         // Fallar cerrado: sin confirmación del backend no hay rol privilegiado.
         setRole(null);
       } finally {

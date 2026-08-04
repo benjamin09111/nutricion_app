@@ -10,6 +10,7 @@ export interface DatePickerProps {
   placeholder?: string;
   label?: string;
   className?: string;
+  triggerClassName?: string;
   min?: string;
   max?: string;
   disabled?: boolean;
@@ -63,6 +64,7 @@ export function DatePicker({
   placeholder = "Seleccionar fecha...",
   label,
   className,
+  triggerClassName,
   min,
   max,
   disabled = false,
@@ -201,6 +203,7 @@ export function DatePicker({
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
           "flex h-10 w-full items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-medium text-slate-700 transition-all outline-none",
+          triggerClassName,
           "hover:border-indigo-300 hover:bg-slate-50/50",
           "focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10",
           isOpen && "border-indigo-500 ring-2 ring-indigo-500/10 shadow-xs",

@@ -20,6 +20,7 @@ import { CacheTTL } from '@nestjs/cache-manager';
 import { PermissionsGuard } from '../permissions/permissions.guard';
 import { RequireFeatures } from '../permissions/permissions.decorator';
 import { SPECIAL_FEATURES } from '../permissions/permissions.constants';
+import { PLAN_ENTITLEMENT_KEYS } from '../memberships/plan-entitlements';
 import { Audit } from '../../common/audit/audit.decorator';
 import { AuditInterceptor } from '../../common/audit/audit.interceptor';
 
@@ -87,6 +88,7 @@ export class ConsultationsController {
   }
 
   @Delete(':id')
+  @RequireFeatures(PLAN_ENTITLEMENT_KEYS.CONSULTATIONS_DELETE_ACCESS)
   remove(@Request() req: any, @Param('id') id: string) {
     return this.consultationsService.remove(req.user.nutritionistId, id);
   }

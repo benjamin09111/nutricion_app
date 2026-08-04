@@ -197,11 +197,11 @@ export function SubscriptionProvider({
       setDaysRemaining(data.subscription?.daysRemaining ?? null);
       setRequiresPlanSelection(data.requiresPlanSelection);
       setHasPendingTransfer(data.hasPendingTransfer || false);
-      const fetchedEntitlements = getValidatedEntitlements(data.entitlements);
-      if (!fetchedEntitlements) {
-        throw new Error("La respuesta de membresía no contiene permisos válidos.");
-      }
-      setEntitlements(fetchedEntitlements);
+       const fetchedEntitlements =
+         getValidatedEntitlements(data.entitlements) ??
+         getValidatedEntitlements(data.currentPlan?.entitlements) ??
+         {};
+       setEntitlements(fetchedEntitlements);
       setCurrentPlan(data.currentPlan);
       setUsage(data.usage);
       setBilling(data.billing);

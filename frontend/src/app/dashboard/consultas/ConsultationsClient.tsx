@@ -43,9 +43,18 @@ export default function ConsultationsClient() {
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [consultationToDelete, setConsultationToDelete] = useState<string | null>(null);
-  const { usage, currentPlan, entitlements, isLoading: isSubscriptionLoading } = useSubscription();
+  const {
+    usage,
+    currentPlan,
+    entitlements,
+    isLoading: isSubscriptionLoading,
+    refreshSubscription,
+    can,
+  } = useSubscription();
+  const canDeleteConsultations = can("consultations.delete.access");
   const [fallbackUsage, setFallbackUsage] = useState<number | undefined>(undefined);
   const [isFallbackUsageLoading, setIsFallbackUsageLoading] = useState(true);
+  const [isRefreshingUsage, setIsRefreshingUsage] = useState(true);
   const consultationsRequestRef = useRef(0);
 
   const rawConsultationLimit = currentPlan?.entitlements?.["consultations.saved.limit"] ??
@@ -54,7 +63,11 @@ export default function ConsultationsClient() {
   const consultationLimit = typeof rawConsultationLimit === "number" ? rawConsultationLimit : undefined;
   const consultationsUsed = usage?.consultationsUsed ?? fallbackUsage;
   const consultationCreationBlocked =
-    isSubscriptionLoading || isFallbackUsageLoading || consultationsUsed === undefined || consultationLimit === undefined;
+    isSubscriptionLoading ||
+    isRefreshingUsage ||
+    isFallbackUsageLoading ||
+    consultationsUsed === undefined ||
+    consultationLimit === undefined;
   const isConsultationLimitReached =
     !consultationCreationBlocked && Number.isFinite(consultationLimit) && consultationsUsed >= consultationLimit;
 
@@ -120,6 +133,17 @@ export default function ConsultationsClient() {
   }, [page, debouncedSearchTerm, patientIdFromQuery, dateFrom, dateTo]);
 
   useEffect(() => {
+    let cancelled = false;
+    setIsRefreshingUsage(true);
+    void refreshSubscription().finally(() => {
+      if (!cancelled) setIsRefreshingUsage(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshSubscription]);
+
+  useEffect(() => {
     if (usage?.consultationsUsed !== undefined) {
       setIsFallbackUsageLoading(false);
       return;
@@ -140,6 +164,16 @@ export default function ConsultationsClient() {
   }, [usage?.consultationsUsed]);
 
   const handleDelete = async () => {
+    if (!canDeleteConsultations) {
+      window.dispatchEvent(
+        new CustomEvent("show-freemium-upgrade", {
+          detail: {
+            description: "Eliminar consultas está disponible en los planes de pago.",
+          },
+        }),
+      );
+      return;
+    }
     if (!consultationToDelete) return;
 
     try {
@@ -166,7 +200,7 @@ export default function ConsultationsClient() {
       title="Mis Consultas"
       description="Espacio con todas tus consultas realizadas. Puedes filtrar por paciente y ver el detalle de cada sesión. Todas se conectan con tus pacientes."
       rightContent={
-        consultationsUsed !== undefined ? (
+        consultationsUsed !== undefined && !isRefreshingUsage && !isSubscriptionLoading ? (
           <UsageLimitBadge
             label="Consultas"
             usage={consultationsUsed}
@@ -259,6 +293,16 @@ export default function ConsultationsClient() {
         onViewConsultation={(id) => router.push(`/dashboard/consultas/${id}/view`)}
         onViewPatient={(patientId) => router.push(`/dashboard/pacientes/${patientId}`)}
         onDelete={(id) => {
+          if (!canDeleteConsultations) {
+            window.dispatchEvent(
+              new CustomEvent("show-freemium-upgrade", {
+                detail: {
+                  description: "Eliminar consultas está disponible en los planes de pago.",
+                },
+              }),
+            );
+            return;
+          }
           setConsultationToDelete(id);
           setIsDeleteModalOpen(true);
         }}

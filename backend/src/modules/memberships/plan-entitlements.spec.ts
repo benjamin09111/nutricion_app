@@ -29,5 +29,6 @@ describe('Freemium entitlements', () => {
     expect(free[PLAN_ENTITLEMENT_KEYS.RESOURCES_CREATE_ACCESS]).toBe(false);
     expect(free[PLAN_ENTITLEMENT_KEYS.RESOURCES_EDIT_ACCESS]).toBe(false);
     expect(free[PLAN_ENTITLEMENT_KEYS.INGREDIENTS_CREATE_ACCESS]).toBe(false);
+    expect(free[PLAN_ENTITLEMENT_KEYS.CONSULTATIONS_DELETE_ACCESS]).toBe(false);
   });
 });
