@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { WizardStepper } from "@/components/patient-form/WizardStepper";
 import { FormNavigationFooter } from "@/components/patient-form/FormNavigationFooter";
@@ -35,10 +35,10 @@ export function PlanWizardShell({
   children,
   className,
 }: PlanWizardShellProps) {
+  const wizardRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
+    wizardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [currentStep]);
 
   const handleStepClick = (targetStep: number) => {
@@ -74,7 +74,7 @@ export function PlanWizardShell({
   };
 
   return (
-    <div className={cn("space-y-6 flex-1", className)}>
+    <div ref={wizardRef} className={cn("scroll-mt-24 space-y-6 flex-1", className)}>
       {/* Control Superior */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full pb-4 border-b border-slate-100">
         <WizardStepper

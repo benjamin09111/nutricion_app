@@ -7,7 +7,7 @@ describe('Freemium entitlements', () => {
   it('exposes the fixed product limits', () => {
     const free = MEMBERSHIP_PLAN_ENTITLEMENTS.free;
 
-    expect(free[PLAN_ENTITLEMENT_KEYS.PATIENTS_TOTAL_LIMIT]).toBe(4);
+    expect(free[PLAN_ENTITLEMENT_KEYS.PATIENTS_TOTAL_LIMIT]).toBe(3);
     expect(free[PLAN_ENTITLEMENT_KEYS.CONSULTATIONS_SAVED_LIMIT]).toBe(3);
     expect(free[PLAN_ENTITLEMENT_KEYS.PDF_EXPORTS_TOTAL_LIMIT]).toBe(6);
     expect(free[PLAN_ENTITLEMENT_KEYS.FOOD_GROUPS_TOTAL_LIMIT]).toBe(1);
@@ -29,5 +29,6 @@ describe('Freemium entitlements', () => {
     expect(free[PLAN_ENTITLEMENT_KEYS.RESOURCES_CREATE_ACCESS]).toBe(false);
     expect(free[PLAN_ENTITLEMENT_KEYS.RESOURCES_EDIT_ACCESS]).toBe(false);
     expect(free[PLAN_ENTITLEMENT_KEYS.INGREDIENTS_CREATE_ACCESS]).toBe(false);
+    expect(free[PLAN_ENTITLEMENT_KEYS.CONSULTATIONS_DELETE_ACCESS]).toBe(false);
   });
 });

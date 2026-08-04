@@ -33,6 +33,7 @@ import { Modal } from "@/components/ui/Modal";
 import { SaveCreationModal } from "@/components/ui/SaveCreationModal";
 import { ImportCreationModal } from "@/components/shared/ImportCreationModal";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
+import { ModuleUsageBadges } from "@/components/shared/ModuleUsageBadges";
 import { NatyLoadingOverlay, NatyButton, PlanWizardShell } from "@/components/plans";
 import { ActionDockItem } from "@/components/ui/ActionDock";
 import { fetchApi, getApiUrl } from "@/lib/api-base";
@@ -1547,6 +1548,7 @@ export default function QuickRecipesClient() {
         title="Recetas"
         description="Genera recetas rápidas reutilizando contexto clínico, restricciones y preferencias."
         step={{ number: "Express", label: "Receta rápida", icon: ChefHat, color: "text-amber-600" }}
+        rightContent={<ModuleUsageBadges />}
          rightNavItems={isHydrating ? [] : actionItems}
         rightNavDesktopBreakpoint="lg"
         className="max-w-[68rem]"
@@ -1624,15 +1626,6 @@ export default function QuickRecipesClient() {
                 className="min-h-[72px] rounded-xl border-slate-200 bg-slate-50 text-sm"
                 placeholder="Ej: Pérdida de grasa enfocada en alimentos simples"
               />
-              <label className="flex w-fit cursor-pointer items-center gap-2 text-xs font-semibold text-slate-600">
-                <input
-                  type="checkbox"
-                  checked={showPlanObjectiveInPdf}
-                  onChange={(event) => setShowPlanObjectiveInPdf(event.target.checked)}
-                  className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-                />
-                Mostrar objetivo al inicio del PDF
-              </label>
             </div>
             {selectedPatient?.fullName?.trim() ? (
               <details className="group mt-4 rounded-2xl border border-slate-200 bg-white" open>

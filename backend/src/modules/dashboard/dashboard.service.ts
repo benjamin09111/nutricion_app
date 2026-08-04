@@ -110,7 +110,10 @@ export class DashboardService {
 
     const usageMap: Record<string, number> = {};
     for (const counter of planUsageCounters) {
-      usageMap[counter.featureKey] = counter.usageCount;
+      const usageKey = counter.featureKey.startsWith('pdf.exports.total.limit')
+        ? 'pdf.exports.total.limit'
+        : counter.featureKey;
+      usageMap[usageKey] = (usageMap[usageKey] || 0) + counter.usageCount;
     }
 
     const patientLimit = Number(
@@ -138,7 +141,7 @@ export class DashboardService {
           limit: consultationLimit > 0 ? consultationLimit : Infinity,
         },
         {
-          used: usageMap['pdf.monthly.limit'] || 0,
+           used: usageMap['pdf.exports.total.limit'] || usageMap['pdf.monthly.limit'] || 0,
           limit: pdfLimit > 0 ? pdfLimit : Infinity,
         },
       ];

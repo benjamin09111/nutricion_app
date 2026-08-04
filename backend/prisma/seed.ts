@@ -170,7 +170,7 @@ async function main() {
       currency: 'CLP',
       billingPeriod: 'monthly',
       features: [
-        '✓ 4 pacientes totales',
+        '✓ 3 pacientes totales',
         '✓ 3 consultas guardadas',
         '✓ 6 PDFs generados',
         '✓ 6 seguimientos privados activos',

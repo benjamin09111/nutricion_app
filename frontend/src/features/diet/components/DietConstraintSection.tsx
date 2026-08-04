@@ -28,8 +28,6 @@ interface DietConstraintSectionProps {
   setDescription: (description: string) => void;
   planObjective: string;
   setPlanObjective: (objective: string) => void;
-  showPlanObjectiveInPdf: boolean;
-  setShowPlanObjectiveInPdf: (show: boolean) => void;
   showGeneralInfo?: boolean;
   showClinicalRestriction?: boolean;
 }
@@ -56,8 +54,6 @@ export const DietConstraintSection: React.FC<DietConstraintSectionProps> = ({
   setDescription,
   planObjective,
   setPlanObjective,
-  showPlanObjectiveInPdf,
-  setShowPlanObjectiveInPdf,
   showGeneralInfo = true,
   showClinicalRestriction = true,
 }) => {
@@ -126,15 +122,6 @@ export const DietConstraintSection: React.FC<DietConstraintSectionProps> = ({
           placeholder="Ej: Pérdida de grasa enfocada en alimentos simples"
           className="min-h-[72px] rounded-xl border-slate-200 bg-slate-50 text-sm"
         />
-        <label className="flex w-fit cursor-pointer items-center gap-2 text-xs font-semibold text-slate-600">
-          <input
-            type="checkbox"
-            checked={showPlanObjectiveInPdf}
-            onChange={(event) => setShowPlanObjectiveInPdf(event.target.checked)}
-            className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-          />
-          Mostrar objetivo al inicio del PDF
-        </label>
       </div>
       </>}
 

@@ -31,6 +31,7 @@ import { SaveCreationModal } from "@/components/ui/SaveCreationModal";
 import { Textarea } from "@/components/ui/Textarea";
 import { ImportCreationModal } from "@/components/shared/ImportCreationModal";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
+import { ModuleUsageBadges } from "@/components/shared/ModuleUsageBadges";
 import { WorkflowContextBanner } from "@/components/shared/WorkflowContextBanner";
 import { PlanWizardShell, NatyLoadingOverlay, NatyButton } from "@/components/plans";
 import { ActionDockItem } from "@/components/ui/ActionDock";
@@ -265,6 +266,68 @@ const createAvoidFoodRow = (value = ""): QuickAvoidFoodRow => ({
   id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
   value,
 });
+
+const formatPdfParagraphFood = (portion: string, food: string) => {
+  const clean = (value: string) => value.replace(/^[\s•·*-]+/, "").replace(/\s+/g, " ").trim();
+  const cleanPortion = clean(portion);
+  const cleanFood = clean(food);
+
+  if (!cleanPortion) return cleanFood;
+  if (!cleanFood || cleanFood === cleanPortion || cleanFood.startsWith(`${cleanPortion} `)) {
+    return cleanFood || cleanPortion;
+  }
+
+  return `${cleanPortion} ${cleanFood}`;
+};
+
+const convertPdfImageToPng = async (imagePath: string | null) => {
+  if (!imagePath || typeof window === "undefined") return null;
+
+  return new Promise<string | null>((resolve) => {
+    const image = new window.Image();
+    image.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      const context = canvas.getContext("2d");
+      if (!context) return resolve(null);
+      context.drawImage(image, 0, 0);
+
+      const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+      let left = canvas.width;
+      let top = canvas.height;
+      let right = 0;
+      let bottom = 0;
+
+      for (let y = 0; y < canvas.height; y += 1) {
+        for (let x = 0; x < canvas.width; x += 1) {
+          if (pixels[(y * canvas.width + x) * 4 + 3] <= 8) continue;
+          left = Math.min(left, x);
+          top = Math.min(top, y);
+          right = Math.max(right, x);
+          bottom = Math.max(bottom, y);
+        }
+      }
+
+      if (right < left || bottom < top) return resolve(canvas.toDataURL("image/png"));
+
+      const padding = 8;
+      const sourceX = Math.max(0, left - padding);
+      const sourceY = Math.max(0, top - padding);
+      const sourceWidth = Math.min(canvas.width - sourceX, right - left + 1 + padding * 2);
+      const sourceHeight = Math.min(canvas.height - sourceY, bottom - top + 1 + padding * 2);
+      const trimmedCanvas = document.createElement("canvas");
+      trimmedCanvas.width = sourceWidth;
+      trimmedCanvas.height = sourceHeight;
+      trimmedCanvas
+        .getContext("2d")
+        ?.drawImage(canvas, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, sourceWidth, sourceHeight);
+      resolve(trimmedCanvas.toDataURL("image/png"));
+    };
+    image.onerror = () => resolve(null);
+    image.src = new URL(imagePath, window.location.origin).toString();
+  });
+};
 
 const createPortionGuideRow = (
   row: Partial<QuickPortionGuideRow> = {},
@@ -525,7 +588,6 @@ export default function QuickDeliverableClient() {
   const [showValidationHighlights, setShowValidationHighlights] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [isFoodReferenceBookOpen, setIsFoodReferenceBookOpen] = useState(false);
-  const completedSteps = useMemo(() => Array.from({ length: currentStep }, (_, i) => i), [currentStep]);
   const identitySectionRef = useRef<HTMLElement | null>(null);
   const mealsSectionRef = useRef<HTMLElement | null>(null);
   const avoidFoodsSectionRef = useRef<HTMLElement | null>(null);
@@ -954,6 +1016,22 @@ export default function QuickDeliverableClient() {
     [avoidFoods],
   );
 
+  const hasMealsContent = useMemo(
+    () => contentMode === "paragraphs"
+      ? paragraphs.some((paragraph) => Boolean(
+          paragraph.category.trim() ||
+          paragraph.imagePath ||
+          paragraph.portionsPerDay?.trim() ||
+          paragraph.foods.some((food) => food.food.trim() || food.portion.trim()),
+        ))
+      : planMode === "single"
+        ? meals.some((meal) => meal.mealText.trim().length > 0)
+        : meals.some((meal) =>
+            QUICK_WEEK_DAYS.some((day) => (meal.weeklyMealTexts?.[day] || "").trim().length > 0),
+          ),
+    [contentMode, paragraphs, planMode, meals],
+  );
+
   const missingRequirements = useMemo(() => {
     const missing: Array<{ id: string; label: string; ref: React.RefObject<HTMLElement | null> }> = [];
     if (!includeMeals && !includeAvoidFoods) {
@@ -964,23 +1042,42 @@ export default function QuickDeliverableClient() {
       });
       return missing;
     }
-    if (
-      includeMeals &&
-      !(
-        planMode === "single"
-          ? meals.some((m) => m.mealText.trim().length > 0)
-          : meals.some((meal) =>
-              QUICK_WEEK_DAYS.some((day) => (meal.weeklyMealTexts?.[day] || "").trim().length > 0),
-            )
-      )
-    ) {
-      missing.push({ id: "meals", label: "Tabla de comidas *", ref: mealsSectionRef });
+    if (includeMeals && !hasMealsContent) {
+      missing.push({
+        id: "meals",
+        label: `${contentMode === "paragraphs" ? "Imágenes por categoría" : "Tabla de comidas"} *`,
+        ref: mealsSectionRef,
+      });
     }
     if (includeAvoidFoods && validAvoidFoods.length === 0) {
       missing.push({ id: "avoidFoods", label: "Alimentos a evitar *", ref: avoidFoodsSectionRef });
     }
     return missing;
-  }, [includeMeals, meals, planMode, includeAvoidFoods, validAvoidFoods.length]);
+  }, [includeMeals, hasMealsContent, includeAvoidFoods, validAvoidFoods.length]);
+
+  const completedSteps = useMemo(() => {
+    const sectionCompleted = [
+      Boolean(title.trim()) && (!includeMeals || hasMealsContent),
+      !includeAvoidFoods || validAvoidFoods.length > 0,
+      !includeResources || resolvedResourcePages.length > 0,
+      !includePortionGuide || portionGuideRows.some((row) => row.category.trim() || row.portion.trim()),
+    ];
+
+    return sectionCompleted.reduce<number[]>((completed, isComplete, index) => {
+      if (isComplete) completed.push(index);
+      return completed;
+    }, []);
+  }, [
+    title,
+    includeMeals,
+    hasMealsContent,
+    includeAvoidFoods,
+    validAvoidFoods.length,
+    includeResources,
+    resolvedResourcePages.length,
+    includePortionGuide,
+    portionGuideRows,
+  ]);
 
   const hasChanges = lastSavedState === null || lastSavedState !== getCurrentStateString();
 
@@ -996,8 +1093,20 @@ export default function QuickDeliverableClient() {
 
   const selectCategoryImage = (imagePath: string) => {
     if (!selectedParagraphId) return;
+    const matchingCategory = Object.entries(CATEGORY_IMAGE_MAP).find(
+      ([, path]) => path === imagePath,
+    )?.[0];
+
     setParagraphs((current) =>
-      current.map((p) => (p.id === selectedParagraphId ? { ...p, imagePath } : p)),
+      current.map((p) =>
+        p.id === selectedParagraphId
+          ? {
+              ...p,
+              imagePath,
+              ...(matchingCategory ? { category: matchingCategory } : {}),
+            }
+          : p,
+      ),
     );
     setIsImageSelectorOpen(false);
   };
@@ -1829,13 +1938,29 @@ export default function QuickDeliverableClient() {
     }
   };
 
-  const buildPdfPayload = () => {
+  const buildPdfPayload = async () => {
     const user = getCurrentUser();
     const nutritionistName = user?.nutritionist?.fullName || user?.name || null;
     const nutritionistEmail = user?.email || null;
     const resolvedAge =
       selectedPatient.ageYears ??
       (selectedPatient.birthDate ? calculateAge(selectedPatient.birthDate) : null);
+
+    const pdfParagraphs =
+      contentMode === "paragraphs"
+        ? await Promise.all(
+            paragraphs.map(async (paragraph) => ({
+              title: paragraph.categoryOptional
+                ? `${paragraph.category} (${paragraph.categoryOptional})`
+                : paragraph.category || "Pauta",
+              subtitle: paragraph.portionsPerDay || undefined,
+              foods: paragraph.foods
+                .map((food) => formatPdfParagraphFood(food.portion, food.food))
+                .filter(Boolean),
+              imagePath: await convertPdfImageToPng(paragraph.imagePath),
+            })),
+          )
+        : [];
 
     return {
       name: title.trim() || DEFAULT_TITLE,
@@ -1851,19 +1976,7 @@ export default function QuickDeliverableClient() {
       contentMode,
       clinicalRestriction:
         hasClinicalRestriction && selectedRestriction ? selectedRestriction : null,
-      paragraphs:
-        contentMode === "paragraphs"
-          ? paragraphs.map((p) => ({
-              title: p.categoryOptional
-                ? `${p.category} (${p.categoryOptional})`
-                : p.category || "Pauta",
-              subtitle: p.portionsPerDay ? `${p.portionsPerDay}` : undefined,
-              foods: p.foods
-                .map((f) => (f.portion ? `${f.portion} ${f.food}`.trim() : f.food))
-                .filter(Boolean),
-              imagePath: p.imagePath,
-            }))
-          : [],
+      paragraphs: pdfParagraphs,
       meals: includeMeals
         ? planMode === "single"
           ? meals.map((m) => ({ ...m, time: m.time || "" }))
@@ -1949,7 +2062,7 @@ export default function QuickDeliverableClient() {
     }
     setIsExportingPdf(true);
     try {
-      await downloadFastDeliverablePdf(buildPdfPayload());
+      await downloadFastDeliverablePdf(await buildPdfPayload());
       toast.success("PDF express descargado correctamente.");
       setIsSaveCreationModalOpen(true);
     } catch (error) {
@@ -2138,6 +2251,7 @@ export default function QuickDeliverableClient() {
       <ModuleLayout
         title="Entregable Rápido"
         description="Crea un entregable express de una sola hoja con horarios, indicaciones, alimentos a evitar, recursos y una guía breve de porciones."
+        rightContent={<ModuleUsageBadges />}
         className="max-w-[68rem]"
          rightNavItems={isHydrating ? [] : actionItems}
         rightNavDesktopBreakpoint="lg"
@@ -2211,15 +2325,6 @@ export default function QuickDeliverableClient() {
                 className="min-h-[60px] rounded-xl border-slate-200 bg-slate-50 text-sm"
                 placeholder="Ej: Pérdida de grasa enfocada en alimentos simples"
               />
-              <label className="flex w-fit cursor-pointer items-center gap-2 text-xs font-semibold text-slate-600">
-                <input
-                  type="checkbox"
-                  checked={showPlanObjectiveInPdf}
-                  onChange={(e) => setShowPlanObjectiveInPdf(e.target.checked)}
-                  className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-                />
-                Mostrar objetivo al inicio del PDF
-              </label>
             </div>
           </details>
 
@@ -2450,8 +2555,7 @@ export default function QuickDeliverableClient() {
             nextDisabled={
               currentStep === 0 && (
                 !title.trim() ||
-                (contentMode === "table" && includeMeals && (!meals || meals.length === 0 || !meals.some((m) => m.mealText && m.mealText.trim().length > 0))) ||
-                (contentMode === "paragraphs" && (!paragraphs || paragraphs.length === 0 || !paragraphs.some((p) => p.category.trim() || (p.foods && p.foods.some((f) => f.food.trim().length > 0)))))
+                (includeMeals && !hasMealsContent)
               )
             }
             onReset={resetQuickDeliverable}
@@ -2615,9 +2719,9 @@ export default function QuickDeliverableClient() {
                                 <select
                                   value={paragraph.category}
                                   onChange={(e) => {
-                                    const newCat = e.target.value;
-                                    const newImg = CATEGORY_IMAGE_MAP[newCat] || paragraph.imagePath;
-                                    updateParagraph(paragraph.id, { category: newCat, imagePath: newImg });
+                                     const newCat = e.target.value;
+                                     const newImg = CATEGORY_IMAGE_MAP[newCat] || null;
+                                     updateParagraph(paragraph.id, { category: newCat, imagePath: newImg });
                                   }}
                                   className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-800"
                                 >

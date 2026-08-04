@@ -11,7 +11,7 @@ export class PermissionsController {
   @Post('consume')
   consume(
     @Request() req: any,
-    @Body() body: { featureKey: string; amount?: number },
+    @Body() body: { featureKey: string; amount?: number; dedupeKey?: string },
   ) {
     if (
       body.featureKey !== PLAN_ENTITLEMENT_KEYS.PDF_EXPORTS_TOTAL_LIMIT ||
@@ -24,6 +24,8 @@ export class PermissionsController {
       req.user.id,
       body.featureKey,
       1,
+      'lifetime',
+      body.dedupeKey,
     );
   }
 }

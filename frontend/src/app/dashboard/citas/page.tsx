@@ -1,4 +1,4 @@
-import AppointmentsClient from "./AppointmentsClient";
+import { redirect } from "next/navigation";
 
 export const metadata = {
   title: "Citas | NutriNet",
@@ -6,5 +6,5 @@ export const metadata = {
 };
 
 export default function AppointmentsPage() {
-  return <AppointmentsClient />;
+  redirect("/dashboard");
 }

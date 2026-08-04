@@ -320,18 +320,34 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                 const latestMetrics = new Map<string, PatientMetricSnapshot>();
 
                 // The endpoint returns consultations from newest to oldest.
-                (result.data || []).forEach((consultation) => {
-                    (consultation.metrics || []).forEach((metric) => {
+                 (result.data || []).forEach((consultation) => {
+                     (consultation.metrics || []).forEach((metric) => {
                         if (metric.value === undefined || metric.value === null || metric.value === "") return;
 
                         const key = normalizeMetricKey(metric.label, metric.key);
                         if (!latestMetrics.has(key)) {
                             latestMetrics.set(key, { ...metric, date: consultation.date });
-                        }
-                    });
-                });
+                         }
+                     });
+                 });
 
-                setPatientMetrics(Array.from(latestMetrics.values()));
+                 const profileWeight = patientData?.weight;
+                 if (
+                     profileWeight !== null &&
+                     profileWeight !== undefined &&
+                     Number.isFinite(Number(profileWeight)) &&
+                     !latestMetrics.has("weight")
+                 ) {
+                     latestMetrics.set("weight", {
+                         key: "weight",
+                         label: "Peso",
+                         value: String(profileWeight),
+                         unit: "kg",
+                         date: patientData?.createdAt || new Date().toISOString(),
+                     });
+                 }
+
+                 setPatientMetrics(Array.from(latestMetrics.values()));
             } catch (error) {
                 console.error("Error fetching patient metrics", error);
                 if (!isCancelled) setPatientMetrics([]);
@@ -345,7 +361,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
         return () => {
             isCancelled = true;
         };
-    }, [formData.patientId]);
+     }, [formData.patientId, patientData?.createdAt, patientData?.weight]);
 
     const fetchPatients = async () => {
         setIsPatientsLoading(true);
@@ -743,7 +759,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
                     {/* Fila 1, Col 1: Detalles de la Sesión */}
-                    <div id="consulta-detalles" className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                     <div id="consulta-detalles" className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-visible">
                         <div className="p-4 lg:p-5 border-b border-slate-50 bg-slate-50/30 flex items-center justify-between">
                             <h3 className="text-base sm:text-lg font-semibold text-slate-900 flex items-center gap-2">
                                 <ClipboardList className="w-5 h-5 text-indigo-500" />
@@ -777,6 +793,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                          value={formData.date}
                                          onChange={(date) => setFormData({ ...formData, date })}
                                          placeholder="Seleccionar fecha..."
+                                         triggerClassName="h-14 rounded-2xl border-slate-200 bg-white shadow-sm"
                                          disabled={!hasSelectedPatient}
                                      />
                                 </div>

@@ -2,10 +2,12 @@
 
 import type { ScreeningTestPdfData } from "./ScreeningTestPdfDocument";
 import { membershipService } from "@/features/memberships/services/membership.service";
+import { getPdfQuotaKey } from "./pdfQuota";
 
 export async function downloadScreeningTestPdf(
   data: any,
   countQuota = true,
+  quotaKey?: string,
 ): Promise<void> {
   const [{ pdf }, { ScreeningTestPdfDocument }, React] = await Promise.all([
     import("@react-pdf/renderer"),
@@ -22,7 +24,7 @@ export async function downloadScreeningTestPdf(
   const blob = await pdf(doc as unknown as Parameters<typeof pdf>[0]).toBlob();
 
   if (countQuota) {
-    await membershipService.consumeQuota("pdf.exports.total.limit");
+    await membershipService.consumeQuota("pdf.exports.total.limit", 1, getPdfQuotaKey("screening-test", data, quotaKey));
   }
 
   const safeName =

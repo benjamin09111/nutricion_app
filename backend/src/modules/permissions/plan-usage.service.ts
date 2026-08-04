@@ -3,6 +3,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { PermissionsService } from './permissions.service';
 
 const LIFETIME_PERIOD_KEY = 'lifetime';
+const PDF_EXPORT_FEATURE_KEY = 'pdf.exports.total.limit';
+const DEDUPE_SEPARATOR = '::dedupe::';
 
 const toPeriodKey = (date = new Date()) => {
   const year = date.getUTCFullYear();
@@ -23,17 +25,14 @@ export class PlanUsageService {
     periodKey = LIFETIME_PERIOD_KEY,
   ) {
     try {
-      const counter = await this.prisma.planUsageCounter.findUnique({
-        where: {
-          accountId_featureKey_periodKey: {
-            accountId,
-            featureKey,
-            periodKey,
-          },
-        },
+      const counters = await this.prisma.planUsageCounter.findMany({
+        where: featureKey === PDF_EXPORT_FEATURE_KEY
+          ? { accountId, periodKey, featureKey: { startsWith: featureKey } }
+          : { accountId, periodKey, featureKey },
+        select: { usageCount: true },
       });
 
-      return counter?.usageCount ?? 0;
+      return counters.reduce((total, counter) => total + counter.usageCount, 0);
     } catch (error: any) {
       if (error?.code === 'P2021') {
         throw new InternalServerErrorException(
@@ -50,6 +49,7 @@ export class PlanUsageService {
     featureKey: string,
     amount = 1,
     periodKey = LIFETIME_PERIOD_KEY,
+    dedupeKey?: string,
   ) {
     const limit = await this.permissionsService.getFeatureLimit(
       accountId,
@@ -67,6 +67,32 @@ export class PlanUsageService {
 
     try {
       return await this.prisma.$transaction(async (tx) => {
+        if (dedupeKey?.trim()) {
+          const keyedFeatureKey = `${featureKey}${DEDUPE_SEPARATOR}${dedupeKey.trim()}`;
+          const inserted = await tx.planUsageCounter.createMany({
+            data: { accountId, featureKey: keyedFeatureKey, periodKey, usageCount: amount },
+            skipDuplicates: true,
+          });
+          const counters = await tx.planUsageCounter.findMany({
+            where: featureKey === PDF_EXPORT_FEATURE_KEY
+              ? { accountId, periodKey, featureKey: { startsWith: featureKey } }
+              : { accountId, periodKey, featureKey },
+            select: { usageCount: true },
+          });
+          const usageCount = counters.reduce(
+            (total, counter) => total + counter.usageCount,
+            0,
+          );
+
+          if (usageCount > limit) {
+            throw new ForbiddenException(
+              `Su plan actual alcanzó el límite de ${featureKey}`,
+            );
+          }
+
+          return { usageCount, limit, deduplicated: inserted.count === 0 };
+        }
+
         const counter = await tx.planUsageCounter.upsert({
           where: {
             accountId_featureKey_periodKey: {
@@ -152,7 +178,8 @@ export class PlanUsageService {
     featureKey: string,
     amount = 1,
     periodKey = toPeriodKey(),
+    dedupeKey?: string,
   ) {
-    return this.consumeQuota(accountId, featureKey, amount, periodKey);
+    return this.consumeQuota(accountId, featureKey, amount, periodKey, dedupeKey);
   }
 }

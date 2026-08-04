@@ -8,6 +8,7 @@ import { fetchApi } from "@/lib/api-base";
 import { formatRut, validateRut } from "@/lib/rut-utils";
 import { getCurrentUser, setCurrentUser } from "@/lib/current-user";
 import { persistAuthSession } from "@/features/auth/services/auth.service";
+import { resolveSafePostAuthPath } from "@/lib/safe-redirect";
 
 const DEFAULT_NEXT = "/dashboard";
 
@@ -26,7 +27,7 @@ const cleanAndFormatRut = (value: string): string => {
 export function RutOnboardingClient() {
   const router = useRouter();
   const params = useSearchParams();
-  const next = params.get("next") || DEFAULT_NEXT;
+  const next = resolveSafePostAuthPath(params.get("next"), DEFAULT_NEXT);
   const [rut, setRut] = useState("");
   const [email, setEmail] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);

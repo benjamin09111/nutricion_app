@@ -51,10 +51,10 @@ const S = StyleSheet.create({
         backgroundColor: colors.primary,
         paddingHorizontal: 48,
         paddingTop: 56,
-        paddingBottom: 40,
+        paddingBottom: 46,
     },
     coverEyebrow: {
-        fontSize: 9,
+        fontSize: 11,
         color: colors.primaryLight,
         fontFamily: "Helvetica-Bold",
         letterSpacing: 2,
@@ -62,19 +62,19 @@ const S = StyleSheet.create({
         marginBottom: 12,
     },
     coverTitle: {
-        fontSize: 28,
+        fontSize: 38,
         fontFamily: "Helvetica-Bold",
         color: colors.white,
-        lineHeight: 1.2,
-        marginBottom: 8,
+        lineHeight: 1.12,
+        marginBottom: 12,
     },
     coverSubtitle: {
-        fontSize: 13,
+        fontSize: 15,
         color: colors.primaryLight,
         marginBottom: 20,
     },
     coverObjective: {
-        fontSize: 11,
+        fontSize: 13,
         color: colors.white,
         fontFamily: "Helvetica-Bold",
         lineHeight: 1.4,
@@ -98,7 +98,7 @@ const S = StyleSheet.create({
         letterSpacing: 1,
     },
     coverPatientName: {
-        fontSize: 12,
+        fontSize: 14,
         color: colors.white,
         fontFamily: "Helvetica-Bold",
     },
@@ -127,7 +127,7 @@ const S = StyleSheet.create({
         marginBottom: 6,
     },
     coverMetaValue: {
-        fontSize: 13,
+        fontSize: 17,
         fontFamily: "Helvetica-Bold",
         color: colors.white,
     },
@@ -233,7 +233,7 @@ const S = StyleSheet.create({
         marginRight: 6,
     },
     groupName: {
-        fontSize: 11,
+        fontSize: 13,
         fontFamily: "Helvetica-Bold",
         color: colors.slate900,
         flex: 1,
@@ -341,7 +341,7 @@ function CoverPage({ data }: { data: DietPdfData }) {
             <View style={S.coverTop}>
                 <Text style={S.coverEyebrow}>Plan Nutricional · Dieta Base</Text>
                 <Text style={S.coverTitle}>{data.dietName || "Plan Alimentario"}</Text>
-                {data.showPlanObjectiveInPdf && data.planObjective?.trim() && (
+                {data.planObjective?.trim() && (
                     <Text style={S.coverObjective}>Objetivo: {data.planObjective.trim()}</Text>
                 )}
                 <Text style={S.coverSubtitle}>

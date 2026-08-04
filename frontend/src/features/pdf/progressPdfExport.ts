@@ -2,8 +2,9 @@
 
 import type { ProgressPdfData } from "./ProgressPdfDocument";
 import { membershipService } from "@/features/memberships/services/membership.service";
+import { getPdfQuotaKey } from "./pdfQuota";
 
-export async function downloadProgressPdf(data: ProgressPdfData): Promise<void> {
+export async function downloadProgressPdf(data: ProgressPdfData, quotaKey?: string): Promise<void> {
   const [{ pdf }, { ProgressPdfDocument }, React] = await Promise.all([
     import("@react-pdf/renderer"),
     import("./ProgressPdfDocument"),
@@ -12,7 +13,7 @@ export async function downloadProgressPdf(data: ProgressPdfData): Promise<void> 
 
   const doc = React.createElement(ProgressPdfDocument, { data }) as any;
   const blob = await pdf(doc).toBlob();
-  await membershipService.consumeQuota("pdf.exports.total.limit");
+  await membershipService.consumeQuota("pdf.exports.total.limit", 1, getPdfQuotaKey("progress", data, quotaKey));
 
   const safeName = (data.patientName || "Paciente")
     .replace(/\s+/g, "_")

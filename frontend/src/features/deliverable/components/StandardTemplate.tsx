@@ -114,7 +114,7 @@ const EXCHANGE_PORTION_GUIDE = buildExchangeGuideForPatient() as ExchangePortion
 const S = StyleSheet.create({
   coverPage: {
     padding: 0,
-    backgroundColor: "#0b1220",
+    backgroundColor: "#2f2148",
     fontFamily: "Helvetica",
     position: "relative",
   },
@@ -130,7 +130,7 @@ const S = StyleSheet.create({
     left: 0,
     right: 0,
     height: 360,
-    backgroundColor: "#18314a",
+    backgroundColor: "#7c5cac",
     opacity: 0.35,
   },
   coverGradientMiddle: {
@@ -139,7 +139,7 @@ const S = StyleSheet.create({
     left: 0,
     right: 0,
     height: 280,
-    backgroundColor: "#102338",
+    backgroundColor: "#5f438f",
     opacity: 0.32,
   },
   coverGradientBottom: {
@@ -148,7 +148,7 @@ const S = StyleSheet.create({
     left: 0,
     right: 0,
     height: 360,
-    backgroundColor: "#070f1c",
+    backgroundColor: "#21172f",
     opacity: 0.45,
   },
   coverGlowLeft: {
@@ -158,7 +158,7 @@ const S = StyleSheet.create({
     width: 420,
     height: 420,
     borderRadius: 210,
-    backgroundColor: "#2f5a86",
+    backgroundColor: "#a98bd0",
     opacity: 0.18,
   },
   coverGlowRight: {
@@ -168,7 +168,7 @@ const S = StyleSheet.create({
     width: 500,
     height: 500,
     borderRadius: 250,
-    backgroundColor: "#12263c",
+    backgroundColor: "#7c5cac",
     opacity: 0.25,
   },
   coverContent: {
@@ -176,8 +176,8 @@ const S = StyleSheet.create({
     justifyContent: "space-between",
   },
   coverBrandTop: {
-    color: "#dbeafe",
-    fontSize: 11,
+    color: "#eee8f7",
+    fontSize: 12,
     fontFamily: "Helvetica-Bold",
     letterSpacing: 1.4,
     textTransform: "lowercase",
@@ -188,7 +188,7 @@ const S = StyleSheet.create({
     justifyContent: "center",
   },
   coverTitle: {
-    fontSize: 42,
+    fontSize: 46,
     lineHeight: 1.12,
     color: "#ffffff",
     fontFamily: "Helvetica-Bold",
@@ -197,9 +197,9 @@ const S = StyleSheet.create({
   },
   coverSubtitle: {
     marginTop: 14,
-    fontSize: 12.5,
+    fontSize: 14,
     lineHeight: 1.55,
-    color: "#d1d5db",
+    color: "#eee8f7",
     textAlign: "center",
     maxWidth: 455,
   },
@@ -280,7 +280,7 @@ const S = StyleSheet.create({
   },
   chapterHeroTitle: {
     marginTop: 3,
-    fontSize: 24,
+    fontSize: 29,
     color: "#ffffff",
     fontFamily: "Helvetica-Bold",
     lineHeight: 1.22,
@@ -301,15 +301,15 @@ const S = StyleSheet.create({
     paddingBottom: 6,
   },
   topHeaderTitle: {
-    fontSize: 17,
-    color: "#065f46",
+    fontSize: 20,
+    color: "#5f438f",
     fontFamily: "Helvetica-Bold",
   },
   introGreeting: {
     marginTop: 6,
     marginBottom: 8,
-    fontSize: 18,
-    color: "#0f172a",
+    fontSize: 22,
+    color: "#3f2c5f",
     fontFamily: "Helvetica-Bold",
     lineHeight: 1.35,
   },
@@ -321,8 +321,8 @@ const S = StyleSheet.create({
   patientSectionTitle: {
     marginTop: 18,
     marginBottom: 8,
-    fontSize: 16.5,
-    color: "#0f172a",
+    fontSize: 19,
+    color: "#5f438f",
     fontFamily: "Helvetica-Bold",
   },
   patientRow: {
@@ -347,15 +347,15 @@ const S = StyleSheet.create({
   },
   chapterOverline: {
     fontSize: 10,
-    color: "#047857",
+    color: "#7c5cac",
     fontFamily: "Helvetica-Bold",
     textTransform: "uppercase",
     letterSpacing: 0.7,
   },
   chapterTitle: {
     marginTop: 2,
-    color: "#065f46",
-    fontSize: 18,
+    color: "#5f438f",
+    fontSize: 22,
     fontFamily: "Helvetica-Bold",
   },
   chapterDesc: {
@@ -395,10 +395,10 @@ const S = StyleSheet.create({
   },
   tag: {
     fontSize: 8.2,
-    color: "#047857",
-    backgroundColor: "#ecfdf5",
+    color: "#5f438f",
+    backgroundColor: "#f5f1fa",
     borderWidth: 1,
-    borderColor: "#d1fae5",
+    borderColor: "#ddd1ed",
     borderRadius: 999,
     paddingVertical: 2,
     paddingHorizontal: 7,

@@ -67,26 +67,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
     backgroundColor: "#ffffff",
     fontFamily: "Helvetica",
-    color: "#0f172a",
-    fontSize: 9,
-    lineHeight: 1.4,
+    color: "#251d32",
+    fontSize: 10,
+    lineHeight: 1.5,
   },
   header: {
     marginBottom: 10,
     paddingBottom: 8,
-    borderBottom: "1px solid #cbd5e1",
+    borderBottom: "4px solid #7c5cac",
   },
   brand: {
-    fontSize: 15,
+    fontSize: 11,
     fontFamily: "Helvetica-Bold",
-    color: "#d97706",
+    color: "#7c5cac",
     marginBottom: 3,
   },
   docTitle: {
-    fontSize: 17,
+    fontSize: 24,
     fontFamily: "Helvetica-Bold",
-    color: "#111827",
-    marginBottom: 4,
+    color: "#3f2c5f",
+    marginBottom: 6,
+    lineHeight: 1.15,
   },
   metaRow: {
     flexDirection: "row",
@@ -94,15 +95,15 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
   },
   meta: {
-    fontSize: 8,
+    fontSize: 9,
     color: "#64748b",
   },
   infoBox: {
     marginBottom: 6,
     padding: 7,
-    backgroundColor: "#f8fafc",
-    border: "1px solid #e2e8f0",
-    borderRadius: 4,
+    backgroundColor: "#f5f1fa",
+    border: "1px solid #ddd1ed",
+    borderRadius: 8,
   },
   notesBox: {
     marginBottom: 8,
@@ -112,9 +113,9 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   boxLabel: {
-    fontSize: 7,
+    fontSize: 8.5,
     fontFamily: "Helvetica-Bold",
-    color: "#475569",
+    color: "#5f438f",
     textTransform: "uppercase",
     marginBottom: 3,
   },
@@ -126,7 +127,7 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   boxText: {
-    fontSize: 8,
+    fontSize: 9.5,
     color: "#334155",
     lineHeight: 1.5,
   },
@@ -138,29 +139,29 @@ const styles = StyleSheet.create({
   dishCard: {
     marginBottom: 10,
     border: "1px solid #e2e8f0",
-    borderRadius: 6,
+    borderRadius: 10,
     overflow: "hidden",
   },
   dishHeader: {
-    backgroundColor: "#f8fafc",
-    borderBottom: "1px solid #e2e8f0",
-    paddingVertical: 6,
+    backgroundColor: "#7c5cac",
+    borderBottom: "1px solid #7c5cac",
+    paddingVertical: 8,
     paddingHorizontal: 10,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
   dishTitle: {
-    fontSize: 11,
+    fontSize: 15,
     fontFamily: "Helvetica-Bold",
-    color: "#111827",
+    color: "#ffffff",
     flex: 1,
   },
   mealSectionBadge: {
     fontSize: 7,
     fontFamily: "Helvetica-Bold",
-    color: "#92400e",
-    backgroundColor: "#fef3c7",
+    color: "#5f438f",
+    backgroundColor: "#ffffff",
     paddingVertical: 2,
     paddingHorizontal: 6,
     borderRadius: 99,
@@ -178,22 +179,22 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   description: {
-    fontSize: 8.5,
+    fontSize: 9.5,
     color: "#475569",
     marginBottom: 4,
     lineHeight: 1.45,
   },
   sectionLabel: {
-    fontSize: 7,
+    fontSize: 9,
     fontFamily: "Helvetica-Bold",
-    color: "#94a3b8",
+    color: "#7c5cac",
     textTransform: "uppercase",
     letterSpacing: 0.5,
     marginBottom: 2,
     marginTop: 4,
   },
   preparationText: {
-    fontSize: 8.5,
+    fontSize: 9.5,
     color: "#374151",
     lineHeight: 1.55,
   },
@@ -205,17 +206,17 @@ const styles = StyleSheet.create({
   },
   macroBox: {
     flex: 1,
-    backgroundColor: "#f1f5f9",
-    border: "1px solid #e2e8f0",
-    borderRadius: 4,
+    backgroundColor: "#f5f1fa",
+    border: "1px solid #ddd1ed",
+    borderRadius: 7,
     paddingVertical: 5,
     paddingHorizontal: 6,
     alignItems: "center",
   },
   macroValue: {
-    fontSize: 10,
+    fontSize: 12,
     fontFamily: "Helvetica-Bold",
-    color: "#1e293b",
+    color: "#5f438f",
   },
   macroLabel: {
     fontSize: 6.5,
@@ -240,7 +241,7 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   ingredientName: {
-    fontSize: 7.5,
+    fontSize: 8.5,
     color: "#166534",
     fontFamily: "Helvetica-Bold",
   },
@@ -261,7 +262,7 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
   portionValue: {
-    fontSize: 8.5,
+    fontSize: 9.5,
     color: "#374151",
     fontFamily: "Helvetica-Bold",
   },
@@ -302,7 +303,7 @@ export function QuickRecipesPdfDocument({ data }: { data: QuickRecipesPdfData })
         <View style={styles.header}>
            <Text style={styles.brand}>NutriNet</Text>
            <Text style={styles.docTitle}>{data.title || "Recetas Rápidas"}</Text>
-           {data.showPlanObjectiveInPdf && data.planObjective?.trim() ? (
+           {data.planObjective?.trim() ? (
              <Text style={styles.boxText}>Objetivo: {data.planObjective.trim()}</Text>
            ) : null}
            <View style={styles.metaRow}>
