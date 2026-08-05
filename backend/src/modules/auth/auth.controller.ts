@@ -35,13 +35,13 @@ import {
   LEGACY_NUTRINET_SESSION_COOKIE,
   authSessionCookieOptions,
   authPresenceCookieOptions,
+  googleOauthCookieOptions,
 } from './auth-cookie.constants';
 import { RolesGuard } from './guards/roles.guard';
 import { Roles } from './guards/roles.decorator';
 import { UserRole } from '@prisma/client';
 
 const GOOGLE_OAUTH_COOKIE = 'nutrinet_google_oauth';
-const GOOGLE_OAUTH_COOKIE_PATH = '/auth/google';
 
 const readCookie = (request: ExpressRequest, name: string) => {
   const cookieHeader = request.headers.cookie || '';
@@ -69,13 +69,11 @@ export class AuthController {
       codeChallenge,
     });
 
-    res.cookie(GOOGLE_OAUTH_COOKIE, `${browserBinding}.${codeVerifier}`, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: GOOGLE_OAUTH_COOKIE_PATH,
-      maxAge: 10 * 60 * 1000,
-    });
+    res.cookie(
+      GOOGLE_OAUTH_COOKIE,
+      `${browserBinding}.${codeVerifier}`,
+      googleOauthCookieOptions(),
+    );
     return res.redirect(authUrl);
   }
 
@@ -102,7 +100,7 @@ export class AuthController {
       }
 
       const transaction = readCookie(req, GOOGLE_OAUTH_COOKIE);
-      res.clearCookie(GOOGLE_OAUTH_COOKIE, { path: GOOGLE_OAUTH_COOKIE_PATH });
+      res.clearCookie(GOOGLE_OAUTH_COOKIE, googleOauthCookieOptions());
       const [browserBinding, codeVerifier] = (transaction || '').split('.');
       if (!browserBinding || !codeVerifier) {
         throw new BadRequestException(

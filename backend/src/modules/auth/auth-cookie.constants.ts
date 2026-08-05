@@ -48,3 +48,13 @@ export const authPresenceCookieOptions = (maxAge?: number) => ({
   ...(maxAge ? { maxAge } : {}),
 });
 
+/** Temporary state cookie for Google OAuth transaction */
+export const googleOauthCookieOptions = () => ({
+  httpOnly: true as const,
+  secure: isRemote,
+  sameSite: (isRemote ? 'none' : 'lax') as 'none' | 'lax',
+  path: '/',
+  maxAge: 10 * 60 * 1000,
+});
+
+
