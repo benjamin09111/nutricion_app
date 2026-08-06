@@ -28,7 +28,7 @@ import Cookies from "js-cookie";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { UsageLimitBadge } from "@/components/shared/UsageLimitBadge";
 import { useSubscription } from "@/context/SubscriptionContext";
-import { Creation, CreationType } from "@/features/creations";
+import { Creation, CreationType, useCreations } from "@/features/creations";
 import { Pagination } from "@/components/ui/Pagination";
 import { RecordsTable, type Column } from "@/components/shared/RecordsTable";
 import { SearchableSelect } from "@/components/ui/SearchableSelect";
@@ -37,6 +37,7 @@ import { twMerge } from "tailwind-merge";
 import { fetchApi } from "@/lib/api-base";
 import { formatDateOnlyForLocale } from "@/features/patients/utils/patient-helpers";
 import { MobileCardLoadingList } from "@/components/ui/MobileCardLoadingList";
+import { getFastDeliverableTableMode, normalizeFastDeliverableMeals } from "@/features/pdf/fastDeliverableMeals";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -61,15 +62,16 @@ export default function CreationsClient({
 }: CreationsClientProps) {
   const router = useRouter();
   const { usage, currentPlan, can, isLoading: isSubscriptionLoading } = useSubscription();
+  const [selectedType, setSelectedType] = useState<CreationType | "Todos">("Todos");
   const canDeleteScreeningTests = can("screening_tests.delete.access");
 
-  const [selectedType, setSelectedType] = useState<CreationType | "Todos">("Todos");
   const [selectedTag, setSelectedTag] = useState<string>("Todos");
   const [searchTerm, setSearchTerm] = useState("");
   const [patientFilter, setPatientFilter] = useState(fixedPatientName);
   const [currentPage, setCurrentPage] = useState(1);
-  const [localCreations, setLocalCreations] = useState<Creation[]>(initialData);
-  const [isLoading, setIsLoading] = useState(initialData.length === 0);
+  const { creations: queryCreations, isLoading: isCreationsLoading, deleteCreation } = useCreations(initialData);
+  const localCreations = queryCreations.length > 0 ? queryCreations : initialData;
+  const isLoading = isCreationsLoading && localCreations.length === 0;
   const itemsPerPage = 7;
 
   const rawCreationsLimit = currentPlan?.entitlements?.["creations.save.limit"];
@@ -214,7 +216,8 @@ export default function CreationsClient({
         (rawContent.pautaEditorMode as any) ||
         (paragraphsFormatted.length > 0 ? "paragraphs" : "table"),
       paragraphs: paragraphsFormatted,
-      meals: Array.isArray(rawContent.meals) ? rawContent.meals : [],
+      tableMode: getFastDeliverableTableMode(rawContent.tableMode),
+      meals: normalizeFastDeliverableMeals(rawContent.meals, getFastDeliverableTableMode(rawContent.tableMode), rawContent.planMode),
       avoidFoods: Array.isArray(rawContent.avoidFoods) ? rawContent.avoidFoods : [],
       resources: resourcesList,
       portionGuide: Array.isArray(rawContent.portionGuide) ? rawContent.portionGuide : [],
@@ -244,22 +247,22 @@ export default function CreationsClient({
       if (!raw) { toast.error("No se pudo obtener los datos de la creación."); return; }
       if (item.type === CreationType.DIET) {
         const { downloadDietPdf } = await import("@/features/pdf/pdfExport");
-        await downloadDietPdf(buildDietData(raw));
+        await downloadDietPdf(buildDietData(raw), false);
         toast.success("PDF descargado correctamente.");
       } else if (
         item.type === CreationType.FAST_DELIVERABLE ||
         item.type === CreationType.PAUTAS
       ) {
         const { downloadFastDeliverablePdf } = await import("@/features/pdf/fastDeliverablePdfExport");
-        await downloadFastDeliverablePdf(buildFastDeliverableData(raw));
+        await downloadFastDeliverablePdf(buildFastDeliverableData(raw), false);
         toast.success("PDF descargado correctamente.");
       } else if (item.type === CreationType.RECIPE && (item.tags || []).includes("rapido")) {
         const { downloadQuickRecipesPdf } = await import("@/features/pdf/quickRecipesPdfExport");
-        await downloadQuickRecipesPdf(buildQuickRecipesData(raw));
+        await downloadQuickRecipesPdf(buildQuickRecipesData(raw), false);
         toast.success("PDF de recetas descargado correctamente.");
       } else if (item.type === CreationType.SCREENING_TEST) {
         const { downloadScreeningTestPdf } = await import("@/features/pdf/screeningTestPdfExport");
-        await downloadScreeningTestPdf(raw);
+        await downloadScreeningTestPdf(raw, false);
         toast.success("PDF del test descargado correctamente.");
       } else {
         toast.info("Exportación PDF para este tipo próximamente.");
@@ -331,56 +334,6 @@ export default function CreationsClient({
       setIsLoadingDetails(false);
     }
   };
-
-  useEffect(() => {
-    const fetchCreations = async () => {
-      setIsLoading(true);
-      try {
-        const token = Cookies.get("auth_token");
-        const response = await fetchApi("/creations", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (response.ok) {
-          const data = await response.json();
-          const mappedData = data.map((item: any) => {
-            const contentConstraints = Array.isArray(item.content?.activeConstraints)
-              ? item.content.activeConstraints
-              : [];
-            const allFilterTags = Array.from(
-              new Set([...(item.tags || []), ...contentConstraints]),
-            );
-              return {
-                id: item.id,
-                name: item.name,
-                type: mapBackendTypeToFrontend(item.type),
-                createdAt: formatDateOnlyForLocale(item.createdAt, {
-                  day: "2-digit",
-                  month: "short",
-                  year: "numeric",
-                }),
-              size: "N/A",
-              format: item.format === "NATIVE" ? "JSON" : "PDF",
-              tags: item.tags || [],
-              filterTags: allFilterTags,
-              isPublic: item.isPublic || false,
-              patientName: item.metadata?.patientName || item.content?.patientMeta?.fullName || null,
-              description:
-                typeof item.metadata?.description === "string"
-                  ? item.metadata.description
-                  : "",
-            };
-          });
-          setLocalCreations(mappedData);
-        }
-      } catch (error) {
-        console.error("Error fetching creations:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchCreations();
-  }, []);
 
   const allData = useMemo(() => localCreations, [localCreations]);
 
@@ -488,6 +441,17 @@ export default function CreationsClient({
   };
 
   const handleDelete = async (id: string) => {
+    if (!can("creations.delete.access") && !can("creations.edit.access")) {
+      window.dispatchEvent(
+        new CustomEvent("show-freemium-upgrade", {
+          detail: {
+            description:
+              "Eliminar creaciones guardadas es una característica exclusiva de los planes de pago. En el plan Freemium tus creaciones quedan conservadas para que puedas volver a descargarlas cuando las necesites.",
+          },
+        })
+      );
+      return;
+    }
     setItemToDelete(id);
     setIsDeleteModalOpen(true);
   };
@@ -496,20 +460,11 @@ export default function CreationsClient({
     if (!itemToDelete) return;
 
     try {
-      const token = Cookies.get("auth_token");
-      const response = await fetchApi(`/creations/${itemToDelete}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (response.ok) {
-        setLocalCreations((prev) => prev.filter((c) => c.id !== itemToDelete));
-        toast.success("Creación eliminada correctamente");
-      } else {
-        toast.error("No se pudo eliminar la creación");
-      }
+      await deleteCreation(itemToDelete);
+      toast.success("Creación eliminada correctamente");
     } catch (error) {
       console.error("Error deleting creation:", error);
-      toast.error("Error al conectar con el servidor");
+      toast.error("Error al eliminar la creación");
     } finally {
       setIsDeleteModalOpen(false);
       setItemToDelete(null);

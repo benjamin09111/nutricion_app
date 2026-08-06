@@ -86,6 +86,14 @@ const getPatientAge = (patient: CalculatorPatient): number | null => {
   return years >= 0 ? years : null;
 };
 
+const parseNum = (val: string | number | null | undefined): number | null => {
+  if (val === null || val === undefined) return null;
+  const clean = String(val).trim().replace(",", ".");
+  if (!clean) return null;
+  const n = parseFloat(clean);
+  return isNaN(n) ? null : n;
+};
+
 export default function CalculosClient() {
   const {
     can,
@@ -202,14 +210,6 @@ export default function CalculosClient() {
   }, [weight, height, age, result, selectedPatient, gender, isPregnant, pregnancyWeek, calfCircumference, armCircumference, tricipitalFold]);
 
   const suggestedTest = useMemo(() => suggestTestType(screeningAutoFillData), [screeningAutoFillData]);
-
-  const parseNum = (val: string | number | null | undefined): number | null => {
-    if (val === null || val === undefined) return null;
-    const clean = String(val).trim().replace(",", ".");
-    if (!clean) return null;
-    const n = parseFloat(clean);
-    return isNaN(n) ? null : n;
-  };
 
   // Auto-calculate Target BMI based on weight, height and age (OMS vs Lipschitz normopeso)
   useEffect(() => {

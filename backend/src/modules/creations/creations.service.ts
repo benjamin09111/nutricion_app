@@ -304,6 +304,20 @@ export class CreationsService {
           'Los tests guardados no se pueden eliminar en el plan Freemium.',
         );
       }
+    } else {
+      const canDeleteCreations = await this.permissionsService.checkFeatureAccess(
+        accountId,
+        PLAN_ENTITLEMENT_KEYS.CREATIONS_DELETE_ACCESS,
+      );
+      const canEditCreations = await this.permissionsService.checkFeatureAccess(
+        accountId,
+        PLAN_ENTITLEMENT_KEYS.CREATIONS_EDIT_ACCESS,
+      );
+      if (!canDeleteCreations && !canEditCreations) {
+        throw new ForbiddenException(
+          'Eliminar creaciones guardadas es una característica exclusiva de los planes de pago.',
+        );
+      }
     }
 
     const result = await this.prisma.creation.deleteMany({

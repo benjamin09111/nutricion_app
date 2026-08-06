@@ -68,6 +68,8 @@ export const aiFillWeekResponseSchema = z
 
 export const quickAiDishSchema = z
   .object({
+    slotId: z.string().trim().min(1).optional(),
+    optionIndex: z.number().int().min(0).max(2).optional(),
     title: z.string().trim().min(1),
     mealSection: z.string().trim().min(1),
     description: z.string().trim().min(1),

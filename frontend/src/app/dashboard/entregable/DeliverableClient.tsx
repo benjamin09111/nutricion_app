@@ -32,9 +32,11 @@ import {
   Lock,
   Plus,
   Filter,
+  Save,
 } from "lucide-react";
 import { ActionDockItem } from "@/components/ui/ActionDock";
 import { ImportCreationModal } from "@/components/shared/ImportCreationModal";
+import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -532,7 +534,15 @@ export default function DeliverableClient() {
   const searchParams = useSearchParams();
   const projectIdFromUrl = searchParams.get("project");
   const { role } = useAdmin();
-  const { features } = useSubscription();
+  const { features, limit, usage, isDeveloper } = useSubscription();
+
+  const pdfLimit = limit("pdf.monthly.limit");
+  const pdfUsed = usage?.pdfUsed ?? 0;
+  const isPdfLimitReached = !isDeveloper && Number.isFinite(pdfLimit) && pdfUsed >= pdfLimit;
+
+  const creationsLimit = limit("creations.monthly.limit");
+  const creationsUsed = usage?.creationsUsed ?? 0;
+  const isCreationsLimitReached = !isDeveloper && Number.isFinite(creationsLimit) && creationsUsed >= creationsLimit;
   const [selectedSections, setSelectedSections] = useState<string[]>(
     sanitizeSectionIds(
       DELIVERABLE_SECTIONS.filter((s) => s.defaultSelected).map((s) => s.id),
@@ -616,6 +626,7 @@ export default function DeliverableClient() {
   const [currentProjectMode, setCurrentProjectMode] = useState<string | null>(
     null,
   );
+  const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
   const { isSidebarCollapsed } = useDashboardShell();
 
   const updateSelectedPatient = (
@@ -704,6 +715,34 @@ export default function DeliverableClient() {
     localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
     refreshPreviousStagesSummary(draft, selectedPatient);
     return draft;
+  };
+
+  const resetDeliverable = () => {
+    setSelectedSections(
+      sanitizeSectionIds(
+        DELIVERABLE_SECTIONS.filter((s) => s.defaultSelected).map((s) => s.id),
+      ),
+    );
+    setIncludeLogo(true);
+    setWelcomeMessage("");
+    setSelectedWelcomeTemplate("");
+    setResolvedResourcePages([]);
+    setSelectedResourceId("");
+    setResourceVariables({});
+    setExportPackages([]);
+    setSelectedPatient(createEmptyPatientMeta());
+    localStorage.removeItem("nutri_active_draft");
+    localStorage.removeItem("nutri_patient");
+    sessionStorage.removeItem("nutri_deliverable_draft_decided");
+    refreshPreviousStagesSummary({}, null);
+    setCurrentStep(0);
+    setIsResetConfirmOpen(false);
+    setShowInitModal(false);
+    toast.success("Entregable reiniciado.");
+  };
+
+  const handleStartBlank = () => {
+    resetDeliverable();
   };
 
   const openFilteredCreationImport = (type: "DIET" | "SHOPPING_LIST" | "RECIPE") => {
@@ -1135,6 +1174,10 @@ export default function DeliverableClient() {
   };
 
   const handleExportSingle = async () => {
+    if (isPdfLimitReached) {
+      toast.error("Has alcanzado el límite mensual de PDFs generados de tu plan. Actualiza tu membresía para descargar más PDFs.");
+      return;
+    }
     setIsExporting(true);
 
     try {
@@ -1167,33 +1210,27 @@ export default function DeliverableClient() {
         brandSettings,
       };
 
-      const blob = await pdf(
+      const pdfBlob = await pdf(
         <StandardTemplate data={draftData} config={config} />,
       ).toBlob();
+
       await membershipService.consumeQuota("pdf.exports.total.limit", 1, getPdfQuotaKey("standard-deliverable", draftData));
 
-      const url = URL.createObjectURL(blob);
+      const url = URL.createObjectURL(pdfBlob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `Plan_Nutricional_${Date.now()}.pdf`;
+      a.download = `Entregable_${selectedPatient?.fullName || "Paciente"}_${Date.now()}.pdf`;
       document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
-      toast.success("¡PDF generado y descargado exitosamente!", {
-        id: "pdf-toast",
-      });
-      toast.info(
-        `Exportado con dieta ${exportStats.dietFoods}, carrito ${exportStats.cartItems}, recetas ${exportStats.recipeCount}.`,
-      );
-      setIsExportWizardOpen(false);
-      setIsSaveCreationModalOpen(true);
-    } catch (error) {
+      await handleSaveToCreations();
+      toast.success("PDF descargado y guardado en tus creaciones.", { id: "pdf-toast" });
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("membership-usage-updated"));
+      }
+    } catch (error: any) {
       console.error("Error generating PDF:", error);
-      toast.error("Ocurrió un error al generar de PDF. Revisa la consola.", {
-        id: "pdf-toast",
-      });
+      const msg = error?.message || "Ocurrió un error al generar el PDF.";
+      toast.error(msg, { id: "pdf-toast" });
     } finally {
       setIsExporting(false);
     }
@@ -1300,7 +1337,9 @@ export default function DeliverableClient() {
         id: "pdf-toast",
       });
       setIsExportWizardOpen(false);
-      setIsSaveCreationModalOpen(true);
+      if (!isCreationsLimitReached) {
+        setIsSaveCreationModalOpen(true);
+      }
     } catch (error) {
       console.error("Error generating advanced PDFs:", error);
       toast.error("Ocurrió un error al generar los PDF separados.", {
@@ -1360,6 +1399,10 @@ export default function DeliverableClient() {
   };
 
   const handleSaveToCreations = async (description?: string) => {
+    if (isCreationsLimitReached) {
+      toast.error("Has alcanzado el límite mensual de creaciones de tu plan. Actualiza tu membresía para guardar.");
+      return;
+    }
     setIsSaving(true);
     try {
       const draftData = await resolveExportDraftData();
@@ -1670,8 +1713,21 @@ export default function DeliverableClient() {
     const selectedResource = filteredResourceOptions.find((item) => item.id === resourceId);
     const variables = extractVariablesFromContent(selectedResource?.content || "");
     const initialInputs: Record<string, string> = {};
+    const patientName = selectedPatient?.fullName?.trim() || "";
+    const patientAge = selectedPatient?.ageYears ? String(selectedPatient.ageYears) : "";
+    const objective = (selectedPatient?.nutritionalFocus || selectedPatient?.fitnessGoals || "").trim();
+
     variables.forEach((variableKey) => {
-      initialInputs[variableKey] = "";
+      const keyUpper = variableKey.toUpperCase().trim();
+      if (keyUpper.includes("NOMBRE") || keyUpper.includes("PATIENT")) {
+        initialInputs[variableKey] = patientName;
+      } else if (keyUpper.includes("EDAD") || keyUpper.includes("AGE")) {
+        initialInputs[variableKey] = patientAge;
+      } else if (keyUpper.includes("OBJETIVO") || keyUpper.includes("GOAL") || keyUpper.includes("OBJECTIVE")) {
+        initialInputs[variableKey] = objective;
+      } else {
+        initialInputs[variableKey] = "";
+      }
     });
     setResourceVariables(initialInputs);
   };
@@ -1759,38 +1815,6 @@ export default function DeliverableClient() {
     localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
     refreshPreviousStagesSummary(draft, null);
     toast.info("Paciente desvinculado de esta sesión");
-  };
-
-  const resetDeliverable = () => {
-    setSelectedSections(sanitizeSectionIds(getBlankDeliverableSections()));
-    setIncludeLogo(true);
-    setWelcomeMessage("");
-    setResolvedResourcePages([]);
-    setExportPackages([]);
-    toast.info("Configuración del entregable reiniciada.");
-  };
-
-  const handleStartBlank = () => {
-    localStorage.removeItem("nutri_active_draft");
-    localStorage.removeItem("nutri_patient");
-    setHasCart(false);
-    setHasRecipes(false);
-    setHasDraftMemory(false);
-    setSelectedPatient(createEmptyPatientMeta());
-    setSelectedSections(sanitizeSectionIds(getBlankDeliverableSections()));
-    setIncludeLogo(true);
-    setWelcomeMessage("");
-    setResolvedResourcePages([]);
-    setExportPackages([]);
-    setSelectedResourceId("");
-    setResourceVariables({});
-    setIsImportPatientModalOpen(false);
-    setIsImportCreationModalOpen(false);
-    setIsResourceModalOpen(false);
-    setIsExportWizardOpen(false);
-    setShowInitModal(false);
-    refreshPreviousStagesSummary({}, null);
-    toast.success("Proyecto en blanco iniciado.");
   };
 
   const handleImportCreation = (creation: any) => {
@@ -1981,12 +2005,27 @@ export default function DeliverableClient() {
         id: "pdf",
         icon: isExporting ? Loader2 : Download,
         label: "Descargar PDF",
-        description: isExporting ? "Generando PDF..." : "Descargar PDF",
+        description: isPdfLimitReached
+          ? "Límite mensual de PDFs alcanzado"
+          : isExporting
+            ? "Generando PDF..."
+            : "Descargar PDF y guardar en creaciones",
         variant: "indigo",
-        disabled: isExporting || isExportDisabled,
+        disabled: isExporting || isExportDisabled || isPdfLimitReached,
         onClick: async () => {
+          if (isPdfLimitReached) {
+            toast.error("Has alcanzado el límite mensual de PDFs generados de tu plan. Actualiza tu membresía para descargar más PDFs.");
+            return;
+          }
           await handleExportSingle();
         },
+      },
+      {
+        id: "reset",
+        icon: RotateCcw,
+        label: "Reiniciar",
+        variant: "rose",
+        onClick: () => setIsResetConfirmOpen(true),
       },
     ],
     [
@@ -2002,6 +2041,15 @@ export default function DeliverableClient() {
 
   return (
     <>
+      <ConfirmationModal
+        isOpen={isResetConfirmOpen}
+        onClose={() => setIsResetConfirmOpen(false)}
+        onConfirm={resetDeliverable}
+        title="¿Reiniciar entregable?"
+        description="Se borrarán todos los recursos, secciones y datos del entregable para empezar desde cero."
+        confirmText="Sí, reiniciar"
+        variant="destructive"
+      />
       <ImportCreationModal
         isOpen={isImportCreationModalOpen}
         onClose={() => {

@@ -2,8 +2,13 @@ import { api } from "@/lib/api";
 
 async function readJsonResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
-    const errorData = await res.json().catch(() => ({} as { message?: string }));
-    throw new Error(errorData?.message || "Error al procesar la solicitud");
+    const errorData = await res
+      .json()
+      .catch(() => ({} as { message?: string | string[] }));
+    const message = Array.isArray(errorData?.message)
+      ? errorData.message.join(" ")
+      : errorData?.message;
+    throw new Error(message || "Error al procesar la solicitud");
   }
 
   return res.json() as Promise<T>;
@@ -11,19 +16,36 @@ async function readJsonResponse<T>(res: Response): Promise<T> {
 
 export const normalizeMembershipPlansResponse = (value: unknown): MembershipPlan[] => {
   let list: MembershipPlan[] = [];
+  let isSupportedResponse = false;
   if (Array.isArray(value)) {
     list = value as MembershipPlan[];
+    isSupportedResponse = true;
   } else if (value && typeof value === "object") {
     const payload = value as { data?: unknown; plans?: unknown; items?: unknown };
-    if (Array.isArray(payload.data)) list = payload.data as MembershipPlan[];
-    else if (Array.isArray(payload.plans)) list = payload.plans as MembershipPlan[];
-    else if (Array.isArray(payload.items)) list = payload.items as MembershipPlan[];
+    if (Array.isArray(payload.data)) {
+      list = payload.data as MembershipPlan[];
+      isSupportedResponse = true;
+    } else if (Array.isArray(payload.plans)) {
+      list = payload.plans as MembershipPlan[];
+      isSupportedResponse = true;
+    } else if (Array.isArray(payload.items)) {
+      list = payload.items as MembershipPlan[];
+      isSupportedResponse = true;
+    }
   }
-  return list.filter((p) => {
-    const key = String(p.slug || p.name || "").toLowerCase();
-    const price = Number(p.price || 0);
-    return key !== "pro" && price !== 39990;
-  });
+  if (!isSupportedResponse) {
+    throw new Error("La respuesta de planes tiene un formato inválido.");
+  }
+
+  return list.filter((plan): plan is MembershipPlan =>
+    Boolean(
+      plan &&
+        typeof plan.id === "string" &&
+        typeof plan.name === "string" &&
+        typeof plan.slug === "string" &&
+        Number.isFinite(Number(plan.price)),
+    ),
+  );
 };
 
 export interface MembershipStatus {
@@ -152,7 +174,7 @@ export const membershipService = {
 
   async getActivePlans(): Promise<MembershipPlan[]> {
     const res = await api.get("/memberships/active");
-    const data = await res.json();
+    const data = await readJsonResponse<unknown>(res);
     return normalizeMembershipPlansResponse(data);
   },
 

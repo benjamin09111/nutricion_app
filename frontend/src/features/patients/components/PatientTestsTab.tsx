@@ -162,7 +162,7 @@ export function PatientTestsTab({ patient, clinicalRecordDraft }: PatientTestsTa
 
       if (response.ok) {
         const fullCreation = await response.json();
-        await downloadScreeningTestPdf(fullCreation);
+        await downloadScreeningTestPdf(fullCreation, false);
         toast.success("PDF descargado correctamente.");
       } else {
         toast.error("No se pudo obtener el detalle del test.");

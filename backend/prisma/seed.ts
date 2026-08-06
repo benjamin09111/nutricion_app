@@ -178,12 +178,13 @@ async function main() {
         'X Usar la calculadora clínica',
         '✓ 1 grupo de alimentos',
         '✓ 4 respuestas de IA',
-        '✓ 3 creaciones guardadas',
+        '✓ 6 creaciones guardadas',
         'X Editar información de pacientes',
         'X Editar creaciones guardadas',
         'X Crear Detalles personalizados',
       ],
-      maxPatients: 4,
+      maxPatients: 3,
+      maxStorage: null,
       isPopular: false,
       displayOrder: 1,
       entitlements: getMembershipPlanEntitlements('free'),
@@ -202,6 +203,7 @@ async function main() {
         '✓ Tabla de ingredientes',
       ],
       maxPatients: null,
+      maxStorage: null,
       isPopular: true,
       displayOrder: 2,
       entitlements: getMembershipPlanEntitlements('plus'),
@@ -220,9 +222,14 @@ async function main() {
         name: plan.name,
         description: plan.description,
         price: plan.price,
+        currency: plan.currency,
+        billingPeriod: plan.billingPeriod,
         features: plan.features,
         entitlements: plan.entitlements,
+        maxPatients: plan.maxPatients,
+        maxStorage: plan.maxStorage,
         isPopular: plan.isPopular,
+        isActive: true,
         displayOrder: plan.displayOrder
       },
       create: {
@@ -233,23 +240,62 @@ async function main() {
     console.log(`✅ Upserted Membership Plan: ${plan.name}`);
   }
 
-  // 5. Seed Default Tags (Clinical Restrictions)
+  // 5. Seed Default Tags (Clinical Restrictions & Hashtags)
   const defaultTags = [
+    'Intolerante a la lactosa',
+    'Sin gluten',
+    'Intolerancia a la fructosa',
+    'Alergia a la proteína de leche de vaca (APLV)',
+    'Alergia al maní y frutos secos',
+    'Alergia al huevo',
+    'Alergia a mariscos',
+    'Alergia al pescado',
+    'Alergia a la soya',
     'Diabético',
-    'Hipertensión',
+    'Hipertensión arterial',
+    'Dislipidemia / Hipercolesterolemia',
+    'Enfermedad renal crónica',
+    'Síndrome de intestino irritable (FODMAP)',
+    'Hiperuricemia / Gota',
     'Vegetariano',
-    'Celiaco',
-    'Sin Gluten'
+    'Vegano',
+    'Ovovegetariano',
+    'Lactovegetariano',
+    'Pescetariano',
+    'Dieta Keto / Cetogénica',
+    'Bajo en sodio',
+    'Bajo en carbohidratos (Low Carb)',
+    'Embarazo y lactancia',
+    '#Deportista',
+    '#Hipertrofia',
+    '#PérdidaDePeso',
+    '#RecomposiciónCorporal',
+    '#ControlGlicémico',
+    '#SaludCardiovascular',
+    '#SaludDigestiva',
+    '#AdultoMayor',
+    '#Pediátrico',
+    '#Embarazo',
+    '#Postparto',
+    '#AltoEnProteínas',
+    '#FácilPreparación',
+    '#Económico',
+    '#PrepSemanal',
+    '#SinAzúcarAñadida',
+    '#Vegano',
+    '#Vegetariano',
+    '#Keto',
+    '#LowCarb',
   ];
 
   for (const tagName of defaultTags) {
     await prisma.tag.upsert({
       where: { name: tagName },
-      update: {},
-      create: { name: tagName },
+      update: { nutritionistId: null },
+      create: { name: tagName, nutritionistId: null },
     });
   }
-  console.log('✅ Seeded default clinical restrictions as tags.');
+  console.log('✅ Seeded default clinical restrictions and hashtags as system tags.');
 
   // 6. Seed all platform resources non-destructively
   console.log('📚 Syncing all platform resources from root data JSON files...');

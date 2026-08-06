@@ -28,4 +28,24 @@ export class PermissionsController {
       body.dedupeKey,
     );
   }
+
+  @Post('reset-pdf-dev')
+  async resetPdfDev(@Request() req: any) {
+    if (req.user.email !== 'benjaminmoralespizarro763@gmail.com') {
+      throw new BadRequestException('Operación no permitida');
+    }
+
+    await this.planUsageService.resetPdfQuota(req.user.id);
+    return { success: true, message: 'Cuota de PDFs reiniciada a 0' };
+  }
+
+  @Post('reset-ai-dev')
+  async resetAiDev(@Request() req: any) {
+    if (req.user.email !== 'benjaminmoralespizarro763@gmail.com') {
+      throw new BadRequestException('Operación no permitida');
+    }
+
+    await this.planUsageService.resetAiQuota(req.user.id);
+    return { success: true, message: 'Cuota de IA reiniciada a 0' };
+  }
 }

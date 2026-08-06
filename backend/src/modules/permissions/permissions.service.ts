@@ -39,16 +39,26 @@ function resolveEntitlements(
 
 const isSubscriptionSelectable = (account: {
   role: string;
-  subscription: { status: string; endDate: Date | null } | null;
+  subscription: {
+    status: string;
+    endDate: Date | null;
+    plan?: { slug?: string | null; price?: unknown } | null;
+  } | null;
 }) => {
   if (isStaffRole(account.role)) {
     return true;
   }
 
   const subscription = account.subscription;
-  if (!subscription || !subscription.endDate) {
+  if (!subscription || !ACTIVE_SUBSCRIPTION_STATUSES.has(subscription.status)) {
     return false;
   }
+
+  const isPermanentFreePlan =
+    Number(subscription.plan?.price || 0) === 0 ||
+    subscription.plan?.slug?.toLowerCase().includes('free');
+  if (isPermanentFreePlan && !subscription.endDate) return true;
+  if (!subscription.endDate) return false;
 
   const endDate = new Date(subscription.endDate);
   return (
@@ -83,11 +93,17 @@ export class PermissionsService {
 
     let subscriptionSelectable = isSubscriptionSelectable({
       role: account.role,
-      subscription: account.subscription
-        ? {
-            status: account.subscription.status,
-            endDate: account.subscription.endDate,
-          }
+          subscription: account.subscription
+          ? {
+              status: account.subscription.status,
+              endDate: account.subscription.endDate,
+              plan: account.subscription.plan
+                ? {
+                    slug: account.subscription.plan.slug,
+                    price: account.subscription.plan.price,
+                  }
+                : null,
+            }
         : null,
     });
 
@@ -223,8 +239,8 @@ export class PermissionsService {
       Boolean(account.payments?.length) ||
       isSubscriptionSelectable(account);
 
-    if (!currentPlan || !hasPlanSelectionHistory) {
-      return {};
+    if (!currentPlan) {
+      return MEMBERSHIP_PLAN_ENTITLEMENTS.free;
     }
 
     return {
@@ -308,8 +324,18 @@ export class PermissionsService {
     if (isStaffRole(snapshot.role)) return Infinity;
 
     const value = snapshot.entitlements[limitKey];
-    if (typeof value !== 'number') return 0;
-    return value < 0 ? Infinity : value;
+    if (typeof value === 'number') {
+      return value < 0 ? Infinity : value;
+    }
+
+    const planKey = snapshot.currentPlan?.key || 'free';
+    const fallbackMap = MEMBERSHIP_PLAN_ENTITLEMENTS[planKey] || MEMBERSHIP_PLAN_ENTITLEMENTS.free;
+    const fallbackValue = fallbackMap[limitKey];
+    if (typeof fallbackValue === 'number') {
+      return fallbackValue < 0 ? Infinity : fallbackValue;
+    }
+
+    return 0;
   }
 
   async ensureWithinLimit(

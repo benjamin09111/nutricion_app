@@ -16,6 +16,7 @@ interface PlanWizardShellProps {
   isLastStep: boolean;
   nextLabel?: string;
   nextDisabled?: boolean;
+  hideNextOnLastStep?: boolean;
   onReset?: () => void;
   children: React.ReactNode;
   className?: string;
@@ -31,6 +32,7 @@ export function PlanWizardShell({
   isLastStep,
   nextLabel,
   nextDisabled = false,
+  hideNextOnLastStep = false,
   onReset,
   children,
   className,
@@ -90,10 +92,8 @@ export function PlanWizardShell({
           onNext={handleNext}
           isFirstStep={currentStep === 0}
           nextDisabled={nextDisabled}
-          nextLabel={
-            nextLabel ||
-            (isLastStep ? "Finalizar" : "Continuar")
-          }
+          nextLabel={nextLabel || (isLastStep ? "Finalizar" : "Continuar")}
+          hideNext={hideNextOnLastStep && isLastStep}
           className="mt-0 flex-1 max-w-none justify-end gap-3"
         />
       </div>
@@ -106,11 +106,9 @@ export function PlanWizardShell({
           onBack={onBack}
           onNext={handleNext}
           isFirstStep={currentStep === 0}
-          nextDisabled={nextDisabled}
-          nextLabel={
-            nextLabel ||
-            (isLastStep ? "Finalizar" : "Continuar")
-          }
+          nextDisabled={nextDisabled || (hideNextOnLastStep && isLastStep)}
+          nextLabel={nextLabel || (isLastStep ? "Finalizar" : "Continuar")}
+          hideNext={hideNextOnLastStep && isLastStep}
           className="mt-0 flex-1 max-w-none justify-center gap-3"
         />
       </div>

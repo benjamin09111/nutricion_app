@@ -24,6 +24,7 @@ import { Pagination } from "@/components/ui/Pagination";
 import { fetchApi } from "@/lib/api-base";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { Input } from "@/components/ui/Input";
+import { useConsultations } from "@/features/consultations";
 
 export default function ConsultationsClient() {
   const router = useRouter();
@@ -34,12 +35,17 @@ export default function ConsultationsClient() {
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [consultations, setConsultations] = useState<Consultation[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
 
   // Pagination state
   const [page, setPage] = useState(1);
-  const [meta, setMeta] = useState({ total: 0, page: 1, lastPage: 1 });
+
+  const { consultations, meta, isLoading, deleteConsultation } = useConsultations({
+    page,
+    searchTerm: debouncedSearchTerm,
+    patientId: patientIdFromQuery,
+    dateFrom,
+    dateTo,
+  });
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [consultationToDelete, setConsultationToDelete] = useState<string | null>(null);
@@ -55,7 +61,6 @@ export default function ConsultationsClient() {
   const [fallbackUsage, setFallbackUsage] = useState<number | undefined>(undefined);
   const [isFallbackUsageLoading, setIsFallbackUsageLoading] = useState(true);
   const [isRefreshingUsage, setIsRefreshingUsage] = useState(true);
-  const consultationsRequestRef = useRef(0);
 
   const rawConsultationLimit = currentPlan?.entitlements?.["consultations.saved.limit"] ??
     currentPlan?.entitlements?.["consultations.monthly.limit"] ??
@@ -82,7 +87,6 @@ export default function ConsultationsClient() {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  /** Lee el token en el momento de la petición para evitar valores obsoletos */
   const getAuthHeaders = () => {
     const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
     return {
@@ -91,51 +95,10 @@ export default function ConsultationsClient() {
     };
   };
 
-  const fetchConsultations = async (retries = 3) => {
-    const requestId = ++consultationsRequestRef.current;
-    setIsLoading(true);
-    try {
-      const queryParams = new URLSearchParams({
-        page: page.toString(),
-        limit: "10",
-        type: "CLINICAL",
-        ...(debouncedSearchTerm && { search: debouncedSearchTerm }),
-        ...(patientIdFromQuery && { patientId: patientIdFromQuery }),
-        ...(dateFrom && { dateFrom }),
-        ...(dateTo && { dateTo }),
-      });
-
-      const response = await fetchApi(`/consultations?${queryParams}`, {
-        headers: getAuthHeaders(),
-      });
-
-      if (response.ok) {
-        const result: ConsultationsResponse = await response.json();
-        if (requestId !== consultationsRequestRef.current) return;
-        setConsultations(result.data);
-        setMeta(result.meta);
-      } else {
-        toast.error("Error al cargar consultas");
-      }
-      setIsLoading(false);
-    } catch (e) {
-      if (retries > 0) {
-        setTimeout(() => fetchConsultations(retries - 1), 2000);
-      } else {
-        toast.error("Error de conexión");
-        setIsLoading(false);
-      }
-    }
-  };
-
-  useEffect(() => {
-    fetchConsultations();
-  }, [page, debouncedSearchTerm, patientIdFromQuery, dateFrom, dateTo]);
-
   useEffect(() => {
     let cancelled = false;
     setIsRefreshingUsage(true);
-    void refreshSubscription().finally(() => {
+    void refreshSubscription({ silent: true }).finally(() => {
       if (!cancelled) setIsRefreshingUsage(false);
     });
     return () => {
@@ -177,21 +140,12 @@ export default function ConsultationsClient() {
     if (!consultationToDelete) return;
 
     try {
-      const response = await fetchApi(`/consultations/${consultationToDelete}`, {
-        method: "DELETE",
-        headers: getAuthHeaders(),
-      });
-
-      if (response.ok) {
-        toast.success("Consulta eliminada");
-        setIsDeleteModalOpen(false);
-        setConsultationToDelete(null);
-        fetchConsultations();
-      } else {
-        toast.error("Error al eliminar");
-      }
+      await deleteConsultation(consultationToDelete);
+      toast.success("Consulta eliminada");
+      setIsDeleteModalOpen(false);
+      setConsultationToDelete(null);
     } catch (error) {
-      toast.error("Error de conexión");
+      toast.error("Error al eliminar");
     }
   };
 

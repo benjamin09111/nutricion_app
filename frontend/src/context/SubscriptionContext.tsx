@@ -67,7 +67,7 @@ export interface MembershipState {
 }
 
 interface SubscriptionContextType extends MembershipState {
-  refreshSubscription: () => Promise<void>;
+  refreshSubscription: (opts?: { silent?: boolean }) => Promise<void>;
   forceUpdatePlan: (plan: SubscriptionPlan) => void;
   isLoading: boolean;
   membershipError: string | null;
@@ -180,8 +180,10 @@ export function SubscriptionProvider({
     [],
   );
 
-  const refreshSubscription = useCallback(async () => {
-    setIsLoading(true);
+  const refreshSubscription = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!opts?.silent) {
+      setIsLoading(true);
+    }
     setMembershipError(null);
     try {
       const data = await membershipService.getStatus();
@@ -241,8 +243,13 @@ export function SubscriptionProvider({
   }, [applyStoredUserSnapshot, computePlan]);
 
   useEffect(() => {
-    applyStoredUserSnapshot();
-    refreshSubscription();
+    const hasSnapshot = applyStoredUserSnapshot();
+    if (hasSnapshot) {
+      setIsLoading(false);
+      void refreshSubscription({ silent: true });
+    } else {
+      void refreshSubscription({ silent: false });
+    }
   }, [applyStoredUserSnapshot, refreshSubscription]);
 
   const forceUpdatePlan = useCallback((newPlan: SubscriptionPlan) => {

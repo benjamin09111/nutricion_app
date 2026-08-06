@@ -76,7 +76,15 @@ export function useRecipesState({ id }: UseRecipesStateProps = {}) {
   const searchParams = useSearchParams();
   const projectIdFromUrl = searchParams.get("project");
   const { role } = useAdmin();
-  const { can } = useSubscription();
+  const { can, limit, usage, isDeveloper } = useSubscription();
+
+  const pdfLimit = limit("pdf.monthly.limit");
+  const pdfUsed = usage?.pdfUsed ?? 0;
+  const isPdfLimitReached = !isDeveloper && Number.isFinite(pdfLimit) && pdfUsed >= pdfLimit;
+
+  const creationsLimit = limit("creations.monthly.limit");
+  const creationsUsed = usage?.creationsUsed ?? 0;
+  const isCreationsLimitReached = !isDeveloper && Number.isFinite(creationsLimit) && creationsUsed >= creationsLimit;
   const { setSidebarCollapsed, flashSidebarToggle, isSidebarCollapsed } =
     useDashboardShell();
   const hasCollapsedSidebarForRecipesRef = useRef(false);
@@ -2097,6 +2105,10 @@ export function useRecipesState({ id }: UseRecipesStateProps = {}) {
   });
 
   const persistRecipesCreation = async (description?: string) => {
+    if (isCreationsLimitReached) {
+      toast.error("Has alcanzado el límite mensual de creaciones de tu plan. Actualiza tu membresía para guardar.");
+      throw new Error("Límite de creaciones alcanzado");
+    }
     const savedCreation = await saveCreation(buildRecipesPayload(description));
 
     if (currentProjectId) {
@@ -2164,6 +2176,10 @@ export function useRecipesState({ id }: UseRecipesStateProps = {}) {
   };
 
   const handleExportPdf = async () => {
+    if (isPdfLimitReached) {
+      toast.error("Has alcanzado el límite mensual de PDFs generados de tu plan. Actualiza tu membresía para descargar más PDFs.");
+      return;
+    }
     if (isExportingPdf) return;
 
     const pdfDishes = days.flatMap((day) =>
@@ -2179,7 +2195,9 @@ export function useRecipesState({ id }: UseRecipesStateProps = {}) {
     try {
       await downloadQuickRecipesPdf(buildRecipesPdfData());
       toast.success("PDF de recetas descargado correctamente.");
-      setIsSaveCreationModalOpen(true);
+      if (!isCreationsLimitReached) {
+        setIsSaveCreationModalOpen(true);
+      }
     } catch (error) {
       console.error("Error exporting recipes PDF", error);
       toast.error("No se pudo generar el PDF de recetas.");
@@ -2410,6 +2428,8 @@ export function useRecipesState({ id }: UseRecipesStateProps = {}) {
     setCurrentProjectMode,
     isRecipesHydrated,
     setIsRecipesHydrated,
+    isPdfLimitReached,
+    isCreationsLimitReached,
 
     recipeTabCounts,
     filteredRecipeLibrary,

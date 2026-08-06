@@ -39,9 +39,26 @@ model Account {
   usedDiscountCodes         DiscountCode[]             @relation("DiscountCodeUser")
   archivedDiscountCodes     DiscountCode[]             @relation("DiscountCodeArchiver")
   deletionRequests          AccountDeletionRequest[]
+  personalNoteTabs          PersonalNoteTab[]
 
   @@index([role, createdAt])
   @@map("accounts")
+}
+
+model PersonalNoteTab {
+  id        String   @id @default(uuid())
+  accountId String   @map("account_id")
+  title     String   @db.Text
+  content   String   @default("") @db.Text
+  position  Int      @default(0)
+  version   Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, position])
+  @@map("personal_note_tabs")
 }
 
 model Nutritionist {
