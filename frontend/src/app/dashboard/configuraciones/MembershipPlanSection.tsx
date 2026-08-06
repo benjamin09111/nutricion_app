@@ -97,12 +97,15 @@ export function MembershipPlanSection({
     refreshSubscription,
     usage,
     billing,
+    isLoading: isMembershipLoading,
+    membershipError,
   } = useSubscription();
   const [isCanceling, setIsCanceling] = useState(false);
   const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
   const [isChangingPlan, setIsChangingPlan] = useState(false);
   const [availablePlans, setAvailablePlans] = useState<MembershipPlan[]>([]);
   const [isLoadingPlans, setIsLoadingPlans] = useState(false);
+  const [plansLoadError, setPlansLoadError] = useState<string | null>(null);
   const [selectedPlan, setSelectedPlan] = useState<MembershipPlan | null>(null);
   const [pendingPaidPlan, setPendingPaidPlan] = useState<MembershipPlan | null>(null);
   const [hasAutoOpenedChangePlan, setHasAutoOpenedChangePlan] = useState(false);
@@ -164,17 +167,14 @@ export function MembershipPlanSection({
   const loadAvailablePlans = async () => {
     setIsChangingPlan(true);
     setIsLoadingPlans(true);
+    setPlansLoadError(null);
     try {
       const plans = await membershipService.getActivePlans();
-      setAvailablePlans(
-        plans.filter((p) => {
-          if (p.id === currentPlan?.id) return false;
-          const planKey = String(p.slug || p.name || "").toLowerCase();
-          return planKey === "free" || planKey === "plus";
-        }),
-      );
-    } catch {
-      toast.error("No se pudieron cargar los planes");
+      setAvailablePlans(plans.filter((p) => p.id !== currentPlan?.id));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "No se pudieron cargar los planes.";
+      setPlansLoadError(message);
+      setAvailablePlans([]);
     } finally {
       setIsLoadingPlans(false);
     }
@@ -186,6 +186,31 @@ export function MembershipPlanSection({
       void loadAvailablePlans();
     }
   }, [autoOpenChangePlan, hasAutoOpenedChangePlan]);
+
+  if (isMembershipLoading) {
+    return (
+      <div className="rounded-3xl border border-slate-200 bg-slate-50 py-12 text-center">
+        <Loader2 className="mx-auto h-10 w-10 animate-spin text-emerald-500" />
+        <p className="mt-3 text-slate-600 font-medium">Verificando tu membresía...</p>
+      </div>
+    );
+  }
+
+  if (membershipError) {
+    return (
+      <div className="rounded-3xl border border-amber-200 bg-amber-50 py-12 text-center">
+        <Crown className="mx-auto h-10 w-10 text-amber-400" />
+        <p className="mt-3 text-amber-800 font-medium">No pudimos verificar tu membresía.</p>
+        <button
+          type="button"
+          onClick={() => void refreshSubscription()}
+          className="mt-4 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-emerald-700"
+        >
+          Reintentar
+        </button>
+      </div>
+    );
+  }
 
   if (!currentPlan) {
     return (
@@ -410,6 +435,18 @@ export function MembershipPlanSection({
         {isLoadingPlans ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+          </div>
+        ) : plansLoadError ? (
+          <div className="py-12 text-center">
+            <p className="font-medium text-slate-700">No pudimos cargar los planes disponibles.</p>
+            <p className="mt-1 text-sm text-slate-500">{plansLoadError}</p>
+            <button
+              type="button"
+              onClick={() => void loadAvailablePlans()}
+              className="mt-5 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-indigo-700"
+            >
+              Reintentar
+            </button>
           </div>
         ) : availablePlans.length === 0 ? (
           <div className="text-center py-12">

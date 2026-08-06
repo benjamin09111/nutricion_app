@@ -7,6 +7,7 @@ import { AdminSidebar } from "@/components/layout/AdminSidebar";
 import { Navbar } from "@/components/layout/Navbar";
 import { MobileSidebar } from "@/components/layout/MobileSidebar";
 import { NutriaChatWidget } from "@/components/layout/NutriaChatWidget";
+import { NotesAgendaWidget } from "@/components/layout/NotesAgendaWidget";
 import { WelcomeOverlay } from "@/components/welcome/WelcomeOverlay";
 import { AdminProvider, useAdmin } from "@/context/AdminContext";
 import {
@@ -120,6 +121,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
       </div>
 
       <NutriaChatWidget />
+      <NotesAgendaWidget />
 
       <WelcomeOverlay />
 

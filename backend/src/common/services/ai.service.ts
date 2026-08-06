@@ -54,7 +54,7 @@ export class AiService {
   }
 
   resolvePreferredModelConfig(
-    providers: AiProvider[] = ['gemini', 'deepseek', 'openai'],
+    providers: AiProvider[] = ['gemini', 'openai', 'deepseek'],
   ): AiModelConfig | null {
     for (const provider of providers) {
       const config = this.resolveModelConfig(provider);
@@ -67,7 +67,7 @@ export class AiService {
   private async runWithFallback<T>(
     taskName: string,
     runner: (config: AiModelConfig) => Promise<T>,
-    providers: AiProvider[] = ['gemini', 'deepseek', 'openai'],
+    providers: AiProvider[] = ['gemini', 'openai', 'deepseek'],
   ): Promise<{ provider: AiProvider; modelId: string; result: T }> {
     const errors: string[] = [];
 
@@ -117,7 +117,7 @@ export class AiService {
     object: TSchema['_output'];
   }> {
     const temperature = options?.temperature ?? 0.2;
-    const providers = options?.providers ?? ['gemini', 'deepseek', 'openai'];
+    const providers = options?.providers ?? ['gemini', 'openai', 'deepseek'];
 
     return this.runWithFallback(
       taskName,

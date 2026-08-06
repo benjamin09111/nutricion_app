@@ -86,6 +86,8 @@ type QuickAiIngredientOutput = {
 };
 
 type QuickAiDishOutput = {
+  slotId?: string;
+  optionIndex?: number;
   title: string;
   mealSection: string;
   description: string;
@@ -373,6 +375,16 @@ export class RecipesService {
 
   private mapAiErrorMessage(upstreamMessage: string): string {
     const normalizedMessage = String(upstreamMessage || '').toLowerCase();
+
+    if (
+      normalizedMessage.includes('high demand') ||
+      normalizedMessage.includes('overloaded') ||
+      normalizedMessage.includes('temporarily unavailable') ||
+      normalizedMessage.includes('service unavailable') ||
+      normalizedMessage.includes('503')
+    ) {
+      return 'Naty está con alta demanda temporal. Intentó usar los proveedores alternativos disponibles; espera unos minutos e inténtalo nuevamente.';
+    }
 
     if (
       normalizedMessage.includes('context_length_exceeded') ||
@@ -812,6 +824,8 @@ export class RecipesService {
       );
 
     const title = typeof dish?.title === 'string' ? dish.title.trim() : '';
+    const slotId = typeof dish?.slotId === 'string' ? dish.slotId.trim() : '';
+    const optionIndex = Number.isInteger(dish?.optionIndex) ? Number(dish.optionIndex) : undefined;
     const mealSection =
       typeof dish?.mealSection === 'string' ? dish.mealSection.trim() : '';
     const recommendedPortion =
@@ -830,6 +844,8 @@ export class RecipesService {
     }
 
     return {
+      ...(slotId ? { slotId } : {}),
+      ...(optionIndex !== undefined ? { optionIndex } : {}),
       title,
       mealSection,
       description:
@@ -850,7 +866,7 @@ export class RecipesService {
     };
   }
   private buildQuickAiPrompt(payload: QuickAiFillPayload): string {
-    type MealSectionTarget = { mealSection: string; count: number };
+    type MealSectionTarget = { mealSection: string; count: number; slotId?: string; optionIndexes?: number[] };
 
     const mealSectionTargets: MealSectionTarget[] = Array.isArray(
       (payload as any).mealSectionTargets,
@@ -861,9 +877,13 @@ export class RecipesService {
           )
           .map((target: any) => ({
             mealSection: String(target.mealSection).trim(),
-            count: Number.isFinite(Number(target.count))
-              ? Math.max(1, Math.min(14, Number(target.count)))
-              : 1,
+              count: Number.isFinite(Number(target.count))
+                ? Math.max(1, Math.min(14, Number(target.count)))
+                : 1,
+              slotId: typeof target.slotId === 'string' ? target.slotId.trim() : undefined,
+              optionIndexes: Array.isArray(target.optionIndexes)
+                ? target.optionIndexes.filter((index: unknown) => Number.isInteger(index) && Number(index) >= 0 && Number(index) <= 2)
+                : undefined,
           }))
           .filter(
             (target: { mealSection: string; count: number }) =>
@@ -876,7 +896,7 @@ export class RecipesService {
       0,
     );
     const desiredDishCount = Math.max(
-      2,
+      1,
       Math.min(
         60,
         desiredByTargets > 0 ? desiredByTargets : payload.desiredDishCount || 4,
@@ -925,7 +945,9 @@ export class RecipesService {
         `Devuelve exactamente ${safePayload.desiredDishCount} platos y respeta mealSectionTargets.`,
         'Ajusta porciones y macros según nutritionalTargets cuando exista.',
         'Estas comidas se repetirán como una guía general durante la semana, no como recetas exactas para un día específico.',
-        'Entrega nombres amplios y prácticos con alternativas usando "/" entre opciones equivalentes, por ejemplo: "Salmón/Pollo cocido con Ensalada/Arroz".',
+        safePayload.generationMode === 'options'
+          ? 'Para cada target de opciones, devuelve una sugerencia independiente por optionIndex solicitado. Conserva exactamente el slotId y optionIndex del target; no combines alternativas usando "/".'
+          : 'Entrega nombres amplios y prácticos con alternativas usando "/" entre opciones equivalentes, por ejemplo: "Salmón/Pollo cocido con Ensalada/Arroz".',
         'Incluye sustitutos razonables para la proteína, el acompañamiento y los vegetales cuando corresponda; evita nombres demasiado específicos o preparaciones únicas.',
         'Interpreta availableFoods como una guía de alimentos y categorías que el nutricionista desea utilizar, no como coincidencias literales. Por ejemplo, interpreta "ensaladas verdes" como ingredientes concretos apropiados, como lechuga, apio u otras hojas verdes.',
         'Prioriza y representa esas categorías en los platos con ingredientes concretos adecuados; si una indicación es amplia, decide tú la composición más razonable.',
@@ -951,6 +973,8 @@ export class RecipesService {
       outputSchema: {
         dishes: [
           {
+            slotId: 'string opcional; obligatorio cuando generationMode sea options',
+            optionIndex: 0,
             title: 'string',
             mealSection: 'string',
             description: 'string',
@@ -1009,6 +1033,18 @@ export class RecipesService {
     const normalizedDishes = dishes.map((dish: any) =>
       this.normalizeQuickDish(dish),
     );
+    if (payload.generationMode === 'options') {
+      const targets = new Map(
+        (payload.mealSectionTargets || [])
+          .filter((target) => target.slotId)
+          .map((target) => [target.slotId as string, new Set(target.optionIndexes || [])]),
+      );
+      normalizedDishes.forEach((dish: QuickAiDishOutput) => {
+        if (!dish.slotId || dish.optionIndex === undefined || !targets.get(dish.slotId)?.has(dish.optionIndex)) {
+          throw new BadRequestException('La IA devolvió una opción fuera de la celda solicitada. Intenta nuevamente.');
+        }
+      });
+    }
     const note =
       typeof parsed?.meta?.note === 'string' && parsed.meta.note.trim()
         ? parsed.meta.note.trim()

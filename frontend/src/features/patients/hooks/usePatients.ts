@@ -84,6 +84,7 @@ export function usePatients(params: UsePatientsParams) {
     queryKey: ["patients", params],
     queryFn: () => fetchPatients(params),
     placeholderData: keepPreviousData,
+    staleTime: 60 * 1000,
   });
 
   const deleteMutation = useMutation({

@@ -8,6 +8,7 @@ interface FormNavigationFooterProps {
   isFirstStep?: boolean;
   nextLabel?: string;
   backLabel?: string;
+  hideNext?: boolean;
   className?: string;
 }
 
@@ -18,6 +19,7 @@ export function FormNavigationFooter({
   isFirstStep = false,
   nextLabel = "Continuar",
   backLabel = "Anterior",
+  hideNext = false,
   className,
 }: FormNavigationFooterProps) {
   return (
@@ -37,19 +39,21 @@ export function FormNavigationFooter({
           {backLabel}
         </button>
       )}
-      <button
-        onClick={onNext}
-        disabled={nextDisabled}
-        type="button"
-        className={cn(
-          "rounded-xl px-5 py-2.5 text-sm font-bold transition-colors flex-1 sm:flex-initial text-center justify-center",
-          nextDisabled
-            ? "bg-slate-200 text-slate-400 cursor-not-allowed"
-            : "bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95 shadow-sm"
-        )}
-      >
-        {nextLabel}
-      </button>
+      {!hideNext && (
+        <button
+          onClick={onNext}
+          disabled={nextDisabled}
+          type="button"
+          className={cn(
+            "rounded-xl px-5 py-2.5 text-sm font-bold transition-colors flex-1 sm:flex-initial text-center justify-center",
+            nextDisabled
+              ? "bg-slate-200 text-slate-400 cursor-not-allowed"
+              : "bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95 shadow-sm"
+          )}
+        >
+          {nextLabel}
+        </button>
+      )}
     </div>
   );
 }

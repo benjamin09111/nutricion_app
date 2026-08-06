@@ -4,6 +4,7 @@ import { PermissionsService } from './permissions.service';
 
 const LIFETIME_PERIOD_KEY = 'lifetime';
 const PDF_EXPORT_FEATURE_KEY = 'pdf.exports.total.limit';
+const AI_CALL_FEATURE_KEY = 'ai.calls.limit';
 const DEDUPE_SEPARATOR = '::dedupe::';
 
 const toPeriodKey = (date = new Date()) => {
@@ -171,6 +172,23 @@ export class PlanUsageService {
         });
       }
     });
+  }
+
+  async resetPdfQuota(accountId: string) {
+    await this.prisma.planUsageCounter.deleteMany({
+      where: {
+        accountId,
+        featureKey: { startsWith: PDF_EXPORT_FEATURE_KEY },
+      },
+    });
+    return { success: true };
+  }
+
+  async resetAiQuota(accountId: string) {
+    await this.prisma.planUsageCounter.deleteMany({
+      where: { accountId, featureKey: AI_CALL_FEATURE_KEY },
+    });
+    return { success: true };
   }
 
   async consumeMonthlyQuota(

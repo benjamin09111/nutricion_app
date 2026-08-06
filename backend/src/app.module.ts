@@ -38,6 +38,7 @@ import { MessageTemplatesModule } from './modules/message-templates/message-temp
 import { DiscountCodesModule } from './modules/discount-codes/discount-codes.module';
 import { CalculationsModule } from './modules/calculations/calculations.module';
 import { CopilotModule } from './modules/copilot/copilot.module';
+import { PersonalNotesModule } from './modules/personal-notes/personal-notes.module';
 
 @Module({
   imports: [
@@ -82,6 +83,7 @@ import { CopilotModule } from './modules/copilot/copilot.module';
     DiscountCodesModule,
     CalculationsModule,
     CopilotModule,
+    PersonalNotesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

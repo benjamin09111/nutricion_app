@@ -49,6 +49,22 @@ export const api = {
     return response;
   },
 
+  async patch(path: string, body?: any, options?: RequestInit) {
+    const token = typeof window !== 'undefined' ? getAuthToken() : null;
+    const response = await fetchApi(path, {
+      ...options,
+      cache: options?.cache ?? "no-store",
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...options?.headers,
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    return response;
+  },
+
   async delete(path: string, options?: RequestInit) {
     const token = typeof window !== 'undefined' ? getAuthToken() : null;
     const response = await fetchApi(path, {

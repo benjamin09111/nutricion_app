@@ -31,6 +31,17 @@ class QuickAiMealTargetDto {
   @Min(1)
   @Max(14)
   count: number;
+
+  @IsString()
+  @IsOptional()
+  slotId?: string;
+
+  @IsArray()
+  @IsInt({ each: true })
+  @Min(0, { each: true })
+  @Max(2, { each: true })
+  @IsOptional()
+  optionIndexes?: number[];
 }
 
 class QuickAiPatientDto {
@@ -233,9 +244,9 @@ class QuickAiFillPayloadDto {
   mealSectionTargets?: QuickAiMealTargetDto[];
 
   @IsString()
-  @IsIn(['single', 'weekly'])
+  @IsIn(['single', 'weekly', 'options'])
   @IsOptional()
-  generationMode?: 'single' | 'weekly';
+  generationMode?: 'single' | 'weekly' | 'options';
 }
 
 export class QuickAiFillRecipesDto {

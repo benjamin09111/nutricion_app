@@ -32,6 +32,7 @@ import { useAdmin } from "@/context/AdminContext";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { cn } from "@/lib/utils";
 import { fetchApi } from "@/lib/api-base";
+import { useResources } from "@/features/resources";
 
 import sectionCoverImages from "./section-cover-images.json";
 import systemResources from "./data/system-resources.json";
@@ -107,9 +108,13 @@ export function ResourcesClient() {
   const router = useRouter();
   const resourcesLocked = !isSubscriptionLoading && !can("resources.create.access");
   const canEditResources = can("resources.edit.access");
-  const [resources, setResources] = useState<Resource[]>([]);
+  const { resources: queryResources, isLoading: isQueryLoading, deleteResource: deleteResourceMutation } = useResources();
+  const resources: Resource[] = useMemo(() => {
+    return queryResources.length > 0 ? (queryResources as Resource[]) : DEFAULT_SYSTEM_RESOURCES;
+  }, [queryResources]);
+  const isLoading = isQueryLoading && queryResources.length === 0;
+
   const [availableTags, setAvailableTags] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [mainTab, setMainTab] = useState<MainTab>("library");
   const [librarySource, setLibrarySource] = useState<LibrarySource>("system");
   const [sectionFilter, setSectionFilter] = useState("all");
@@ -138,7 +143,6 @@ export function ResourcesClient() {
   };
 
   useEffect(() => {
-    fetchResources();
     fetchTags();
   }, []);
 
@@ -207,34 +211,7 @@ export function ResourcesClient() {
   const coverResources = useMemo(() => resources.filter((r) => r.category === "portada" && introType(r) === "cover" && (!onlyMineCovers || r.isMine)), [resources, onlyMineCovers]);
   const introResources = useMemo(() => resources.filter((r) => r.category === "portada" && introType(r) !== "cover" && (!onlyMineIntros || r.isMine)), [resources, onlyMineIntros]);
 
-  async function fetchResources() {
-    setIsLoading(true);
-    try {
-      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const res = await fetchApi("/resources", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const userData: Resource[] = res.ok ? await res.json() : [];
-      
-      if (userData && userData.length > 0) {
-        const seenMap = new Map<string, Resource>();
-        for (const r of userData) {
-          const key = r.id || `${r.title.toLowerCase().trim()}_${r.nutritionistId || 'null'}`;
-          if (!seenMap.has(key)) {
-            seenMap.set(key, r);
-          }
-        }
-        setResources(Array.from(seenMap.values()));
-      } else {
-        setResources(DEFAULT_SYSTEM_RESOURCES);
-      }
-    } catch {
-      // On error, fallback to local system resources
-      setResources(DEFAULT_SYSTEM_RESOURCES);
-    } finally {
-      setIsLoading(false);
-    }
-  }
+
 
   async function fetchTags() {
     try {
@@ -280,14 +257,9 @@ export function ResourcesClient() {
   async function deleteResource() {
     if (!resourceToDelete) return;
     try {
-      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      await fetchApi(`/resources/${resourceToDelete.id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await deleteResourceMutation(resourceToDelete.id);
       toast.success("Recurso eliminado.");
       setResourceToDelete(null);
-      fetchResources();
     } catch {
       toast.error("No se pudo eliminar.");
     }

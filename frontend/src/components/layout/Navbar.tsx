@@ -11,6 +11,9 @@ import {
   Menu,
   Crown,
   Sparkles,
+  Activity,
+  RotateCcw,
+  NotebookPen,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -24,6 +27,7 @@ import { useNotifications } from "@/context/NotificationsContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useFont } from "@/context/FontContext";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
+import { PlanLimitsModal } from "@/components/memberships/PlanLimitsModal";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 // import { FollowUpNotificationsMenu } from "@/components/layout/FollowUpNotificationsMenu";
@@ -38,6 +42,8 @@ export function Navbar({
 }) {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isResettingPdf, setIsResettingPdf] = useState(false);
+  const [isResettingAi, setIsResettingAi] = useState(false);
   const [userEmail] = useState<string>(() => {
     if (typeof window === "undefined") {
       return "usuario@demo.com";
@@ -50,6 +56,38 @@ export function Navbar({
 
     return typeof storedUser?.email === "string" ? storedUser.email : "usuario@demo.com";
   });
+
+  const handleResetPdfQuotaDev = async () => {
+    setIsResettingPdf(true);
+    try {
+      await api.post("/permissions/reset-pdf-dev");
+      toast.success("Contador de PDFs reiniciado a 0/6");
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("membership-usage-updated"));
+      }
+    } catch (error) {
+      console.error("Error resetting PDF quota:", error);
+      toast.error("Error al reiniciar contador de PDFs");
+    } finally {
+      setIsResettingPdf(false);
+    }
+  };
+
+  const handleResetAiQuotaDev = async () => {
+    setIsResettingAi(true);
+    try {
+      await api.post("/permissions/reset-ai-dev");
+      toast.success("Contador de IA reiniciado a 0/4");
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("membership-usage-updated"));
+      }
+    } catch (error) {
+      console.error("Error resetting AI quota:", error);
+      toast.error("Error al reiniciar contador de IA");
+    } finally {
+      setIsResettingAi(false);
+    }
+  };
   const [userAvatarUrl] = useState<string | null>(() => {
     if (typeof window === "undefined") {
       return null;
@@ -75,6 +113,7 @@ export function Navbar({
 
   const [isSecureSubModalOpen, setIsSecureSubModalOpen] = useState(false);
   const [isSecuringSub, setIsSecuringSub] = useState(false);
+  const [isPlanLimitsModalOpen, setIsPlanLimitsModalOpen] = useState(false);
 
   const handleSecureSubscription = async () => {
     setIsSecuringSub(true);
@@ -154,6 +193,31 @@ export function Navbar({
 
         <div className="flex min-w-0 flex-1 items-center gap-x-1 sm:gap-x-4 lg:gap-x-6">
           <div className="flex min-w-0 flex-1 items-center justify-end gap-x-1.5 sm:gap-x-4 lg:gap-x-8">
+            {userEmail === "benjaminmoralespizarro763@gmail.com" && (
+              <>
+                <button
+                  type="button"
+                  onClick={handleResetPdfQuotaDev}
+                  disabled={isResettingPdf}
+                  className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-amber-300 bg-amber-500/10 px-3 py-1.5 text-xs font-bold text-amber-700 hover:bg-amber-500/20 active:scale-95 transition-all shrink-0 disabled:opacity-50"
+                  title="DEV: Reiniciar contador de PDFs creados a 0/6"
+                >
+                  <RotateCcw className={cn("h-3.5 w-3.5 text-amber-600", isResettingPdf && "animate-spin")} />
+                  <span>Reset PDFs (0/6)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleResetAiQuotaDev}
+                  disabled={isResettingAi}
+                  className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-violet-300 bg-violet-500/10 px-3 py-1.5 text-xs font-bold text-violet-700 hover:bg-violet-500/20 active:scale-95 transition-all shrink-0 disabled:opacity-50"
+                  title="DEV: Reiniciar contador de usos de IA a 0/4"
+                >
+                  <RotateCcw className={cn("h-3.5 w-3.5 text-violet-600", isResettingAi && "animate-spin")} />
+                  <span>Reset IA (0/4)</span>
+                </button>
+              </>
+            )}
+
             {isAdmin && (
               <button
                 type="button"
@@ -212,6 +276,40 @@ export function Navbar({
                 <span className="hidden sm:inline">
                   {hasPendingTransfer ? "Plan pendiente" : "Ascender a Pro"}
                 </span>
+              </button>
+            )}
+
+            {!isAdminView && (
+              <button
+                type="button"
+                onClick={() => window.dispatchEvent(new CustomEvent("toggle-notes-agenda"))}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs font-bold transition-all shrink-0 cursor-pointer shadow-sm active:scale-95",
+                  isDarkMode
+                    ? "border-amber-400/30 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20"
+                    : "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100",
+                )}
+                title="Mis notas"
+              >
+                <NotebookPen className="h-4 w-4 shrink-0" />
+                <span className="hidden sm:inline">Mis notas</span>
+              </button>
+            )}
+
+            {!isAdminView && (
+              <button
+                type="button"
+                onClick={() => setIsPlanLimitsModalOpen(true)}
+                className={cn(
+                  "inline-flex items-center gap-1.5 sm:gap-2 rounded-full px-2.5 py-1.5 sm:px-3.5 sm:py-1.5 text-xs font-bold transition-all shrink-0 cursor-pointer border shadow-xs active:scale-95",
+                  isDarkMode
+                    ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20"
+                    : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100",
+                )}
+                title="Límites de mi plan"
+              >
+                <Activity className="h-3.5 w-3.5 text-emerald-600" />
+                <span className="hidden sm:inline">Límites de mi plan</span>
               </button>
             )}
 
@@ -663,6 +761,10 @@ export function Navbar({
         confirmText="Confirmar interés"
         cancelText="Volver"
         isLoading={isSecuringSub}
+      />
+      <PlanLimitsModal
+        isOpen={isPlanLimitsModalOpen}
+        onClose={() => setIsPlanLimitsModalOpen(false)}
       />
     </div>
   );

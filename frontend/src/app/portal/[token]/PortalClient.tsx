@@ -27,6 +27,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { type PortalVerificationResponse } from "@/features/patient-portal/types";
 import { formatDateOnlyForLocale } from "@/features/patients/utils/patient-helpers";
+import { getFastDeliverableTableMode, normalizeFastDeliverableMeals } from "@/features/pdf/fastDeliverableMeals";
 
 interface PortalPreview {
   patientName: string;
@@ -296,7 +297,8 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
         (rawContent.pautaEditorMode as any) ||
         (paragraphsFormatted.length > 0 ? "paragraphs" : "table"),
       paragraphs: paragraphsFormatted,
-      meals: Array.isArray(rawContent.meals) ? rawContent.meals : [],
+      tableMode: getFastDeliverableTableMode(rawContent.tableMode),
+      meals: normalizeFastDeliverableMeals(rawContent.meals, getFastDeliverableTableMode(rawContent.tableMode), rawContent.planMode),
       avoidFoods: Array.isArray(rawContent.avoidFoods) ? rawContent.avoidFoods : [],
       resources: resourcesList,
       portionGuide: Array.isArray(rawContent.portionGuide) ? rawContent.portionGuide : [],

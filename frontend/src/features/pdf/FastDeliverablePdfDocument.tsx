@@ -7,6 +7,7 @@ export interface FastMealPlanItem {
   time: string;
   mealText: string;
   portion?: string;
+  optionTexts?: string[];
 }
 
 export interface FastDeliverableParagraphItem {
@@ -34,7 +35,8 @@ export interface FastDeliverablePdfData {
     bmi?: number | null;
   } | null;
   clinicalRestriction?: string | null;
-  contentMode?: "table" | "paragraphs";
+  contentMode?: "table" | "paragraphs" | "both";
+  tableMode?: "simple" | "options";
   paragraphs?: FastDeliverableParagraphItem[];
   nutritionistName?: string | null;
   nutritionistEmail?: string | null;
@@ -250,6 +252,13 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.3,
   },
+  optionsSectionCell: {
+    paddingRight: 6,
+  },
+  optionsCell: {
+    paddingLeft: 5,
+    paddingRight: 5,
+  },
   mutedText: {
     fontSize: 9.5,
     color: "#64748b",
@@ -274,12 +283,12 @@ const styles = StyleSheet.create({
   },
   portionHeader: {
     flexDirection: "row",
-    backgroundColor: "#f1f5f9",
-    borderTop: "1px solid #cbd5e1",
-    borderLeft: "1px solid #cbd5e1",
-    borderRight: "1px solid #cbd5e1",
-    borderBottom: "1px solid #cbd5e1",
-    paddingVertical: 6,
+    backgroundColor: "#5f438f",
+    borderTop: "1px solid #5f438f",
+    borderLeft: "1px solid #5f438f",
+    borderRight: "1px solid #5f438f",
+    borderBottom: "1px solid #5f438f",
+    paddingVertical: 8,
     paddingHorizontal: 8,
   },
   portionRow: {
@@ -367,11 +376,20 @@ export function FastDeliverablePdfDocument({
 
   const nutritionistName = data.nutritionistName?.trim() || "Nutricionista";
   const nutritionistEmail = data.nutritionistEmail?.trim() || "";
-  const isParagraphsMode = data.contentMode === "paragraphs" && (data.paragraphs?.length || 0) > 0;
+  const showTable =
+    (data.contentMode === "table" || data.contentMode === "both" || !data.contentMode) &&
+    (data.meals?.length || 0) > 0;
+  const showParagraphs =
+    (data.contentMode === "paragraphs" || data.contentMode === "both") &&
+    (data.paragraphs?.length || 0) > 0;
+  const isOptionsTable = data.tableMode === "options";
+  const optionCount = Math.max(1, Math.min(3, Math.max(...data.meals.map((meal) => meal.optionTexts?.length || 0))));
+  const optionSectionWidth = `${Math.max(18, 30 - optionCount * 2)}%`;
+  const optionWidth = `${(100 - Math.max(18, 30 - optionCount * 2)) / optionCount}%`;
 
   return (
     <Document>
-      <Page size="A4" style={styles.page}>
+      <Page size="A4" orientation={isOptionsTable ? "landscape" : "portrait"} style={styles.page}>
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
@@ -409,10 +427,80 @@ export function FastDeliverablePdfDocument({
           </View>
         </View>
 
-        {/* Pautas alimenticias en párrafos O Tabla de comidas */}
-        {isParagraphsMode ? (
+        {/* Tabla de comidas (si aplica) */}
+        {showTable && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Pautas alimenticias</Text>
+            <Text style={styles.sectionTitle}>Plan de comidas</Text>
+            {isOptionsTable ? (
+              <>
+                <View style={styles.tableHeader}>
+                  <View style={[styles.optionsSectionCell, { width: optionSectionWidth }]}>
+                    <Text style={styles.cellHeaderText}>Tiempo de comida</Text>
+                  </View>
+                  {Array.from({ length: optionCount }, (_, index) => (
+                    <View key={index} style={[styles.optionsCell, { width: optionWidth }]}>
+                      <Text style={styles.cellHeaderText}>Opción {index + 1}</Text>
+                    </View>
+                  ))}
+                </View>
+                {data.meals.map((meal, index) => (
+                  <View key={meal.id || index} style={[styles.tableRow, index % 2 === 1 ? styles.tableRowEven : {}]}>
+                    <View style={[styles.optionsSectionCell, { width: optionSectionWidth }]}>
+                      <Text>{meal.section || "-"}</Text>
+                    </View>
+                    {Array.from({ length: optionCount }, (_, optionIndex) => (
+                      <View key={optionIndex} style={[styles.optionsCell, { width: optionWidth }]}>
+                        <Text>{meal.optionTexts?.[optionIndex] || "-"}</Text>
+                      </View>
+                    ))}
+                  </View>
+                ))}
+              </>
+            ) : <>
+              <View style={styles.tableHeader}>
+                <View style={styles.cellTime}>
+                  <Text style={styles.cellHeaderText}>Hora</Text>
+                </View>
+                <View style={styles.cellSection}>
+                  <Text style={styles.cellHeaderText}>Sección</Text>
+                </View>
+                <View style={styles.cellMeal}>
+                  <Text style={styles.cellHeaderText}>Indicación / Alimentos</Text>
+                </View>
+                <View style={styles.cellPortion}>
+                  <Text style={styles.cellHeaderText}>Porción</Text>
+                </View>
+              </View>
+              {data.meals.map((meal, index) => (
+              <View
+                key={meal.id || index}
+                style={[
+                  styles.tableRow,
+                  index % 2 === 1 ? styles.tableRowEven : {},
+                ]}
+              >
+                <View style={styles.cellTime}>
+                  <Text>{meal.time || "-"}</Text>
+                </View>
+                <View style={styles.cellSection}>
+                  <Text>{meal.section || "-"}</Text>
+                </View>
+                <View style={styles.cellMeal}>
+                  <Text>{meal.mealText || "-"}</Text>
+                </View>
+                <View style={styles.cellPortion}>
+                  <Text>{meal.portion || "-"}</Text>
+                </View>
+              </View>
+              ))}
+            </>}
+          </View>
+        )}
+
+        {/* Pautas alimenticias en párrafos (si aplica) */}
+        {showParagraphs && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Pautas alimenticias por categoría</Text>
             {data.paragraphs!.map((paragraph, index) => (
               <View key={index} style={styles.paragraphContainer} wrap={false}>
                 <View style={styles.paragraphContent}>
@@ -428,58 +516,21 @@ export function FastDeliverablePdfDocument({
                   {paragraph.imagePath ? (
                     <View style={styles.imageContainer}>
                       {/* eslint-disable-next-line jsx-a11y/alt-text -- @react-pdf Image has no alt prop. */}
-                      <Image src={paragraph.imagePath} style={styles.categoryImage} />
+                      <Image
+                        src={
+                          paragraph.imagePath.startsWith("http") || paragraph.imagePath.startsWith("data:")
+                            ? paragraph.imagePath
+                            : typeof window !== "undefined"
+                              ? `${window.location.origin}${paragraph.imagePath.startsWith("/") ? "" : "/"}${paragraph.imagePath}`
+                              : paragraph.imagePath
+                        }
+                        style={styles.categoryImage}
+                      />
                     </View>
                   ) : null}
                 </View>
               </View>
             ))}
-          </View>
-        ) : (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Plan de comidas</Text>
-            <View style={styles.tableHeader}>
-              <View style={styles.cellTime}>
-                <Text style={styles.cellHeaderText}>Hora</Text>
-              </View>
-              <View style={styles.cellSection}>
-                <Text style={styles.cellHeaderText}>Sección</Text>
-              </View>
-              <View style={styles.cellMeal}>
-                <Text style={styles.cellHeaderText}>Indicación / Alimentos</Text>
-              </View>
-              <View style={styles.cellPortion}>
-                <Text style={styles.cellHeaderText}>Porción</Text>
-              </View>
-            </View>
-            {data.meals && data.meals.length > 0 ? (
-              data.meals.map((meal, index) => (
-                <View
-                  key={meal.id || index}
-                  style={[
-                    styles.tableRow,
-                    index % 2 === 1 ? styles.tableRowEven : {},
-                  ]}
-                >
-                  <View style={styles.cellTime}>
-                    <Text>{meal.time || "-"}</Text>
-                  </View>
-                  <View style={styles.cellSection}>
-                    <Text>{meal.section || "-"}</Text>
-                  </View>
-                  <View style={styles.cellMeal}>
-                    <Text>{meal.mealText || "-"}</Text>
-                  </View>
-                  <View style={styles.cellPortion}>
-                    <Text>{meal.portion || "-"}</Text>
-                  </View>
-                </View>
-              ))
-            ) : (
-              <View style={styles.tableRow}>
-                <Text style={styles.mutedText}>Sin comidas configuradas.</Text>
-              </View>
-            )}
           </View>
         )}
 

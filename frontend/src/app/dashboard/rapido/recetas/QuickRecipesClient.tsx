@@ -17,6 +17,7 @@ import {
   RotateCcw,
   Search,
   Save,
+  Sparkles,
   Trash2,
   User,
   X,
@@ -31,6 +32,7 @@ import { Textarea } from "@/components/ui/Textarea";
 import { TagInput } from "@/components/ui/TagInput";
 import { Modal } from "@/components/ui/Modal";
 import { SaveCreationModal } from "@/components/ui/SaveCreationModal";
+import { useSubscription } from "@/context/SubscriptionContext";
 import { ImportCreationModal } from "@/components/shared/ImportCreationModal";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { ModuleUsageBadges } from "@/components/shared/ModuleUsageBadges";
@@ -43,6 +45,7 @@ import { useDashboardShell } from "@/context/DashboardShellContext";
 import { FeatureGate } from "@/components/memberships/FeatureGate";
 import { cn } from "@/lib/utils";
 import { FoodReferenceBook } from "@/components/foods/FoodReferenceBook";
+import { getTodayDateInputValue } from "@/features/patients/utils/patient-helpers";
 
 type QuickIngredient = {
   id: string;
@@ -444,7 +447,7 @@ export default function QuickRecipesClient() {
   const [title, setTitle] = useState(DEFAULT_TITLE);
   const [dietName, setDietName] = useState(DEFAULT_DIET_NAME);
   const [nutritionistNotes, setNutritionistNotes] = useState("");
-  const [deliveryDate, setDeliveryDate] = useState(new Date().toISOString().slice(0, 10));
+  const [deliveryDate, setDeliveryDate] = useState(getTodayDateInputValue());
   const [quickHashtags, setQuickHashtags] = useState("");
   const [quickDescription, setQuickDescription] = useState("");
   const [planObjective, setPlanObjective] = useState("");
@@ -492,6 +495,15 @@ export default function QuickRecipesClient() {
   const [isSaving, setIsSaving] = useState(false);
   const [creationDescription, setCreationDescription] = useState("");
 
+  const { limit, usage, isDeveloper } = useSubscription();
+  const pdfLimit = limit("pdf.monthly.limit");
+  const pdfUsed = usage?.pdfUsed ?? 0;
+  const isPdfLimitReached = !isDeveloper && Number.isFinite(pdfLimit) && pdfUsed >= pdfLimit;
+
+  const creationsLimit = limit("creations.monthly.limit");
+  const creationsUsed = usage?.creationsUsed ?? 0;
+  const isCreationsLimitReached = !isDeveloper && Number.isFinite(creationsLimit) && creationsUsed >= creationsLimit;
+
   const [patients, setPatients] = useState<QuickPatient[]>([]);
   const [isLoadingPatients, setIsLoadingPatients] = useState(false);
   const [patientSearch, setPatientSearch] = useState("");
@@ -528,7 +540,7 @@ export default function QuickRecipesClient() {
       setDeliveryDate(
         typeof parsed.deliveryDate === "string" && parsed.deliveryDate
           ? parsed.deliveryDate
-          : new Date().toISOString().slice(0, 10),
+          : getTodayDateInputValue(),
       );
       setQuickHashtags(typeof parsed.quickHashtags === "string" ? parsed.quickHashtags : "");
       setQuickDescription(typeof parsed.quickDescription === "string" ? parsed.quickDescription : "");
@@ -653,7 +665,7 @@ export default function QuickRecipesClient() {
         setDeliveryDate(
           typeof content.deliveryDate === "string" && content.deliveryDate
             ? content.deliveryDate
-            : new Date().toISOString().slice(0, 10),
+            : getTodayDateInputValue(),
         );
         setQuickHashtags(typeof content.quickHashtags === "string" ? content.quickHashtags : "");
         setQuickDescription(typeof content.quickDescription === "string" ? content.quickDescription : "");
@@ -830,7 +842,7 @@ export default function QuickRecipesClient() {
     setNutritionistNotes(
       typeof content.nutritionistNotes === "string" ? content.nutritionistNotes : "",
     );
-    setDeliveryDate(new Date().toISOString().slice(0, 10));
+    setDeliveryDate(getTodayDateInputValue());
     setQuickHashtags("");
     setQuickDescription("");
     setPlanObjective(typeof content.planObjective === "string" ? content.planObjective : "");
@@ -1202,6 +1214,10 @@ export default function QuickRecipesClient() {
 
   const handleSaveToCreations = async () => {
     if (isHydrating) return;
+    if (isCreationsLimitReached) {
+      toast.error("Has alcanzado el límite mensual de creaciones de tu plan. Actualiza tu membresía para guardar.");
+      return;
+    }
     if (!title.trim()) {
       toast.error("Por favor ingresa un título antes de guardar.");
       return;
@@ -1253,7 +1269,7 @@ export default function QuickRecipesClient() {
     setTitle(DEFAULT_TITLE);
     setDietName(DEFAULT_DIET_NAME);
     setNutritionistNotes("");
-    setDeliveryDate(new Date().toISOString().slice(0, 10));
+    setDeliveryDate(getTodayDateInputValue());
     setQuickHashtags("");
     setQuickDescription("");
     setPlanObjective("");
@@ -1313,21 +1329,30 @@ export default function QuickRecipesClient() {
 
   const handleExportPdf = async () => {
     if (isHydrating) return;
+    if (isPdfLimitReached) {
+      toast.error("Has alcanzado el límite mensual de PDFs generados de tu plan. Actualiza tu membresía para descargar más PDFs.");
+      return;
+    }
     if (!selectedPatient) {
       toast.error("Primero importa un paciente para exportar el PDF.");
       return;
     }
     setIsExportingPdf(true);
     try {
+      await handleSaveToCreations();
+
       const { downloadQuickRecipesPdf } = await import(
         "@/features/pdf/quickRecipesPdfExport"
       );
       await downloadQuickRecipesPdf(buildPdfData());
-      toast.success("PDF de recetas descargado correctamente.");
-      setIsSaveCreationModalOpen(true);
-    } catch (error) {
+      toast.success("PDF descargado y guardado en tus creaciones.");
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("membership-usage-updated"));
+      }
+    } catch (error: any) {
       console.error("PDF export error", error);
-      toast.error("No se pudo generar el PDF.");
+      const msg = error?.message || "No se pudo generar el PDF.";
+      toast.error(msg);
     } finally {
       setIsExportingPdf(false);
     }
@@ -1511,19 +1536,20 @@ export default function QuickRecipesClient() {
       id: "pdf",
       icon: isExportingPdf ? Loader2 : Download,
       label: "Descargar PDF",
-      description: isExportDisabled ? "Agrega un paciente y al menos un plato" : "Descargar PDF",
+      description: isPdfLimitReached
+        ? "Límite mensual de PDFs alcanzado"
+        : isExportDisabled
+          ? "Agrega un paciente y al menos un plato"
+          : "Descargar PDF y guardar en creaciones",
       variant: "indigo",
-      disabled: isExportingPdf || isExportDisabled,
-      onClick: () => void handleExportPdf(),
-    },
-    {
-      id: "save",
-      icon: Save,
-      label: "Guardar",
-      description: "Guardar en creaciones",
-      variant: "slate",
-      disabled: !title.trim() || !hasGeneratedDishes || meaningfulDishes.length === 0 || isSaving,
-      onClick: () => setIsSaveCreationModalOpen(true),
+      disabled: isExportingPdf || isExportDisabled || isPdfLimitReached,
+      onClick: () => {
+        if (isPdfLimitReached) {
+          toast.error("Has alcanzado el límite mensual de PDFs generados de tu plan. Actualiza tu membresía para descargar más PDFs.");
+          return;
+        }
+        void handleExportPdf();
+      },
     },
     {
       id: "reset",
@@ -1703,10 +1729,10 @@ export default function QuickRecipesClient() {
                       Si importas un paciente, Naty considerará sus restricciones, objetivos y contexto clínico. El PDF sigue requiriendo un paciente vinculado.
                     </p>
                   </div>
-                  <div className="flex w-full flex-col justify-center gap-3 sm:w-auto sm:flex-row">
+                  <div className="flex w-full flex-col justify-center gap-3 sm:w-auto sm:flex-row flex-wrap">
                     <Button
                       variant="outline"
-                      className="h-10 min-w-48 justify-center rounded-xl border-amber-200 bg-white text-amber-700 hover:bg-amber-100"
+                      className="h-10 min-w-44 justify-center rounded-xl border-amber-200 bg-white text-amber-700 hover:bg-amber-100"
                       onClick={openPatientModal}
                     >
                       <User className="mr-2 h-4 w-4" />
@@ -1714,11 +1740,26 @@ export default function QuickRecipesClient() {
                     </Button>
                     <Button
                       variant="outline"
-                      className="h-10 min-w-48 justify-center rounded-xl border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                      className="h-10 min-w-44 justify-center rounded-xl border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
                       onClick={startManualPatientEntry}
                     >
                       <FileText className="mr-2 h-4 w-4" />
                       Rellenar manualmente
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="h-10 min-w-44 justify-center rounded-xl border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-semibold"
+                      onClick={() => {
+                        setSelectedPatient({
+                          ...createEmptyQuickPatient(),
+                          fullName: "Paciente General",
+                          nutritionalFocus: "General / Recetas Express",
+                        });
+                        toast.info("Modo recetas generales activado. Puedes continuar generando recetas sin seleccionar un paciente específico.");
+                      }}
+                    >
+                      <Sparkles className="mr-2 h-4 w-4 text-indigo-600" />
+                      Continuar sin paciente
                     </Button>
                   </div>
                 </div>
@@ -2402,14 +2443,6 @@ export default function QuickRecipesClient() {
                   className="h-11 rounded-2xl bg-emerald-600 px-6 font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {isExportingPdf ? "Generando..." : "Descargar PDF"}
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => setIsSaveCreationModalOpen(true)}
-                  disabled={!title.trim() || !hasGeneratedDishes || meaningfulDishes.length === 0 || isSaving}
-                  className="h-11 rounded-2xl border-slate-200 font-bold disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Guardar
                 </Button>
               </div>
             </section>

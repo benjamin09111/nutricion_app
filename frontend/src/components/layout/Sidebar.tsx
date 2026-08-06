@@ -69,13 +69,14 @@ const groups: SidebarGroup[] = [
     ],
   },
   {
-    title: "Nutrición y Dietética",
-    items: [
-      { name: "Principal", isSubHeader: true },
-      { name: "Entregable Rápido", href: "/dashboard/rapido", icon: NotebookText },
-      { name: "Recetas", href: "/dashboard/rapido/recetas", icon: ChefHat },
-      { name: "Entregable Personalizado", href: "/dashboard/dieta", icon: Apple, tutorialPath: "/dashboard/dieta" },
-      { name: "Fitness", href: "/dashboard/fitness", icon: Dumbbell, locked: true },
+      title: "Nutrición y Dietética",
+      items: [
+        { name: "Principal", isSubHeader: true },
+        { name: "Entregable Rápido", href: "/dashboard/rapido", icon: NotebookText },
+        { name: "Recetas", href: "/dashboard/rapido/recetas", icon: ChefHat },
+        { name: "Entregable Personalizado", href: "/dashboard/dieta", icon: Apple, tutorialPath: "/dashboard/dieta" },
+        { name: "Fitness", href: "/dashboard/fitness", icon: Dumbbell, locked: true },
+        { name: "Evaluación antropométrica", href: "/dashboard/evaluacion-antropometrica", icon: Calculator, locked: true },
       { name: "Alimentos", isSubHeader: true },
       { name: "Tabla de composición", href: "/dashboard/alimentos", icon: Apple, tutorialPath: "/dashboard/alimentos" },
       { name: "Platos", href: "/dashboard/platos", icon: ChefHat, tutorialPath: "/dashboard/platos", hidden: true },

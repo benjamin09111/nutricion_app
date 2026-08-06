@@ -19,7 +19,7 @@ import {
   Save,
   Lock,
   Apple,
-  Image as ImageIcon,
+  Layers,
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
@@ -28,6 +28,7 @@ import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { PatientSelectionModal } from "@/components/patients/PatientSelectionModal";
 import { SaveCreationModal } from "@/components/ui/SaveCreationModal";
+import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { Textarea } from "@/components/ui/Textarea";
 import { ImportCreationModal } from "@/components/shared/ImportCreationModal";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
@@ -44,12 +45,14 @@ import { calculateAge, calculateBMI, calculateGET, getIdealWeightRange, type Act
 import { cn } from "@/lib/utils";
 import { fetchCreation, fetchProject, saveCreation } from "@/lib/workflow";
 import { downloadFastDeliverablePdf } from "@/features/pdf/fastDeliverablePdfExport";
+import { getFastDeliverableTableMode, normalizeFastDeliverableMeals, type FastDeliverableTableMode } from "@/features/pdf/fastDeliverableMeals";
 import { useDashboardShell } from "@/context/DashboardShellContext";
 import { getCurrentUser } from "@/lib/current-user";
 import { FoodReferenceBook } from "@/components/foods/FoodReferenceBook";
+import { getTodayDateInputValue } from "@/features/patients/utils/patient-helpers";
 
 type QuickPlanMode = "single" | "weekly";
-type QuickContentMode = "table" | "paragraphs";
+type QuickContentMode = "table" | "paragraphs" | "both";
 type ResourceOrigin = "auto" | "import" | "manual";
 type QuickAiMode = "ai" | "recipes" | "library";
 
@@ -60,6 +63,7 @@ type QuickMeal = {
   mealText: string;
   portion?: string;
   weeklyMealTexts?: Record<string, string>;
+  optionTexts?: string[];
 };
 
 type QuickAvoidFoodRow = {
@@ -220,32 +224,60 @@ const createMeal = (section: QuickSection | "" = ""): QuickMeal => ({
   mealText: "",
   portion: "",
   weeklyMealTexts: {},
+  optionTexts: [""],
 });
 
-const CATEGORY_IMAGE_MAP: Record<string, string> = {
-  Lácteos: "/imag_categories/1.webp",
-  Huevos: "/imag_categories/2.webp",
-  "Carnes y Vísceras": "/imag_categories/3.webp",
-  "Pescados y Mariscos": "/imag_categories/4.webp",
-  "Semillas y Nueces": "/imag_categories/5.webp",
-  "Cereales y Derivados": "/imag_categories/6.webp",
-  Papas: "/imag_categories/7.webp",
-  "Grasas y Aceites": "/imag_categories/8.webp",
-  Verduras: "/imag_categories/9.webp",
-  Frutas: "/imag_categories/10.webp",
-  "Azúcares y Miel": "/imag_categories/11.webp",
-  "Alimentos Dulces": "/imag_categories/12.webp",
-  "Postres de Leche": "/imag_categories/13.webp",
-  "Jugos y Néctares": "/imag_categories/14.webp",
-  "Refrescos en Polvo": "/imag_categories/15.webp",
-  Bebidas: "/imag_categories/16.webp",
-  "Bebidas Alcohólicas": "/imag_categories/17.webp",
-  "Productos Salados": "/imag_categories/18.webp",
-  Salsas: "/imag_categories/19.webp",
-  Especias: "/imag_categories/20.webp",
-  Endulzantes: "/imag_categories/21.webp",
-  "Platos Preparados": "/imag_categories/22.webp",
+const normalizeQuickMeals = (value: unknown): QuickMeal[] => {
+  if (!Array.isArray(value)) return [];
+  return value.map((meal: Partial<QuickMeal>, index) => ({
+    ...createMeal(),
+    ...meal,
+    id: meal.id || `meal-${Date.now()}-${index}`,
+    mealText: typeof meal.mealText === "string" ? meal.mealText : "",
+    optionTexts: Array.isArray(meal.optionTexts)
+      ? meal.optionTexts.slice(0, 3).map((option) => typeof option === "string" ? option : "")
+      : [""],
+    weeklyMealTexts: meal.weeklyMealTexts || {},
+  }));
 };
+
+const CATEGORY_IMAGE_MAP: Record<string, string> = {
+  Lácteos: "/imag_categories/lacteos.png",
+  Huevos: "/imag_categories/huevos.png",
+  "Carnes y Vísceras": "/imag_categories/carnes_visceras.png",
+  "Pescados y Mariscos": "/imag_categories/pescados_mariscos.png",
+  "Semillas y Nueces": "/imag_categories/semillas_nueces.png",
+  "Cereales y Derivados": "/imag_categories/cereales.png",
+  Papas: "/imag_categories/papas.png",
+  "Grasas y Aceites": "/imag_categories/grasas_aceites.png",
+  Verduras: "/imag_categories/verduras.png",
+  Frutas: "/imag_categories/frutas.png",
+  "Azúcares y Miel": "/imag_categories/azucares_miel.png",
+  "Alimentos Dulces": "/imag_categories/dulces.png",
+  "Postres de Leche": "/imag_categories/postres_leche.png",
+  "Jugos y Néctares": "/imag_categories/jugos_nectares.png",
+  "Refrescos en Polvo": "/imag_categories/refrescos_polvo.png",
+  Bebidas: "/imag_categories/bebidas.png",
+  "Bebidas Alcohólicas": "/imag_categories/alcoholicas.png",
+  "Productos Salados": "/imag_categories/salados.png",
+  Salsas: "/imag_categories/salsas.png",
+  Especias: "/imag_categories/especias.png",
+  Endulzantes: "/imag_categories/endulzantes.png",
+  "Platos Preparados": "/imag_categories/platos_preparados.png",
+};
+
+export function resolveCategoryImage(category = ""): string {
+  if (!category?.trim()) return "";
+  if (CATEGORY_IMAGE_MAP[category]) return CATEGORY_IMAGE_MAP[category];
+
+  const catLower = category.toLowerCase().trim();
+  const found = Object.entries(CATEGORY_IMAGE_MAP).find(([key]) => {
+    const keyLower = key.toLowerCase();
+    return catLower.includes(keyLower) || keyLower.includes(catLower);
+  });
+
+  return found ? found[1] : "";
+}
 
 const createParagraph = (category = ""): QuickParagraph => ({
   id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -253,7 +285,7 @@ const createParagraph = (category = ""): QuickParagraph => ({
   categoryOptional: "",
   portionsPerDay: "",
   foods: [{ id: `${Date.now()}-1`, portion: "", food: "" }],
-  imagePath: CATEGORY_IMAGE_MAP[category] || null,
+  imagePath: category ? resolveCategoryImage(category) : null,
 });
 
 const createFoodItem = (portion = "", food = ""): QuickParagraphFood => ({
@@ -463,12 +495,18 @@ function stripHtml(content: string): string {
     .trim();
 }
 
-function getPatientVariableValues(patient: QuickPatient): Record<string, string> {
+function getPatientVariableValues(patient: QuickPatient, planObjective = ""): Record<string, string> {
   const age = resolveQuickAgeYears(patient);
+  const objective = (planObjective.trim() || patient.nutritionalFocus || patient.fitnessGoals || "").trim();
+  const patientName = patient.fullName?.trim() || "";
   return {
-    NOMBRE_PACIENTE: patient.fullName?.trim() || "",
+    NOMBRE_PACIENTE: patientName === "Paciente General" ? "tú persona" : patientName,
     EDAD_PACIENTE: typeof age === "number" ? String(age) : "",
-    OBJETIVO_PRINCIPAL: (patient.nutritionalFocus || patient.fitnessGoals || "").trim(),
+    OBJETIVO_PRINCIPAL: objective,
+    OBJETIVO: objective,
+    OBJETIVO_PLAN: objective,
+    OBJETIVO_DEL_PLAN: objective,
+    PLAN_OBJECTIVE: objective,
   };
 }
 
@@ -476,9 +514,10 @@ function replaceResourceVariables(
   content: string,
   patient: QuickPatient,
   overrides: Record<string, string> = {},
+  planObjective = "",
 ): { content: string; variables: Record<string, string>; missing: string[] } {
   const variables: Record<string, string> = {};
-  const values = { ...getPatientVariableValues(patient), ...overrides };
+  const values = { ...getPatientVariableValues(patient, planObjective), ...overrides };
   const missing = new Set<string>();
   const resolvedContent = stripHtml(content).replace(
     /\^([a-zA-Z0-9_\- ]+)\^|\{([a-zA-Z0-9_\- ]+)\}/g,
@@ -518,8 +557,6 @@ export default function QuickDeliverableClient() {
   const [saveManualResource, setSaveManualResource] = useState(false);
   const [isGeneratingPautaAi, setIsGeneratingPautaAi] = useState(false);
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
-  const [isImageSelectorOpen, setIsImageSelectorOpen] = useState(false);
-  const [selectedParagraphId, setSelectedParagraphId] = useState<string | null>(null);
   const [categorySearch, setCategorySearch] = useState("");
   const [showCategoryDropdown, setShowCategoryDropdown] = useState<string | null>(null);
   const [aiRestrictedFoods, setAiRestrictedFoods] = useState("");
@@ -527,12 +564,15 @@ export default function QuickDeliverableClient() {
   const [allowExternalFoods, setAllowExternalFoods] = useState(false);
 
   const [title, setTitle] = useState("");
-  const [deliveryDate, setDeliveryDate] = useState(new Date().toISOString().slice(0, 10));
+  const [deliveryDate, setDeliveryDate] = useState(getTodayDateInputValue());
   const [quickHashtags, setQuickHashtags] = useState("");
   const [quickDescription, setQuickDescription] = useState("");
   const [planObjective, setPlanObjective] = useState("");
   const [showPlanObjectiveInPdf, setShowPlanObjectiveInPdf] = useState(false);
   const [planMode, setPlanMode] = useState<QuickPlanMode>("single");
+  const [tableMode, setTableMode] = useState<FastDeliverableTableMode>("simple");
+  const [optionCount, setOptionCount] = useState(1);
+  const [pendingOptionCount, setPendingOptionCount] = useState<number | null>(null);
   const [meals, setMeals] = useState<QuickMeal[]>([
     createMeal("Desayuno"),
     createMeal("Almuerzo"),
@@ -582,6 +622,7 @@ export default function QuickDeliverableClient() {
   const [isSaveCreationModalOpen, setIsSaveCreationModalOpen] = useState(false);
   const [lastSavedState, setLastSavedState] = useState<string | null>(null);
   const [isImportCreationModalOpen, setIsImportCreationModalOpen] = useState(false);
+  const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [isHydrating, setIsHydrating] = useState(true);
@@ -626,16 +667,18 @@ export default function QuickDeliverableClient() {
     try {
       const parsed = JSON.parse(draft);
       setTitle(parsed.title ?? "");
-      setDeliveryDate(parsed.deliveryDate || new Date().toISOString().slice(0, 10));
+       setDeliveryDate(parsed.deliveryDate || getTodayDateInputValue());
       setQuickHashtags(parsed.quickHashtags || "");
       setQuickDescription(parsed.quickDescription || "");
       setPlanObjective(parsed.planObjective || "");
       setShowPlanObjectiveInPdf(parsed.showPlanObjectiveInPdf === true);
       setPlanMode(parsed.planMode === "weekly" ? "weekly" : "single");
       setContentMode(
-        parsed.contentMode === "paragraphs" || parsed.pautaEditorMode === "paragraphs"
-          ? "paragraphs"
-          : "table",
+        parsed.contentMode === "both"
+          ? "both"
+          : parsed.contentMode === "paragraphs" || parsed.pautaEditorMode === "paragraphs"
+            ? "paragraphs"
+            : "table",
       );
       const restriction = parsed.selectedRestriction || parsed.clinicalRestriction || "";
       setSelectedRestriction(restriction);
@@ -653,7 +696,9 @@ export default function QuickDeliverableClient() {
                 : "auto"),
         );
       }
-      setMeals(Array.isArray(parsed.meals) && parsed.meals.length > 0 ? parsed.meals : [createMeal("Desayuno")]);
+      setTableMode(getFastDeliverableTableMode(parsed.tableMode));
+      setOptionCount(Math.max(1, Math.min(3, Number(parsed.optionCount) || 1)));
+      setMeals(normalizeQuickMeals(parsed.meals).length > 0 ? normalizeQuickMeals(parsed.meals) : [createMeal("Desayuno")]);
       setAvoidFoods(
         Array.isArray(parsed.avoidFoods) && parsed.avoidFoods.length > 0
           ? parsed.avoidFoods.map((item: string | QuickAvoidFoodRow) =>
@@ -720,6 +765,8 @@ export default function QuickDeliverableClient() {
         planObjective,
         showPlanObjectiveInPdf,
         planMode,
+        tableMode,
+        optionCount,
         contentMode,
         hasClinicalRestriction,
         selectedRestriction,
@@ -746,6 +793,8 @@ export default function QuickDeliverableClient() {
     planObjective,
     showPlanObjectiveInPdf,
     planMode,
+    tableMode,
+    optionCount,
     contentMode,
     hasClinicalRestriction,
     selectedRestriction,
@@ -773,7 +822,7 @@ export default function QuickDeliverableClient() {
         const creation = await fetchCreation(creationId);
         const content = creation.content || {};
         setTitle(content.title ?? creation.name ?? "");
-        setDeliveryDate(content.deliveryDate || new Date().toISOString().slice(0, 10));
+         setDeliveryDate(content.deliveryDate || getTodayDateInputValue());
         setQuickHashtags(content.quickHashtags || "");
         setQuickDescription(content.quickDescription || "");
         setPlanObjective(content.planObjective || "");
@@ -787,7 +836,13 @@ export default function QuickDeliverableClient() {
           content.pautaEditorMode === "paragraphs" ||
           (Array.isArray(content.paragraphs) && content.paragraphs.length > 0);
 
-        setContentMode(isParagraphsMode ? "paragraphs" : "table");
+        setContentMode(
+          content.contentMode === "both"
+            ? "both"
+            : isParagraphsMode
+              ? "paragraphs"
+              : "table",
+        );
 
         const restriction =
           content.clinicalRestriction ||
@@ -803,9 +858,11 @@ export default function QuickDeliverableClient() {
           setParagraphs([createParagraph()]);
         }
 
-        setMeals(
-          Array.isArray(content.meals) && content.meals.length > 0
-            ? content.meals
+          setTableMode(getFastDeliverableTableMode(content.tableMode));
+          setOptionCount(Math.max(1, Math.min(3, Number(content.optionCount) || 1)));
+          setMeals(
+           normalizeQuickMeals(content.meals).length > 0
+             ? normalizeQuickMeals(content.meals)
             : [createMeal("Desayuno")],
         );
 
@@ -878,13 +935,15 @@ export default function QuickDeliverableClient() {
 
         const serialized = JSON.stringify({
           title: content.title ?? creation.name ?? "",
-          deliveryDate: content.deliveryDate || new Date().toISOString().slice(0, 10),
+           deliveryDate: content.deliveryDate || getTodayDateInputValue(),
           quickHashtags: content.quickHashtags || "",
           quickDescription: content.quickDescription || "",
           planObjective: content.planObjective || "",
           showPlanObjectiveInPdf: content.showPlanObjectiveInPdf === true,
-          planMode: content.planMode === "weekly" ? "weekly" : "single",
-          contentMode: isParagraphsMode ? "paragraphs" : "table",
+           planMode: content.planMode === "weekly" ? "weekly" : "single",
+           tableMode: getFastDeliverableTableMode(content.tableMode),
+           optionCount: Math.max(1, Math.min(3, Number(content.optionCount) || 1)),
+          contentMode: content.contentMode === "both" ? "both" : isParagraphsMode ? "paragraphs" : "table",
           hasClinicalRestriction: content.hasClinicalRestriction ?? Boolean(restriction),
           selectedRestriction: restriction,
           paragraphs: content.paragraphs || [],
@@ -895,7 +954,8 @@ export default function QuickDeliverableClient() {
             id: m.id,
             section: m.section,
             mealText: m.mealText,
-            weeklyMealTexts: m.weeklyMealTexts,
+             weeklyMealTexts: m.weeklyMealTexts,
+             optionTexts: m.optionTexts,
           })),
           avoidFoods: avoidList.map((af: any) => ({
             id: af.id,
@@ -964,11 +1024,16 @@ export default function QuickDeliverableClient() {
       planObjective,
       showPlanObjectiveInPdf,
       planMode,
+      tableMode,
+      optionCount,
       meals: meals.map(m => ({
         id: m.id,
         section: m.section,
         mealText: m.mealText,
-        weeklyMealTexts: m.weeklyMealTexts
+        weeklyMealTexts: m.weeklyMealTexts,
+        optionTexts: m.optionTexts,
+        time: m.time,
+        portion: m.portion,
       })),
       avoidFoods: avoidFoods.map(af => ({
         id: af.id,
@@ -1000,6 +1065,8 @@ export default function QuickDeliverableClient() {
     planObjective,
     showPlanObjectiveInPdf,
     planMode,
+    tableMode,
+    optionCount,
     meals,
     avoidFoods,
     selectedPatient,
@@ -1016,21 +1083,36 @@ export default function QuickDeliverableClient() {
     [avoidFoods],
   );
 
-  const hasMealsContent = useMemo(
-    () => contentMode === "paragraphs"
-      ? paragraphs.some((paragraph) => Boolean(
-          paragraph.category.trim() ||
-          paragraph.imagePath ||
-          paragraph.portionsPerDay?.trim() ||
-          paragraph.foods.some((food) => food.food.trim() || food.portion.trim()),
-        ))
-      : planMode === "single"
+  const hasMealsTableContent = useMemo(
+    () =>
+      tableMode === "options"
+        ? meals.some((meal) => meal.optionTexts?.slice(0, optionCount).some((option) => option.trim().length > 0))
+        : planMode === "single"
         ? meals.some((meal) => meal.mealText.trim().length > 0)
         : meals.some((meal) =>
             QUICK_WEEK_DAYS.some((day) => (meal.weeklyMealTexts?.[day] || "").trim().length > 0),
           ),
-    [contentMode, paragraphs, planMode, meals],
+    [tableMode, optionCount, planMode, meals],
   );
+
+  const hasParagraphsContent = useMemo(
+    () =>
+      paragraphs.some((paragraph) =>
+        Boolean(
+          paragraph.category.trim() ||
+          paragraph.portionsPerDay?.trim() ||
+          paragraph.foods.some((food) => food.food.trim() || food.portion.trim()),
+        ),
+      ),
+    [paragraphs],
+  );
+
+  const hasMealsContent = useMemo(() => {
+    if (contentMode === "table") return hasMealsTableContent;
+    if (contentMode === "paragraphs") return hasParagraphsContent;
+    if (contentMode === "both") return hasMealsTableContent && hasParagraphsContent;
+    return false;
+  }, [contentMode, hasMealsTableContent, hasParagraphsContent]);
 
   const missingRequirements = useMemo(() => {
     const missing: Array<{ id: string; label: string; ref: React.RefObject<HTMLElement | null> }> = [];
@@ -1043,9 +1125,15 @@ export default function QuickDeliverableClient() {
       return missing;
     }
     if (includeMeals && !hasMealsContent) {
+      const label =
+        contentMode === "both"
+          ? "Tabla de comidas e Imágenes por categoría (Debes completar ambas) *"
+          : contentMode === "paragraphs"
+          ? "Imágenes por categoría *"
+          : "Tabla de comidas *";
       missing.push({
         id: "meals",
-        label: `${contentMode === "paragraphs" ? "Imágenes por categoría" : "Tabla de comidas"} *`,
+        label,
         ref: mealsSectionRef,
       });
     }
@@ -1091,26 +1179,6 @@ export default function QuickDeliverableClient() {
     );
   }, [patients, patientSearch]);
 
-  const selectCategoryImage = (imagePath: string) => {
-    if (!selectedParagraphId) return;
-    const matchingCategory = Object.entries(CATEGORY_IMAGE_MAP).find(
-      ([, path]) => path === imagePath,
-    )?.[0];
-
-    setParagraphs((current) =>
-      current.map((p) =>
-        p.id === selectedParagraphId
-          ? {
-              ...p,
-              imagePath,
-              ...(matchingCategory ? { category: matchingCategory } : {}),
-            }
-          : p,
-      ),
-    );
-    setIsImageSelectorOpen(false);
-  };
-
   const addParagraph = () => {
     setParagraphs((prev) => [...prev, createParagraph()]);
   };
@@ -1129,27 +1197,74 @@ export default function QuickDeliverableClient() {
     if (isHydrating) return;
     setIsGeneratingPautaAi(true);
     try {
-      const response = await fetchApi("/recipes/quick-ai-fill", {
+      const selectedCategoriesList =
+        aiSelectedCategories.length > 0
+          ? aiSelectedCategories
+          : [
+              "Lácteos",
+              "Huevos",
+              "Carnes y Vísceras",
+              "Cereales y Derivados",
+              "Verduras",
+              "Frutas",
+            ];
+
+      const response = await fetchApi("/pautas/ai-generate", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           restriction: selectedRestriction || "General",
-          allowedFoods: aiAllowedFoods,
-          restrictedFoods: aiRestrictedFoods,
-          selectedCategories: aiSelectedCategories,
-          allowExternalFoods,
+          categories: selectedCategoriesList,
+          allowedFoods: aiAllowedFoods
+            .split(/[\n,]+/)
+            .map((s) => s.trim())
+            .filter(Boolean),
+          restrictedFoods: aiRestrictedFoods
+            .split(/[\n,]+/)
+            .map((s) => s.trim())
+            .filter(Boolean),
+          allowExternalFoods: true,
         }),
       });
+
       const data = await response.json().catch(() => null);
-      if (response.ok && data && Array.isArray(data.paragraphs)) {
-        setParagraphs(data.paragraphs);
+      if (
+        response.ok &&
+        data &&
+        Array.isArray(data.paragraphs) &&
+        data.paragraphs.length > 0
+      ) {
+        const formattedParagraphs: QuickParagraph[] = data.paragraphs.map(
+          (p: any) => ({
+            id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            category: p.category || "",
+            categoryOptional: p.categoryOptional || "",
+            portionsPerDay: p.portionsPerDay || "",
+            foods:
+              Array.isArray(p.foods) && p.foods.length > 0
+                ? p.foods.map((f: any) => ({
+                    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                    portion: f.portion || "",
+                    food: f.food || "",
+                  }))
+                : [{ id: `${Date.now()}-1`, portion: "", food: "" }],
+            imagePath: p.category ? resolveCategoryImage(p.category) : null,
+          }),
+        );
+
+        setParagraphs(formattedParagraphs);
         toast.success("Pauta generada con Naty AI");
+        setIsAiModalOpen(false);
+      } else {
+        toast.error(
+          data?.message || "No se pudieron generar las categorías con IA",
+        );
       }
     } catch (err) {
       console.error(err);
-      toast.error("Error al generar pauta con IA");
+      toast.error("Error de conexión al generar pauta con IA");
     } finally {
       setIsGeneratingPautaAi(false);
-      setIsAiModalOpen(false);
     }
   };
 
@@ -1204,6 +1319,19 @@ export default function QuickDeliverableClient() {
   );
 
   const quickAiMealTargets = useMemo(() => {
+    if (tableMode === "options") {
+      return meals.flatMap((meal) => {
+        const mealSection = meal.section.trim();
+        if (!mealSection) return [];
+        const optionIndexes = (meal.optionTexts || [])
+          .slice(0, optionCount)
+          .map((option, index) => option.trim() ? null : index)
+          .filter((index): index is number => index !== null);
+        return optionIndexes.length > 0
+          ? [{ mealSection, count: optionIndexes.length, slotId: meal.id, optionIndexes }]
+          : [];
+      });
+    }
     const counts = new Map<string, number>();
     if (planMode === "single") {
       meals.forEach((meal) => {
@@ -1228,7 +1356,7 @@ export default function QuickDeliverableClient() {
       mealSection,
       count,
     }));
-  }, [meals, planMode]);
+  }, [meals, optionCount, planMode, tableMode]);
 
   const quickPatientMetrics = useMemo(
     () => resolveQuickPatientMetrics(selectedPatient),
@@ -1311,14 +1439,17 @@ export default function QuickDeliverableClient() {
     setDeliveryDate(
       typeof content.deliveryDate === "string" && content.deliveryDate.trim()
         ? content.deliveryDate
-        : new Date().toISOString().slice(0, 10),
+         : getTodayDateInputValue(),
     );
     setQuickHashtags(typeof content.quickHashtags === "string" ? content.quickHashtags : "");
     setQuickDescription(typeof content.quickDescription === "string" ? content.quickDescription : "");
     setPlanObjective(typeof content.planObjective === "string" ? content.planObjective : "");
     setShowPlanObjectiveInPdf(content.showPlanObjectiveInPdf === true);
     setPlanMode(content.planMode === "weekly" ? "weekly" : "single");
-    setMeals(importedMeals.length > 0 ? importedMeals : [createMeal("Desayuno")]);
+    setTableMode(getFastDeliverableTableMode(content.tableMode));
+    setOptionCount(Math.max(1, Math.min(3, Number(content.optionCount) || 1)));
+    const normalizedImportedMeals = normalizeQuickMeals(importedMeals);
+    setMeals(normalizedImportedMeals.length > 0 ? normalizedImportedMeals : [createMeal("Desayuno")]);
     setAvoidFoods(
       importedAvoidFoods.length > 0
         ? importedAvoidFoods.map((item) =>
@@ -1505,6 +1636,7 @@ export default function QuickDeliverableClient() {
       id: meal.id,
       section: meal.section,
       mealText: meal.mealText,
+      optionTexts: [...(meal.optionTexts || [])],
       weeklyMealTexts: { ...(meal.weeklyMealTexts || {}) },
     }));
 
@@ -1513,6 +1645,13 @@ export default function QuickDeliverableClient() {
     toast.info("Naty está preparando opciones. Puedes seguir editando mientras tanto.");
 
     try {
+      const deliverableContext = [
+        aiNotes.trim(),
+        title.trim() ? `Título del entregable: ${title.trim()}.` : "",
+        quickHashtags.trim() ? `Etiquetas del enfoque: ${quickHashtags.trim()}.` : "",
+        quickDescription.trim() ? `Descripción del entregable: ${quickDescription.trim()}.` : "",
+        planObjective.trim() ? `Objetivo del plan: ${planObjective.trim()}.` : "",
+      ].filter(Boolean).join("\n");
       const response = await fetchApi("/recipes/quick-ai-fill", {
         method: "POST",
         headers: {
@@ -1520,14 +1659,16 @@ export default function QuickDeliverableClient() {
         },
         body: JSON.stringify({
           payload: {
-            notes: aiNotes,
+            dietName: title.trim() || undefined,
+            notes: deliverableContext,
+            specialConsiderations: planObjective.trim() || undefined,
             allowedFoodsMain: aiAllowedFoods
               .split(",")
               .map((item) => item.trim())
               .filter(Boolean),
             allowExternalFoods: true,
             mealSectionTargets: quickAiMealTargets,
-            generationMode: planMode,
+            generationMode: tableMode === "options" ? "options" : planMode,
             patient: {
               fullName: selectedPatient.fullName || "",
               gender: selectedPatient.gender || "",
@@ -1542,6 +1683,13 @@ export default function QuickDeliverableClient() {
             existingDishes: meals
               .flatMap((meal) => {
                 if (!meal.section.trim()) return [];
+                if (tableMode === "options") {
+                  return (meal.optionTexts || [])
+                    .slice(0, optionCount)
+                    .map((title) => title.trim())
+                    .filter(Boolean)
+                    .map((title) => ({ title, mealSection: meal.section }));
+                }
                 if (planMode === "single") {
                   return meal.mealText.trim()
                     ? [{ title: meal.mealText.trim(), mealSection: meal.section }]
@@ -1565,9 +1713,11 @@ export default function QuickDeliverableClient() {
       console.info("[Naty] Respuesta de generación rápida:", result);
       const dishes = Array.isArray(result?.dishes)
         ? result.dishes
-            .map((dish: { title?: string; mealSection?: string }) => ({
+            .map((dish: { title?: string; mealSection?: string; slotId?: string; optionIndex?: number }) => ({
               title: String(dish?.title || "").trim(),
               mealSection: String(dish?.mealSection || "").trim(),
+              slotId: String(dish?.slotId || "").trim(),
+              optionIndex: Number.isInteger(dish?.optionIndex) ? dish.optionIndex : -1,
             }))
             .filter((dish: { title: string; mealSection: string }) => dish.title && dish.mealSection)
         : [];
@@ -1577,6 +1727,19 @@ export default function QuickDeliverableClient() {
         return current.map((meal) => {
           const original = pendingRows.find((row) => row.id === meal.id);
           if (!meal.section.trim()) return meal;
+
+          if (tableMode === "options") {
+            const nextOptions = [...(meal.optionTexts || [])];
+            const originalOptions = original?.optionTexts || [];
+            for (let dishIndex = remaining.length - 1; dishIndex >= 0; dishIndex -= 1) {
+              const dish = remaining[dishIndex];
+              if (dish.slotId !== meal.id || dish.optionIndex < 0 || dish.optionIndex >= optionCount) continue;
+              if ((originalOptions[dish.optionIndex] || "").trim() || (nextOptions[dish.optionIndex] || "").trim()) continue;
+              nextOptions[dish.optionIndex] = dish.title;
+              remaining.splice(dishIndex, 1);
+            }
+            return { ...meal, optionTexts: nextOptions };
+          }
 
           if (planMode === "single") {
             const targetDishIndex = remaining.findIndex(
@@ -1700,7 +1863,7 @@ export default function QuickDeliverableClient() {
     overrides: Record<string, string> = {},
   ) => {
     const nextResources = resourcesToAdd.map((resource) => {
-      const resolved = replaceResourceVariables(resource.content || "", patient, overrides);
+      const resolved = replaceResourceVariables(resource.content || "", patient, overrides, planObjective);
       return {
         resourceId: resource.id,
         title: resource.title,
@@ -1734,7 +1897,7 @@ export default function QuickDeliverableClient() {
       const missingVariables = Array.from(
         new Set(
           resourcesToAdd.flatMap((resource) =>
-            replaceResourceVariables(resource.content || "", selectedPatient).missing,
+            replaceResourceVariables(resource.content || "", selectedPatient, {}, planObjective).missing,
           ),
         ),
       );
@@ -1742,7 +1905,7 @@ export default function QuickDeliverableClient() {
       if (missingVariables.length > 0) {
         setPendingResourceIds(resourcesToAdd.map((resource) => resource.id));
         setPendingResourceVariables(missingVariables);
-        setResourceVariableValues({});
+        setResourceVariableValues(getPatientVariableValues(selectedPatient, planObjective));
         setIsResourceModalOpen(false);
         setIsResourceVariablesModalOpen(true);
         return;
@@ -1815,6 +1978,46 @@ export default function QuickDeliverableClient() {
           : meal,
       ),
     );
+  };
+
+  const updateMealOption = (mealId: string, optionIndex: number, value: string) => {
+    setMeals((current) =>
+      current.map((meal) => {
+        if (meal.id !== mealId) return meal;
+        const optionTexts = [...(meal.optionTexts || [])];
+        optionTexts[optionIndex] = value;
+        return { ...meal, optionTexts };
+      }),
+    );
+  };
+
+  const applyOptionCount = (nextCount: number) => {
+    const count = Math.max(1, Math.min(3, nextCount));
+    setMeals((current) => current.map((meal) => ({
+      ...meal,
+      optionTexts: (meal.optionTexts || []).slice(0, count),
+    })));
+    setOptionCount(count);
+    setPendingOptionCount(null);
+  };
+
+  const requestOptionCount = (nextCount: number) => {
+    if (nextCount >= optionCount) {
+      setMeals((current) => current.map((meal) => ({
+        ...meal,
+        optionTexts: [...(meal.optionTexts || []), ...Array(Math.max(0, nextCount - (meal.optionTexts || []).length)).fill("")],
+      })));
+      setOptionCount(nextCount);
+      return;
+    }
+    const hasRemovedContent = meals.some((meal) =>
+      (meal.optionTexts || []).slice(nextCount, optionCount).some((option) => option.trim()),
+    );
+    if (hasRemovedContent) {
+      setPendingOptionCount(nextCount);
+      return;
+    }
+    applyOptionCount(nextCount);
   };
 
   const addMeal = () => {
@@ -1947,7 +2150,7 @@ export default function QuickDeliverableClient() {
       (selectedPatient.birthDate ? calculateAge(selectedPatient.birthDate) : null);
 
     const pdfParagraphs =
-      contentMode === "paragraphs"
+      contentMode === "paragraphs" || contentMode === "both"
         ? await Promise.all(
             paragraphs.map(async (paragraph) => ({
               title: paragraph.categoryOptional
@@ -1957,7 +2160,9 @@ export default function QuickDeliverableClient() {
               foods: paragraph.foods
                 .map((food) => formatPdfParagraphFood(food.portion, food.food))
                 .filter(Boolean),
-              imagePath: await convertPdfImageToPng(paragraph.imagePath),
+              imagePath: await convertPdfImageToPng(
+                paragraph.category ? resolveCategoryImage(paragraph.category) : null,
+              ),
             })),
           )
         : [];
@@ -1973,22 +2178,12 @@ export default function QuickDeliverableClient() {
       nutritionistName,
       nutritionistEmail,
       planMode,
+      tableMode,
       contentMode,
       clinicalRestriction:
         hasClinicalRestriction && selectedRestriction ? selectedRestriction : null,
       paragraphs: pdfParagraphs,
-      meals: includeMeals
-        ? planMode === "single"
-          ? meals.map((m) => ({ ...m, time: m.time || "" }))
-          : meals.flatMap((meal) =>
-              QUICK_WEEK_DAYS.map((day) => ({
-                ...meal,
-                time: meal.time || "",
-                section: `${day} - ${meal.section || "Sin categoria"}`,
-                mealText: meal.weeklyMealTexts?.[day] || "",
-              })),
-            )
-        : [],
+      meals: includeMeals ? normalizeFastDeliverableMeals(meals, tableMode, planMode) : [],
       avoidFoods: includeAvoidFoods ? validAvoidFoods : [],
       resources: includeResources
         ? selectedResolvedResources.map((resource) => ({
@@ -2024,11 +2219,19 @@ export default function QuickDeliverableClient() {
 
   const buildQuickDeliverablePromptPayload = () => ({
     payload: {
-      notes: aiNotes,
+      dietName: title.trim() || undefined,
+      notes: [
+        aiNotes.trim(),
+        title.trim() ? `Título del entregable: ${title.trim()}.` : "",
+        quickHashtags.trim() ? `Etiquetas del enfoque: ${quickHashtags.trim()}.` : "",
+        quickDescription.trim() ? `Descripción del entregable: ${quickDescription.trim()}.` : "",
+        planObjective.trim() ? `Objetivo del plan: ${planObjective.trim()}.` : "",
+      ].filter(Boolean).join("\n"),
+      specialConsiderations: planObjective.trim() || undefined,
       allowedFoodsMain: aiAllowedFoods.split(",").map((item) => item.trim()).filter(Boolean),
       allowExternalFoods: true,
       mealSectionTargets: quickAiMealTargets,
-      generationMode: planMode,
+      generationMode: tableMode === "options" ? "options" : planMode,
       patient: {
         fullName: selectedPatient.fullName || "",
         gender: selectedPatient.gender || "",
@@ -2041,6 +2244,13 @@ export default function QuickDeliverableClient() {
       patientId: selectedPatient.id || undefined,
       existingDishes: meals.flatMap((meal) => {
         if (!meal.section.trim()) return [];
+        if (tableMode === "options") {
+          return (meal.optionTexts || [])
+            .slice(0, optionCount)
+            .map((title) => title.trim())
+            .filter(Boolean)
+            .map((title) => ({ title, mealSection: meal.section }));
+        }
         if (planMode === "single") {
           return meal.mealText.trim()
             ? [{ title: meal.mealText.trim(), mealSection: meal.section }]
@@ -2062,12 +2272,66 @@ export default function QuickDeliverableClient() {
     }
     setIsExportingPdf(true);
     try {
+      if (hasChanges) {
+        await saveCreation({
+          name: title.trim() || DEFAULT_TITLE,
+          type: "FAST_DELIVERABLE",
+          content: {
+            title,
+            deliveryDate,
+            quickHashtags,
+            quickDescription,
+            planObjective,
+            showPlanObjectiveInPdf,
+            planMode,
+            tableMode,
+            optionCount,
+            contentMode,
+            paragraphs,
+            meals,
+            avoidFoods: validAvoidFoods,
+            resources: resolvedResourcePages,
+            selectedResourceKeys,
+            includeMeals,
+            includeAvoidFoods,
+            includeResources,
+            includePortionGuide,
+            portionGuide: portionGuideRows
+              .map((row) => ({
+                category: row.category.trim(),
+                portion: row.portion.trim(),
+              }))
+              .filter((row) => row.category || row.portion),
+            portionGuideRows,
+            supplementNote: getProteinSupplementNote(),
+            updatedAt: new Date().toISOString(),
+          },
+          metadata: {
+            ...(creationDescription.trim() ? { description: creationDescription.trim() } : {}),
+            ...(selectedPatient.fullName
+              ? { patientId: selectedPatient.id, patientName: selectedPatient.fullName }
+              : {}),
+            mealCount: includeMeals ? meals.length : 0,
+            avoidFoodsCount: includeAvoidFoods ? validAvoidFoods.length : 0,
+            resourceCount: includeResources ? selectedResolvedResources.length : 0,
+          },
+          tags: ["rapido", "express"],
+        });
+        setLastSavedState(getCurrentStateString());
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("creation-saved"));
+        }
+      }
+
       await downloadFastDeliverablePdf(await buildPdfPayload());
-      toast.success("PDF express descargado correctamente.");
-      setIsSaveCreationModalOpen(true);
-    } catch (error) {
+      toast.success("PDF descargado y guardado en tus creaciones.");
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("membership-usage-updated"));
+      }
+    } catch (error: any) {
       console.error(error);
-      toast.error("No se pudo generar el PDF.");
+      const msg = error?.message || "No se pudo generar el PDF.";
+      toast.error(msg);
     } finally {
       setIsExportingPdf(false);
     }
@@ -2093,6 +2357,9 @@ export default function QuickDeliverableClient() {
           planObjective,
           showPlanObjectiveInPdf,
           planMode,
+          tableMode,
+          optionCount,
+          contentMode,
           meals,
           avoidFoods: validAvoidFoods,
           resources: resolvedResourcePages,
@@ -2141,12 +2408,16 @@ export default function QuickDeliverableClient() {
   const resetQuickDeliverable = () => {
     if (isHydrating) return;
     setTitle("");
-    setDeliveryDate(new Date().toISOString().slice(0, 10));
+    setDeliveryDate(getTodayDateInputValue());
     setQuickHashtags("");
     setQuickDescription("");
     setPlanObjective("");
     setShowPlanObjectiveInPdf(false);
     setPlanMode("single");
+    setTableMode("simple");
+    setOptionCount(1);
+    setContentMode("table");
+    setParagraphs([createParagraph()]);
     setMeals([createMeal("Desayuno"), createMeal("Almuerzo"), createMeal("Cena")]);
     setAvoidFoods([createAvoidFoodRow()]);
     setLastSavedState(null);
@@ -2189,13 +2460,6 @@ export default function QuickDeliverableClient() {
         onClick: () => setIsImportCreationModalOpen(true),
       },
       {
-        id: "ai-nutri",
-        icon: Sparkles,
-        label: "IA Nutri",
-        variant: "emerald",
-        onClick: () => setIsCreatedRecipesModalOpen(true),
-      },
-      {
         id: "food-reference-book",
         icon: Apple,
         label: "Manual de alimentos",
@@ -2204,39 +2468,11 @@ export default function QuickDeliverableClient() {
         onClick: () => setIsFoodReferenceBookOpen(true),
       },
       {
-        id: "pdf",
-        icon: isExportingPdf ? Loader2 : Download,
-        label: "Descargar PDF",
-        description: isExportingPdf
-          ? "Generando PDF..."
-          : missingRequirements.length > 0
-            ? "Completa los pendientes para descargar el PDF"
-            : "Descargar PDF",
-        variant: "indigo",
-        disabled: isExportingPdf || missingRequirements.length > 0,
-        onClick: async () => {
-          if (isExportingPdf || missingRequirements.length > 0) return;
-          await handleExportPdf();
-        },
-      },
-      {
-        id: "save",
-        icon: Save,
-        label: "Guardar",
-        description: getSaveTooltipMessage() || "Guardar",
-        variant: "slate",
-        disabled: missingRequirements.length > 0 || !hasChanges,
-        onClick: () => {
-          if (missingRequirements.length > 0 || !hasChanges) return;
-          setIsSaveCreationModalOpen(true);
-        },
-      },
-      {
         id: "reset",
         icon: RotateCcw,
         label: "Reiniciar",
         variant: "rose",
-        onClick: resetQuickDeliverable,
+        onClick: () => setIsResetConfirmOpen(true),
       },
     ],
     [selectedPatient.fullName, isLoadingPatients, missingRequirements, hasChanges, isExportingPdf, isHydrating],
@@ -2352,13 +2588,13 @@ export default function QuickDeliverableClient() {
                     <p className="text-sm font-bold leading-6 text-amber-900">Puedes generar platos sin paciente o importar uno para personalizar mejor la IA.</p>
                     <p className="mt-2 text-xs leading-5 text-slate-500">Si importas un paciente, Naty considerará sus restricciones, objetivos y contexto clínico. El PDF sigue requiriendo un paciente vinculado.</p>
                   </div>
-                  <div className="flex w-full flex-col justify-center gap-3 sm:w-auto sm:flex-row">
+                  <div className="flex w-full flex-col justify-center gap-3 sm:w-auto sm:flex-row flex-wrap">
                     <Button
                       type="button"
                       variant="outline"
                       onClick={() => void openPatientImportModal()}
                       disabled={isLoadingPatients}
-                      className="h-10 min-w-48 justify-center rounded-xl border-emerald-200 bg-white px-4 text-sm text-emerald-700 font-semibold hover:bg-emerald-50 hover:border-emerald-300 transition-all"
+                      className="h-10 min-w-44 justify-center rounded-xl border-emerald-200 bg-white px-4 text-sm text-emerald-700 font-semibold hover:bg-emerald-50 hover:border-emerald-300 transition-all"
                     >
                       {isLoadingPatients ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin text-emerald-600" />
@@ -2372,10 +2608,27 @@ export default function QuickDeliverableClient() {
                       variant="outline"
                       onClick={startManualPatientEntry}
                       disabled={isLoadingPatients}
-                      className="h-10 min-w-48 justify-center rounded-xl border-slate-200 bg-white px-4 text-sm text-slate-700 font-semibold hover:bg-slate-50 hover:border-slate-300 transition-all"
+                      className="h-10 min-w-44 justify-center rounded-xl border-slate-200 bg-white px-4 text-sm text-slate-700 font-semibold hover:bg-slate-50 hover:border-slate-300 transition-all"
                     >
                       <FileText className="mr-2 h-4 w-4" />
                       Rellenar manualmente
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setSelectedPatient({
+                          ...createEmptyQuickPatient(),
+                           fullName: "tú persona",
+                          nutritionalFocus: "General / Entregable Express",
+                        });
+                        setIsManualPatientExpanded(false);
+                        toast.info("Modo pauta general activado. Puedes generar y configurar la IA sin vincular un paciente específico.");
+                      }}
+                      className="h-10 min-w-44 justify-center rounded-xl border-indigo-200 bg-indigo-50 px-4 text-sm text-indigo-700 font-semibold hover:bg-indigo-100 hover:border-indigo-300 transition-all"
+                    >
+                      <Sparkles className="mr-2 h-4 w-4 text-indigo-600" />
+                      Continuar sin paciente
                     </Button>
                   </div>
                 </div>
@@ -2552,6 +2805,7 @@ export default function QuickDeliverableClient() {
             onBack={goBack}
             onNext={goNext}
             isLastStep={currentStep === WIZARD_STEPS.length - 1}
+            hideNextOnLastStep
             nextDisabled={
               currentStep === 0 && (
                 !title.trim() ||
@@ -2574,7 +2828,7 @@ export default function QuickDeliverableClient() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <button
                       type="button"
                       onClick={() => setContentMode("table")}
@@ -2640,10 +2894,43 @@ export default function QuickDeliverableClient() {
                         </p>
                       </div>
                     </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setContentMode("both")}
+                      className={cn(
+                        "flex items-start gap-3.5 p-4 rounded-2xl border text-left transition-all cursor-pointer",
+                        contentMode === "both"
+                          ? "border-violet-500 bg-violet-50/40 shadow-md ring-2 ring-violet-500/20"
+                          : "border-slate-200 bg-white hover:bg-slate-50 text-slate-600",
+                      )}
+                    >
+                      <div className={cn(
+                        "p-3 rounded-xl shrink-0 mt-0.5 transition-colors",
+                        contentMode === "both" ? "bg-violet-100 text-violet-700" : "bg-slate-100 text-slate-500"
+                      )}>
+                        <Layers className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs font-black uppercase tracking-wider text-slate-900">
+                            Utilizar ambas
+                          </p>
+                          {contentMode === "both" && (
+                            <span className="text-[10px] font-extrabold text-violet-700 bg-violet-100 px-2 py-0.5 rounded-full">
+                              Activo
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-500 mt-1">
+                          Combina la tabla de comidas por horarios y la guía por categoría en el entregable.
+                        </p>
+                      </div>
+                    </button>
                   </div>
                 </div>
 
-                {contentMode === "paragraphs" ? (
+                {(contentMode === "paragraphs" || contentMode === "both") && (
                   <section
                     ref={mealsSectionRef}
                     className={cn(
@@ -2695,33 +2982,30 @@ export default function QuickDeliverableClient() {
                                 #{pIndex + 1}
                               </span>
 
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setSelectedParagraphId(paragraph.id);
-                                  setIsImageSelectorOpen(true);
-                                }}
-                                className="relative flex h-14 w-14 shrink-0 cursor-pointer overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xs transition-all hover:border-indigo-500 hover:ring-2 hover:ring-indigo-200 group/img"
-                                title="Cambiar imagen de categoría"
-                              >
-                                <img
-                                  src={paragraph.imagePath || CATEGORY_IMAGE_MAP[paragraph.category] || "/imag_categories/1.webp"}
-                                  alt={paragraph.category || "Categoría"}
-                                  className="h-full w-full object-cover"
-                                />
-                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity">
-                                  <ImageIcon className="w-4 h-4 text-white" />
-                                </div>
-                              </button>
+                              <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xs">
+                                {paragraph.category && resolveCategoryImage(paragraph.category) ? (
+                                  <img
+                                    src={resolveCategoryImage(paragraph.category)}
+                                    alt={paragraph.category}
+                                    className="h-full w-full object-cover"
+                                  />
+                                ) : (
+                                  <span className="px-1 text-center text-[9px] font-bold uppercase leading-3 text-slate-400">
+                                    Selecciona una categoría
+                                  </span>
+                                )}
+                              </div>
 
                               <div className="flex-1 space-y-1">
                                 <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Categoría</p>
                                 <select
                                   value={paragraph.category}
-                                  onChange={(e) => {
+                                   onChange={(e) => {
                                      const newCat = e.target.value;
-                                     const newImg = CATEGORY_IMAGE_MAP[newCat] || null;
-                                     updateParagraph(paragraph.id, { category: newCat, imagePath: newImg });
+                                      updateParagraph(paragraph.id, {
+                                        category: newCat,
+                                        imagePath: newCat ? resolveCategoryImage(newCat) : null,
+                                      });
                                   }}
                                   className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-800"
                                 >
@@ -2822,7 +3106,9 @@ export default function QuickDeliverableClient() {
                       Agregar otra categoría con imagen
                     </button>
                   </section>
-                ) : (
+                )}
+
+                {(contentMode === "table" || contentMode === "both") && (
                   <section
                     ref={mealsSectionRef}
                     className={cn(
@@ -2858,7 +3144,9 @@ export default function QuickDeliverableClient() {
                             </button>
                           </div>
                           <p className="mt-1 text-xs sm:text-sm text-slate-500">
-                            Arrastra los bloques para ordenar el día y completa hora, indicación y porción.
+                            {tableMode === "options"
+                              ? "Crea alternativas completas por tiempo de comida. La tabla final mostrará las opciones en columnas."
+                              : "Completa hora, indicación y porción para cada tiempo de comida."}
                           </p>
                         </div>
                         <Button
@@ -2878,7 +3166,45 @@ export default function QuickDeliverableClient() {
                         </Button>
                       </div>
 
-                      {planMode === "weekly" && (
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3 sm:p-4">
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                          <div className="flex rounded-xl border border-slate-200 bg-white p-1">
+                            <button
+                              type="button"
+                              onClick={() => setTableMode("simple")}
+                              className={cn("rounded-lg px-3 py-2 text-xs font-bold transition-colors", tableMode === "simple" ? "bg-emerald-600 text-white shadow-sm" : "text-slate-500 hover:bg-slate-100")}
+                            >
+                              Tabla simple
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setTableMode("options")}
+                              className={cn("rounded-lg px-3 py-2 text-xs font-bold transition-colors", tableMode === "options" ? "bg-violet-600 text-white shadow-sm" : "text-slate-500 hover:bg-slate-100")}
+                            >
+                              Tabla con opciones
+                            </button>
+                          </div>
+                          {tableMode === "options" && (
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Columnas</span>
+                              {[1, 2, 3].map((count) => (
+                                <button
+                                  key={count}
+                                  type="button"
+                                  onClick={() => requestOptionCount(count)}
+                                  disabled={!includeMeals || count === optionCount}
+                                  className={cn("h-8 min-w-8 rounded-lg border px-2 text-xs font-black transition-colors disabled:cursor-default", count === optionCount ? "border-violet-600 bg-violet-600 text-white" : "border-slate-200 bg-white text-slate-600 hover:border-violet-300 hover:text-violet-700")}
+                                >
+                                  {count}
+                                </button>
+                              ))}
+                              <span className="text-xs text-slate-500">{optionCount === 1 ? "opción" : "opciones"}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {planMode === "weekly" && tableMode === "simple" && (
                         <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
                           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                             <div className="hidden flex-wrap items-center gap-2">
@@ -2906,7 +3232,7 @@ export default function QuickDeliverableClient() {
                         </div>
                       )}
 
-                      <div className={cn("block md:hidden space-y-3", planMode === "weekly" && "hidden")}>
+                      <div className={cn("block md:hidden space-y-3", (planMode === "weekly" || tableMode === "options") && "hidden")}>
                         {meals.map((meal) => (
                           <div key={meal.id} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3.5 space-y-3">
                             <div className="flex items-center justify-between gap-2">
@@ -2978,8 +3304,8 @@ export default function QuickDeliverableClient() {
                       </div>
 
                       <div className={cn(
-                        "hidden md:block overflow-x-auto rounded-3xl border border-slate-200",
-                        planMode === "weekly" && "hidden",
+                        "overflow-x-auto rounded-3xl border border-slate-200",
+                        tableMode === "simple" && planMode !== "weekly" ? "hidden md:block" : "hidden",
                       )}>
                         <table className="w-full min-w-[860px] bg-white">
                           <thead className="bg-slate-50">
@@ -3082,7 +3408,7 @@ export default function QuickDeliverableClient() {
                           </tbody>
                         </table>
                       </div>
-                      {planMode === "weekly" && (
+                      {planMode === "weekly" && tableMode === "simple" && (
                         <div className="overflow-x-auto rounded-3xl border border-slate-200">
                           <table className="w-full min-w-[1500px] bg-white">
                             <thead className="bg-slate-50">
@@ -3174,6 +3500,51 @@ export default function QuickDeliverableClient() {
                           </table>
                         </div>
                       )}
+                      {tableMode === "options" && (
+                        <>
+                          <div className="block md:hidden space-y-3">
+                            {meals.map((meal) => (
+                              <div key={`options-mobile-${meal.id}`} className="rounded-2xl border border-violet-100 bg-violet-50/40 p-4 space-y-3">
+                                <div className="flex items-center justify-between gap-2">
+                                  <select value={meal.section} onChange={(e) => updateMeal(meal.id, "section", e.target.value)} disabled={!includeMeals} className="h-10 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-900">
+                                    <option value="">Seleccionar comida</option>
+                                    {QUICK_SECTIONS.map((section) => <option key={section} value={section}>{section}</option>)}
+                                  </select>
+                                  <button type="button" onClick={() => removeMeal(meal.id)} disabled={!includeMeals} className="flex h-10 w-10 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 text-rose-600"><Trash2 className="h-4 w-4" /></button>
+                                </div>
+                                {Array.from({ length: optionCount }, (_, optionIndex) => (
+                                  <div key={optionIndex}>
+                                    <label className="mb-1 block text-[9px] font-black uppercase tracking-wider text-violet-600">Opción {optionIndex + 1}</label>
+                                    <Textarea value={meal.optionTexts?.[optionIndex] || ""} onChange={(e) => updateMealOption(meal.id, optionIndex, e.target.value)} disabled={!includeMeals} placeholder="Preparación completa con cantidades" className="min-h-20 rounded-xl border-slate-200 bg-white text-xs leading-5" />
+                                  </div>
+                                ))}
+                              </div>
+                            ))}
+                            <button type="button" onClick={addMeal} disabled={!includeMeals} className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-violet-300 bg-violet-50 px-4 py-3 text-xs font-bold text-violet-700"><Plus className="h-4 w-4" />Agregar comida</button>
+                          </div>
+                          <div className="hidden overflow-x-auto rounded-3xl border border-violet-200 md:block">
+                            <table className="w-full min-w-[760px] bg-white">
+                              <thead className="bg-violet-50">
+                                <tr className="border-b border-violet-100">
+                                  <th className="w-44 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">Tiempo de comida</th>
+                                  {Array.from({ length: optionCount }, (_, optionIndex) => <th key={optionIndex} className="min-w-56 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">Opción {optionIndex + 1}</th>)}
+                                  <th className="w-20 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">Acción</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {meals.map((meal) => (
+                                  <tr key={`options-${meal.id}`} className="border-b border-slate-100 last:border-b-0">
+                                    <td className="px-4 py-3 align-top"><select value={meal.section} onChange={(e) => updateMeal(meal.id, "section", e.target.value)} disabled={!includeMeals} className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900"><option value="">Seleccionar</option>{QUICK_SECTIONS.map((section) => <option key={section} value={section}>{section}</option>)}</select></td>
+                                    {Array.from({ length: optionCount }, (_, optionIndex) => <td key={optionIndex} className="px-3 py-3 align-top"><Textarea value={meal.optionTexts?.[optionIndex] || ""} onChange={(e) => updateMealOption(meal.id, optionIndex, e.target.value)} disabled={!includeMeals} placeholder="Preparación completa con cantidades" className="min-h-24 rounded-xl border-slate-200 bg-white text-xs leading-5" /></td>)}
+                                    <td className="px-4 py-3 align-top"><button type="button" onClick={() => removeMeal(meal.id)} disabled={!includeMeals} className="flex h-11 w-11 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100"><Trash2 className="h-4 w-4" /></button></td>
+                                  </tr>
+                                ))}
+                                <tr><td colSpan={optionCount + 2} className="px-4 py-4"><button type="button" onClick={addMeal} disabled={!includeMeals} className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-violet-300 bg-violet-50 px-4 py-3 text-sm font-bold text-violet-700"><Plus className="h-4 w-4" />Agregar comida</button></td></tr>
+                              </tbody>
+                            </table>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </section>
                 )}
@@ -3203,7 +3574,7 @@ export default function QuickDeliverableClient() {
                           includeAvoidFoods ? "bg-emerald-500" : "bg-slate-300",
                         )}
                       />
-                      {includeAvoidFoods ? "Ocultar sección" : "Incluir sección"}
+                      {includeAvoidFoods ? "Omitir sección" : "Incluir sección"}
                     </button>
                     <p className="mt-1 text-xs sm:text-sm text-slate-500">
                       Agrega filas simples para dejar restricciones o recordatorios rápidos.
@@ -3319,7 +3690,7 @@ export default function QuickDeliverableClient() {
                           includeResources ? "bg-emerald-500" : "bg-slate-300",
                         )}
                       />
-                      {includeResources ? "Ocultar sección" : "Incluir sección"}
+                      {includeResources ? "Omitir sección" : "Incluir sección"}
                     </button>
                     <p className="mt-1 text-xs sm:text-sm text-slate-500">
                       Puedes sumar material breve adaptado al paciente.
@@ -3635,11 +4006,15 @@ export default function QuickDeliverableClient() {
                   <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-4">
                     <p className="text-[10px] font-black uppercase tracking-wider text-indigo-600">Comidas</p>
                     <p className="mt-1 text-sm font-semibold text-slate-800">
-                      {includeMeals ? `${meals.length} bloques` : "Sección oculta"}
+                      {includeMeals ? `${meals.length} bloques${tableMode === "options" ? ` · ${optionCount} ${optionCount === 1 ? "opción" : "opciones"}` : ""}` : "Sección oculta"}
                     </p>
-                    {includeMeals && meals.some((m) => m.mealText.trim()) && (
+                    {includeMeals && (tableMode === "options"
+                      ? meals.some((meal) => meal.optionTexts?.slice(0, optionCount).some((option) => option.trim()))
+                      : meals.some((meal) => meal.mealText.trim())) && (
                       <p className="mt-0.5 text-xs text-slate-500">
-                        {meals.filter((m) => m.mealText.trim()).length} bloques completos
+                        {tableMode === "options"
+                          ? `${meals.filter((meal) => meal.optionTexts?.slice(0, optionCount).some((option) => option.trim())).length} bloques con opciones`
+                          : `${meals.filter((meal) => meal.mealText.trim()).length} bloques completos`}
                       </p>
                     )}
                   </div>
@@ -3690,22 +4065,23 @@ export default function QuickDeliverableClient() {
                   >
                     {isExportingPdf ? "Generando..." : "Descargar PDF"}
                   </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => setIsSaveCreationModalOpen(true)}
-                    disabled={missingRequirements.length > 0 || !hasChanges}
-                    title={getSaveTooltipMessage()}
-                    className="h-11 rounded-2xl border-slate-200 font-bold disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Guardar
-                  </Button>
                 </div>
               </section>
               )}
         </PlanWizardShell>
          </div>
          </>}
-       </ModuleLayout>
+        </ModuleLayout>
+
+      <ConfirmationModal
+        isOpen={pendingOptionCount !== null}
+        onClose={() => setPendingOptionCount(null)}
+        onConfirm={() => pendingOptionCount !== null && applyOptionCount(pendingOptionCount)}
+        title="Eliminar opciones adicionales"
+        description="Las opciones retiradas contienen información y se eliminarán definitivamente de esta tabla."
+        confirmText="Eliminar opciones"
+        variant="destructive"
+      />
 
       <Modal
         isOpen={isResourceVariablesModalOpen}
@@ -4073,29 +4449,6 @@ export default function QuickDeliverableClient() {
         </div>
       </Modal>
 
-      {/* Modal Selector de Imagen de Categoría */}
-      <Modal
-        isOpen={isImageSelectorOpen}
-        onClose={() => setIsImageSelectorOpen(false)}
-        title="Seleccionar imagen de categoría"
-        className="max-w-2xl"
-      >
-        <div className="grid grid-cols-3 sm:grid-cols-4 gap-4 p-4 max-h-[450px] overflow-y-auto">
-          {Object.entries(CATEGORY_IMAGE_MAP).map(([catName, imgPath]) => (
-            <button
-              key={catName}
-              type="button"
-              onClick={() => selectCategoryImage(imgPath)}
-              className="flex flex-col items-center justify-center p-3 rounded-2xl border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/50 transition-all group"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={imgPath} alt={catName} className="h-16 w-16 object-contain group-hover:scale-105 transition-transform" />
-              <span className="mt-2 text-xs font-semibold text-slate-700 text-center">{catName}</span>
-            </button>
-          ))}
-        </div>
-      </Modal>
-
       {/* Modal Naty AI Pautas */}
       <Modal
         isOpen={isAiModalOpen}
@@ -4160,31 +4513,35 @@ export default function QuickDeliverableClient() {
         </div>
       </Modal>
 
-      {/* Modal para Seleccionar Imagen de Categoría */}
       <Modal
-        isOpen={isImageSelectorOpen}
-        onClose={() => setIsImageSelectorOpen(false)}
-        title="Seleccionar imagen de categoría"
-        className="max-w-2xl"
+        isOpen={isResetConfirmOpen}
+        onClose={() => setIsResetConfirmOpen(false)}
+        title="¿Reiniciar entregable?"
+        className="max-w-md"
       >
-        <div className="p-4 space-y-4">
-          <p className="text-xs text-slate-500">
-            Elige la imagen ilustrativa que acompañará esta categoría de alimentos en el entregable.
+        <div className="space-y-5 p-1">
+          <p className="text-sm leading-6 text-slate-600">
+            Se borrará el contenido actual del entregable y se iniciará uno nuevo. Esta acción no se puede deshacer.
           </p>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-h-[60vh] overflow-y-auto pr-1">
-            {Object.entries(CATEGORY_IMAGE_MAP).map(([catName, imgPath]) => (
-              <button
-                key={catName}
-                type="button"
-                onClick={() => selectCategoryImage(imgPath)}
-                className="flex flex-col items-center gap-2 p-3 rounded-2xl border border-slate-200 bg-white hover:border-indigo-500 hover:bg-indigo-50/50 hover:shadow-md transition-all cursor-pointer group text-left"
-              >
-                <div className="w-16 h-16 rounded-xl overflow-hidden bg-slate-100 flex items-center justify-center border border-slate-100 shrink-0">
-                  <img src={imgPath} alt={catName} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-                </div>
-                <span className="text-xs font-bold text-slate-800 text-center line-clamp-2">{catName}</span>
-              </button>
-            ))}
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-xl"
+              onClick={() => setIsResetConfirmOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              className="rounded-xl bg-rose-600 text-white hover:bg-rose-700"
+              onClick={() => {
+                resetQuickDeliverable();
+                setIsResetConfirmOpen(false);
+              }}
+            >
+              Reiniciar
+            </Button>
           </div>
         </div>
       </Modal>

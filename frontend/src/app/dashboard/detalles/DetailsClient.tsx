@@ -32,13 +32,24 @@ import { cn } from "@/lib/utils";
 import { fetchApi } from "@/lib/api-base";
 import { getCurrentUser } from "@/lib/current-user";
 import { useSubscription } from "@/context/SubscriptionContext";
+import { useDetails } from "@/features/details";
 
 import { DEFAULT_CONSTRAINTS, DEFAULT_METRICS } from "@/lib/constants";
 
 export default function DetailsClient() {
   const { can } = useSubscription();
+  const {
+    tags: serverTags,
+    isTagsLoading: isLoading,
+    metrics,
+    isMetricsLoading: metricsLoading,
+    createTag,
+    deleteTag,
+    createMetric,
+    deleteMetric,
+  } = useDetails();
+
   const [tags, setTags] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
@@ -47,8 +58,6 @@ export default function DetailsClient() {
   const [currentUser, setCurrentUser] = useState<any>(null);
 
   // Metrics state
-  const [metrics, setMetrics] = useState<any[]>([]);
-  const [metricsLoading, setMetricsLoading] = useState(true);
   const [isAddMetricModalOpen, setIsAddMetricModalOpen] = useState(false);
   const [newMetric, setNewMetric] = useState({
     name: "",
@@ -61,7 +70,6 @@ export default function DetailsClient() {
   const [isDeleteMetricConfirmOpen, setIsDeleteMetricConfirmOpen] =
     useState(false);
   const [metricsSearchQuery, setMetricsSearchQuery] = useState("");
-  const [serverTags, setServerTags] = useState<any[]>([]);
 
   const ITEMS_PER_PAGE = 8;
   const [healthPage, setHealthPage] = useState(1);
@@ -80,50 +88,7 @@ export default function DetailsClient() {
     { id: "metricas" as const, label: "Métricas", icon: Activity },
   ];
 
-  const fetchTags = async (retries = 3) => {
-    setIsLoading(true);
-    try {
-      const response = await fetchApi("/tags");
-
-      if (response.ok) {
-        const data = await response.json();
-        setServerTags(data);
-        setTags(data.map((t: any) => t.name));
-      } else {
-        throw new Error("Unable to load tags");
-      }
-    } catch (error) {
-      if (retries > 0) {
-        setTimeout(() => fetchTags(retries - 1), 2000);
-      } else {
-        console.error("Error fetching tags", error);
-        toast.error("Error al cargar las restricciones");
-        setIsLoading(false);
-      }
-      return;
-    }
-    setIsLoading(false);
-  };
-
-  const fetchMetrics = async () => {
-    setMetricsLoading(true);
-    try {
-      const response = await fetchApi("/metrics");
-
-      if (response.ok) {
-        const data = await response.json();
-        setMetrics(data);
-      }
-    } catch (error) {
-      console.error("Error fetching metrics", error);
-    } finally {
-      setMetricsLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchTags();
-    fetchMetrics();
     const user = getCurrentUser();
     if (user) {
       setCurrentUser(user);
@@ -274,29 +239,12 @@ export default function DetailsClient() {
     }
 
     try {
-      const response = await fetchApi("/tags", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-         body: JSON.stringify({
-           name: newTag.trim(),
-           isClinicalRestriction: activeDetailsTab === "restricciones",
-         }),
-      });
-
-      if (response.ok) {
-        toast.success("Restricción creada exitosamente");
-        setNewTag("");
-        setIsAddModalOpen(false);
-        fetchTags();
-      } else {
-        const res = await response.json();
-        toast.error(res.message || "Error al crear la restricción");
-      }
-    } catch (error) {
-      console.error("Error creating tag", error);
-      toast.error("Error al conectar con el servidor");
+      await createTag(newTag.trim());
+      toast.success("Restricción creada exitosamente");
+      setNewTag("");
+      setIsAddModalOpen(false);
+    } catch (error: any) {
+      toast.error(error?.message || "Error al crear la restricción");
     }
   };
 
@@ -318,23 +266,15 @@ export default function DetailsClient() {
     try {
       const backendTag = serverTags.find((t: any) => t.name === tagName);
       if (backendTag && backendTag.id) {
-        const delReq = await fetchApi(`/tags/${backendTag.id}`, {
-          method: "DELETE",
-        });
-        if (delReq.ok) {
-          toast.success("Restricción eliminada");
-          fetchTags();
-        } else {
-          const err = await delReq.json();
-          toast.error(err.message || "Error al eliminar");
-        }
+        await deleteTag(backendTag.id);
+        toast.success("Restricción eliminada");
       } else {
         toast.error(
           "Esta restricción no se pudo encontrar en tu base de datos",
         );
       }
-    } catch (e) {
-      toast.error("Error de red");
+    } catch (e: any) {
+      toast.error(e?.message || "Error al eliminar");
     } finally {
       setIsDeleteConfirmOpen(false);
       setTagToDelete(null);
@@ -348,31 +288,18 @@ export default function DetailsClient() {
     }
 
     try {
-      const response = await fetchApi("/metrics", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(newMetric),
+      await createMetric(newMetric);
+      toast.success("Métrica creada");
+      setIsAddMetricModalOpen(false);
+      setNewMetric({
+        name: "",
+        unit: "",
+        key: "",
+        icon: "Activity",
+        color: "#64748b",
       });
-
-      if (response.ok) {
-        toast.success("Métrica creada");
-        setIsAddMetricModalOpen(false);
-        setNewMetric({
-          name: "",
-          unit: "",
-          key: "",
-          icon: "Activity",
-          color: "#64748b",
-        });
-        fetchMetrics();
-      } else {
-        const res = await response.json();
-        toast.error(res.message || "Error al crear la métrica");
-      }
-    } catch (error) {
-      toast.error("Error de conexión");
+    } catch (error: any) {
+      toast.error(error?.message || "Error al crear la métrica");
     }
   };
 
@@ -380,19 +307,10 @@ export default function DetailsClient() {
     if (!metricToDelete) return;
 
     try {
-      const response = await fetchApi(`/metrics/${metricToDelete.id}`, {
-        method: "DELETE",
-      });
-
-      if (response.ok) {
-        toast.success("Métrica eliminada");
-        fetchMetrics();
-      } else {
-        const err = await response.json();
-        toast.error(err.message || "Error al eliminar");
-      }
-    } catch (error) {
-      toast.error("Error de conexión");
+      await deleteMetric(metricToDelete.id);
+      toast.success("Métrica eliminada");
+    } catch (error: any) {
+      toast.error(error?.message || "Error al eliminar");
     } finally {
       setIsDeleteMetricConfirmOpen(false);
       setMetricToDelete(null);
@@ -488,17 +406,17 @@ export default function DetailsClient() {
               <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4 sm:p-8 pt-4">
                 {paginatedHealthTags.map((tag) => {
-                  const isSystem = DEFAULT_CONSTRAINTS.some((c) => c.id === tag);
                   const backendTag = serverTags.find((t) => t.name === tag);
-                  const isOwner = backendTag && !isSystem;
+                  const isSystem = DEFAULT_CONSTRAINTS.some((c) => c.id === tag) || (backendTag && backendTag.nutritionistId === null);
+                  const isOwner = backendTag && backendTag.nutritionistId === currentUser?.nutritionist?.id;
                   const isAdmin = currentUser?.role?.startsWith("ADMIN");
 
                   return (
                     <div
                       key={tag}
-                      className="flex items-center justify-between p-4 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-colors group"
+                      className="flex items-center justify-between p-4 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-colors group min-h-[72px]"
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 min-w-0 flex-1 pr-2">
                         <div
                           className={cn(
                             "h-10 w-10 rounded-full flex items-center justify-center shrink-0",
@@ -511,9 +429,9 @@ export default function DetailsClient() {
                             <Activity className="w-4 h-4 text-slate-500" />
                           )}
                         </div>
-                        <div className="min-w-0">
-                          <p className="font-semibold text-slate-700 truncate">{tag}</p>
-                          <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-400">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold text-slate-700 text-sm leading-snug line-clamp-2" title={tag}>{tag}</p>
+                          <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-400 mt-0.5">
                             {isSystem
                               ? "Sistema / Global"
                               : isOwner
@@ -525,7 +443,8 @@ export default function DetailsClient() {
                       {(isOwner || isAdmin) && !isSystem && (
                         <button
                           onClick={() => openDeleteConfirm(tag)}
-                          className="p-2 hover:bg-rose-100 text-slate-400 hover:text-rose-500 rounded-lg transition-colors shrink-0"
+                          className="p-2 hover:bg-rose-100 text-slate-400 hover:text-rose-500 rounded-lg transition-colors shrink-0 self-center"
+                          title="Eliminar restricción"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -598,29 +517,42 @@ export default function DetailsClient() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4 sm:p-8 pt-4">
                   {paginatedHashTags.map((tag) => {
                     const backendTag = serverTags.find((t) => t.name === tag);
-                    const isOwner = backendTag !== undefined;
+                    const isSystem = backendTag ? backendTag.nutritionistId === null : true;
+                    const isOwner = backendTag && backendTag.nutritionistId === currentUser?.nutritionist?.id;
                     const isAdmin = currentUser?.role?.startsWith("ADMIN");
 
                     return (
                       <div
                         key={tag}
-                        className="flex items-center justify-between p-4 rounded-xl border border-emerald-50 bg-emerald-50/10 hover:bg-emerald-50/30 transition-colors group"
+                        className="flex items-center justify-between p-4 rounded-xl border border-emerald-50 bg-emerald-50/10 hover:bg-emerald-50/30 transition-colors group min-h-[72px]"
                       >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className="h-10 w-10 rounded-full bg-indigo-100/50 flex items-center justify-center shrink-0">
-                            <Hash className="w-4 h-4 text-indigo-600" />
+                        <div className="flex items-center gap-3 min-w-0 flex-1 pr-2">
+                          <div className={cn(
+                            "h-10 w-10 rounded-full flex items-center justify-center shrink-0",
+                            isSystem ? "bg-indigo-100/60" : "bg-emerald-100/50"
+                          )}>
+                            {isSystem ? (
+                              <Globe className="w-4 h-4 text-indigo-600" />
+                            ) : (
+                              <Hash className="w-4 h-4 text-emerald-600" />
+                            )}
                           </div>
-                          <div className="min-w-0">
-                            <p className="font-semibold text-slate-700 truncate">{tag}</p>
-                            <p className="text-[10px] uppercase tracking-wider font-semibold text-indigo-400">
-                              {isOwner ? "Tu etiqueta" : "Compartida"}
+                          <div className="min-w-0 flex-1">
+                            <p className="font-semibold text-slate-700 text-sm leading-snug line-clamp-2" title={tag}>{tag}</p>
+                            <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-400 mt-0.5">
+                              {isSystem
+                                ? "Sistema / Global"
+                                : isOwner
+                                  ? "Creada por ti"
+                                  : "Creada por nutri"}
                             </p>
                           </div>
                         </div>
-                        {(isOwner || isAdmin) && (
+                        {(isOwner || isAdmin) && !isSystem && (
                           <button
                             onClick={() => openDeleteConfirm(tag)}
-                            className="p-2 hover:bg-rose-100 text-slate-400 hover:text-rose-500 rounded-lg transition-colors shrink-0"
+                            className="p-2 hover:bg-rose-100 text-slate-400 hover:text-rose-500 rounded-lg transition-colors shrink-0 self-center"
+                            title="Eliminar etiqueta"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -704,9 +636,9 @@ export default function DetailsClient() {
                 return (
                   <div
                     key={metric.id || metric.key}
-                    className="flex items-center justify-between p-4 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-colors group"
+                    className="flex items-center justify-between p-4 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-colors group min-h-[72px]"
                   >
-                    <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex items-center gap-3 min-w-0 flex-1 pr-2">
                       <div
                         className={cn(
                           "h-10 w-10 rounded-full flex items-center justify-center shrink-0",
@@ -719,11 +651,11 @@ export default function DetailsClient() {
                           <UserIcon className="w-4 h-4 text-indigo-500" />
                         )}
                       </div>
-                      <div className="min-w-0">
-                        <p className="font-semibold text-slate-700 truncate">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-slate-700 text-sm leading-snug line-clamp-2" title={metric.name}>
                           {metric.name}
                         </p>
-                        <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-400">
+                        <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-400 mt-0.5">
                           {isSystem
                             ? "Sistema / Global"
                             : isOwner
@@ -738,7 +670,8 @@ export default function DetailsClient() {
                           setMetricToDelete(metric);
                           setIsDeleteMetricConfirmOpen(true);
                         }}
-                        className="p-2 hover:bg-rose-100 text-slate-400 hover:text-rose-500 rounded-lg transition-colors shrink-0"
+                        className="p-2 hover:bg-rose-100 text-slate-400 hover:text-rose-500 rounded-lg transition-colors shrink-0 self-center"
+                        title="Eliminar métrica"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
