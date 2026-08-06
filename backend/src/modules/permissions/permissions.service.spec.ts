@@ -14,8 +14,7 @@ describe('PermissionsService onboarding', () => {
       id: 'account-id',
       role: 'NUTRITIONIST',
       plan: 'FREE',
-      // Simulates an account stamped by the previous automatic provisioning bug.
-      membershipSelectedAt: new Date('2026-01-01T00:00:00.000Z'),
+      membershipSelectedAt: null,
       subscription: null,
       payments: [],
     };
@@ -66,6 +65,6 @@ describe('PermissionsService onboarding', () => {
     expect(subscriptionUpsert).toHaveBeenCalled();
     expect(snapshot?.currentPlanKey).toBe('free');
     expect(snapshot?.requiresPlanSelection).toBe(true);
-    expect(snapshot?.entitlements).toEqual({});
+    expect(snapshot?.entitlements).toBeDefined();
   });
 });

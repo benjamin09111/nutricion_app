@@ -369,11 +369,7 @@ export class AuthService {
             role === 'NUTRITIONIST' || isNutritionist
               ? subscriptionPlan
               : SubscriptionPlan.ENTERPRISE,
-          membershipSelectedAt: needsDefaultMembership && membershipPlan
-            ? new Date()
-            : targetPlanId
-              ? new Date()
-              : null,
+          membershipSelectedAt: targetPlanId ? new Date() : null,
           status: 'ACTIVE' as AccountStatus,
           emailVerifiedAt: new Date(),
           emailVerificationToken: null,

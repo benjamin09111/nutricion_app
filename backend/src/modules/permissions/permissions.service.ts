@@ -201,7 +201,9 @@ export class PermissionsService {
             }
           : null;
 
-    const requiresPlanSelection = false;
+    const requiresPlanSelection = isStaffRole(account.role)
+      ? false
+      : !account.membershipSelectedAt;
 
     return {
       account,
