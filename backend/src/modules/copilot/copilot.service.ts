@@ -324,6 +324,7 @@ export class CopilotService {
                     grasas: z.number(),
                   })
                   .strict(),
+                { accountId, feature: 'copilot' },
               );
               const parsed = result.object;
               return {
@@ -401,6 +402,7 @@ export class CopilotService {
                       .max(maxIngredientes),
                   })
                   .strict(),
+                { accountId, feature: 'copilot' },
               );
               return result.object;
             } catch {

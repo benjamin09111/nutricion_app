@@ -218,7 +218,7 @@ export function Navbar({
               </>
             )}
 
-            {isAdmin && (
+            {false && (
               <button
                 type="button"
                 onClick={toggleViewMode}

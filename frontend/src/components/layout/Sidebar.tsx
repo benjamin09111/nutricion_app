@@ -116,6 +116,7 @@ const groups: SidebarGroup[] = [
   {
     title: "Ayuda",
     items: [
+      { name: "Guía de uso", href: "/dashboard/uso-recomendado", icon: BookOpen },
       { name: "Información de Cálculos", href: "/dashboard/herramientas/porciones-intercambio", icon: BookOpen },
       { name: "Preguntas frecuentes", href: "/dashboard/preguntas-frecuentes", icon: HelpCircle },
     ],

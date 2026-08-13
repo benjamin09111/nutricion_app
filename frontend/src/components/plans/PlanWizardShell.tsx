@@ -18,6 +18,7 @@ interface PlanWizardShellProps {
   nextDisabled?: boolean;
   hideNextOnLastStep?: boolean;
   onReset?: () => void;
+  lockFutureSteps?: boolean;
   children: React.ReactNode;
   className?: string;
 }
@@ -34,6 +35,7 @@ export function PlanWizardShell({
   nextDisabled = false,
   hideNextOnLastStep = false,
   onReset,
+  lockFutureSteps = false,
   children,
   className,
 }: PlanWizardShellProps) {
@@ -57,7 +59,9 @@ export function PlanWizardShell({
     }
 
     const isNextImmediate = targetStep === currentStep + 1;
-    const isAccessible = isNextImmediate || completedSteps.includes(targetStep);
+    const isAccessible =
+      completedSteps.includes(targetStep) ||
+      (!lockFutureSteps && isNextImmediate);
 
     if (!isAccessible) {
       toast.error("Debes completar la fase actual para desbloquear este paso.");
@@ -85,6 +89,7 @@ export function PlanWizardShell({
           completedSteps={completedSteps}
           onStepClick={handleStepClick}
           nextDisabled={nextDisabled}
+          lockFutureSteps={lockFutureSteps}
           className="mb-0 pb-0"
         />
         <FormNavigationFooter

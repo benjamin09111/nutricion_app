@@ -78,13 +78,23 @@ export function useRecipesState({ id }: UseRecipesStateProps = {}) {
   const { role } = useAdmin();
   const { can, limit, usage, isDeveloper } = useSubscription();
 
-  const pdfLimit = limit("pdf.monthly.limit");
+  const pdfTotalLimit = limit("pdf.exports.total.limit");
+  const pdfMonthlyLimit = limit("pdf.monthly.limit");
+  const pdfLimit = Math.max(
+    Number.isFinite(pdfTotalLimit) ? pdfTotalLimit : 0,
+    Number.isFinite(pdfMonthlyLimit) ? pdfMonthlyLimit : 0,
+  );
   const pdfUsed = usage?.pdfUsed ?? 0;
-  const isPdfLimitReached = !isDeveloper && Number.isFinite(pdfLimit) && pdfUsed >= pdfLimit;
+  const isPdfLimitReached = !isDeveloper && Number.isFinite(pdfLimit) && pdfLimit > 0 && pdfUsed >= pdfLimit;
 
-  const creationsLimit = limit("creations.monthly.limit");
+  const creationsSaveLimit = limit("creations.save.limit");
+  const creationsMonthlyLimit = limit("creations.monthly.limit");
+  const creationsLimit = Math.max(
+    Number.isFinite(creationsSaveLimit) ? creationsSaveLimit : 0,
+    Number.isFinite(creationsMonthlyLimit) ? creationsMonthlyLimit : 0,
+  );
   const creationsUsed = usage?.creationsUsed ?? 0;
-  const isCreationsLimitReached = !isDeveloper && Number.isFinite(creationsLimit) && creationsUsed >= creationsLimit;
+  const isCreationsLimitReached = !isDeveloper && Number.isFinite(creationsLimit) && creationsLimit > 0 && creationsUsed >= creationsLimit;
   const { setSidebarCollapsed, flashSidebarToggle, isSidebarCollapsed } =
     useDashboardShell();
   const hasCollapsedSidebarForRecipesRef = useRef(false);

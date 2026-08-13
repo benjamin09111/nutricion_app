@@ -40,6 +40,7 @@ model Account {
   archivedDiscountCodes     DiscountCode[]             @relation("DiscountCodeArchiver")
   deletionRequests          AccountDeletionRequest[]
   personalNoteTabs          PersonalNoteTab[]
+  aiUsageLogs               AiUsageLog[]
 
   @@index([role, createdAt])
   @@map("accounts")
@@ -1101,4 +1102,24 @@ enum AvailabilityRuleType {
   WEEKLY
   SPECIFIC_DATE
   BLOCK
+}
+
+model AiUsageLog {
+  id                 String   @id @default(uuid())
+  accountId          String?  @map("account_id")
+  feature            String   @default("general")
+  model              String   @default("unknown")
+  promptTokens       Int      @default(0) @map("prompt_tokens")
+  completionTokens   Int      @default(0) @map("completion_tokens")
+  totalTokens        Int      @default(0) @map("total_tokens")
+  estimatedCostCents Float    @default(0) @map("estimated_cost_cents")
+  metadata           Json?    @default("{}")
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  account Account? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+
+  @@index([accountId, createdAt])
+  @@index([feature, createdAt])
+  @@index([model, createdAt])
+  @@map("ai_usage_logs")
 }

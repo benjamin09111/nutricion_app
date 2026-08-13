@@ -1,7 +1,6 @@
-import React from "react";
+import React, { type ReactNode } from "react";
 import { AlertCircle } from "lucide-react";
 import { Input } from "@/components/ui/Input";
-import { DatePicker } from "@/components/ui/DatePicker";
 import { Textarea } from "@/components/ui/Textarea";
 import { TagInput } from "@/components/ui/TagInput";
 import { DEFAULT_CONSTRAINTS } from "@/lib/constants";
@@ -23,7 +22,7 @@ interface DietConstraintSectionProps {
   setPendingTagCreation: (creation: { name: string; type: "classification" | "constraint" } | null) => void;
   saveDraft: (overrides?: any) => void;
   deliveryDate: string;
-  setDeliveryDate: (date: string) => void;
+  dateIcon: ReactNode;
   description: string;
   setDescription: (description: string) => void;
   planObjective: string;
@@ -49,7 +48,7 @@ export const DietConstraintSection: React.FC<DietConstraintSectionProps> = ({
   setPendingTagCreation,
   saveDraft,
   deliveryDate,
-  setDeliveryDate,
+  dateIcon,
   description,
   setDescription,
   planObjective,
@@ -72,11 +71,10 @@ export const DietConstraintSection: React.FC<DietConstraintSectionProps> = ({
         </div>
         <div className="space-y-3">
           <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Fecha</p>
-          <DatePicker
-            value={deliveryDate}
-            onChange={(val) => setDeliveryDate(val)}
-            placeholder="Fecha..."
-          />
+          <div aria-disabled="true" className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-slate-100 px-3 text-sm font-medium text-slate-500 cursor-not-allowed">
+            {dateIcon}
+            <span>{deliveryDate}</span>
+          </div>
         </div>
         <div className="space-y-3">
           <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Hashtags</p>

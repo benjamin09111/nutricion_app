@@ -15,6 +15,7 @@ import {
   MessageSquare,
   Globe2,
   Inbox,
+  Cpu,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDashboardShell } from "@/context/DashboardShellContext";
@@ -94,6 +95,7 @@ const groups: SidebarGroup[] = [
       { name: "Pagos", href: "/dashboard/admin/pagos", icon: CreditCard },
       { name: "Membresías", href: "/dashboard/admin/membresias", icon: Crown },
       { name: "Cupones", href: "/dashboard/admin/cupones", icon: Crown },
+      { name: "Costos IA", href: "/dashboard/admin/ia-costos", icon: Cpu },
     ],
   },
   {
@@ -107,6 +109,16 @@ const groups: SidebarGroup[] = [
       },
     ],
   },
+  {
+    title: "Ayuda",
+    items: [
+      {
+        name: "Guía de uso",
+        href: "/dashboard/uso-recomendado",
+        icon: Settings,
+      },
+    ],
+  },
 ];
 
 const WORKER_ALLOWED_PATHS = new Set([
@@ -115,6 +127,8 @@ const WORKER_ALLOWED_PATHS = new Set([
   "/dashboard/admin/mensajes",
   "/dashboard/admin/feedback",
   "/dashboard/admin/cupones",
+  "/dashboard/admin/ia-costos",
+  "/dashboard/uso-recomendado",
 ]);
 
 interface AdminSidebarProps {
@@ -264,17 +278,7 @@ export function AdminSidebar({ onItemClick, isMobile = false }: AdminSidebarProp
         </div>
       </div>
 
-      {(isMobile || !isSidebarCollapsed) && (
-        <button
-          type="button"
-          onClick={() => toggleViewMode()}
-          className="w-full flex items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50/90 hover:bg-indigo-100 text-indigo-700 font-bold px-3 py-2 text-xs transition-colors cursor-pointer"
-          title="Cambiar a la vista de nutricionista para acceder a dietas, pacientes y herramientas"
-        >
-          <span>Ir a Vista Nutricionista</span>
-          <span>🥗</span>
-        </button>
-      )}
+
 
       <nav className="flex flex-1 flex-col mt-2">
         <ul role="list" className="flex flex-1 flex-col gap-y-3">

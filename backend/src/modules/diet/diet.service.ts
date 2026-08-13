@@ -157,6 +157,7 @@ export class DietService {
         'Eres un asistente clinico de apoyo para nutricionistas. Evalua incompatibilidades de alimentos.',
         prompt,
         dietVerifyResponseSchema,
+        { accountId, feature: 'diet.verify-foods' },
       );
       const conflicts = (result.object.conflicts || [])
         .map((entry) => {

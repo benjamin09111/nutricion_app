@@ -184,7 +184,7 @@ export function AiValidationModal({
                     />
                   </div>
 
-                  <div className="grid grid-cols-4 gap-2 sm:col-span-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:col-span-2">
                     <div className="space-y-1">
                       <label className="text-[9px] font-black uppercase text-slate-400">Calorías</label>
                       <Input

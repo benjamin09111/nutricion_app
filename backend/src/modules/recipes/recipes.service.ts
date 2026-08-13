@@ -428,6 +428,7 @@ export class RecipesService {
         systemInstruction,
         userPrompt,
         schema,
+        { accountId, feature: taskName || 'recipes' },
       );
       this.logger.log(
         `[AI] Response ok provider=${result.provider} model=${result.modelId}`,
@@ -945,10 +946,8 @@ export class RecipesService {
         `Devuelve exactamente ${safePayload.desiredDishCount} platos y respeta mealSectionTargets.`,
         'Ajusta porciones y macros según nutritionalTargets cuando exista.',
         'Estas comidas se repetirán como una guía general durante la semana, no como recetas exactas para un día específico.',
-        safePayload.generationMode === 'options'
-          ? 'Para cada target de opciones, devuelve una sugerencia independiente por optionIndex solicitado. Conserva exactamente el slotId y optionIndex del target; no combines alternativas usando "/".'
-          : 'Entrega nombres amplios y prácticos con alternativas usando "/" entre opciones equivalentes, por ejemplo: "Salmón/Pollo cocido con Ensalada/Arroz".',
-        'Incluye sustitutos razonables para la proteína, el acompañamiento y los vegetales cuando corresponda; evita nombres demasiado específicos o preparaciones únicas.',
+        'PROHIBIDO usar opciones alternativas con barra "/" en el nombre del plato (NO "Pan/Avena" ni "Pollo/Pescado"). El nombre debe ser una única opción clara, apetitosa y concreta (ej: "Pechuga de pollo a la plancha con arroz integral").',
+        'ES OBLIGATORIO que CADA ingrediente y su cantidad mencionada en el texto de preparation vaya encerrada entre asteriscos dobles para quedar en negrita (ej: "Batir **2 huevos** con **1 pizca de sal** y cocinar en sartén con **1 cdta de aceite de oliva**. Servir con **2 rebanadas de pan integral** tostado."). NUNCA dejes ingredientes sin sus asteriscos **ingrediente**.',
         'Interpreta availableFoods como una guía de alimentos y categorías que el nutricionista desea utilizar, no como coincidencias literales. Por ejemplo, interpreta "ensaladas verdes" como ingredientes concretos apropiados, como lechuga, apio u otras hojas verdes.',
         'Prioriza y representa esas categorías en los platos con ingredientes concretos adecuados; si una indicación es amplia, decide tú la composición más razonable.',
         safePayload.allowExternalFoods
@@ -961,9 +960,9 @@ export class RecipesService {
         .join(' '),
        allowExternalFoods: safePayload.allowExternalFoods,
       rules: [
-        'Usa 3 a 6 ingredientes principales por plato.',
-        'ingredients debe incluir name, quantity, amount, unit y optional.',
-        'Los ingredientes externos deben ir en extraIngredients; si están prohibidos, no los uses.',
+        'El título debe ser único, claro y sin barras "/".',
+        'CADA ingrediente en la preparación DEBE llevar asteriscos **ingrediente** (ej: **2 huevos**, **1 taza de avena**).',
+        'Genera entre 3 a 6 elementos en el arreglo de ingredients por plato con su name (ej: "Huevos") y quantity (ej: "2 u" o "150g").',
       ],
       tools: {
         mealSectionTargets: safePayload.mealSectionTargets,
@@ -1499,6 +1498,7 @@ export class RecipesService {
             lipids: z.number().finite(),
           })
           .strict(),
+        { accountId: userId, feature: 'recipes.estimate-macros' },
       );
 
       const parsed = structured.object as {

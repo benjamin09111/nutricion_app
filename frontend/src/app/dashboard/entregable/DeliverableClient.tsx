@@ -2004,12 +2004,12 @@ export default function DeliverableClient() {
       {
         id: "pdf",
         icon: isExporting ? Loader2 : Download,
-        label: "Descargar PDF",
+        label: "Descargar y guardar PDF",
         description: isPdfLimitReached
           ? "Límite mensual de PDFs alcanzado"
           : isExporting
-            ? "Generando PDF..."
-            : "Descargar PDF y guardar en creaciones",
+            ? "Guardando y generando PDF..."
+            : "Descargar y guardar PDF en Mis Creaciones",
         variant: "indigo",
         disabled: isExporting || isExportDisabled || isPdfLimitReached,
         onClick: async () => {
