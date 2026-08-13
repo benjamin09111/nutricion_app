@@ -1,3 +1,5 @@
+Arreglar visual de planes
+
 Donde podemos usar nuestros grupos?
 y nuestrsa dietas?
 
