@@ -2,9 +2,10 @@
 
 import content from "@/content/landing.json";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { fetchApi } from "@/lib/api-base";
 import {
   Check,
@@ -14,6 +15,14 @@ import {
   Sparkles,
   Menu,
   X,
+  ChevronDown,
+  Target,
+  Users,
+  HelpCircle,
+  HeartPulse,
+  Star,
+  ArrowRight,
+  Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
@@ -21,9 +30,16 @@ import { useInView } from "@/hooks/useInView";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { getMembershipFeatureDisplay } from "@/features/memberships/utils/feature-format";
 import { type MembershipPlan } from "@/features/memberships/services/membership.service";
-import { sortPlansWithPopularInCenter } from "@/features/memberships/utils/sort-plans";
+import { sortPlansForLanding } from "@/features/memberships/utils/sort-plans";
 import LandingContactForm from "@/components/landing/LandingContactForm";
 import { RotatingWord } from "@/components/landing/RotatingWord";
+import { CookieBanner } from "@/components/landing/CookieBanner";
+import {
+  AboutNutriNetModal,
+  type AboutSectionTab,
+} from "@/components/landing/AboutNutriNetModal";
+import { AboutNutriNetNavExtension } from "@/components/landing/AboutNutriNetNavExtension";
+import { TestimonialsSection } from "@/components/landing/TestimonialsSection";
 
 const toMembershipPlanArray = (value: unknown): MembershipPlan[] => {
   let list: MembershipPlan[] = [];
@@ -35,14 +51,17 @@ const toMembershipPlanArray = (value: unknown): MembershipPlan[] => {
     else if (Array.isArray(payload.plans)) list = payload.plans as MembershipPlan[];
     else if (Array.isArray(payload.items)) list = payload.items as MembershipPlan[];
   }
-  return list.filter(
-    (p) => String(p.slug || p.name || "").toLowerCase() !== "pro"
-  );
+  return list;
 };
 
 export default function LandingPage() {
+  const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [plans, setPlans] = useState<MembershipPlan[]>([]);
+  const [isAboutDropdownOpen, setIsAboutDropdownOpen] = useState(false);
+  const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
+  const [aboutModalTab, setAboutModalTab] = useState<AboutSectionTab>("objetivos");
+  const headerRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     fetchApi(`/memberships/active`)
@@ -50,6 +69,26 @@ export default function LandingPage() {
       .then((data) => setPlans(toMembershipPlanArray(data)))
       .catch(() => {});
   }, []);
+
+  // Close About dropdown when clicking outside header
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        headerRef.current &&
+        !headerRef.current.contains(e.target as Node)
+      ) {
+        setIsAboutDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const openAboutTab = (tab: AboutSectionTab) => {
+    setIsAboutDropdownOpen(false);
+    setIsMobileMenuOpen(false);
+    router.push(`/sobre-nutrinet?tab=${tab}`);
+  };
 
   const { ref: featuresRef, isInView: isFeaturesInView } = useInView({
     threshold: 0.15,
@@ -60,9 +99,9 @@ export default function LandingPage() {
   const { ref: registrationRef, isInView: isRegistrationInView } = useInView({
     threshold: 0.1,
   });
-  const visiblePlans = plans.filter((plan) => plan.isActive);
-  const sortedPlans = sortPlansWithPopularInCenter(visiblePlans);
-  const paidPlan = visiblePlans.find((plan) => plan.price > 0);
+  const visiblePlans = plans.filter((plan) => plan.isActive || plan.isComingSoon);
+  const sortedPlans = sortPlansForLanding(visiblePlans);
+  const paidPlan = visiblePlans.find((plan) => Number(plan.price) > 0 && !plan.isComingSoon);
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -129,33 +168,56 @@ export default function LandingPage() {
         ]}
       />
       {/* Header / Nav */}
-      <header className="fixed top-0 z-50 w-full border-b border-indigo-100 bg-white/85 backdrop-blur-md">
+      <header ref={headerRef} className="fixed top-0 z-50 w-full border-b border-indigo-100 bg-white/90 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
           <div className="flex items-center gap-2">
-            <Image
-              src="/logo_2.webp"
-              alt="nutrinet"
-              width={160}
-              height={50}
-              className="h-auto w-[118px] object-contain transition-transform duration-300 hover:scale-105 sm:w-[148px]"
-              style={{ width: "auto", height: "auto" }}
-              priority
-            />
+            <Link href="/">
+              <Image
+                src="/logo_2.webp"
+                alt="nutrinet"
+                width={160}
+                height={50}
+                className="h-auto w-[118px] object-contain transition-transform duration-300 hover:scale-105 sm:w-[148px]"
+                style={{ width: "auto", height: "auto" }}
+                priority
+              />
+            </Link>
           </div>
           <nav
-            className="hidden items-center gap-5 lg:flex"
+            className="hidden items-center gap-6 lg:flex"
             role="navigation"
             aria-label="Navegación principal"
           >
+            {/* Sobre NutriNet Link that expands navbar */}
+            <button
+              type="button"
+              onClick={() => setIsAboutDropdownOpen(!isAboutDropdownOpen)}
+              className={cn(
+                "inline-flex items-center gap-1.5 text-sm font-bold transition-all py-2 px-3 rounded-full cursor-pointer",
+                isAboutDropdownOpen
+                  ? "bg-[#a88aed] text-white shadow-md shadow-[#a88aed]/20"
+                  : "text-[#a88aed] hover:text-[#8f70d8] hover:bg-[#a88aed]/10"
+              )}
+            >
+              Sobre NutriNet
+              <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", isAboutDropdownOpen && "rotate-180")} />
+            </button>
+
+            <a
+              href="#testimonios"
+              className="text-sm font-semibold transition-colors duration-200 text-[#a88aed] hover:text-[#8f70d8]"
+            >
+              Testimonios
+            </a>
             <a
               href="#planes"
-              className="relative text-sm font-semibold transition-colors duration-200 after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-0 after:bg-[#a88aed] after:transition-all after:duration-300 hover:after:w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a88aed] focus-visible:ring-offset-2 rounded text-[#a88aed] hover:text-[#8f70d8]"
+              className="text-sm font-semibold transition-colors duration-200 text-[#a88aed] hover:text-[#8f70d8]"
             >
-              Planes
+              Precios
             </a>
             <Link
               href="/login"
-              className="relative text-sm font-semibold transition-colors duration-200 after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-0 after:bg-[#a88aed] after:transition-all after:duration-300 hover:after:w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a88aed] focus-visible:ring-offset-2 rounded text-[#a88aed] hover:text-[#8f70d8]"
+              className="text-sm font-semibold transition-colors duration-200 text-[#a88aed] hover:text-[#8f70d8]"
             >
               Inicia Sesión
             </Link>
@@ -181,20 +243,56 @@ export default function LandingPage() {
           </button>
         </div>
 
+        {/* Expanded Horizontal Navbar Panel for Sobre NutriNet */}
+        <AboutNutriNetNavExtension
+          isOpen={isAboutDropdownOpen}
+          onClose={() => setIsAboutDropdownOpen(false)}
+          onSelectTab={(tab) => openAboutTab(tab)}
+        />
+
+        {/* Mobile Nav Menu */}
         {isMobileMenuOpen && (
-          <div className="border-t border-indigo-100 bg-white/95 px-4 py-4 shadow-lg backdrop-blur-md lg:hidden">
-            <div className="mx-auto flex max-w-7xl flex-col gap-3">
+          <div className="border-t border-indigo-100 bg-white/95 px-4 py-4 shadow-lg backdrop-blur-md lg:hidden space-y-3">
+            <div className="mx-auto flex max-w-7xl flex-col gap-2">
+              <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+                <span className="text-[10px] font-black uppercase text-[#a88aed]">Sobre NutriNet</span>
+                <div className="grid grid-cols-1 gap-1">
+                  <button onClick={() => openAboutTab("objetivos")} className="text-left text-xs font-bold text-slate-700 py-1 flex items-center gap-2">
+                    <Target className="h-3.5 w-3.5 text-indigo-600" /> Objetivos y Dirección
+                  </button>
+                  <button onClick={() => openAboutTab("equipo")} className="text-left text-xs font-bold text-slate-700 py-1 flex items-center gap-2">
+                    <Users className="h-3.5 w-3.5 text-emerald-600" /> Equipo detrás de NutriNet
+                  </button>
+                  <button onClick={() => openAboutTab("faq")} className="text-left text-xs font-bold text-slate-700 py-1 flex items-center gap-2">
+                    <HelpCircle className="h-3.5 w-3.5 text-amber-600" /> Preguntas frecuentes
+                  </button>
+                  <button onClick={() => openAboutTab("seguridad")} className="text-left text-xs font-bold text-slate-700 py-1 flex items-center gap-2">
+                    <ShieldCheck className="h-3.5 w-3.5 text-blue-600" /> Seguridad de los datos
+                  </button>
+                  <button onClick={() => openAboutTab("salud")} className="text-left text-xs font-bold text-slate-700 py-1 flex items-center gap-2">
+                    <HeartPulse className="h-3.5 w-3.5 text-rose-600" /> Salud y cuidado
+                  </button>
+                </div>
+              </div>
+
+              <a
+                href="#testimonios"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-[#a88aed]/5"
+              >
+                Testimonios
+              </a>
               <a
                 href="#planes"
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-[#a88aed]/20 hover:bg-[#a88aed]/5 hover:text-[#8f70d8]"
+                className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-[#a88aed]/5"
               >
-                Planes
+                Precios
               </a>
               <Link
                 href="/login"
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-[#a88aed]/20 hover:bg-[#a88aed]/5 hover:text-[#8f70d8]"
+                className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-[#a88aed]/5"
               >
                 Inicia Sesión
               </Link>
@@ -240,26 +338,40 @@ export default function LandingPage() {
                   <span className="text-2xl font-bold tracking-tight text-[#a88aed] sm:text-3xl lg:text-5xl">
                     {content.hero.titleLine2}
                   </span>
-                  <div className="flex gap-1">
-                    <Check className="h-6 w-6 text-[#a6c261] sm:h-8 sm:w-8" />
-                    <Check className="h-6 w-6 text-[#a6c261] sm:h-8 sm:w-8" />
-                  </div>
                 </div>
               </div>
 
-              <p className="mx-auto max-w-2xl text-base italic leading-relaxed text-[#a88aed] sm:text-lg lg:text-xl">
+              <p className="mx-auto max-w-3xl text-base text-slate-600 sm:text-lg lg:text-xl leading-relaxed">
                 {content.hero.description}
               </p>
 
-              <div className="pt-4">
-                <Link href="/login">
-                  <span className="group inline-flex items-center gap-2 rounded-full bg-[#a6c261] px-7 py-3 text-base font-bold italic text-white shadow-xl transition-all duration-300 hover:scale-105 hover:bg-[#8da84f] hover:shadow-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a6c261] focus-visible:ring-offset-2 sm:px-10 sm:py-4 sm:text-lg">
+              <div className="flex flex-col items-center justify-center gap-4 pt-4 sm:flex-row">
+                <Link href="/login" className="w-full sm:w-auto">
+                  <Button className="w-full sm:w-auto rounded-full h-14 px-8 text-sm font-bold uppercase tracking-wider bg-[#a88aed] hover:bg-[#8f70d8] text-white transition-all duration-300 hover:scale-105 hover:shadow-xl shadow-indigo-200">
                     {content.hero.ctaButton}
-                    <span className="transition-transform duration-300 group-hover:translate-x-1 group-hover:-translate-y-1">
-                      🚀
-                    </span>
-                  </span>
+                  </Button>
                 </Link>
+                <a href="#testimonios" className="w-full sm:w-auto">
+                  <Button
+                    variant="outline"
+                    className="w-full sm:w-auto rounded-full h-14 px-8 text-sm font-bold text-[#a88aed] border-2 border-[#a88aed]/30 hover:border-[#a88aed] hover:bg-[#a88aed]/10 transition-all duration-300"
+                  >
+                    Ver Reseñas de Nutricionistas
+                  </Button>
+                </a>
+              </div>
+
+              {/* Trust Badges Bar */}
+              <div className="pt-8 flex flex-wrap items-center justify-center gap-6 text-xs font-semibold text-slate-500">
+                <span className="flex items-center gap-1.5">
+                  <ShieldCheck className="h-4 w-4 text-emerald-600" /> Fichas 100% Cifradas (Ley 19.628)
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Zap className="h-4 w-4 text-amber-500" /> Ahorro de 3+ Horas Diarias
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Check className="h-4 w-4 text-indigo-600" /> Basado en Alimentos de Chile
+                </span>
               </div>
             </div>
           </div>
@@ -267,68 +379,72 @@ export default function LandingPage() {
 
         {/* Features Section */}
         <section
+          id="funcionalidades"
           ref={featuresRef}
           className={cn(
-            "py-16 transition-all duration-700 sm:py-20 lg:py-28",
-            "bg-slate-50",
+            "py-16 transition-all duration-700 bg-slate-50/70 border-y border-slate-100 lg:py-24",
             isFeaturesInView
               ? "opacity-100 translate-y-0"
               : "opacity-0 translate-y-8",
           )}
         >
           <div className="mx-auto max-w-7xl px-4 sm:px-6">
-            <div className="grid gap-6 md:grid-cols-3 lg:gap-8">
-              {content.features.cards.map((feature, idx) => {
-                const iconMap = { Zap, Monitor, ShieldCheck };
-                const Icon = iconMap[feature.icon as keyof typeof iconMap];
-                const iconBgColors = {
-                  amber: "bg-amber-50 text-amber-600",
-                  indigo: "bg-indigo-50 text-indigo-600",
-                  emerald: "bg-emerald-50 text-emerald-600",
-                };
-                const delays = ["delay-100", "delay-200", "delay-300"];
+            <div className="space-y-4 mb-16 text-center max-w-3xl mx-auto">
+              <span className="text-xs font-black uppercase tracking-wider text-[#a88aed]">Todo en un solo lugar</span>
+              <h2 className="text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl text-slate-900">
+                Diseñado para simplificar tu consulta clínica
+              </h2>
+              <p className="text-sm sm:text-base text-slate-600">
+                NutriNet combina automatización inteligente, precisión nutricional y seguridad de datos para que te concentres en el cuidado de tus pacientes.
+              </p>
+            </div>
 
-                return (
-                  <div
-                    key={idx}
-                    className={cn(
-                      "group cursor-pointer rounded-2xl border p-6 transition-all duration-500 hover:-translate-y-2 hover:shadow-xl sm:p-8",
-                      delays[idx],
-                      "bg-white border-slate-200 shadow-md hover:border-[#a88aed]/40 hover:shadow-[#a88aed]/10",
-                    )}
-                  >
-                    <div
-                      className={cn(
-                        "h-12 w-12 rounded-xl flex items-center justify-center mb-5 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3",
-                        iconBgColors[
-                          feature.iconColor as keyof typeof iconBgColors
-                        ],
-                      )}
-                    >
-                      {Icon && <Icon className="h-6 w-6" />}
-                    </div>
-                    <h3
-                      className={cn(
-                        "text-lg font-bold mb-3 transition-colors duration-300",
-                        "text-indigo-900 group-hover:text-[#a88aed]",
-                      )}
-                    >
-                      {feature.title}
-                    </h3>
-                    <p
-                      className={cn(
-                        "text-sm leading-relaxed",
-                        "text-slate-600",
-                      )}
-                    >
-                      {feature.description}
-                    </p>
-                  </div>
-                );
-              })}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-3 hover:border-[#a88aed]/40 transition-all">
+                <div className="p-3 rounded-2xl bg-indigo-50 text-indigo-600 w-fit">
+                  <Monitor className="h-6 w-6" />
+                </div>
+                <h3 className="font-bold text-lg text-slate-900">Gestión de Pacientes</h3>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Ficha clínica unificada, historial antropométrico, seguimiento de exámenes y diario de alimentos en tiempo real.
+                </p>
+              </div>
+
+              <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-3 hover:border-[#a88aed]/40 transition-all">
+                <div className="p-3 rounded-2xl bg-emerald-50 text-emerald-600 w-fit">
+                  <Sparkles className="h-6 w-6" />
+                </div>
+                <h3 className="font-bold text-lg text-slate-900">Asistente IA (Naty)</h3>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Calcula aportes nutricionales, genera recetas adaptadas a restricciones clínicas y optimiza pautas en segundos.
+                </p>
+              </div>
+
+              <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-3 hover:border-[#a88aed]/40 transition-all">
+                <div className="p-3 rounded-2xl bg-amber-50 text-amber-600 w-fit">
+                  <Check className="h-6 w-6" />
+                </div>
+                <h3 className="font-bold text-lg text-slate-900">Entregables PDF Impactantes</h3>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Exporta documentos vectoriales profesionales con dietas, porciones, recetas y carrito de compras automático.
+                </p>
+              </div>
+
+              <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-3 hover:border-[#a88aed]/40 transition-all">
+                <div className="p-3 rounded-2xl bg-blue-50 text-blue-600 w-fit">
+                  <ShieldCheck className="h-6 w-6" />
+                </div>
+                <h3 className="font-bold text-lg text-slate-900">Seguridad Garantizada</h3>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Encriptación de grado bancario (Ley 19.628). Tus datos y los de tus pacientes pertenecen únicamente a ti.
+                </p>
+              </div>
             </div>
           </div>
         </section>
+
+        {/* Testimonials Section */}
+        <TestimonialsSection />
 
         {/* Pricing Section */}
         <section
@@ -358,19 +474,6 @@ export default function LandingPage() {
               </span>
             </div>
 
-            {/* Launch Offer Banner */}
-            {paidPlan && (
-              <div className="flex justify-center mb-10">
-                <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-3 text-sm font-bold text-white shadow-xl">
-                  <Sparkles className="h-4 w-4" />
-                  <span>
-                    OFERTA DE LANZAMIENTO: ${Number(paidPlan.price).toLocaleString("es-CL")}/mes para las primeras 20 personas
-                    {Number(paidPlan.price) < 25000 && " (Precio regular $25.000)"}
-                  </span>
-                </div>
-              </div>
-            )}
-
             <div
               className={cn(
                 "grid gap-6 xl:gap-8",
@@ -387,28 +490,23 @@ export default function LandingPage() {
                   <div
                     key={plan.id}
                     className={cn(
-                      "relative flex flex-col rounded-3xl bg-white text-center transition-all duration-500",
+                      "relative flex flex-col justify-between rounded-3xl bg-white text-center transition-all duration-300 h-full",
                       sortedPlans.length === 1 && "w-full",
                       isPopular
-                        ? "border-2 border-[#a88aed] shadow-[0_20px_60px_rgba(168,138,237,0.25)] lg:scale-105 z-10"
+                        ? "border-2 border-[#a88aed] shadow-xl shadow-[#a88aed]/15 z-10"
                         : "border border-slate-200 shadow-sm hover:shadow-lg hover:-translate-y-1",
                     )}
                   >
                     {plan.isComingSoon ? (
-                      <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold px-6 py-2 rounded-full shadow-lg uppercase tracking-wider">
+                      <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold px-6 py-2 rounded-full shadow-lg uppercase tracking-wider whitespace-nowrap">
                         🚀 Próximamente
                       </div>
                     ) : isPopular && (
-                      <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-xs font-bold px-6 py-2 rounded-full shadow-lg">
+                      <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-xs font-bold px-6 py-2 rounded-full shadow-lg whitespace-nowrap">
                         ⭐ Más Popular
                       </div>
                     )}
-                    <div
-                      className={cn(
-                        "flex flex-col flex-1 p-6 sm:p-8",
-                        isPopular || plan.isComingSoon ? "pt-10" : "pt-6",
-                      )}
-                    >
+                    <div className="flex flex-col flex-1 p-6 sm:p-8 pt-10">
                       <div className="mb-6">
                         <h3
                           className={cn(
@@ -418,17 +516,17 @@ export default function LandingPage() {
                         >
                           {plan.name}
                         </h3>
-                        <div className="flex flex-col items-center justify-center gap-1">
-                           {plan.slug === "pro" && Number(plan.price) < 25000 && (
-                            <span className="text-sm font-semibold text-slate-400 line-through">
+                        <div className="flex flex-col items-center justify-center min-h-[64px] gap-0.5">
+                          {Number(plan.price) > 0 && Number(plan.price) < 25000 && (
+                            <span className="text-xs font-semibold text-slate-400 line-through tracking-tight">
                               $25.000 / mes
                             </span>
                           )}
                           <div className="flex items-baseline justify-center gap-1">
-                            <span className="text-5xl font-black tracking-tight text-slate-900">
+                            <span className="text-4xl sm:text-5xl font-black tracking-tight text-slate-900">
                               ${Number(plan.price).toLocaleString("es-CL")}
                             </span>
-                            <span className="text-slate-500 text-sm">/mes</span>
+                            <span className="text-slate-500 text-xs sm:text-sm font-semibold">/mes</span>
                           </div>
                         </div>
                         {plan.description && (
@@ -459,19 +557,26 @@ export default function LandingPage() {
                                 )}
                               >
                                 {featureDisplay.isExcluded ? (
-                                  <X className="h-3.5 w-3.5 text-red-500" />
+                                  <X className="h-4 w-4 text-red-500" />
                                 ) : (
                                   <Check
                                     className={cn(
-                                      "h-3.5 w-3.5",
+                                      "h-4 w-4",
                                       isPopular
-                                        ? "text-indigo-600"
-                                        : "text-slate-500",
+                                        ? "text-[#a88aed]"
+                                        : "text-slate-600",
                                     )}
                                   />
                                 )}
                               </div>
-                              <span className="text-sm text-slate-700">
+                              <span
+                                className={cn(
+                                  "text-sm font-medium",
+                                  featureDisplay.isExcluded
+                                    ? "text-slate-400 line-through"
+                                    : "text-slate-700",
+                                )}
+                              >
                                 {featureDisplay.label}
                               </span>
                             </li>
@@ -479,165 +584,105 @@ export default function LandingPage() {
                         })}
                       </ul>
 
-                      {plan.isComingSoon ? (
-                        <div className="w-full text-center cursor-not-allowed rounded-full bg-amber-100 py-3 text-sm font-bold text-amber-900 border border-amber-300">
-                          🚀 Próximamente
-                        </div>
-                      ) : (
-                        <Link
-                          href="/login"
-                          className={cn(
-                            "block w-full text-center cursor-pointer rounded-full py-3 text-sm font-bold shadow-md transition-all duration-300 hover:scale-105",
-                            isPopular
-                              ? "bg-indigo-600 text-white hover:bg-indigo-700"
-                              : "bg-slate-900 text-white hover:bg-slate-800",
-                          )}
-                        >
-                          Comenzar con {plan.name}
-                        </Link>
-                      )}
+                      <div className="pt-4 border-t border-slate-100">
+                        {plan.isComingSoon ? (
+                          <Button
+                            disabled
+                            className="w-full rounded-full h-12 text-sm font-bold bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed"
+                          >
+                            Disponible pronto
+                          </Button>
+                        ) : (
+                          <Link href="/login" className="w-full block">
+                            <Button
+                              className={cn(
+                                "w-full rounded-full h-12 text-sm font-bold uppercase tracking-wider transition-all duration-300 hover:scale-105",
+                                isPopular
+                                  ? "bg-[#a88aed] hover:bg-[#8f70d8] text-white shadow-lg shadow-[#a88aed]/25"
+                                  : "bg-slate-900 hover:bg-slate-800 text-white",
+                              )}
+                            >
+                              Seleccionar Plan
+                            </Button>
+                          </Link>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
               })}
             </div>
-            <div className="mt-10 flex flex-col items-center gap-4 text-center">
-              <p className="text-sm font-medium text-slate-600">
-                Inicia con Google o escríbenos si tienes dudas
-              </p>
-              <div className="flex flex-wrap items-center justify-center gap-3">
-                <Link href="/login" className="cursor-pointer rounded-full bg-[#a88aed] px-8 py-3 text-sm font-bold text-white shadow-lg transition-all duration-300 hover:scale-105 hover:bg-[#8f70d8]">
-                  Iniciar con Google
-                </Link>
-                <a href="#contacto" className="cursor-pointer rounded-full border border-[#a88aed]/20 bg-white px-8 py-3 text-sm font-bold text-[#a88aed] shadow-sm transition-all duration-300 hover:border-[#a88aed]/35 hover:bg-[#a88aed]/5">
-                  Enviar mensaje
-                </a>
-              </div>
-            </div>
-            <p className="mt-8 text-center text-sm text-slate-500">
-              Google-only para acceso. Te responderemos por correo electrónico.
-            </p>
           </div>
         </section>
 
-        {/* Access and Contact Section */}
+        {/* Contact Form Section */}
         <section
-          id="contacto"
+          id="registro"
           ref={registrationRef}
           className={cn(
-            "py-16 transition-all duration-700 sm:py-20 lg:py-24",
+            "py-16 transition-all duration-700 bg-slate-50/70 border-t border-slate-100 lg:py-24",
             isRegistrationInView
               ? "opacity-100 translate-y-0"
               : "opacity-0 translate-y-8",
           )}
         >
-          <div className="mx-auto max-w-7xl px-4 sm:px-6">
-            <div className="grid items-start gap-10 lg:grid-cols-2 lg:gap-16">
-              <div className="space-y-6 pt-1 sm:pt-4">
-                <div className="inline-flex items-center gap-2 rounded-full border border-[#a88aed]/20 bg-white px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-[#a88aed] shadow-sm">
-                  <ShieldCheck className="h-4 w-4" />
-                  Acceso con Google
-                </div>
-                <h2 className="text-3xl font-black text-[#a88aed] sm:text-4xl lg:text-5xl">
-                  {content.registration.titleLine1}
-                </h2>
-                <div className="flex items-start gap-3 sm:items-center">
-                  <Check className="mt-1 h-7 w-7 shrink-0 text-[#a6c261] sm:mt-0 sm:h-8 sm:w-8" />
-                  <p className="text-xl font-semibold text-[#a88aed] sm:text-2xl lg:text-3xl">
-                    {content.registration.titleLine2}
-                  </p>
-                </div>
-                <p className="text-lg font-semibold italic text-[#a88aed] sm:text-xl">
-                  {content.registration.subtitle}
-                </p>
-                <div className="space-y-3 text-sm leading-relaxed text-[#a88aed] sm:text-base">
-                  <p>{content.registration.paragraph1}</p>
-                  <p>{content.registration.paragraph2}</p>
-                  <p>{content.registration.paragraph3}</p>
-                </div>
-                <div className="flex flex-wrap gap-3 pt-2">
-                  <Link href="/login" className="cursor-pointer rounded-full bg-[#a88aed] px-6 py-3 text-sm font-bold text-white shadow-lg transition-all duration-300 hover:scale-105 hover:bg-[#8f70d8]">
-                    Iniciar sesión con Google
-                  </Link>
-                  <a href="#contacto" className="cursor-pointer rounded-full border border-[#a88aed]/20 bg-white px-6 py-3 text-sm font-bold text-[#a88aed] shadow-sm transition-all duration-300 hover:border-[#a88aed]/35 hover:bg-[#a88aed]/5">
-                    Ir al formulario
-                  </a>
-                </div>
-              </div>
-
-              <div
-                className={cn(
-                  "rounded-3xl border border-[#a88aed]/15 bg-white/70 p-5 shadow-[0_18px_50px_rgba(168,138,237,0.12)] backdrop-blur-sm transition-all duration-500 hover:shadow-[0_24px_60px_rgba(168,138,237,0.18)] sm:p-8 lg:p-10",
-                  "bg-[#a88aed]/10",
-                )}
-              >
-                <div className="mb-5 space-y-2">
-                  <div className="inline-flex items-center gap-2 rounded-full border border-white/70 bg-white px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-[#a88aed] shadow-sm">
-                    {content.registration.formTitle}
-                  </div>
-                  <h3 className="text-2xl font-black tracking-tight text-[#a88aed]">
-                    Escríbenos tu pregunta
-                  </h3>
-                  <p className="text-sm leading-6 text-slate-600">
-                    Tu mensaje se guardará en nuestro inbox y te responderemos por correo electrónico.
-                  </p>
-                </div>
-                <LandingContactForm />
-              </div>
+          <div className="mx-auto max-w-4xl px-4 sm:px-6">
+            <div className="space-y-4 mb-12 text-center">
+              <span className="text-xs font-black uppercase tracking-wider text-[#a88aed]">¿Tienes dudas o comentarios?</span>
+              <h2 className="text-3xl font-black tracking-tight sm:text-4xl text-slate-900">
+                Escríbenos directamente
+              </h2>
+              <p className="text-sm text-slate-600 max-w-xl mx-auto">
+                Estamos aquí para responder tus preguntas y acompañarte en la digitalización de tu consulta clínica.
+              </p>
             </div>
 
-            <p className="mt-10 text-center text-sm italic text-[#a6c261] sm:text-base">
-              {content.registration.encryptionText}
-            </p>
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-10 shadow-lg">
+              <LandingContactForm />
+            </div>
           </div>
         </section>
       </main>
 
       {/* Footer */}
-      <footer
-        className={cn(
-          "py-16 transition-colors duration-300 lg:py-20",
-          "bg-[#a88aed]/5",
-        )}
-      >
-        <div className="mx-auto max-w-7xl space-y-6 px-4 text-center sm:px-6">
-          <div className="flex items-center justify-center gap-2">
+      <footer className="border-t border-slate-200 bg-slate-950 text-white py-12">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="flex items-center gap-3">
             <Image
               src="/logo_2.webp"
               alt="nutrinet"
-              width={200}
-              height={63}
-              className="h-auto w-[150px] object-contain transition-transform duration-300 hover:scale-105 lg:w-[190px]"
+              width={140}
+              height={45}
+              className="h-auto w-[120px] object-contain brightness-0 invert"
             />
+            <span className="text-xs text-slate-400 border-l border-slate-800 pl-3">
+              Software Nutricional en Chile
+            </span>
           </div>
-          <div className="space-y-1">
-            <p className={cn("text-base", "text-[#a88aed]")}>
-              {content.footer.line1}
-            </p>
-            <p className={cn("text-base", "text-[#a88aed]")}>
-              {content.footer.line2}
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center justify-center gap-4 text-sm font-medium text-[#a88aed]/75">
-            <Link
-              href="/privacy-policy"
-              className="transition-colors hover:text-[#8f70d8]"
-            >
-              Política de Privacidad
-            </Link>
-            <span className="text-[#a88aed]/30">•</span>
-            <Link
-              href="/terms"
-              className="transition-colors hover:text-[#8f70d8]"
-            >
+
+          <div className="flex flex-wrap items-center justify-center gap-6 text-xs text-slate-400">
+            <button onClick={() => openAboutTab("seguridad")} className="hover:text-white transition-colors">
+              Privacidad y Seguridad
+            </button>
+            <button onClick={() => openAboutTab("faq")} className="hover:text-white transition-colors">
+              Preguntas Frecuentes
+            </button>
+            <button onClick={() => openAboutTab("objetivos")} className="hover:text-white transition-colors">
+              Sobre NutriNet
+            </button>
+            <Link href="/terms" className="hover:text-white transition-colors">
               Términos de Servicio
             </Link>
           </div>
-          <div className={cn("text-sm pt-4", "text-[#a88aed]/60")}>
-            {content.footer.copyright}
-          </div>
+
+          <p className="text-xs text-slate-500">
+            © {new Date().getFullYear()} NutriNet Chile. Todos los derechos reservados.
+          </p>
         </div>
       </footer>
+
+      {/* Banners */}
+      <CookieBanner />
     </div>
   );
 }

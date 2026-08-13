@@ -19,7 +19,7 @@ interface DietConstraintSectionProps {
   findNewlyAddedTag: (previousTags: string[], nextTags: string[]) => string | undefined;
   hasTagInList: (list: string[], tagName: string) => boolean;
   normalizeConstraintList: (constraints: string[]) => string[];
-  setPendingTagCreation: (creation: { name: string; type: "classification" | "constraint" } | null) => void;
+  setPendingTagCreation?: (creation: { name: string; type: "classification" | "constraint" } | null) => void;
   saveDraft: (overrides?: any) => void;
   deliveryDate: string;
   dateIcon: ReactNode;
@@ -82,16 +82,6 @@ export const DietConstraintSection: React.FC<DietConstraintSectionProps> = ({
             value={dietTags}
             onChange={(newTags) => {
               setDietTags(newTags);
-              const latest = findNewlyAddedTag(dietTags, newTags);
-              if (
-                latest &&
-                !hasTagInList(availableClassificationTags, latest)
-              ) {
-                setPendingTagCreation({
-                  name: latest,
-                  type: "classification",
-                });
-              }
               saveDraft({ dietTags: newTags });
             }}
             placeholder="Ej: keto, hipertrofia"
@@ -137,20 +127,6 @@ export const DietConstraintSection: React.FC<DietConstraintSectionProps> = ({
             onChange={(newTags) => {
               const normalizedTags = normalizeConstraintList(newTags);
               setActiveConstraints(normalizedTags);
-              const latest = findNewlyAddedTag(
-                activeConstraints,
-                normalizedTags,
-              );
-              if (
-                latest &&
-                !hasTagInList(availableConstraintTags, latest) &&
-                !DEFAULT_CONSTRAINTS.some((constraint) => constraint.id === latest)
-              ) {
-                setPendingTagCreation({
-                  name: latest,
-                  type: "constraint",
-                });
-              }
               saveDraft({ activeConstraints: normalizedTags });
             }}
             placeholder="Buscar o escribir una restricción"

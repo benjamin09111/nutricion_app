@@ -17,6 +17,13 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://nutrinet.cl"),
+  icons: {
+    icon: [
+      { url: "/circle_logo.webp", type: "image/webp" },
+    ],
+    shortcut: "/circle_logo.webp",
+    apple: "/circle_logo.webp",
+  },
   title: {
     template: "%s | NutriNet",
     default: "NutriNet | Software para Nutricionistas en Chile",

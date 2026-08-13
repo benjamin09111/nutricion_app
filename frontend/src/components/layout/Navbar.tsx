@@ -14,6 +14,7 @@ import {
   Activity,
   RotateCcw,
   NotebookPen,
+  X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -105,7 +106,14 @@ export function Navbar({
   const notificationRef = useRef<HTMLDivElement>(null);
 
   const { isAdmin, isAdminView, toggleViewMode } = useAdmin();
-  const { planName, currentPlan, hasPendingTransfer } = useSubscription();
+  const { planName, currentPlan, hasPendingTransfer, plan, isDeveloper } = useSubscription();
+  const currentPrice = Number(currentPlan?.price || 0);
+  const isFreemium =
+    !isDeveloper &&
+    (plan === "free" ||
+      currentPrice === 0 ||
+      (currentPlan?.slug || "").toLowerCase().includes("free") ||
+      (currentPlan?.slug || "").toLowerCase().includes("freemium"));
   const { unreadCount, notifications, markAsRead, markAllAsRead } =
     useNotifications();
   const { isDarkMode, toggleTheme } = useTheme();
@@ -296,7 +304,7 @@ export function Navbar({
               </button>
             )}
 
-            {!isAdminView && (
+            {!isAdminView && isFreemium && (
               <button
                 type="button"
                 onClick={() => setIsPlanLimitsModalOpen(true)}
@@ -385,14 +393,24 @@ export function Navbar({
                   >
                     Notificaciones
                   </h3>
-                  {unreadCount > 0 && (
+                  <div className="flex items-center gap-2">
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={markAllAsRead}
+                        className="text-xs font-medium text-emerald-600 transition-colors hover:text-emerald-700"
+                      >
+                        Marcar todo como leído
+                      </button>
+                    )}
                     <button
-                      onClick={markAllAsRead}
-                      className="text-xs font-medium text-emerald-600 transition-colors hover:text-emerald-700"
+                      type="button"
+                      onClick={() => setIsNotificationsOpen(false)}
+                      className="rounded-lg p-1 text-slate-400 hover:bg-slate-200/60 hover:text-slate-600 dark:hover:bg-slate-800 transition-colors"
+                      aria-label="Cerrar notificaciones"
                     >
-                      Marcar todo como leído
+                      <X className="h-4 w-4" />
                     </button>
-                  )}
+                  </div>
                 </div>
 
                 <div className="max-h-[70vh] overflow-y-auto">

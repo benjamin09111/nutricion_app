@@ -42,9 +42,9 @@ interface DietModalsProps {
   setIsContinueDraftWarningOpen: (open: boolean) => void;
   continueToRecipes: () => Promise<void>;
 
-  pendingTagCreation: { name: string; type: "classification" | "constraint" } | null;
-  setPendingTagCreation: (tag: { name: string; type: "classification" | "constraint" } | null) => void;
-  createGlobalTag: (name: string) => Promise<void>;
+  pendingTagCreation?: { name: string; type: "classification" | "constraint" } | null;
+  setPendingTagCreation?: (tag: { name: string; type: "classification" | "constraint" } | null) => void;
+  createGlobalTag?: (name: string) => Promise<void>;
 
   isDeleteGroupConfirmOpen: boolean;
   setIsDeleteGroupConfirmOpen: (open: boolean) => void;
@@ -330,26 +330,6 @@ export const DietModals: React.FC<DietModalsProps> = ({
         title="Hay alimentos con información pendiente"
         description="Todavía tienes alimentos creados como borrador, sin sus características nutricionales completas. Si continúas ahora, los cálculos de la siguiente etapa pueden quedar imprecisos."
         confirmText="Continuar igual"
-      />
-      <ConfirmationModal
-        isOpen={!!pendingTagCreation}
-        onClose={() => setPendingTagCreation(null)}
-        onConfirm={() => {
-          if (pendingTagCreation) {
-            void createGlobalTag(pendingTagCreation.name);
-          }
-          setPendingTagCreation(null);
-        }}
-        title="¿Crear también en Detalles?"
-        description={
-          pendingTagCreation
-            ? pendingTagCreation.type === "classification"
-              ? `El tag "${pendingTagCreation.name}" se agregó a esta dieta, pero todavía no existe en Detalles. ¿Quieres crearlo también como etiqueta de clasificación global?`
-              : `La restricción "${pendingTagCreation.name}" se agregó a esta dieta, pero todavía no existe en Detalles. ¿Quieres crearla también como restricción global?`
-            : ""
-        }
-        confirmText="Sí, crear en Detalles"
-        cancelText="No, solo usar aquí"
       />
       <ConfirmationModal
         isOpen={isDeleteGroupConfirmOpen}

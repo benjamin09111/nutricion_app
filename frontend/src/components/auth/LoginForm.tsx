@@ -92,7 +92,9 @@ export default function LoginForm({
       ? callbackUrl
       : isAdmin
         ? "/dashboard/admin"
-        : "/dashboard";
+        : user.requiresPlanSelection
+          ? "/dashboard/uso-recomendado"
+          : "/dashboard";
     const postRutNext = user.requiresPlanSelection ? "/plan" : targetPath;
     const destination = user.rut
       ? postRutNext

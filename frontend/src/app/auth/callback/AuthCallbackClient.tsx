@@ -88,7 +88,8 @@ export default function AuthCallbackClient({ fallbackMessage }: Props = {}) {
         const isAdmin = ["ADMIN", "ADMIN_MASTER", "ADMIN_GENERAL"].includes(
           user?.role || "",
         );
-        const targetPath = next === "/dashboard" && isAdmin ? "/dashboard/admin" : next;
+        const defaultTarget = user?.requiresPlanSelection ? "/dashboard/uso-recomendado" : "/dashboard";
+        const targetPath = next === "/dashboard" && isAdmin ? "/dashboard/admin" : (next === "/dashboard" ? defaultTarget : next);
         const postRutNext = user?.requiresPlanSelection ? "/plan" : targetPath;
 
         const destination = user?.rut

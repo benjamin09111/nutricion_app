@@ -247,6 +247,7 @@ export class GoogleIntegrationService {
       response_type: 'code',
       scope: params.scopes.join(' '),
       include_granted_scopes: 'true',
+      prompt: 'select_account consent',
       state: this.signState(params.state),
     });
 
@@ -255,7 +256,6 @@ export class GoogleIntegrationService {
       query.set('code_challenge_method', 'S256');
     } else {
       query.set('access_type', 'offline');
-      query.set('prompt', 'consent');
     }
 
     return `${GOOGLE_AUTH_BASE}?${query.toString()}`;
