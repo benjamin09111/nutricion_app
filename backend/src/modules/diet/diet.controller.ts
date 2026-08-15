@@ -2,6 +2,7 @@ import { Body, Controller, Post, Request, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { DietService } from './diet.service';
 import { VerifyFoodsDto } from './dto/verify-foods.dto';
+import { GenerateBaseDietDto } from './dto/generate-base-diet.dto';
 import { PermissionsGuard } from '../permissions/permissions.guard';
 import { RequireFeatures } from '../permissions/permissions.decorator';
 import { SPECIAL_FEATURES } from '../permissions/permissions.constants';
@@ -15,5 +16,10 @@ export class DietController {
   @Post('verify-foods')
   async verifyFoods(@Request() req: any, @Body() body: VerifyFoodsDto) {
     return this.dietService.verifyFoodsAgainstRestrictions(req.user.id, body);
+  }
+
+  @Post('generate-base')
+  async generateBaseDiet(@Request() req: any, @Body() body: GenerateBaseDietDto) {
+    return this.dietService.generateBaseDiet(req.user.id, body);
   }
 }

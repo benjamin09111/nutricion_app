@@ -43,7 +43,7 @@ export function NatyWelcomeDrawer({ isOpenByDefault = false }: NatyWelcomeDrawer
         <button
           onClick={() => setIsOpen(true)}
           className="fixed bottom-6 right-6 z-[9990] flex items-center gap-2 px-4 py-3 rounded-full bg-gradient-to-r from-indigo-600 to-emerald-600 text-white shadow-xl hover:shadow-2xl transition-all transform hover:scale-105 group animate-in fade-in zoom-in duration-300"
-          title="Hablar con Naty AI"
+          title="Hablar con Naty"
         >
           <div className="relative">
             <Image

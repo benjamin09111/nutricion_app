@@ -122,6 +122,56 @@ export class CreationsService {
       );
     }
 
+    if (type === 'DIET') {
+      const dietLimit = await this.permissionsService.getFeatureLimit(
+        accountId,
+        PLAN_ENTITLEMENT_KEYS.CREATIONS_DIET_SAVE_LIMIT,
+      );
+      if (dietLimit !== Infinity) {
+        const dietCreationsCount = await this.prisma.creation.count({
+          where: {
+            nutritionistId: resolvedNutritionistId,
+            type: 'DIET',
+          },
+        });
+
+        if (dietCreationsCount >= dietLimit) {
+          const creationFingerprint = buildCreationFingerprint({
+            type,
+            content,
+            metadata,
+          });
+
+          const existingCreations = await this.prisma.creation.findMany({
+            where: {
+              nutritionistId: resolvedNutritionistId,
+              type: 'DIET',
+            },
+            select: {
+              type: true,
+              content: true,
+              metadata: true,
+            },
+          });
+
+          const duplicateCreation = existingCreations.find(
+            (creation) =>
+              buildCreationFingerprint({
+                type: creation.type,
+                content: creation.content,
+                metadata: creation.metadata || {},
+              }) === creationFingerprint,
+          );
+
+          if (!duplicateCreation) {
+            throw new BadRequestException(
+              `Has alcanzado el límite de ${dietLimit} creación(es) tipo Dieta guardadas en tu plan. Elimina una existente o mejora tu plan para continuar.`,
+            );
+          }
+        }
+      }
+    }
+
     const creationLimit = await this.permissionsService.getFeatureLimit(
       accountId,
       PLAN_ENTITLEMENT_KEYS.CREATIONS_SAVE_LIMIT,

@@ -109,7 +109,7 @@ export default function UsoRecomendadoPage() {
               <Sparkles className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-xs font-bold text-slate-900">5. Copiloto Naty AI</h3>
+              <h3 className="text-xs font-bold text-slate-900">5. Copiloto Naty</h3>
               <p className="text-[11px] text-slate-500">Asistencia clínica en tiempo real</p>
             </div>
           </a>
@@ -155,7 +155,7 @@ export default function UsoRecomendadoPage() {
               </span>
               <ul className="text-xs text-emerald-700 space-y-1 font-medium">
                 <li>• Pacientes y creaciones clínicas ILIMITADAS.</li>
-                <li>• Acceso ilimitado al Copiloto Naty AI.</li>
+                <li>• Acceso ilimitado al Copiloto Naty.</li>
                 <li>• Exportación de PDFs profesionales con tu marca.</li>
               </ul>
             </div>
@@ -217,7 +217,7 @@ export default function UsoRecomendadoPage() {
         <section id="naty" className="p-6 bg-white rounded-3xl border border-slate-200/80 shadow-sm space-y-4">
           <div className="flex items-center gap-2 text-indigo-700 font-extrabold text-lg">
             <Sparkles className="h-5 w-5 text-indigo-600" />
-            5. Copiloto Clínico Naty AI
+            5. Copiloto Clínico Naty
           </div>
           <p className="text-xs text-slate-600 leading-relaxed font-medium">
             Naty la Nutria es tu asistente virtual clínica. Al interactuar con el chat de Naty o presionar el botón de generación asistida, el sistema considera automáticamente las restricciones clínicas y el contexto del paciente seleccionado.

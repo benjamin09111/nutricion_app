@@ -1042,59 +1042,120 @@ export const DietModals: React.FC<DietModalsProps> = ({
           setIsAddGroupModalOpen(false);
           setNewGroupNameInput("");
         }}
-        title="Nueva Categoría"
+        title="Agregar Nueva Categoría"
       >
         <div className="space-y-5 text-left">
           <p className="text-sm text-slate-500">
-            Crea una categoría personalizada para organizar alimentos específicos en tu plan.
+            Selecciona una categoría sugerida o escribe un nombre personalizado para tu plan.
           </p>
 
+          {/* Searcher / Custom Input */}
           <div className="space-y-2">
-            <label className="text-xs font-black text-slate-500 uppercase tracking-widest">
-              Nombre de la Categoría
+            <label className="text-xs font-black text-slate-600 uppercase tracking-wider">
+              Buscar o Escribir Categoría
             </label>
-            <Input
-              placeholder="Ej: Snacks, Bebidas, Suplementos..."
-              value={newGroupNameInput}
-              onChange={(e) => setNewGroupNameInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleCreateGroup();
-              }}
-              autoFocus
-              className="h-12 rounded-xl border-slate-200 focus:border-emerald-500"
-            />
+            <div className="relative">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Input
+                placeholder="Ej: Suplementos, Snacks, Frutos Secos..."
+                value={newGroupNameInput}
+                onChange={(e) => setNewGroupNameInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && newGroupNameInput.trim()) {
+                    handleCreateGroup();
+                  }
+                }}
+                autoFocus
+                className="h-12 pl-10 rounded-xl border-slate-200 focus:border-emerald-500 font-medium"
+              />
+            </div>
             {newGroupNameInput.trim() &&
               Object.keys(allGroupsToRender)
                 .map((g) => g.toLowerCase())
                 .includes(newGroupNameInput.trim().toLowerCase()) && (
-                <p className="text-xs text-rose-500 font-bold flex items-center gap-1.5">
+                <p className="text-xs text-rose-500 font-bold flex items-center gap-1.5 pt-1">
                   <AlertCircle className="h-3.5 w-3.5" />
-                  Ya existe una categoría con ese nombre.
+                  La categoría "{newGroupNameInput.trim()}" ya está activa en tu plan.
                 </p>
               )}
           </div>
 
-          {Object.keys(allGroupsToRender).length > 0 && (
-            <div className="space-y-2">
-              <p className="text-[10px] font-black text-slate-400 tracking-widest uppercase">
-                Categorías actuales
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {Object.keys(allGroupsToRender).map((g) => (
-                  <span
-                    key={g}
-                    className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-xs font-bold border border-slate-200"
-                  >
-                    {g}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Searchable Suggestions Grid */}
+          <div className="space-y-2 pt-2 border-t border-slate-100">
+            <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider block">
+              Sugerencias Disponibles (No usadas primero)
+            </label>
+            <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto pr-1">
+              {[
+                "Lácteos",
+                "Huevos",
+                "Carnes y Vísceras",
+                "Pescados y Mariscos",
+                "Cereales y Derivados",
+                "Legumbres",
+                "Verduras",
+                "Frutas",
+                "Aceites y Grasas",
+                "Azúcares y Dulces",
+                "Bebidas",
+                "Frutos Secos y Semillas",
+                "Suplementos",
+                "Snacks y Colaciones",
+                "Comidas Preparadas",
+                "Condimentos y Especias",
+                "Varios / Otros",
+              ]
+                .filter((cat) =>
+                  cat.toLowerCase().includes(newGroupNameInput.trim().toLowerCase())
+                )
+                .sort((a, b) => {
+                  const activeLower = Object.keys(allGroupsToRender).map((g) =>
+                    g.toLowerCase()
+                  );
+                  const aUsed = activeLower.includes(a.toLowerCase());
+                  const bUsed = activeLower.includes(b.toLowerCase());
+                  if (aUsed === bUsed) return 0;
+                  return aUsed ? 1 : -1;
+                })
+                .map((category) => {
+                  const isAlreadyAdded = Object.keys(allGroupsToRender)
+                    .map((g) => g.toLowerCase())
+                    .includes(category.toLowerCase());
+                  const isSelected =
+                    newGroupNameInput.trim().toLowerCase() === category.toLowerCase();
 
-          <div className="flex gap-3 pt-2">
+                  return (
+                    <button
+                      key={category}
+                      type="button"
+                      disabled={isAlreadyAdded}
+                      onClick={() => {
+                        if (!isAlreadyAdded) {
+                          setNewGroupNameInput(category);
+                        }
+                      }}
+                      className={cn(
+                        "px-3 py-1.5 text-xs font-bold rounded-xl border transition-all cursor-pointer flex items-center gap-1.5",
+                        isAlreadyAdded
+                          ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed opacity-60"
+                          : isSelected
+                            ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
+                            : "bg-white text-slate-700 border-slate-200 hover:border-emerald-500 hover:text-emerald-700 hover:bg-emerald-50/40"
+                      )}
+                    >
+                      <span>{category}</span>
+                      {isAlreadyAdded && (
+                        <span className="text-[9px] font-semibold opacity-75">(Activa)</span>
+                      )}
+                    </button>
+                  );
+                })}
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-3 border-t border-slate-100">
             <Button
-              className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white h-11 rounded-xl font-black"
+              className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white h-11 rounded-xl font-bold cursor-pointer"
               onClick={handleCreateGroup}
               disabled={
                 !newGroupNameInput.trim() ||
@@ -1104,11 +1165,11 @@ export const DietModals: React.FC<DietModalsProps> = ({
               }
             >
               <FolderPlus className="h-4 w-4 mr-2" />
-              Crear Categoría
+              Agregar Categoría
             </Button>
             <Button
               variant="outline"
-              className="h-11 px-4 rounded-xl border-slate-200"
+              className="h-11 px-5 rounded-xl border-slate-200 font-bold cursor-pointer"
               onClick={() => {
                 setIsAddGroupModalOpen(false);
                 setNewGroupNameInput("");

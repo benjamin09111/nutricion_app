@@ -57,6 +57,11 @@ export function PlanLimitsModal({ isOpen, onClose }: PlanLimitsModalProps) {
       limit: entitlements?.["pdf.exports.total.limit"] ?? entitlements?.["pdf.monthly.limit"],
     },
     {
+      label: "Dietas guardadas",
+      usage: usage?.dietCreationsUsed ?? 0,
+      limit: entitlements?.["creations.diet.save.limit"],
+    },
+    {
       label: "Creaciones guardadas",
       usage: usage?.creationsUsed ?? 0,
       limit: entitlements?.["creations.save.limit"] ?? entitlements?.["creations.monthly.limit"],

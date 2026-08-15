@@ -58,6 +58,7 @@ export interface MembershipState {
     calculatorUsed: number;
     foodGroupsUsed?: number;
     creationsUsed?: number;
+    dietCreationsUsed?: number;
   };
   billing?: {
     nextPaymentAt: string | null;

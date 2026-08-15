@@ -1253,7 +1253,7 @@ export default function QuickDeliverableClient() {
         );
 
         setParagraphs(formattedParagraphs);
-        toast.success("Pauta generada con Naty AI");
+        toast.success("Pauta generada con Naty");
         setIsAiModalOpen(false);
       } else {
         toast.error(
@@ -2856,7 +2856,7 @@ export default function QuickDeliverableClient() {
                           className="h-10 rounded-2xl border-indigo-200 bg-indigo-50 px-4 text-indigo-700 hover:bg-indigo-100 font-semibold text-xs transition-all"
                         >
                           <Sparkles className="mr-2 h-4 w-4 text-indigo-600" />
-                          Generar con Naty AI
+                          Generar con Naty
                         </Button>
                         <Button
                           type="button"
@@ -4352,7 +4352,7 @@ export default function QuickDeliverableClient() {
       <Modal
         isOpen={isAiModalOpen}
         onClose={() => setIsAiModalOpen(false)}
-        title="Generar párrafos de pauta con Naty AI"
+        title="Generar párrafos de pauta con Naty"
         className="max-w-xl"
       >
         <div className="space-y-4 p-4">

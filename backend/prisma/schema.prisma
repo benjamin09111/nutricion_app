@@ -1123,3 +1123,29 @@ model AiUsageLog {
   @@index([model, createdAt])
   @@map("ai_usage_logs")
 }
+
+model Testimonial {
+  id               String   @id @default(uuid())
+  name             String
+  role             String?
+  clinic           String?
+  city             String?
+  timeSaved        String?  @map("time_saved")
+  quote            String   @db.Text
+  highlight        String?
+  avatarText       String?  @map("avatar_text")
+  avatarBg         String?  @default("from-purple-500 to-indigo-600") @map("avatar_bg")
+  rating           Int      @default(5)
+  isPublished      Boolean  @default(false) @map("is_published")
+  isReviewed       Boolean  @default(false) @map("is_reviewed")
+  displayOrder     Int      @default(0) @map("display_order")
+  authorAccountId  String?  @map("author_account_id")
+  supportRequestId String?  @map("support_request_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@index([isPublished, displayOrder])
+  @@index([isReviewed])
+  @@map("testimonials")
+}
+

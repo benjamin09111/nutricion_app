@@ -16,6 +16,7 @@ import {
   Globe2,
   Inbox,
   Cpu,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDashboardShell } from "@/context/DashboardShellContext";
@@ -30,7 +31,7 @@ interface SidebarItem {
   icon: React.ElementType;
   disabled?: boolean;
   locked?: boolean;
-  badge?: "inboxPending" | "deletionRequests" | "feedbackPending";
+  badge?: "inboxPending" | "deletionRequests" | "feedbackPending" | "testimonialsPending";
 }
 
 interface SidebarGroup {
@@ -82,6 +83,12 @@ const groups: SidebarGroup[] = [
         badge: "feedbackPending",
       },
       {
+        name: "Testimonios",
+        href: "/dashboard/admin/testimonios",
+        icon: Sparkles,
+        badge: "testimonialsPending",
+      },
+      {
         name: "Licencias",
         href: "/dashboard/admin/organizaciones",
         icon: Building2,
@@ -126,6 +133,7 @@ const WORKER_ALLOWED_PATHS = new Set([
   "/dashboard/admin/nutricionistas",
   "/dashboard/admin/mensajes",
   "/dashboard/admin/feedback",
+  "/dashboard/admin/testimonios",
   "/dashboard/admin/cupones",
   "/dashboard/admin/ia-costos",
   "/dashboard/uso-recomendado",
@@ -143,6 +151,7 @@ export function AdminSidebar({ onItemClick, isMobile = false }: AdminSidebarProp
   const [inboxPendingCount, setInboxPendingCount] = useState(0);
   const [feedbackPendingCount, setFeedbackPendingCount] = useState(0);
   const [deletionRequestsCount, setDeletionRequestsCount] = useState(0);
+  const [testimonialsPendingCount, setTestimonialsPendingCount] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
@@ -200,22 +209,47 @@ export function AdminSidebar({ onItemClick, isMobile = false }: AdminSidebarProp
       }
     };
 
+    const fetchTestimonialsCount = async () => {
+      try {
+        const token = getAuthToken();
+        const headers: Record<string, string> = {};
+        if (token) {
+          headers["Authorization"] = `Bearer ${token}`;
+        }
+
+        const response = await fetchApi("/testimonials/admin/unreviewed-count", { headers });
+
+        if (!response.ok) return;
+
+        const data = await response.json();
+        if (isMounted) {
+          setTestimonialsPendingCount(data.count || 0);
+        }
+      } catch (error) {
+        console.error("Error fetching testimonials unreviewed count:", error);
+      }
+    };
+
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
         fetchSupportCounts();
         fetchDeletionRequestsCount();
+        fetchTestimonialsCount();
       }
     };
 
     fetchSupportCounts();
     fetchDeletionRequestsCount();
+    fetchTestimonialsCount();
     window.addEventListener("admin-inbox-updated", fetchSupportCounts);
     window.addEventListener("admin-feedback-updated", fetchSupportCounts);
     window.addEventListener("admin-deletion-request-accepted", fetchDeletionRequestsCount);
+    window.addEventListener("admin-testimonials-updated", fetchTestimonialsCount);
     document.addEventListener("visibilitychange", handleVisibilityChange);
     const interval = window.setInterval(() => {
       fetchSupportCounts();
       fetchDeletionRequestsCount();
+      fetchTestimonialsCount();
     }, 60000);
 
     return () => {
@@ -223,6 +257,7 @@ export function AdminSidebar({ onItemClick, isMobile = false }: AdminSidebarProp
       window.removeEventListener("admin-inbox-updated", fetchSupportCounts);
       window.removeEventListener("admin-feedback-updated", fetchSupportCounts);
       window.removeEventListener("admin-deletion-request-accepted", fetchDeletionRequestsCount);
+      window.removeEventListener("admin-testimonials-updated", fetchTestimonialsCount);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.clearInterval(interval);
     };
@@ -237,6 +272,9 @@ export function AdminSidebar({ onItemClick, isMobile = false }: AdminSidebarProp
     }
     if (item.badge === "deletionRequests" && deletionRequestsCount > 0) {
       return deletionRequestsCount > 99 ? "99+" : String(deletionRequestsCount);
+    }
+    if (item.badge === "testimonialsPending" && testimonialsPendingCount > 0) {
+      return testimonialsPendingCount > 99 ? "99+" : String(testimonialsPendingCount);
     }
     return null;
   };

@@ -141,16 +141,22 @@ export class DashboardService {
           limit: consultationLimit > 0 ? consultationLimit : Infinity,
         },
         {
-           used: usageMap['pdf.exports.total.limit'] || usageMap['pdf.monthly.limit'] || 0,
+          used: usageMap['pdf.exports.total.limit'] || usageMap['pdf.monthly.limit'] || 0,
           limit: pdfLimit > 0 ? pdfLimit : Infinity,
         },
       ];
-      const percentages = limits.map((l) =>
-        l.limit > 0 && l.limit !== Infinity
-          ? Math.min(100, Math.round((l.used / l.limit) * 100))
-          : 0,
+
+      const activeLimits = limits.filter(
+        (l) => l.limit > 0 && l.limit !== Infinity,
       );
-      planUsagePercent = Math.max(...percentages);
+
+      if (activeLimits.length > 0) {
+        const sumPercent = activeLimits.reduce(
+          (acc, l) => acc + Math.min(100, (l.used / l.limit) * 100),
+          0,
+        );
+        planUsagePercent = Math.round(sumPercent / activeLimits.length);
+      }
     }
 
     return {

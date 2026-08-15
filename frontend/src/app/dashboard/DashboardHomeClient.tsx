@@ -84,20 +84,23 @@ function PlanUsageRing({ percent, limits, usage }: { percent: number; limits: Da
       <div className="w-full space-y-2 text-xs text-slate-500">
         <div className="flex items-center justify-between gap-4">
           <span>Pacientes</span>
-          <span className="font-semibold text-slate-700">
+          <span className={cn("font-semibold", limits.patients > 0 && usage.patients >= limits.patients ? "text-amber-600 font-bold" : "text-slate-700")}>
             {usage.patients}/{limits.patients > 0 ? limits.patients : "∞"}
+            {limits.patients > 0 && usage.patients >= limits.patients && " (Límite)"}
           </span>
         </div>
         <div className="flex items-center justify-between gap-4">
           <span>Consultas</span>
-          <span className="font-semibold text-slate-700">
+          <span className={cn("font-semibold", limits.consultations > 0 && usage.consultations >= limits.consultations ? "text-amber-600 font-bold" : "text-slate-700")}>
             {usage.consultations}/{limits.consultations > 0 ? limits.consultations : "∞"}
+            {limits.consultations > 0 && usage.consultations >= limits.consultations && " (Límite)"}
           </span>
         </div>
         <div className="flex items-center justify-between gap-4">
           <span>PDFs</span>
-          <span className="font-semibold text-slate-700">
+          <span className={cn("font-semibold", limits.pdfs > 0 && usage.pdfs >= limits.pdfs ? "text-rose-600 font-bold" : "text-slate-700")}>
             {usage.pdfs}/{limits.pdfs > 0 ? limits.pdfs : "∞"}
+            {limits.pdfs > 0 && usage.pdfs >= limits.pdfs && " (Agotado)"}
           </span>
         </div>
       </div>

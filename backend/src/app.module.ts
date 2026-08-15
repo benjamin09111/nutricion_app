@@ -39,6 +39,7 @@ import { DiscountCodesModule } from './modules/discount-codes/discount-codes.mod
 import { CalculationsModule } from './modules/calculations/calculations.module';
 import { CopilotModule } from './modules/copilot/copilot.module';
 import { PersonalNotesModule } from './modules/personal-notes/personal-notes.module';
+import { TestimonialsModule } from './modules/testimonials/testimonials.module';
 
 @Module({
   imports: [
@@ -84,6 +85,7 @@ import { PersonalNotesModule } from './modules/personal-notes/personal-notes.mod
     CalculationsModule,
     CopilotModule,
     PersonalNotesModule,
+    TestimonialsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

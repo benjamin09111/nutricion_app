@@ -142,12 +142,12 @@ export async function saveCreation(payload: {
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
     const errorMessage = error.message || "No se pudo guardar la creación";
-    if (errorMessage.includes("límite de 3 creaciones")) {
+    if (errorMessage.includes("límite de") || errorMessage.includes("límite")) {
       if (typeof window !== "undefined") {
         window.dispatchEvent(
           new CustomEvent("show-freemium-upgrade", {
             detail: {
-              description: "Has alcanzado el límite de 3 creaciones guardadas en tu plan Freemium. Para guardar más, elimina una existente o mejora tu plan.",
+              description: errorMessage,
             },
           })
         );

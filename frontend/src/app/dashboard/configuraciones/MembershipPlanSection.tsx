@@ -141,6 +141,11 @@ export function MembershipPlanSection({
         limit: currentPlan?.entitlements?.["food_groups.total.limit"],
       },
       {
+        label: "Dietas guardadas (Módulo Dieta)",
+        usage: usage?.dietCreationsUsed ?? 0,
+        limit: currentPlan?.entitlements?.["creations.diet.save.limit"],
+      },
+      {
         label: "Creaciones guardadas (Pautas / Entregables / Tests)",
         usage: usage?.creationsUsed ?? 0,
         limit: currentPlan?.entitlements?.["creations.save.limit"],

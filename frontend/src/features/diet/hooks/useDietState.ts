@@ -30,6 +30,7 @@ import { getGoalsFromPatient } from "@/features/recipes/utils/recipe-helpers";
 
 interface UseDietStateProps {
   initialFoods: MarketPrice[];
+  startEmpty?: boolean;
 }
 
 export type DietFlowMode = "quick" | "full";
@@ -112,7 +113,7 @@ const buildMacroTargets = (settings: MacroSettings): MacroTargetsSummary => {
   };
 };
 
-export function useDietState({ initialFoods }: UseDietStateProps) {
+export function useDietState({ initialFoods, startEmpty = false }: UseDietStateProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const projectIdFromUrl = searchParams.get("project");
@@ -141,6 +142,8 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
   >([]);
   const [newConstraintLabel, setNewConstraintLabel] = useState("");
   const [customGroups, setCustomGroups] = useState<string[]>([]);
+  const [deletedBaseGroups, setDeletedBaseGroups] = useState<string[]>([]);
+  const [dbCatalogFoods, setDbCatalogFoods] = useState<MarketPrice[]>([]);
   const [isDeleteGroupConfirmOpen, setIsDeleteGroupConfirmOpen] =
     useState(false);
   const [groupToDelete, setGroupToDelete] = useState<string | null>(null);
@@ -176,6 +179,50 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
     sodio: 0,
   });
   const [isSavingDraftFood, setIsSavingDraftFood] = useState(false);
+  // Fetch full database catalog of ingredients (/foods?limit=1000)
+  useEffect(() => {
+    const fetchCatalog = async () => {
+      try {
+        const res = await fetchApi("/foods?limit=1000");
+        if (res.ok) {
+          const raw = await res.json();
+          const items = Array.isArray(raw) ? raw : raw.data || [];
+          const mapped: MarketPrice[] = items.map((ing: any) => ({
+            producto: ing.name,
+            grupo: ing.category?.name || "Varios",
+            unidad: ing.unit || "g",
+            precioPromedio: ing.price || 0,
+            calorias: ing.calories || 0,
+            proteinas: ing.proteins || 0,
+            carbohidratos: ing.carbs || 0,
+            lipidos: ing.lipids || 0,
+            azucares: ing.sugars || ing.azucares || 0,
+            fibra: ing.fiber || ing.fibra || 0,
+            sodio: ing.sodium || ing.sodio || 0,
+            tags: ing.tags?.map((t: any) => (typeof t === "string" ? t : t.name)) || [],
+            id: ing.id,
+          }));
+          if (mapped.length > 0) {
+            setDbCatalogFoods(mapped);
+          }
+        }
+      } catch (e) {
+        console.error("Error loading DB food catalog", e);
+      }
+    };
+    fetchCatalog();
+  }, []);
+
+  const fullCatalogFoods = useMemo(() => {
+    const combinedMap = new Map<string, MarketPrice>();
+    initialFoods.forEach((f) => combinedMap.set(f.producto.toLowerCase(), f));
+    dbCatalogFoods.forEach((f) => {
+      if (!combinedMap.has(f.producto.toLowerCase())) {
+        combinedMap.set(f.producto.toLowerCase(), f);
+      }
+    });
+    return Array.from(combinedMap.values());
+  }, [initialFoods, dbCatalogFoods]);
   const [isContinueDraftWarningOpen, setIsContinueDraftWarningOpen] =
     useState(false);
 
@@ -771,7 +818,7 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
     const statuses: Record<string, "base" | "favorite" | "removed" | "added"> =
       {};
     initialFoods.forEach((f) => {
-      statuses[f.producto] = "base";
+      statuses[f.producto] = startEmpty ? "removed" : "base";
     });
 
     if (projectIdFromUrl) {
@@ -929,8 +976,11 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
         return true;
       }
 
-      if (!status || status === "base" || status === "favorite" || status === "added") {
-        if (!status || status === "base") {
+      if (status === "added" || status === "favorite") {
+        return true;
+      }
+
+      if (!status || status === "base") {
           const normalizedConstraints = activeConstraints.map((c) =>
             c.toLowerCase(),
           );
@@ -990,11 +1040,10 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
             )
               return false;
           }
+          return true;
         }
-        return true;
-      }
-      return false;
-    });
+        return false;
+      });
   }, [initialFoods, manualAdditions, foodStatus, activeConstraints]);
 
   const saveDraft = (overrides: any = {}) => {
@@ -1384,28 +1433,59 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
           updates[f.producto] = "removed";
         });
       setFoodStatus((prev) => ({ ...prev, ...updates }));
-      toast.success(`Grupo ${groupToDelete} eliminado.`);
+      setCustomGroups((prev) => prev.filter((g) => g !== groupToDelete));
+      setDeletedBaseGroups((prev) => Array.from(new Set([...prev, groupToDelete])));
+      toast.success(`Categoría ${groupToDelete} eliminada.`);
       setIsDeleteGroupConfirmOpen(false);
       setGroupToDelete(null);
     }
   };
 
+  const defaultBaseGroups = useMemo(() => {
+    const groupsSet = new Set<string>();
+    initialFoods.forEach((food) => {
+      if (food.grupo) groupsSet.add(food.grupo);
+    });
+    const standardCategories = [
+      "Lácteos",
+      "Huevos",
+      "Carnes y Vísceras",
+      "Pescados y Mariscos",
+      "Cereales y Derivados",
+      "Legumbres",
+      "Verduras",
+      "Frutas",
+      "Aceites y Grasas",
+      "Azúcares y Dulces",
+      "Bebidas",
+      "Varios",
+    ];
+    standardCategories.forEach((g) => groupsSet.add(g));
+    return Array.from(groupsSet);
+  }, [initialFoods]);
+
   const allGroupsToRender = useMemo(() => {
     const renderedGroups: Record<string, MarketPrice[]> = {};
-    includedFoods.forEach((f) => {
-      if (!renderedGroups[f.grupo]) renderedGroups[f.grupo] = [];
-      renderedGroups[f.grupo].push(f);
+
+    defaultBaseGroups.forEach((g) => {
+      if (!deletedBaseGroups.includes(g)) {
+        renderedGroups[g] = [];
+      }
     });
+
+    includedFoods.forEach((f) => {
+      if (!deletedBaseGroups.includes(f.grupo)) {
+        if (!renderedGroups[f.grupo]) renderedGroups[f.grupo] = [];
+        renderedGroups[f.grupo].push(f);
+      }
+    });
+
     customGroups.forEach((g) => {
       if (!renderedGroups[g]) renderedGroups[g] = [];
     });
-    const finalGroups: Record<string, MarketPrice[]> = {};
-    Object.entries(renderedGroups).forEach(([name, foods]) => {
-      if (foods.length > 0 || customGroups.includes(name))
-        finalGroups[name] = foods;
-    });
-    return finalGroups;
-  }, [includedFoods, customGroups]);
+
+    return renderedGroups;
+  }, [defaultBaseGroups, deletedBaseGroups, includedFoods, customGroups]);
 
   useEffect(() => {
     if (!isAddFoodModalOpen || !foodSearchQuery.trim()) {
@@ -1507,11 +1587,21 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
   }, [smartAddTab, smartSearchQuery]);
 
   const createBaseFoodStatus = () => {
+    const nextStatus: Record<string, "base" | "removed"> = {};
+    initialFoods.forEach((food) => {
+      nextStatus[food.producto] = startEmpty ? "removed" : "base";
+    });
+    return nextStatus;
+  };
+
+  const applyBaseFoods = () => {
     const nextStatus: Record<string, "base"> = {};
     initialFoods.forEach((food) => {
       nextStatus[food.producto] = "base";
     });
-    return nextStatus;
+    setFoodStatus(nextStatus);
+    saveDraft({ foodStatus: nextStatus });
+    toast.success("Ingredientes base aplicados a la dieta.");
   };
 
   const clearDietDraftStorage = () => {
@@ -1549,6 +1639,7 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
     setFoodStatus(createBaseFoodStatus() as any);
     setManualAdditions([]);
     setCustomGroups([]);
+    setDeletedBaseGroups([]);
     setCustomConstraints([]);
     setSelectedPatient(null);
     setVerificationResult(null);
@@ -1616,35 +1707,48 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
 
   const handleAddFromSearch = (food: MarketPrice) => {
     if (!activeGroupForAddition) return;
+    addFoodToGroup(food, activeGroupForAddition);
+    setIsAddFoodModalOpen(false);
+  };
+
+  const addFoodToGroup = (
+    food: MarketPrice,
+    groupName: string,
+    options?: { silent?: boolean },
+  ) => {
     const nextStatus = { ...foodStatus, [food.producto]: "added" as const };
     setFoodStatus(nextStatus);
     saveDraft({ foodStatus: nextStatus });
-    const isInInitial = initialFoods.some((f) => f.producto === food.producto);
     const alreadyInManual = manualAdditions.some(
-      (ma) =>
-        ma.producto === food.producto && ma.grupo === activeGroupForAddition,
+      (ma) => ma.producto === food.producto && ma.grupo === groupName,
     );
 
-    if (!isInInitial && !alreadyInManual) {
+    if (!alreadyInManual) {
       setManualAdditions((prev) => [
         ...prev,
-        { ...food, grupo: activeGroupForAddition!, id: `search-${Date.now()}` },
+        {
+          ...food,
+          grupo: groupName,
+          id: `add-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        },
       ]);
-    } else if (isInInitial) {
-      const baseFood = initialFoods.find((f) => f.producto === food.producto);
-      if (baseFood && baseFood.grupo !== activeGroupForAddition) {
-        setManualAdditions((prev) => [
-          ...prev,
-          {
-            ...food,
-            grupo: activeGroupForAddition!,
-            id: `override-${Date.now()}`,
-          },
-        ]);
-      }
     }
-    toast.success(`${food.producto} añadido.`);
-    setIsAddFoodModalOpen(false);
+    if (!options?.silent) {
+      toast.success(`${food.producto} añadido a ${groupName}`);
+    }
+  };
+
+  const handleCreateGroupByName = (groupName: string) => {
+    const name = groupName.trim();
+    if (!name) return;
+    const existing = Object.keys(allGroupsToRender).map((g) => g.toLowerCase());
+    if (existing.includes(name.toLowerCase())) {
+      toast.error(`La categoría "${name}" ya existe en el plan.`);
+      return;
+    }
+    setCustomGroups((prev) => [...prev, name]);
+    setDeletedBaseGroups((prev) => prev.filter((g) => g !== name));
+    toast.success(`Categoría "${name}" agregada.`);
   };
 
   const handleCreateManualFood = async () => {
@@ -2303,8 +2407,12 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
     handleContinue,
     confirmDeleteGroup,
     resetDiet,
+    applyBaseFoods,
     applyNutritionistPreferences,
     handlePatientLoad,
+    initialFoods: fullCatalogFoods,
+    addFoodToGroup,
+    handleCreateGroupByName,
     openAddModal,
     handleAddFromSearch,
     handleCreateManualFood,

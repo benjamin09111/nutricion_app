@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { GraduationCap, ChevronDown, ChevronUp, Calculator, User, Filter, Download, Loader2, RotateCcw, Lock } from "lucide-react";
+import { GraduationCap, ChevronDown, ChevronUp, Calculator, User, Filter, Download, Loader2, RotateCcw, Lock, Save } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { ActionDockItem } from "@/components/ui/ActionDock";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
@@ -19,6 +19,7 @@ import { DietRecipesSection, DietMealBlock } from "@/features/diet/components/Di
 import { DietCartSection, DietCartItem } from "@/features/diet/components/DietCartSection";
 import { DietFinalPlanSection } from "@/features/diet/components/DietFinalPlanSection";
 import { DietModals } from "@/features/diet/components/DietModals";
+import { FreemiumUpgradeModal } from "@/components/memberships/FreemiumUpgradeModal";
 import {
   findNewlyAddedTag,
   hasTagInList,
@@ -50,6 +51,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const deliveryDate = getTodayDateInputValue();
   const [showMacroCalculator, setShowMacroCalculator] = useState(false);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
 
   // Local state for Step 3 (Recetas y porciones) & Step 4 (Carrito)
   const [meals, setMeals] = useState<DietMealBlock[]>([]);
@@ -82,36 +84,9 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     }, []);
   }, [state.dietName, totalSelectedFoods, state.dietTags.length, state.flowMode, meals.length, cartItems.length]);
 
+  // Action Dock buttons: Reiniciar, Importar otra DIETA creada, Guardar, Descargar
   const actionItems: ActionDockItem[] = useMemo(
     () => [
-      {
-        id: "patient",
-        icon: state.isLoadingPatients ? Loader2 : User,
-        label: state.isLoadingPatients
-          ? "Cargando..."
-          : state.selectedPatient?.fullName?.trim()
-            ? state.selectedPatient.fullName
-            : "Importar paciente",
-        description: state.selectedPatient?.fullName?.trim() ? "Cambiar paciente" : "Importar paciente",
-        variant: state.selectedPatient?.fullName?.trim() ? "emerald" : "slate",
-        disabled: state.isLoadingPatients,
-        onClick: () => state.setIsImportPatientModalOpen(true),
-      },
-      {
-        id: "import",
-        icon: Filter,
-        label: "Importar pauta",
-        variant: "indigo",
-        onClick: () => state.setIsImportCreationModalOpen(true),
-      },
-      {
-        id: "pdf",
-        icon: Download,
-        label: "Descargar PDF",
-        description: "Descargar PDF de la pauta",
-        variant: "indigo",
-        onClick: () => void state.performExportPdf(),
-      },
       {
         id: "reset",
         icon: RotateCcw,
@@ -119,6 +94,32 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         description: "Reiniciar plan",
         variant: "rose",
         onClick: () => state.setIsResetConfirmOpen(true),
+      },
+      {
+        id: "import",
+        icon: Filter,
+        label: "Importar dieta creada",
+        description: "Cargar una dieta previamente guardada",
+        variant: "indigo",
+        onClick: () => setIsUpgradeModalOpen(true),
+      },
+      {
+        id: "save",
+        icon: Save,
+        label: "Guardar",
+        description: "Guardar borrador de la pauta",
+        variant: "emerald",
+        onClick: () => {
+          state.saveDraft();
+        },
+      },
+      {
+        id: "pdf",
+        icon: Download,
+        label: "Descargar",
+        description: "Descargar PDF de la pauta",
+        variant: "indigo",
+        onClick: () => void state.performExportPdf(),
       },
     ],
     [state],
@@ -142,6 +143,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         rightContent={<ModuleUsageBadges />}
         rightNavItems={state.isHydrating ? [] : actionItems}
         rightNavDesktopBreakpoint="lg"
+        className="max-w-[68rem]"
       >
         {state.isHydrating ? (
           <div className="flex min-h-[24rem] items-center justify-center rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
@@ -222,6 +224,9 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                     setIsFoodInfoModalOpen={state.setIsFoodInfoModalOpen}
                     removeFood={state.removeFood}
                     setIsAddGroupModalOpen={state.setIsAddGroupModalOpen}
+                    initialFoods={state.initialFoods || initialFoods}
+                    addFoodToGroup={state.addFoodToGroup}
+                    handleCreateGroupByName={state.handleCreateGroupByName}
                   />
 
                   {/* Collapsible Macro Target Calculator */}
@@ -387,6 +392,12 @@ export default function DietClient({ initialFoods }: DietClientProps) {
           </>
         )}
       </ModuleLayout>
+
+      <FreemiumUpgradeModal
+        isOpen={isUpgradeModalOpen}
+        onClose={() => setIsUpgradeModalOpen(false)}
+        description="La importación de pautas y plantillas de dietas anteriores es una función exclusiva para usuarios con un plan de pago (Pro/Premium). ¡Actualiza tu plan para reutilizar tus creaciones guardadas y ahorrar tiempo en cada consulta!"
+      />
     </>
   );
 }

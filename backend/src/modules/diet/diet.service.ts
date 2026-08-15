@@ -1,9 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { VerifyFoodsDto } from './dto/verify-foods.dto';
+import { GenerateBaseDietDto } from './dto/generate-base-diet.dto';
 import { AiService } from '../../common/services/ai.service';
 import { PlanUsageService } from '../permissions/plan-usage.service';
-import { dietVerifyResponseSchema } from './diet-ai-schemas';
+import { dietVerifyResponseSchema, dietGenerateBaseResponseSchema } from './diet-ai-schemas';
 
 type RestrictionConflict = {
   foodId: string;
@@ -25,6 +26,8 @@ type VerifyResponse = {
 
 @Injectable()
 export class DietService {
+  private readonly logger = new Logger(DietService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly aiService: AiService,
@@ -221,6 +224,60 @@ export class DietService {
         conflicts.length === 0
           ? 'No se detectaron conflictos directos con las restricciones seleccionadas.'
           : `Se detectaron ${conflicts.length} posibles conflictos para revisar.`,
+    };
+  }
+
+  async generateBaseDiet(accountId: string, dto: GenerateBaseDietDto) {
+    const { instructions = '', categories, maxFoodsPerCategory = 3 } = dto;
+
+    const prompt = [
+      'Eres Naty, la nutricionista asistente de NutriNet en Chile.',
+      'Tu objetivo es seleccionar la mejor combinación de alimentos saludables para estructurar una pauta alimentaria base.',
+      `Categorías de alimentos solicitadas a completar: ${JSON.stringify(categories)}`,
+      `Cantidad de alimentos por categoría: MÍNIMO 1 alimento y MÁXIMO ${maxFoodsPerCategory} alimentos.`,
+      instructions ? `Instrucciones clínicas o preferencias especiales del nutricionista: "${instructions}"` : '',
+      'Reglas OBLIGATORIAS:',
+      `1. Para CADA categoría solicitada en la lista, DEBES incluir al menos 1 alimento relevante y máximo ${maxFoodsPerCategory} alimentos típicos del catálogo de Chile (ej: Leche descremada con Vit. D, Yogurt Natural, Queso Gouda, Pechuga de pollo sin piel, Vacuno posta, Salmón, Avena, Manzana, Palta, Almendras, etc.).`,
+      '2. NUNCA dejes una categoría solicitada con lista vacía []; todas las categorías solicitadas deben incluir obligatoriamente entre 1 y el máximo de alimentos sugeridos.',
+      '3. Responde ÚNICAMENTE con el esquema JSON estructurado.',
+    ]
+      .filter(Boolean)
+      .join('\n');
+
+    this.logger.log(
+      `==================== [NATY DIAGNOSTIC LOG] ====================`,
+    );
+    this.logger.log(
+      `[generateBaseDiet] Categorías solicitadas (${categories.length}): ${JSON.stringify(categories)}`,
+    );
+    this.logger.log(
+      `[generateBaseDiet] Max alimentos por categoría: ${maxFoodsPerCategory}`,
+    );
+
+    await this.planUsageService.consumeQuota(accountId, 'ai.calls.limit');
+
+    const result = await this.aiService.generateStructuredObject(
+      'diet.generate-base',
+      'Eres Naty, la nutricionista asistente experta de NutriNet para profesionales.',
+      prompt,
+      dietGenerateBaseResponseSchema,
+      { accountId, feature: 'diet.generate-base' },
+    );
+
+    this.logger.log(`[generateBaseDiet] Provider de IA usado: ${result.provider}`);
+    this.logger.log(
+      `[generateBaseDiet] Categorías devueltas por Naty (${result.object?.categories?.length || 0}): ${JSON.stringify(result.object?.categories)}`,
+    );
+    this.logger.log(
+      `==============================================================`,
+    );
+
+    return {
+      ok: true,
+      provider: result.provider,
+      dietTitle: result.object?.dietTitle || 'Pauta Base Generada por Naty',
+      summary: result.object?.summary || '',
+      categories: result.object?.categories || [],
     };
   }
 }

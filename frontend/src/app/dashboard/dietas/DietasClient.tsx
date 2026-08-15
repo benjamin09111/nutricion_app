@@ -10,6 +10,7 @@ import {
   FileCode,
   Loader2,
   Sparkles,
+  ChefHat,
   Beef,
   Wheat,
   Droplets,
@@ -31,6 +32,7 @@ import { buildFoodInfoPreview } from "@/features/diet/utils/diet-helpers";
 import { downloadDietPdf } from "@/features/pdf/pdfExport";
 import { saveCreation } from "@/lib/workflow";
 import { toast } from "sonner";
+import { FreemiumUpgradeModal } from "@/components/memberships/FreemiumUpgradeModal";
 import { formatCLP } from "@/lib/utils/currency";
 
 interface DietasClientProps {
@@ -38,9 +40,10 @@ interface DietasClientProps {
 }
 
 export default function DietasClient({ initialFoods }: DietasClientProps) {
-  const state = useDietState({ initialFoods });
+  const state = useDietState({ initialFoods, startEmpty: true });
   const [isSaving, setIsSaving] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
 
   // Compute total foods count across categories
   const totalFoodsCount = useMemo(() => {
@@ -176,14 +179,30 @@ export default function DietasClient({ initialFoods }: DietasClientProps) {
     toast.success(`Dieta "${creation.name}" importada exitosamente.`);
   };
 
-  // Action Dock buttons
+  // Action Dock buttons: Reiniciar, Importar otra DIETA creada, Guardar, Descargar
   const actionItems: ActionDockItem[] = useMemo(
     () => [
+      {
+        id: "reset",
+        icon: RotateCcw,
+        label: "Reiniciar",
+        description: "Reiniciar borrador y limpiar alimentos",
+        variant: "rose",
+        onClick: () => state.setIsResetConfirmOpen(true),
+      },
+      {
+        id: "import",
+        icon: Filter,
+        label: "Importar dieta creada",
+        description: "Cargar una dieta previamente guardada",
+        variant: "indigo",
+        onClick: () => setIsUpgradeModalOpen(true),
+      },
       {
         id: "save",
         icon: isSaving ? Loader2 : Save,
         label: isSaving ? "Guardando..." : "Guardar",
-        description: "Guardar en Creaciones (JSON)",
+        description: "Guardar en Creaciones",
         variant: "emerald",
         disabled: isSaving,
         onClick: () => void handleSaveCreation(),
@@ -191,47 +210,14 @@ export default function DietasClient({ initialFoods }: DietasClientProps) {
       {
         id: "pdf",
         icon: isExportingPdf ? Loader2 : Download,
-        label: isExportingPdf ? "Exportando..." : "Descargar PDF",
-        description: "Exportar pauta en PDF",
+        label: isExportingPdf ? "Exportando..." : "Descargar",
+        description: "Descargar pauta en PDF",
         variant: "indigo",
         disabled: isExportingPdf,
         onClick: () => void handleExportPdf(),
       },
-      {
-        id: "save-pdf",
-        icon: Sparkles,
-        label: "Guardar y PDF",
-        description: "Guardar en Creaciones y descargar PDF",
-        variant: "amber",
-        disabled: isSaving || isExportingPdf,
-        onClick: () => void handleSaveAndPdf(),
-      },
-      {
-        id: "json",
-        icon: FileCode,
-        label: "Exportar JSON",
-        description: "Descargar archivo .json local",
-        variant: "slate",
-        onClick: handleDownloadJson,
-      },
-      {
-        id: "import",
-        icon: Filter,
-        label: "Importar plantilla",
-        description: "Cargar una dieta previamente guardada",
-        variant: "indigo",
-        onClick: () => state.setIsImportCreationModalOpen(true),
-      },
-      {
-        id: "reset",
-        icon: RotateCcw,
-        label: "Reiniciar",
-        description: "Reiniciar borrador",
-        variant: "rose",
-        onClick: () => state.setIsResetConfirmOpen(true),
-      },
     ],
-    [state, isSaving, isExportingPdf, totals],
+    [state, isSaving, isExportingPdf],
   );
 
   return (
@@ -248,6 +234,7 @@ export default function DietasClient({ initialFoods }: DietasClientProps) {
         rightContent={<ModuleUsageBadges />}
         rightNavItems={state.isHydrating ? [] : actionItems}
         rightNavDesktopBreakpoint="lg"
+        className="max-w-[68rem]"
       >
         {state.isHydrating ? (
           <div className="flex min-h-[24rem] items-center justify-center rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
@@ -273,7 +260,16 @@ export default function DietasClient({ initialFoods }: DietasClientProps) {
                   />
                 </div>
 
-                <div className="flex items-center gap-2 pt-5 md:pt-0">
+                <div className="flex items-center gap-2 pt-5 md:pt-0 flex-wrap">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={state.applyBaseFoods}
+                    className="h-11 px-4 border-slate-200 text-slate-700 hover:bg-slate-50 font-bold rounded-xl gap-2 shadow-xs cursor-pointer"
+                  >
+                    <ChefHat className="h-4 w-4 text-emerald-600" />
+                    Aplicar ingredientes base
+                  </Button>
                   <Button
                     onClick={() => void handleSaveCreation()}
                     disabled={isSaving}
@@ -319,7 +315,7 @@ export default function DietasClient({ initialFoods }: DietasClientProps) {
               {/* Restricción Clínica Input */}
               <div className="space-y-2 pt-3 border-t border-slate-100">
                 <label className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                  <AlertCircle className="h-4 w-4 text-rose-500" />
+                  <AlertCircle className="h-4 w-4 text-amber-500" />
                   Restricción Clínica / Foco Nutricional
                 </label>
                 <TagInput
@@ -330,62 +326,62 @@ export default function DietasClient({ initialFoods }: DietasClientProps) {
                   disableDelete={true}
                   openDirection="down"
                   helperText="Selecciona sugerencias o presiona Enter para agregar una restricción."
-                  className="min-h-[44px] rounded-xl border-slate-200 bg-slate-50 shadow-sm"
+                  className="min-h-[44px] rounded-xl border-slate-200 bg-white shadow-xs"
                 />
               </div>
             </div>
 
             {/* Macro Calculations Summary Bar */}
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-              <div className="bg-gradient-to-br from-emerald-500 to-teal-600 text-white p-4 rounded-2xl shadow-sm flex flex-col justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider opacity-80 flex items-center gap-1.5">
-                  <Scale className="h-4 w-4" /> Energía Total
+              <div className="bg-white border border-slate-200/90 p-4 rounded-2xl shadow-xs flex flex-col justify-between hover:border-slate-300 transition-all">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                  <Scale className="h-4 w-4 text-emerald-600" /> Energía Total
                 </span>
                 <div className="mt-2">
-                  <span className="text-2xl font-black">{totals.calories}</span>
-                  <span className="text-xs font-semibold ml-1 opacity-90">kcal</span>
+                  <span className="text-2xl font-black text-slate-900">{totals.calories}</span>
+                  <span className="text-xs font-semibold text-slate-400 ml-1">kcal</span>
                 </div>
               </div>
 
-              <div className="bg-white border border-rose-100 bg-rose-50/50 p-4 rounded-2xl shadow-sm flex flex-col justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-rose-700 flex items-center gap-1.5">
-                  <Beef className="h-4 w-4 text-rose-500" /> Proteínas
+              <div className="bg-white border border-slate-200/90 p-4 rounded-2xl shadow-xs flex flex-col justify-between hover:border-slate-300 transition-all">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                  <Beef className="h-4 w-4 text-slate-500" /> Proteínas
                 </span>
                 <div className="mt-2">
-                  <span className="text-2xl font-black text-rose-900">{totals.protein}</span>
-                  <span className="text-xs font-semibold text-rose-700 ml-1">g</span>
+                  <span className="text-2xl font-black text-slate-900">{totals.protein}</span>
+                  <span className="text-xs font-semibold text-slate-400 ml-1">g</span>
                 </div>
               </div>
 
-              <div className="bg-white border border-amber-100 bg-amber-50/50 p-4 rounded-2xl shadow-sm flex flex-col justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-amber-700 flex items-center gap-1.5">
-                  <Wheat className="h-4 w-4 text-amber-500" /> Carbohidratos
+              <div className="bg-white border border-slate-200/90 p-4 rounded-2xl shadow-xs flex flex-col justify-between hover:border-slate-300 transition-all">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                  <Wheat className="h-4 w-4 text-slate-500" /> Carbohidratos
                 </span>
                 <div className="mt-2">
-                  <span className="text-2xl font-black text-amber-900">{totals.carbs}</span>
-                  <span className="text-xs font-semibold text-amber-700 ml-1">g</span>
+                  <span className="text-2xl font-black text-slate-900">{totals.carbs}</span>
+                  <span className="text-xs font-semibold text-slate-400 ml-1">g</span>
                 </div>
               </div>
 
-              <div className="bg-white border border-blue-100 bg-blue-50/50 p-4 rounded-2xl shadow-sm flex flex-col justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-blue-700 flex items-center gap-1.5">
-                  <Droplets className="h-4 w-4 text-blue-500" /> Lípidos
+              <div className="bg-white border border-slate-200/90 p-4 rounded-2xl shadow-xs flex flex-col justify-between hover:border-slate-300 transition-all">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                  <Droplets className="h-4 w-4 text-slate-500" /> Lípidos
                 </span>
                 <div className="mt-2">
-                  <span className="text-2xl font-black text-blue-900">{totals.fats}</span>
-                  <span className="text-xs font-semibold text-blue-700 ml-1">g</span>
+                  <span className="text-2xl font-black text-slate-900">{totals.fats}</span>
+                  <span className="text-xs font-semibold text-slate-400 ml-1">g</span>
                 </div>
               </div>
 
-              <div className="col-span-2 sm:col-span-1 bg-white border border-slate-200 p-4 rounded-2xl shadow-sm flex flex-col justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                  <Sparkles className="h-4 w-4 text-amber-500" /> Precio Est.
+              <div className="col-span-2 sm:col-span-1 bg-white border border-slate-200/90 p-4 rounded-2xl shadow-xs flex flex-col justify-between hover:border-slate-300 transition-all">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                  <Sparkles className="h-4 w-4 text-emerald-600" /> Precio Est.
                 </span>
                 <div className="mt-2">
-                  <span className="text-2xl font-black text-slate-800">
+                  <span className="text-2xl font-black text-slate-900">
                     {formatCLP(totals.price)}
                   </span>
-                  <span className="text-xs font-semibold text-slate-500 ml-1">aprox</span>
+                  <span className="text-xs font-semibold text-slate-400 ml-1">aprox</span>
                 </div>
               </div>
             </div>
@@ -402,6 +398,9 @@ export default function DietasClient({ initialFoods }: DietasClientProps) {
                 setIsFoodInfoModalOpen={state.setIsFoodInfoModalOpen}
                 removeFood={state.removeFood}
                 setIsAddGroupModalOpen={state.setIsAddGroupModalOpen}
+                initialFoods={state.initialFoods || initialFoods}
+                addFoodToGroup={state.addFoodToGroup}
+                handleCreateGroupByName={state.handleCreateGroupByName}
               />
             </div>
           </div>
@@ -493,6 +492,12 @@ export default function DietasClient({ initialFoods }: DietasClientProps) {
         creationDescription={state.creationDescription}
         setCreationDescription={state.setCreationDescription}
         handleSaveWithDescription={state.handleSaveWithDescription}
+      />
+
+      <FreemiumUpgradeModal
+        isOpen={isUpgradeModalOpen}
+        onClose={() => setIsUpgradeModalOpen(false)}
+        description="La importación de pautas y plantillas de dietas anteriores es una función exclusiva para usuarios con un plan de pago (Pro/Premium). ¡Actualiza tu plan para reutilizar tus creaciones guardadas y ahorrar tiempo en cada consulta!"
       />
     </>
   );
