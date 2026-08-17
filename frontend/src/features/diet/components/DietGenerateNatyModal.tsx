@@ -238,7 +238,7 @@ export const DietGenerateNatyModal: React.FC<DietGenerateNatyModalProps> = ({
 
       console.log("==================== [NATY FRONTEND MATCHING DIAGNOSTIC] ====================");
       console.log(`[Naty AI] Categorías Solicitadas (${targetCategoryList.length}):`, targetCategoryList);
-      console.log(`[Naty AI] Categorías devueltas por Backend (${responseData.categories.length}):`, responseData.categories);
+      console.log(`[Naty AI] Categorías devueltas por Backend (${responseData.categories?.length || 0}):`, responseData.categories);
 
       // Guarantee matching for EVERY requested category in targetCategoryList
       const resultFoodsByGroup: Record<string, MarketPrice[]> = {};

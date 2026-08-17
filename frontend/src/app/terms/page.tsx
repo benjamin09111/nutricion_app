@@ -2,8 +2,18 @@ import type { Metadata } from "next";
 import { LegalPage, type LegalSection } from "@/components/legal/LegalPage";
 
 export const metadata: Metadata = {
-  title: "Términos de Servicio",
+  title: "Términos de Servicio | NutriNet",
   description: "Términos de Servicio de NutriNet para el uso de la plataforma por profesionales de nutrición.",
+  alternates: {
+    canonical: "/terms",
+  },
+  openGraph: {
+    title: "Términos de Servicio | NutriNet",
+    description: "Condiciones de uso de la plataforma clínica NutriNet.",
+    url: "/terms",
+    type: "website",
+    siteName: "NutriNet",
+  },
 };
 
 const sections: LegalSection[] = [

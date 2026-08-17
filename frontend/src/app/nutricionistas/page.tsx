@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import NutritionistsClient from "./NutritionistsClient";
 import { getPublicNutritionists } from "@/lib/public-nutritionists";
+import { JsonLd } from "@/components/seo/JsonLd";
 
 export const metadata: Metadata = {
   title: "Nutricionistas en Chile | Busca, Compara y Agenda tu Consulta | NutriNet",
@@ -62,15 +63,49 @@ export const metadata: Metadata = {
     images: ["/logo_2.webp"],
     creator: "@nutrinet_cl",
   },
-  verification: {
-    google: "your-google-verification-code",
-  },
 };
 
 export const dynamic = "force-dynamic";
 
 export default async function NutritionistsPage() {
   const initialData = await getPublicNutritionists({ page: 1, limit: 12 });
+  const baseUrl = (
+    process.env.NEXT_PUBLIC_APP_URL || "https://nutrinet.cl"
+  ).replace(/\/$/, "");
 
-  return <NutritionistsClient initialData={initialData} />;
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Inicio",
+        item: `${baseUrl}/`,
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "Nutricionistas",
+        item: `${baseUrl}/nutricionistas`,
+      },
+    ],
+  };
+
+  const directoryJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "MedicalWebPage",
+    name: "Directorio de Nutricionistas en Chile",
+    description:
+      "Directorio profesional de nutricionistas verificados en Chile.",
+    url: `${baseUrl}/nutricionistas`,
+    aspect: "Overview",
+  };
+
+  return (
+    <>
+      <JsonLd data={[directoryJsonLd, breadcrumbJsonLd]} />
+      <NutritionistsClient initialData={initialData} />
+    </>
+  );
 }

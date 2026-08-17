@@ -33,6 +33,12 @@
 16. **Prisma Command Safety**: Before database work, read `backend/DATABASES.md` and load the `prisma-migration` skill. Use only `npm run db:migrate:dev*` and `npm run db:check:dev` locally. Never run raw `prisma migrate dev`, `prisma db push`, `prisma migrate reset`, or production migration commands unless the documented workflow explicitly requires it and the user approves production access.
 17. **Production Migration Gate**: A release containing Prisma schema changes must apply committed migrations with `prisma migrate deploy` before the new backend starts. Never generate migrations in production. Never mark migrations as applied in production without verified matching SQL. If DEV and production drift, stop deployment and reconcile through a new non-destructive migration.
 18. **Production Catalog Preservation**: Production ingredients (`/alimentos`), tags/metrics (`/detalles`), resources, accounts, patients, plans, and user-created content must never be cleared or replaced by seeds, cleanup scripts, or deployment hooks. Production startup runs `db:safety:check`; do not bypass it. Seeds are DEV-only and additive (`upsert`, `findFirst`/`create`, or `createMany({ skipDuplicates: true })`).
+19. **SEO, Soft 404 Prevention & Indexing Rules**:
+    - **No Soft 404s**: Never render an error page with HTTP status 200 OK for missing, hidden (`gone`), or invalid dynamic entities. Always call Next.js `notFound()` to issue a real HTTP 404 Not Found response.
+    - **Private Route Protection**: All internal, auth, token, or flow-specific routes (`/dashboard`, `/portal`, `/login`, `/formulario-paciente`, `/verify-email`, `/onboarding`, `/plan`, etc.) MUST explicitly export metadata with `robots: { index: false, follow: false }`.
+    - **Dynamic Sitemap**: `sitemap.ts` MUST dynamically aggregate all active public entities (`/nutricionistas/${slug}`) and include all primary public landing pages (`/`, `/nutricionistas`, `/sobre-nutrinet`, `/privacy-policy`, `/terms`).
+    - **Dynamic Site URL**: Always resolve site domains via `process.env.NEXT_PUBLIC_APP_URL || "https://nutrinet.cl"`.
+    - **Custom 404 Maintenance**: Maintain `src/app/not-found.tsx` with proper 404 UI, clean CTAs, and `noindex` metadata.
 
 ## Linguistic Conventions
 - **UI text**: Professional, warm Spanish (español de Chile).

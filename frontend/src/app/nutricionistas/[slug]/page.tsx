@@ -2,6 +2,7 @@ import NutritionistProfileClient from "./NutritionistProfileClient";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getPublicNutritionistBySlug } from "@/lib/public-nutritionists";
+import { JsonLd } from "@/components/seo/JsonLd";
 
 export const dynamic = "force-dynamic";
 
@@ -109,33 +110,67 @@ export default async function NutritionistProfilePage({
   const { slug } = await params;
   const result = await getPublicNutritionistBySlug(slug);
 
-  if (result.status === "gone") {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
-        <div className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 text-amber-600">
-            <span className="text-2xl font-black">!</span>
-          </div>
-          <h1 className="text-2xl font-black text-slate-900">
-            Este perfil ya no es público
-          </h1>
-          <p className="mt-3 text-sm text-slate-600">
-            El nutricionista ocultó su perfil del portal público. Si necesitas
-            agendar, vuelve a intentarlo más tarde o contacta directamente al
-            profesional.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   if (result.status !== "ok") {
     notFound();
   }
 
   const nutritionist = result.nutritionist;
+  const baseUrl = (
+    process.env.NEXT_PUBLIC_APP_URL || "https://nutrinet.cl"
+  ).replace(/\/$/, "");
+
+  const profileJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Physician",
+    name: nutritionist.fullName,
+    url: `${baseUrl}/nutricionistas/${slug}`,
+    image: nutritionist.avatarUrl || `${baseUrl}/logo_2.webp`,
+    description: `Nutricionista ${
+      nutritionist.specialty ? `especialista en ${nutritionist.specialty}` : ""
+    } en Chile. Atiende ${nutritionist.consultationMode}.`,
+    medicalSpecialty:
+      nutritionist.specialties && nutritionist.specialties.length > 0
+        ? nutritionist.specialties
+        : [nutritionist.specialty].filter(Boolean),
+    address: nutritionist.location
+      ? {
+          "@type": "PostalAddress",
+          addressLocality: nutritionist.location,
+          addressCountry: "CL",
+        }
+      : undefined,
+    priceRange: nutritionist.prices || undefined,
+  };
+
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Inicio",
+        item: `${baseUrl}/`,
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "Nutricionistas",
+        item: `${baseUrl}/nutricionistas`,
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: nutritionist.fullName,
+        item: `${baseUrl}/nutricionistas/${slug}`,
+      },
+    ],
+  };
 
   return (
-    <NutritionistProfileClient slug={slug} initialNutritionist={nutritionist} />
+    <>
+      <JsonLd data={[profileJsonLd, breadcrumbJsonLd]} />
+      <NutritionistProfileClient slug={slug} initialNutritionist={nutritionist} />
+    </>
   );
 }

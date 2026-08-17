@@ -2,8 +2,18 @@ import type { Metadata } from "next";
 import { LegalPage, type LegalSection } from "@/components/legal/LegalPage";
 
 export const metadata: Metadata = {
-  title: "Política de Privacidad",
+  title: "Política de Privacidad | NutriNet",
   description: "Política de Privacidad de NutriNet para usuarios profesionales y tratamiento de datos de pacientes.",
+  alternates: {
+    canonical: "/privacy-policy",
+  },
+  openGraph: {
+    title: "Política de Privacidad | NutriNet",
+    description: "Tratamiento de datos personales y clínicos en la plataforma NutriNet.",
+    url: "/privacy-policy",
+    type: "website",
+    siteName: "NutriNet",
+  },
 };
 
 const sections: LegalSection[] = [

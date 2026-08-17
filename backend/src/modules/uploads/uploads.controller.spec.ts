@@ -1,25 +1,25 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { MetricsController } from './metrics.controller';
-import { MetricsService } from './metrics.service';
-import { PermissionsService } from '../permissions/permissions.service';
+import { UploadsController } from './uploads.controller';
+import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { PermissionsService } from '../permissions/permissions.service';
 
-describe('MetricsController', () => {
-  let controller: MetricsController;
+describe('UploadsController', () => {
+  let controller: UploadsController;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      controllers: [MetricsController],
+      controllers: [UploadsController],
       providers: [
-        { provide: MetricsService, useValue: {} },
-        { provide: PermissionsService, useValue: {} },
+        { provide: Reflector, useValue: { get: jest.fn() } },
         { provide: JwtService, useValue: {} },
         { provide: ConfigService, useValue: { get: jest.fn() } },
+        { provide: PermissionsService, useValue: {} },
       ],
     }).compile();
 
-    controller = module.get<MetricsController>(MetricsController);
+    controller = module.get<UploadsController>(UploadsController);
   });
 
   it('should be defined', () => {

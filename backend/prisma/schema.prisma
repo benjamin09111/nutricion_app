@@ -29,6 +29,10 @@ model Account {
   emailVerificationToken    String?                    @unique @map("email_verification_token")
   emailVerificationSentAt   DateTime?                  @map("email_verification_sent_at") @db.Timestamptz(6)
   emailVerifiedAt           DateTime?                  @map("email_verified_at") @db.Timestamptz(6)
+  tokenVersion              Int                        @default(0) @map("token_version")
+  totpSecret                String?                    @map("totp_secret")
+  totpEnabled               Boolean                    @default(false) @map("totp_enabled")
+  totpRecoveryCodes         String[]                   @default([]) @map("totp_recovery_codes")
   nutritionist              Nutritionist?
   payments                  Payment[]
   subscription              Subscription?

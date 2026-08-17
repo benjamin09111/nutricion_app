@@ -771,10 +771,20 @@ export class AuthService {
       const payload = {
         email: account.email,
         sub: account.id,
+        tokenVersion: account.tokenVersion ?? 0,
       };
 
+      const isAdminAccount =
+        account.role === 'ADMIN' ||
+        account.role === 'ADMIN_GENERAL' ||
+        account.role === 'ADMIN_MASTER';
+
       const signOptions: any = {
-        expiresIn: loginDto.rememberMe ? '30d' : '24h',
+        expiresIn: isAdminAccount
+          ? '12h'
+          : loginDto.rememberMe
+            ? '30d'
+            : '24h',
       };
 
       const accessSnapshot = await this.permissionsService.getAccessSnapshot(
