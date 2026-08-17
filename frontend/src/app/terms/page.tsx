@@ -40,11 +40,11 @@ const sections: LegalSection[] = [
     ],
   },
   {
-    title: "4. Uso de inteligencia artificial y subencargados",
+    title: "4. Declaración sobre herramientas de Inteligencia Artificial (Naty e imágenes)",
     paragraphs: [
-      "NutriNet incorpora funciones de inteligencia artificial para apoyar la planificación alimentaria. Dichas herramientas utilizan APIs externas (como OpenAI o Anthropic) en calidad de subencargados, regulados bajo un acuerdo de procesamiento de datos (DPA) que prohíbe el uso de datos de pacientes para el entrenamiento de modelos.",
-      "El software incluye una barrera de validación clínica obligatoria: toda sugerencia generada por la IA debe ser revisada, editada y aprobada explícitamente por el profesional mediante el panel de validación clínica antes de ser consolidada o compartida con el paciente.",
-      "La IA constituye un mero apoyo de productividad y en ningún caso reemplaza el criterio, diagnóstico, prescripción o indicación clínica del profesional de la salud.",
+      "NutriNet incorpora funciones de inteligencia artificial para apoyar la planificación alimentaria, el procesamiento asistido y la interacción con el usuario mediante herramientas automáticas, incluyendo el asistente virtual Naty y la generación o sugerencia automatizada de recetas e imágenes explicativas.",
+      "Dichas herramientas utilizan APIs externas (como OpenAI o Anthropic) en calidad de subencargados, regulados bajo un acuerdo de procesamiento de datos (DPA) que prohíbe el uso de datos de pacientes para el entrenamiento de modelos.",
+      "El usuario reconoce y acepta expresamente que las sugerencias, borradores, respuestas del asistente Naty e imágenes generadas por IA constituyen un mero apoyo de productividad y deben ser revisadas, editadas y aprobadas clínicamente por el profesional antes de ser consolidadas o compartidas con los pacientes.",
     ],
   },
   {
@@ -61,14 +61,22 @@ const sections: LegalSection[] = [
     ],
   },
   {
-    title: "7. Propiedad intelectual y terminación",
+    title: "7. Propiedad intelectual y protección de derechos de autor (Procedimiento de retiro / Takedown)",
     paragraphs: [
-      "La plataforma, su diseño, código, textos, flujos, interfaces y demás elementos protegibles pertenecen a NutriNet o a sus licenciantes.",
-      "NutriNet podrá suspender o terminar cuentas y accesos cuando exista incumplimiento de estos Términos, uso abusivo, fraudulento o inseguro, o por razones técnicas, legales o de operación.",
+      "La plataforma, su diseño, código, textos, flujos, interfaces y marcas pertenecen a NutriNet o a sus licenciantes.",
+      "Respecto del contenido, archivos, imágenes o recursos cargados por los usuarios en la plataforma, el usuario garantiza contar con las autorizaciones y derechos de propiedad intelectual necesarios.",
+      "Si cualquier titular de derechos considera que algún contenido alojado en NutriNet infringe sus derechos de autor o propiedad intelectual, podrá enviar una notificación de retiro (Notice and Takedown) a contacto@nutrinet.cl detallando el material infractor. NutriNet actuará con prontitud para evaluar y, en su caso, remover o deshabilitar el acceso a dicho material.",
     ],
   },
   {
-    title: "8. Contacto",
+    title: "8. Ley aplicable y resolución de controversias",
+    paragraphs: [
+      "Los presentes Términos de Servicio se rigen por las leyes de la República de Chile.",
+      "Cualquier conflicto, controversia o reclamación derivada de la interpretación, validez o ejecución de estos Términos será sometida primeramente a una instancia de negociación de buena fe entre las partes. De no alcanzarse un acuerdo en un plazo de treinta (30) días, las partes se someten a la jurisdicción de los Tribunales Ordinarios de Justicia de la ciudad de Santiago de Chile.",
+    ],
+  },
+  {
+    title: "9. Contacto",
     paragraphs: [
       "Para consultas legales o de soporte relacionadas con estos Términos, escribe a contacto@nutrinet.cl.",
     ],
@@ -80,7 +88,7 @@ export default function TermsPage() {
     <LegalPage
       title="Términos de Servicio"
       description="Condiciones generales de uso de NutriNet para profesionales de nutrición y dietética."
-      lastUpdated="24 de junio de 2026"
+      lastUpdated="17 de agosto de 2026"
       sections={sections}
     />
   );

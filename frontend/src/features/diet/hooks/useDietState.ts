@@ -1225,18 +1225,36 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
         });
       }
 
-      toast.success(
-        `Dieta "${dietName}" guardada correctamente en Mis Creaciones.`,
-        {
-          description:
-            "Las restricciones seleccionadas generarán contenido educativo automáticamente.",
+      if (savedCreation?.wasUpdated) {
+        toast.success(`Dieta "${dietName}" actualizada correctamente en Mis Creaciones.`, {
           action: {
             label: "Ir a Creaciones",
             onClick: () => router.push("/dashboard/creaciones"),
           },
           duration: 5000,
-        },
-      );
+        });
+      } else if (savedCreation?.wasCreated === false) {
+        toast.info(`La dieta "${dietName}" ya se encuentra guardada en Mis Creaciones sin cambios pendientes.`, {
+          action: {
+            label: "Ir a Creaciones",
+            onClick: () => router.push("/dashboard/creaciones"),
+          },
+          duration: 5000,
+        });
+      } else {
+        toast.success(
+          `Dieta "${dietName}" guardada correctamente en Mis Creaciones.`,
+          {
+            description:
+              "Las restricciones seleccionadas generarán contenido educativo automáticamente.",
+            action: {
+              label: "Ir a Creaciones",
+              onClick: () => router.push("/dashboard/creaciones"),
+            },
+            duration: 5000,
+          },
+        );
+      }
       fetchAvailableTags();
     } catch (error: any) {
       console.error("Error saving creation:", error);
@@ -1264,18 +1282,24 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
         });
       }
 
-      toast.success(
-        `Dieta "${dietName}" guardada correctamente en Mis Creaciones.`,
-        {
-          description:
-            "Las restricciones seleccionadas generarán contenido educativo automáticamente.",
-          action: {
-            label: "Ir a Creaciones",
-            onClick: () => router.push("/dashboard/creaciones"),
+      if (savedCreation?.wasUpdated) {
+        toast.success(`Dieta "${dietName}" actualizada correctamente en Mis Creaciones.`);
+      } else if (savedCreation?.wasCreated === false) {
+        toast.info(`La dieta "${dietName}" ya se encuentra guardada en Mis Creaciones sin cambios pendientes.`);
+      } else {
+        toast.success(
+          `Dieta "${dietName}" guardada correctamente en Mis Creaciones.`,
+          {
+            description:
+              "Las restricciones seleccionadas generarán contenido educativo automáticamente.",
+            action: {
+              label: "Ir a Creaciones",
+              onClick: () => router.push("/dashboard/creaciones"),
+            },
+            duration: 5000,
           },
-          duration: 5000,
-        },
-      );
+        );
+      }
       fetchAvailableTags();
       setIsSaveCreationModalOpen(false);
       setCreationDescription("");
@@ -1328,10 +1352,21 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
         })),
       });
       toast.success("PDF exportado correctamente.", { id: toastId });
-      setIsSaveCreationModalOpen(true);
-    } catch (e) {
+    } catch (e: any) {
       console.error("Error generando PDF:", e);
-      toast.error("Error al generar el PDF. Intenta de nuevo.", { id: toastId });
+      const msg = (e?.message || "").toLowerCase();
+      if (
+        e?.status === 403 ||
+        msg.includes("límite") ||
+        msg.includes("cuota") ||
+        msg.includes("plan") ||
+        msg.includes("free")
+      ) {
+        toast.error(e?.message || "Has alcanzado el límite de exportaciones en PDF de tu plan.", { id: toastId });
+        setIsUpgradeModalOpen(true);
+      } else {
+        toast.error(e?.message || "Error al generar el PDF. Intenta de nuevo.", { id: toastId });
+      }
     } finally {
       setIsExportingPdf(false);
     }

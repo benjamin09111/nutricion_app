@@ -361,17 +361,22 @@ export const DietModals: React.FC<DietModalsProps> = ({
               searchResultFoods.map((f) => (
                 <div
                   key={f.id}
-                  className="w-full flex flex-col p-4 hover:bg-slate-50 rounded-2xl border border-slate-100/50 hover:border-emerald-200 transition-all group gap-4"
+                  onClick={() => handleAddFromSearch(f)}
+                  className="w-full flex flex-col p-4 bg-white hover:bg-emerald-50/60 rounded-2xl border border-slate-200/80 hover:border-emerald-400 transition-all group gap-4 cursor-pointer shadow-2xs"
                 >
                   <div className="flex flex-col gap-3">
                     <div>
-                      <p className="font-bold text-sm text-slate-900 leading-tight">
+                      <p className="font-bold text-sm text-slate-900 leading-tight group-hover:text-emerald-950">
                         {f.producto}
                       </p>
                       <div className="flex gap-2 text-xs text-slate-500 mt-1 font-medium">
                         <span className="text-orange-600 font-bold">{f.calorias || 0} kcal</span>
                         <span>·</span>
-                        <span className="text-blue-600">P: {f.proteinas || 0}g</span>
+                        <span className="text-blue-600 font-semibold">P: {f.proteinas || 0}g</span>
+                        <span>·</span>
+                        <span className="text-slate-600">C: {f.carbohidratos || 0}g</span>
+                        <span>·</span>
+                        <span className="text-slate-600">L: {f.lipidos || 0}g</span>
                       </div>
                     </div>
                   </div>
@@ -382,17 +387,20 @@ export const DietModals: React.FC<DietModalsProps> = ({
                         setSelectedFoodForInfo(f);
                         setIsFoodInfoModalOpen(true);
                       }}
-                      className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all border-0 bg-transparent"
+                      className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all border-0 bg-transparent cursor-pointer"
                       title="Ver información"
                     >
                       <Info className="h-4 w-4" />
                     </button>
                     <Button
-                      onClick={() => handleAddFromSearch(f)}
-                      className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all font-black text-[10px] uppercase tracking-widest shadow-sm shadow-emerald-100 h-9"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleAddFromSearch(f);
+                      }}
+                      title={`Añadir ${f.producto}`}
+                      className="flex items-center justify-center h-9 w-9 p-0 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all shadow-sm shadow-emerald-100 cursor-pointer shrink-0"
                     >
-                      <Plus className="h-4 w-4" />
-                      Añadir
+                      <Plus className="h-4 w-4 stroke-[2.5]" />
                     </Button>
                   </div>
                 </div>

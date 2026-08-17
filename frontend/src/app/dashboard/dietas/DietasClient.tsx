@@ -99,8 +99,14 @@ export default function DietasClient({ initialFoods }: DietasClientProps) {
         },
         tags: state.dietTags.length > 0 ? state.dietTags : ["Dieta General"],
       };
-      await saveCreation(payload);
-      toast.success(`Dieta "${state.dietName}" guardada en Creaciones`);
+      const res = await saveCreation(payload);
+      if (res?.wasUpdated) {
+        toast.success(`Dieta "${state.dietName}" actualizada correctamente en Creaciones.`);
+      } else if (res?.wasCreated === false) {
+        toast.info(`La dieta "${state.dietName}" ya se encuentra guardada en Creaciones sin cambios pendientes.`);
+      } else {
+        toast.success(`Dieta "${state.dietName}" guardada en Creaciones.`);
+      }
       if (typeof window !== "undefined") {
         window.dispatchEvent(new CustomEvent("creation-saved"));
       }
@@ -124,7 +130,19 @@ export default function DietasClient({ initialFoods }: DietasClientProps) {
       });
       toast.success("PDF descargado correctamente.");
     } catch (err: any) {
-      toast.error("Error al generar el PDF de la dieta.");
+      console.error("Error al exportar PDF de dieta:", err);
+      const msg = (err?.message || "").toLowerCase();
+      if (
+        err?.status === 403 ||
+        msg.includes("límite") ||
+        msg.includes("cuota") ||
+        msg.includes("plan") ||
+        msg.includes("free")
+      ) {
+        setIsUpgradeModalOpen(true);
+      } else {
+        toast.error(err?.message || "Error al generar el PDF de la dieta.");
+      }
     } finally {
       setIsExportingPdf(false);
     }
@@ -332,7 +350,7 @@ export default function DietasClient({ initialFoods }: DietasClientProps) {
             </div>
 
             {/* Macro Calculations Summary Bar */}
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div className="bg-white border border-slate-200/90 p-4 rounded-2xl shadow-xs flex flex-col justify-between hover:border-slate-300 transition-all">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
                   <Scale className="h-4 w-4 text-emerald-600" /> Energía Total
@@ -370,18 +388,6 @@ export default function DietasClient({ initialFoods }: DietasClientProps) {
                 <div className="mt-2">
                   <span className="text-2xl font-black text-slate-900">{totals.fats}</span>
                   <span className="text-xs font-semibold text-slate-400 ml-1">g</span>
-                </div>
-              </div>
-
-              <div className="col-span-2 sm:col-span-1 bg-white border border-slate-200/90 p-4 rounded-2xl shadow-xs flex flex-col justify-between hover:border-slate-300 transition-all">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                  <Sparkles className="h-4 w-4 text-emerald-600" /> Precio Est.
-                </span>
-                <div className="mt-2">
-                  <span className="text-2xl font-black text-slate-900">
-                    {formatCLP(totals.price)}
-                  </span>
-                  <span className="text-xs font-semibold text-slate-400 ml-1">aprox</span>
                 </div>
               </div>
             </div>

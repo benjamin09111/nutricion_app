@@ -214,7 +214,8 @@ export const DietPlannerSection: React.FC<DietPlannerSectionProps> = ({
         </div>
 
         <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-          {/* Generar Dieta Base con Naty Button */}
+          {/* Generar Dieta Base con Naty Button (Oculto temporalmente para revisión de matching) */}
+          {/* 
           <div
             title={
               totalSelectedFoods > 0
@@ -237,6 +238,7 @@ export const DietPlannerSection: React.FC<DietPlannerSectionProps> = ({
               Generar dieta base con Naty
             </Button>
           </div>
+          */}
 
           {/* Nueva Categoría Button */}
           <Button
@@ -473,25 +475,21 @@ export const DietPlannerSection: React.FC<DietPlannerSectionProps> = ({
                     Ver alimentos
                   </span>
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      handleToggleInlineAddFood(name);
-                    }}
-                    className={cn(
-                      "p-1.5 rounded-lg cursor-pointer transition-all flex items-center gap-1 text-xs font-bold px-2.5",
-                      isInlineSearchOpen
-                        ? "bg-emerald-600 text-white shadow-2xs"
-                        : "text-emerald-600 hover:bg-emerald-50"
-                    )}
-                    title={`Añadir alimento a ${name}`}
-                  >
-                    <Plus className="h-4 w-4" />
-                    <span className="hidden sm:inline">Añadir</span>
-                  </button>
+                <div className="flex items-center gap-1">
+                  {!isInlineSearchOpen && (
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        handleToggleInlineAddFood(name);
+                      }}
+                      className="p-1.5 rounded-lg cursor-pointer transition-all flex items-center justify-center text-emerald-600 hover:bg-emerald-50"
+                      title={`Añadir alimento a ${name}`}
+                    >
+                      <Plus className="h-4 w-4 stroke-[2.5]" />
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={(event) => {
@@ -555,7 +553,20 @@ export const DietPlannerSection: React.FC<DietPlannerSectionProps> = ({
                             return (
                               <div
                                 key={foodItem.producto}
-                                className="flex items-center justify-between gap-3 p-2.5 bg-white border border-slate-200/90 rounded-xl hover:border-emerald-400 hover:shadow-2xs transition-all text-xs"
+                                onClick={() => {
+                                  if (isAlreadyInCat) return;
+                                  if (addFoodToGroup) {
+                                    addFoodToGroup(foodItem, name);
+                                  } else {
+                                    openAddModal(name);
+                                  }
+                                }}
+                                className={cn(
+                                  "flex items-center justify-between gap-3 p-2.5 border rounded-xl transition-all text-xs",
+                                  isAlreadyInCat
+                                    ? "bg-slate-50/80 border-slate-200 opacity-70 cursor-not-allowed"
+                                    : "bg-white border-slate-200/90 hover:border-emerald-500 hover:bg-emerald-50/50 hover:shadow-xs cursor-pointer"
+                                )}
                               >
                                 <div className="min-w-0 flex-1">
                                   <p className="font-bold text-slate-800 truncate">
@@ -574,7 +585,9 @@ export const DietPlannerSection: React.FC<DietPlannerSectionProps> = ({
                                 <Button
                                   type="button"
                                   disabled={isAlreadyInCat}
-                                  onClick={() => {
+                                  title={isAlreadyInCat ? "Agregado a esta categoría" : `Añadir ${foodItem.producto}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
                                     if (addFoodToGroup) {
                                       addFoodToGroup(foodItem, name);
                                     } else {
@@ -582,20 +595,16 @@ export const DietPlannerSection: React.FC<DietPlannerSectionProps> = ({
                                     }
                                   }}
                                   className={cn(
-                                    "h-8 px-3 text-xs font-bold rounded-lg transition-all shrink-0 cursor-pointer",
+                                    "h-8 w-8 p-0 flex items-center justify-center rounded-lg transition-all shrink-0 cursor-pointer",
                                     isAlreadyInCat
-                                      ? "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed"
+                                      ? "bg-emerald-50 text-emerald-600 border border-emerald-200 cursor-not-allowed shadow-none opacity-80"
                                       : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs"
                                   )}
                                 >
                                   {isAlreadyInCat ? (
-                                    <span className="flex items-center gap-1">
-                                      <Check className="h-3.5 w-3.5 text-emerald-600" /> Agregado
-                                    </span>
+                                    <Check className="h-4 w-4 stroke-[2.5]" />
                                   ) : (
-                                    <span className="flex items-center gap-1">
-                                      <Plus className="h-3.5 w-3.5" /> Añadir
-                                    </span>
+                                    <Plus className="h-4 w-4 stroke-[2.5]" />
                                   )}
                                 </Button>
                               </div>
@@ -656,7 +665,20 @@ export const DietPlannerSection: React.FC<DietPlannerSectionProps> = ({
                             return (
                               <div
                                 key={foodItem.producto}
-                                className="flex items-center justify-between gap-3 p-3 bg-white border border-slate-200 rounded-xl text-xs"
+                                onClick={() => {
+                                  if (isAlreadyInCat) return;
+                                  if (addFoodToGroup) {
+                                    addFoodToGroup(foodItem, name);
+                                  } else {
+                                    openAddModal(name);
+                                  }
+                                }}
+                                className={cn(
+                                  "flex items-center justify-between gap-3 p-3 border rounded-xl text-xs transition-all",
+                                  isAlreadyInCat
+                                    ? "bg-slate-50 border-slate-200 opacity-70 cursor-not-allowed"
+                                    : "bg-white border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/50 cursor-pointer active:scale-[0.99]"
+                                )}
                               >
                                 <div className="min-w-0 flex-1">
                                   <p className="font-bold text-slate-800 truncate text-sm">
@@ -675,7 +697,9 @@ export const DietPlannerSection: React.FC<DietPlannerSectionProps> = ({
                                 <Button
                                   type="button"
                                   disabled={isAlreadyInCat}
-                                  onClick={() => {
+                                  title={isAlreadyInCat ? "Agregado" : "Añadir"}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
                                     if (addFoodToGroup) {
                                       addFoodToGroup(foodItem, name);
                                     } else {
@@ -683,13 +707,17 @@ export const DietPlannerSection: React.FC<DietPlannerSectionProps> = ({
                                     }
                                   }}
                                   className={cn(
-                                    "h-9 px-3.5 text-xs font-bold rounded-xl transition-all shrink-0 cursor-pointer",
+                                    "h-9 w-9 p-0 flex items-center justify-center rounded-xl transition-all shrink-0 cursor-pointer",
                                     isAlreadyInCat
-                                      ? "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed"
+                                      ? "bg-emerald-50 text-emerald-600 border border-emerald-200 cursor-not-allowed opacity-80"
                                       : "bg-emerald-600 text-white"
                                   )}
                                 >
-                                  {isAlreadyInCat ? "Agregado" : "Añadir"}
+                                  {isAlreadyInCat ? (
+                                    <Check className="h-4 w-4 stroke-[2.5]" />
+                                  ) : (
+                                    <Plus className="h-4 w-4 stroke-[2.5]" />
+                                  )}
                                 </Button>
                               </div>
                             );
@@ -812,7 +840,8 @@ export const DietPlannerSection: React.FC<DietPlannerSectionProps> = ({
         )}
       </div>
 
-      {/* Naty AI Base Generation Modal */}
+      {/* Naty AI Base Generation Modal (Oculto) */}
+      {/* 
       <DietGenerateNatyModal
         isOpen={isGenerateNatyModalOpen}
         onClose={() => setIsGenerateNatyModalOpen(false)}
@@ -820,6 +849,7 @@ export const DietPlannerSection: React.FC<DietPlannerSectionProps> = ({
         initialFoods={initialFoods}
         onApplyGeneratedFoods={handleApplyGeneratedFoods}
       />
+      */}
     </div>
   );
 };

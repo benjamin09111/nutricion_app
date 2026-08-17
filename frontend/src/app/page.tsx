@@ -39,7 +39,6 @@ import {
   type AboutSectionTab,
 } from "@/components/landing/AboutNutriNetModal";
 import { AboutNutriNetNavExtension } from "@/components/landing/AboutNutriNetNavExtension";
-import { TestimonialsSection } from "@/components/landing/TestimonialsSection";
 
 const toMembershipPlanArray = (value: unknown): MembershipPlan[] => {
   let list: MembershipPlan[] = [];
@@ -204,12 +203,6 @@ export default function LandingPage() {
             </button>
 
             <a
-              href="#testimonios"
-              className="text-sm font-semibold transition-colors duration-200 text-[#a88aed] hover:text-[#8f70d8]"
-            >
-              Testimonios
-            </a>
-            <a
               href="#planes"
               className="text-sm font-semibold transition-colors duration-200 text-[#a88aed] hover:text-[#8f70d8]"
             >
@@ -275,13 +268,6 @@ export default function LandingPage() {
                 </div>
               </div>
 
-              <a
-                href="#testimonios"
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-[#a88aed]/5"
-              >
-                Testimonios
-              </a>
               <a
                 href="#planes"
                 onClick={() => setIsMobileMenuOpen(false)}
@@ -351,12 +337,12 @@ export default function LandingPage() {
                     {content.hero.ctaButton}
                   </Button>
                 </Link>
-                <a href="#testimonios" className="w-full sm:w-auto">
+                <a href="#funcionalidades" className="w-full sm:w-auto">
                   <Button
                     variant="outline"
                     className="w-full sm:w-auto rounded-full h-14 px-8 text-sm font-bold text-[#a88aed] border-2 border-[#a88aed]/30 hover:border-[#a88aed] hover:bg-[#a88aed]/10 transition-all duration-300"
                   >
-                    Ver Reseñas de Nutricionistas
+                    Conocer Funcionalidades
                   </Button>
                 </a>
               </div>
@@ -442,9 +428,6 @@ export default function LandingPage() {
             </div>
           </div>
         </section>
-
-        {/* Testimonials Section */}
-        <TestimonialsSection />
 
         {/* Pricing Section */}
         <section

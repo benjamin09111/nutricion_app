@@ -34,7 +34,7 @@ const sections: LegalSection[] = [
   {
     title: "3. Finalidades y Evaluación de Impacto (EIPD)",
     paragraphs: [
-      "Tratamos los datos para operar la plataforma, gestionar las fichas clínicas, calcular porciones e intercambios, y generar sugerencias nutricionales mediante inteligencia artificial.",
+      "Tratamos los datos para operar la plataforma, gestionar las fichas clínicas, calcular porciones e intercambios, y generar sugerencias nutricionales mediante inteligencia artificial (incluyendo el asistente Naty y la asistencia visual).",
       "De acuerdo con lo exigido por la Ley 21.719, NutriNet ha llevado a cabo una Evaluación de Impacto en Protección de Datos (EIPD) antes del tratamiento de estas categorías especiales de datos de salud, con el fin de mitigar riesgos y asegurar la privacidad desde el diseño y por defecto.",
     ],
   },
@@ -70,6 +70,14 @@ const sections: LegalSection[] = [
       "• Oposición: Deshabilitar o rechazar el tratamiento automatizado por inteligencia artificial mediante las configuraciones de la plataforma.",
     ],
   },
+  {
+    title: "8. Cookies, Analítica y Herramientas de Seguimiento (Meta Pixel / Google Analytics)",
+    paragraphs: [
+      "NutriNet utiliza cookies técnicas estrictamente necesarias para mantener la sesión y seguridad de los usuarios.",
+      "Adicionalmente, en la landing page y secciones públicas se pueden emplear herramientas de medición de audiencia, analítica web y píxeles de conversión (tales como Meta Pixel y Google Analytics) para optimizar nuestras campañas de difusión e identificar tendencias de navegación.",
+      "Bajo ninguna circunstancia se comparten ni transmiten datos de salud o fichas clínicas de pacientes a dichas herramientas de analítica o publicidad. El usuario puede deshabilitar o bloquear las cookies no esenciales desde la configuración de su navegador en cualquier momento.",
+    ],
+  },
 ];
 
 export default function PrivacyPolicyPage() {
@@ -77,7 +85,7 @@ export default function PrivacyPolicyPage() {
     <LegalPage
       title="Política de Privacidad"
       description="Este documento explica cómo NutriNet trata los datos personales y clínicos dentro de la plataforma."
-      lastUpdated="24 de junio de 2026"
+      lastUpdated="17 de agosto de 2026"
       sections={sections}
     />
   );
