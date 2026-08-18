@@ -28,7 +28,7 @@ export const DietPatientSection: React.FC<DietPatientSectionProps> = ({
               Si importas un paciente, podrás considerar sus restricciones, objetivos y contexto clínico.
             </p>
             <p className="mt-2 text-xs font-semibold leading-5 text-slate-500">
-              *Si no seleccionas un paciente, puedes crear planes generales para reutilizarlos después.
+              *Si no seleccionas un paciente, la dieta quedará asociada a "tú persona".
             </p>
           </div>
           <Button
@@ -36,7 +36,7 @@ export const DietPatientSection: React.FC<DietPatientSectionProps> = ({
             variant="outline"
             onClick={onImportPatient}
             disabled={isLoadingPatients}
-            className="h-10 w-full sm:w-auto min-w-0 sm:min-w-48 justify-center rounded-xl border-emerald-200 bg-white px-4 text-sm font-semibold text-emerald-700 hover:border-emerald-300 hover:bg-emerald-50"
+            className="h-10 w-full sm:w-auto min-w-0 sm:min-w-48 justify-center rounded-xl border-emerald-200 bg-white px-4 text-sm font-semibold text-emerald-700 hover:border-emerald-300 hover:bg-emerald-50 shadow-xs"
           >
             {isLoadingPatients ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <User className="mr-2 h-4 w-4" />}
             {isLoadingPatients ? "Cargando..." : "Importar paciente"}

@@ -1041,6 +1041,7 @@ export const DietModals: React.FC<DietModalsProps> = ({
         onClose={() => setIsImportCreationModalOpen(false)}
         onImport={handleImportCreation}
         defaultType="DIET"
+        allowFreemium={true}
       />
 
       {/* Create Group Modal */}

@@ -65,7 +65,10 @@ export const DietConstraintSection: React.FC<DietConstraintSectionProps> = ({
           <Input
             placeholder="Nombre de la creación"
             value={dietName}
-            onChange={(e) => setDietName(e.target.value)}
+            onChange={(e) => {
+              setDietName(e.target.value);
+              saveDraft({ dietName: e.target.value });
+            }}
             className="h-11 rounded-xl border-slate-200 bg-slate-50 text-sm font-semibold"
           />
         </div>
@@ -97,7 +100,10 @@ export const DietConstraintSection: React.FC<DietConstraintSectionProps> = ({
         <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Descripción</p>
         <Textarea
           value={description}
-          onChange={(event) => setDescription(event.target.value)}
+          onChange={(event) => {
+            setDescription(event.target.value);
+            saveDraft({ creationDescription: event.target.value });
+          }}
           placeholder="Notas internas sobre este plan..."
           className="min-h-[72px] rounded-xl border-slate-200 bg-slate-50 text-sm"
         />
@@ -106,7 +112,10 @@ export const DietConstraintSection: React.FC<DietConstraintSectionProps> = ({
         <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Objetivo del plan <span className="normal-case font-medium text-slate-400">(opcional)</span></p>
         <Textarea
           value={planObjective}
-          onChange={(event) => setPlanObjective(event.target.value)}
+          onChange={(event) => {
+            setPlanObjective(event.target.value);
+            saveDraft({ planObjective: event.target.value });
+          }}
           placeholder="Ej: Pérdida de grasa enfocada en alimentos simples"
           className="min-h-[72px] rounded-xl border-slate-200 bg-slate-50 text-sm"
         />

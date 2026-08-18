@@ -414,7 +414,9 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
               patientName: selectedPatient.fullName,
               patientId: selectedPatient.id,
             }
-          : {}),
+          : {
+              patientName: "tú persona",
+            }),
       },
       tags: dietTags,
     };
@@ -723,46 +725,79 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
         return;
       }
 
-      if (type === "DIET") {
+      if (
+        type === "DIET" ||
+        type === "FAST_DELIVERABLE" ||
+        type === "PAUTAS" ||
+        type === "RECETARIO" ||
+        type === "RECIPE"
+      ) {
         setEditingCreationId(creation.id);
-        setDietName(creation.name || "");
-        setDietTags(creation.tags || []);
-        setPlanObjective(typeof content.planObjective === "string" ? content.planObjective : "");
+        if (creation.name) setDietName(creation.name);
+        if (creation.tags && Array.isArray(creation.tags)) setDietTags(creation.tags);
+        if (typeof content.planObjective === "string") setPlanObjective(content.planObjective);
         setShowPlanObjectiveInPdf(content.showPlanObjectiveInPdf === true);
-        setActiveConstraints(content.activeConstraints || []);
-        setMacroSettings(content.macroSettings || createDefaultMacroSettings());
-        setManualAdditions(content.manualAdditions || content.foods || []);
-        setCustomGroups(content.customGroups || []);
-        setCustomConstraints(content.customConstraints || []);
+        if (Array.isArray(content.activeConstraints)) setActiveConstraints(content.activeConstraints);
+        if (content.macroSettings) setMacroSettings(content.macroSettings);
 
-        if (content.foodStatus) {
-          setFoodStatus((prev) => ({ ...prev, ...content.foodStatus }));
-        }
+        const recoveredManual: any[] = [];
+        const recoveredGroupsSet = new Set<string>();
+        const recoveredStatus: Record<string, "added"> = {};
 
-        if (!content.foodStatus && content.categories) {
-          const recoveredManual: any[] = [];
-          const recoveredGroups: string[] = [];
-          const recoveredStatus: Record<string, any> = {};
-
-          Object.entries(content.categories).forEach(([groupName, foods]: [string, any]) => {
-            recoveredGroups.push(groupName);
+        // 1. Recover from content.groups or content.categories
+        const groupsData = content.groups || content.categories;
+        if (groupsData && typeof groupsData === "object" && Object.keys(groupsData).length > 0) {
+          Object.entries(groupsData).forEach(([groupName, foods]: [string, any]) => {
             if (Array.isArray(foods)) {
-              foods.forEach((f) => {
-                recoveredManual.push({ ...f, grupo: groupName });
-                recoveredStatus[f.producto] = "added";
+              recoveredGroupsSet.add(groupName);
+              foods.forEach((f: any) => {
+                const foodItem = { ...f, grupo: f.grupo || groupName, isManual: true };
+                recoveredManual.push(foodItem);
+                if (foodItem.producto) {
+                  recoveredStatus[foodItem.producto] = "added";
+                }
               });
             }
           });
+        }
 
-          if (recoveredManual.length > 0) setManualAdditions(recoveredManual);
-          if (recoveredGroups.length > 0) setCustomGroups(recoveredGroups);
+        // 2. Recover from content.manualAdditions or content.foods or content.items
+        const rawFoods = content.manualAdditions || content.foods || content.items || [];
+        if (Array.isArray(rawFoods) && rawFoods.length > 0) {
+          rawFoods.forEach((f: any) => {
+            const groupName = f.grupo || "Varios";
+            recoveredGroupsSet.add(groupName);
+            const foodItem = { ...f, grupo: groupName, isManual: true };
+            if (!recoveredManual.some((existing) => existing.producto === foodItem.producto && existing.grupo === groupName)) {
+              recoveredManual.push(foodItem);
+            }
+            if (foodItem.producto) {
+              recoveredStatus[foodItem.producto] = "added";
+            }
+          });
+        }
+
+        // 3. Recover customGroups from creation
+        if (Array.isArray(content.customGroups)) {
+          content.customGroups.forEach((g: string) => recoveredGroupsSet.add(g));
+        }
+
+        // 4. Set state
+        if (recoveredManual.length > 0) {
+          setManualAdditions(recoveredManual);
+        }
+        if (recoveredGroupsSet.size > 0) {
+          setCustomGroups(Array.from(recoveredGroupsSet));
+        }
+        if (Object.keys(recoveredStatus).length > 0) {
           setFoodStatus((prev) => ({ ...prev, ...recoveredStatus }));
         }
-        toast.success(`Dieta "${creation.name}" importada.`);
+
+        toast.success(`Dieta "${creation.name}" importada correctamente.`);
       } else if (type === "SHOPPING_LIST") {
         if (content.items && Array.isArray(content.items)) {
           const newAdditions = content.items.map((item: any) => ({
-            id: item.id,
+            id: item.id || Math.random().toString(),
             producto: item.producto,
             grupo: item.grupo || "Varios",
             unidad: item.unidad || "kg",
@@ -778,6 +813,12 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
 
           const uniqueGroups = Array.from(new Set(newAdditions.map((a: any) => a.grupo))) as string[];
           setCustomGroups((prev) => Array.from(new Set([...prev, ...uniqueGroups])));
+
+          const newStatus: Record<string, "added"> = {};
+          newAdditions.forEach((a: any) => {
+            if (a.producto) newStatus[a.producto] = "added";
+          });
+          setFoodStatus((prev) => ({ ...prev, ...newStatus }));
 
           toast.success(`Alimentos importados desde el Carrito: "${creation.name}"`);
         }
@@ -886,20 +927,30 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
       return;
     }
 
-    const savedDraft = sessionStorage.getItem(getUserDraftKey());
+    const savedDraft =
+      sessionStorage.getItem(getUserDraftKey()) ||
+      localStorage.getItem(getUserDraftKey()) ||
+      localStorage.getItem("nutri_active_draft");
     if (savedDraft) {
       try {
         const draft = JSON.parse(savedDraft);
-        setDietName(draft.dietName || "");
-        setDietTags(draft.dietTags || []);
-        setPlanObjective(typeof draft.planObjective === "string" ? draft.planObjective : "");
+        if (draft.dietName) setDietName(draft.dietName);
+        if (draft.dietTags) setDietTags(draft.dietTags);
+        if (typeof draft.creationDescription === "string")
+          setCreationDescription(draft.creationDescription);
+        if (typeof draft.planObjective === "string")
+          setPlanObjective(draft.planObjective);
         setShowPlanObjectiveInPdf(draft.showPlanObjectiveInPdf === true);
-        setActiveConstraints(draft.activeConstraints || []);
-        setMacroSettings(draft.macroSettings || createDefaultMacroSettings());
-        setManualAdditions(draft.manualAdditions || []);
-        setCustomGroups(draft.customGroups || []);
-        setCustomConstraints(draft.customConstraints || []);
-        setFoodStatus({ ...statuses, ...draft.foodStatus });
+        if (Array.isArray(draft.activeConstraints))
+          setActiveConstraints(draft.activeConstraints);
+        if (draft.macroSettings)
+          setMacroSettings(draft.macroSettings || createDefaultMacroSettings());
+        if (draft.manualAdditions) setManualAdditions(draft.manualAdditions);
+        if (draft.customGroups) setCustomGroups(draft.customGroups);
+        if (draft.customConstraints)
+          setCustomConstraints(draft.customConstraints);
+        if (draft.selectedPatient) setSelectedPatient(draft.selectedPatient);
+        if (draft.foodStatus) setFoodStatus({ ...statuses, ...draft.foodStatus });
         setIsHydrating(false);
         return;
       } catch (e) {
@@ -981,7 +1032,8 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
       }
 
       if (!status || status === "base") {
-          const normalizedConstraints = activeConstraints.map((c) =>
+        if (startEmpty) return false;
+        const normalizedConstraints = activeConstraints.map((c) =>
             c.toLowerCase(),
           );
 
@@ -1054,8 +1106,14 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
           overrides.dietName !== undefined ? overrides.dietName : dietName,
         dietTags:
           overrides.dietTags !== undefined ? overrides.dietTags : dietTags,
+        creationDescription:
+          overrides.creationDescription !== undefined
+            ? overrides.creationDescription
+            : creationDescription,
         planObjective:
-          overrides.planObjective !== undefined ? overrides.planObjective : planObjective,
+          overrides.planObjective !== undefined
+            ? overrides.planObjective
+            : planObjective,
         showPlanObjectiveInPdf:
           overrides.showPlanObjectiveInPdf !== undefined
             ? overrides.showPlanObjectiveInPdf
@@ -1064,6 +1122,10 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
           overrides.activeConstraints !== undefined
             ? overrides.activeConstraints
             : activeConstraints,
+        selectedPatient:
+          overrides.selectedPatient !== undefined
+            ? overrides.selectedPatient
+            : selectedPatient,
         foodStatus:
           overrides.foodStatus !== undefined
             ? overrides.foodStatus
@@ -1087,7 +1149,10 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
         favoritesEnabled,
         timestamp: Date.now(),
       };
-      sessionStorage.setItem(currentDraftKey, JSON.stringify(draft));
+      const serialized = JSON.stringify(draft);
+      sessionStorage.setItem(currentDraftKey, serialized);
+      localStorage.setItem(currentDraftKey, serialized);
+      localStorage.setItem("nutri_active_draft", serialized);
     } catch (e) {
       console.error("Error saving draft", e);
     }
@@ -1338,7 +1403,7 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
         planObjective: planObjective.trim() || undefined,
         showPlanObjectiveInPdf,
         activeConstraints,
-        patientName: selectedPatient?.fullName,
+        patientName: selectedPatient?.fullName || "tú persona",
         foods: includedFoods.map((f) => ({
           producto: f.producto,
           grupo: f.grupo,
@@ -1477,6 +1542,7 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
   };
 
   const defaultBaseGroups = useMemo(() => {
+    if (startEmpty) return [];
     const groupsSet = new Set<string>();
     initialFoods.forEach((food) => {
       if (food.grupo) groupsSet.add(food.grupo);
@@ -1640,25 +1706,10 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
   };
 
   const clearDietDraftStorage = () => {
-    sessionStorage.removeItem(getUserDraftKey());
+    const key = getUserDraftKey();
+    sessionStorage.removeItem(key);
+    localStorage.removeItem(key);
     localStorage.removeItem("nutri_patient");
-
-    const storedDraft = localStorage.getItem("nutri_active_draft");
-    if (storedDraft) {
-      try {
-        const draft = JSON.parse(storedDraft);
-        delete draft.diet;
-        delete draft.patientMeta;
-
-        if (Object.keys(draft).length === 0) {
-          localStorage.removeItem("nutri_active_draft");
-        } else {
-          localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
-        }
-      } catch {
-        localStorage.removeItem("nutri_active_draft");
-      }
-    }
 
     sessionStorage.removeItem("nutri_diet_draft_decided");
     sessionStorage.removeItem("nutri_cart_draft_decided");

@@ -17,6 +17,7 @@ import {
   Scale,
   Tag as TagIcon,
   AlertCircle,
+  Apple,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -33,6 +34,7 @@ import { downloadDietPdf } from "@/features/pdf/pdfExport";
 import { saveCreation } from "@/lib/workflow";
 import { toast } from "sonner";
 import { FreemiumUpgradeModal } from "@/components/memberships/FreemiumUpgradeModal";
+import { FoodReferenceBook } from "@/components/foods/FoodReferenceBook";
 import { formatCLP } from "@/lib/utils/currency";
 
 interface DietasClientProps {
@@ -44,6 +46,7 @@ export default function DietasClient({ initialFoods }: DietasClientProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [isFoodReferenceBookOpen, setIsFoodReferenceBookOpen] = useState(false);
 
   // Compute total foods count across categories
   const totalFoodsCount = useMemo(() => {
@@ -96,6 +99,10 @@ export default function DietasClient({ initialFoods }: DietasClientProps) {
           dietTags: state.dietTags,
           groups: state.allGroupsToRender,
           totals,
+          patientName: "tú persona",
+        },
+        metadata: {
+          patientName: "tú persona",
         },
         tags: state.dietTags.length > 0 ? state.dietTags : ["Dieta General"],
       };
@@ -125,6 +132,7 @@ export default function DietasClient({ initialFoods }: DietasClientProps) {
       await downloadDietPdf({
         dietName: state.dietName.trim() || "Dieta General Base",
         dietTags: state.dietTags,
+        patientName: "tú persona",
         foods: foodsList,
         generatedAt: new Date().toLocaleDateString("es-CL"),
       });
@@ -160,6 +168,7 @@ export default function DietasClient({ initialFoods }: DietasClientProps) {
       name: state.dietName.trim() || "Dieta General Base",
       type: "DIET",
       version: "1.0",
+      patientName: "tú persona",
       createdAt: new Date().toISOString(),
       tags: state.dietTags,
       totals,
@@ -215,6 +224,14 @@ export default function DietasClient({ initialFoods }: DietasClientProps) {
         description: "Cargar una dieta previamente guardada",
         variant: "indigo",
         onClick: () => setIsUpgradeModalOpen(true),
+      },
+      {
+        id: "food-reference-book",
+        icon: Apple,
+        label: "Manual de alimentos",
+        description: "Tabla oficial de porciones e información nutricional",
+        variant: "amber",
+        onClick: () => setIsFoodReferenceBookOpen(true),
       },
       {
         id: "save",
@@ -504,6 +521,11 @@ export default function DietasClient({ initialFoods }: DietasClientProps) {
         isOpen={isUpgradeModalOpen}
         onClose={() => setIsUpgradeModalOpen(false)}
         description="La importación de pautas y plantillas de dietas anteriores es una función exclusiva para usuarios con un plan de pago (Pro/Premium). ¡Actualiza tu plan para reutilizar tus creaciones guardadas y ahorrar tiempo en cada consulta!"
+      />
+
+      <FoodReferenceBook
+        isOpen={isFoodReferenceBookOpen}
+        onClose={() => setIsFoodReferenceBookOpen(false)}
       />
     </>
   );

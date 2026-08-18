@@ -2711,6 +2711,7 @@ export default function QuickDeliverableClient() {
                 (includeMeals && !hasMealsContent)
               )
             }
+            lockFutureSteps
             onReset={resetQuickDeliverable}
           >
             {currentStep === 0 && (

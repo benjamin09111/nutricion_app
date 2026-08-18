@@ -35,7 +35,7 @@ export function PlanWizardShell({
   nextDisabled = false,
   hideNextOnLastStep = false,
   onReset,
-  lockFutureSteps = false,
+  lockFutureSteps = true,
   children,
   className,
 }: PlanWizardShellProps) {

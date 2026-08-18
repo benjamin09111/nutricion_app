@@ -150,7 +150,7 @@ const DEFAULT_TITLE = "Entregable rápido";
 const DEFAULT_DIET_NAME = "Plan nutricional personalizado";
 const DRAFT_KEY = "nutri_quick_recipes_draft";
 const WIZARD_STEPS = ["Información general", "Instrucciones", "Generación", "Platos", "Resumen"];
-const DISHES_PER_CATEGORY_PAGE = 3;
+const DISHES_PER_CATEGORY_PAGE = 4;
 const WEEKLY_CORE_SECTIONS = ["Desayuno", "Almuerzo", "Once", "Cena"];
 const DEFAULT_DISH_IMAGE =
   "data:image/svg+xml;utf8," +
@@ -1782,6 +1782,7 @@ export default function QuickRecipesClient() {
             (currentStep === 2 && !hasGenerationTarget) ||
             (currentStep === 3 && (!hasGeneratedDishes || meaningfulDishes.length === 0))
           }
+          lockFutureSteps
           onReset={handleReset}
         >
         <div className="space-y-6">

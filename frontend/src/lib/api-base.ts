@@ -17,6 +17,7 @@ export const getApiOriginCandidates = () => {
     process.env.NEXT_PUBLIC_API_URL,
     process.env.NEXT_PUBLIC_BACKEND_URL,
     preferredApiOrigin,
+    "http://localhost:3001",
   ].filter((origin): origin is string => Boolean(origin));
 
   return Array.from(new Set(candidates.map((origin) => normalizeUrl(origin))));

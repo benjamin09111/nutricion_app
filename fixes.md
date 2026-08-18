@@ -1,7 +1,8 @@
 Arreglar visual de planes
 
 Donde podemos usar nuestros grupos?
-y nuestrsa dietas?
+y nuestrsa dietas? recetas?
+-- re utilizar
 
 arreglar el uso recomendado
 

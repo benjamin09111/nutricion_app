@@ -114,7 +114,13 @@ async function bootstrap() {
       origin: string | undefined,
       callback: (error: Error | null, allow?: boolean) => void,
     ) => {
-      if (!origin || frontendOrigins.has(origin.replace(/\/$/, ''))) {
+      if (
+        !origin ||
+        process.env.NODE_ENV !== 'production' ||
+        frontendOrigins.has(origin.replace(/\/$/, '')) ||
+        origin.startsWith('http://localhost:') ||
+        origin.startsWith('http://127.0.0.1:')
+      ) {
         return callback(null, true);
       }
 

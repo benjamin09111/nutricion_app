@@ -19,7 +19,7 @@ export function WizardStepper({
   className,
   onStepClick,
   nextDisabled = false,
-  lockFutureSteps = false,
+  lockFutureSteps = true,
 }: WizardStepperProps) {
   return (
     <div className={cn("flex w-full items-center gap-x-2 pb-3 mb-6 overflow-x-auto sm:flex-wrap sm:gap-y-3 sm:pb-2", className)}>
