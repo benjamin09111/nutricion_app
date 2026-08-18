@@ -2260,12 +2260,24 @@ export function useRecipesState({ id }: UseRecipesStateProps = {}) {
           });
           return;
         }
-        draft.recipes = content;
+        const sanitizedRecipesContent = typeof content === "object" && content ? { ...content } : content;
+        if (sanitizedRecipesContent && typeof sanitizedRecipesContent === "object") {
+          delete sanitizedRecipesContent.activeConstraints;
+          delete sanitizedRecipesContent.dietTags;
+          delete sanitizedRecipesContent.tags;
+        }
+        draft.recipes = sanitizedRecipesContent;
         localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
-        applyRecipesContent(content);
+        applyRecipesContent(sanitizedRecipesContent);
         toast.success(`Plan de recetas "${creation.name}" importado.`);
       } else if (type === "DIET") {
-        draft.diet = content;
+        const sanitizedDietContent = typeof content === "object" && content ? { ...content } : content;
+        if (sanitizedDietContent && typeof sanitizedDietContent === "object") {
+          delete sanitizedDietContent.activeConstraints;
+          delete sanitizedDietContent.dietTags;
+          delete sanitizedDietContent.tags;
+        }
+        draft.diet = sanitizedDietContent;
         localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
         syncSourceFoods(draft);
         applyDietMacroTargets(draft);

@@ -1824,7 +1824,13 @@ export default function DeliverableClient() {
       const draft = storedDraft ? JSON.parse(storedDraft) : {};
 
       if (type === "DIET") {
-        draft.diet = content;
+        const sanitizedContent = typeof content === "object" && content ? { ...content } : content;
+        if (sanitizedContent && typeof sanitizedContent === "object") {
+          delete sanitizedContent.activeConstraints;
+          delete sanitizedContent.dietTags;
+          delete sanitizedContent.tags;
+        }
+        draft.diet = sanitizedContent;
         setHasDraftMemory(true);
         toast.success(`Dieta "${creation.name}" importada al borrador.`);
       } else if (type === "SHOPPING_LIST") {
@@ -1833,7 +1839,13 @@ export default function DeliverableClient() {
         setHasCart(true);
         toast.success(`Carrito "${creation.name}" importado al borrador.`);
       } else if (type === "RECIPE") {
-        draft.recipes = content;
+        const sanitizedContent = typeof content === "object" && content ? { ...content } : content;
+        if (sanitizedContent && typeof sanitizedContent === "object") {
+          delete sanitizedContent.activeConstraints;
+          delete sanitizedContent.dietTags;
+          delete sanitizedContent.tags;
+        }
+        draft.recipes = sanitizedContent;
         setHasDraftMemory(true);
         setHasRecipes(true);
         toast.success(`Plan de recetas "${creation.name}" importado al borrador.`);

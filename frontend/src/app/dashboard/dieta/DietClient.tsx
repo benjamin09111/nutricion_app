@@ -33,6 +33,8 @@ import { useRouter } from "next/navigation";
 import { getTodayDateInputValue } from "@/features/patients/utils/patient-helpers";
 import { toast } from "sonner";
 
+import { DietMealsSection, DietMealTableRow } from "@/features/diet/components/DietMealsSection";
+
 interface DietClientProps {
   initialFoods: MarketPrice[];
 }
@@ -40,7 +42,8 @@ interface DietClientProps {
 const WIZARD_STEPS = [
   "Info general",
   "Dieta",
-  "Recetas y porciones",
+  "Platos",
+  "Comidas",
   "Carrito",
   "Plan final",
 ];
@@ -58,8 +61,19 @@ export default function DietClient({ initialFoods }: DietClientProps) {
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [isFoodReferenceBookOpen, setIsFoodReferenceBookOpen] = useState(false);
 
-  // Local state for Step 3 (Recetas y porciones) & Step 4 (Carrito)
+  // Local state for Step 3 (Platos), Step 4 (Comidas) & Step 5 (Carrito)
   const [meals, setMeals] = useState<DietMealBlock[]>([]);
+  const [includeMealsSection, setIncludeMealsSection] = useState(true);
+  const [tableMode, setTableMode] = useState<"simple" | "options">("simple");
+  const [optionCount, setOptionCount] = useState(1);
+  const [dietMealsTableData, setDietMealsTableData] = useState<DietMealTableRow[]>([
+    { id: "meal-1", section: "Desayuno", mealText: "", time: "08:30", portion: "1 porción" },
+    { id: "meal-2", section: "Colación AM", mealText: "", time: "11:00", portion: "1 porción" },
+    { id: "meal-3", section: "Almuerzo", mealText: "", time: "13:30", portion: "1 porción" },
+    { id: "meal-4", section: "Colación PM", mealText: "", time: "17:00", portion: "1 porción" },
+    { id: "meal-5", section: "Cena", mealText: "", time: "20:30", portion: "1 porción" },
+  ]);
+
   const [cartItems, setCartItems] = useState<DietCartItem[]>([]);
   const [isImportRecipeModalOpen, setIsImportRecipeModalOpen] = useState(false);
 
@@ -382,7 +396,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                 </div>
               )}
 
-              {/* PASO 3: RECETAS Y PORCIONES */}
+              {/* PASO 3: PLATOS */}
               {state.flowMode === "full" && currentStep === 2 && (
                 <DietRecipesSection
                   meals={meals}
@@ -390,11 +404,37 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                   patientName={state.selectedPatient?.fullName}
                   onOpenAdvancedRecipes={() => void state.continueToRecipes()}
                   onImportRecipe={() => setIsImportRecipeModalOpen(true)}
+                  isGeneratingAiDishes={state.isGeneratingAiDishes}
+                  onQuickGenerateAiDishes={state.handleQuickGenerateAiDishes}
+                  isAiValidationModalOpen={state.isAiValidationModalOpen}
+                  setIsAiValidationModalOpen={state.setIsAiValidationModalOpen}
+                  pendingAiDishes={state.pendingAiDishes}
+                  onConfirmAiDishes={(dishes) => state.handleConfirmAiDishes(dishes, setMeals)}
+                  patient={state.selectedPatient}
                 />
               )}
 
-              {/* PASO 4: CARRITO */}
+              {/* PASO 4: COMIDAS & HORARIOS */}
               {state.flowMode === "full" && currentStep === 3 && (
+                <DietMealsSection
+                  includeMealsSection={includeMealsSection}
+                  setIncludeMealsSection={setIncludeMealsSection}
+                  tableMode={tableMode}
+                  setTableMode={setTableMode}
+                  optionCount={optionCount}
+                  setOptionCount={setOptionCount}
+                  dietMealsTableData={dietMealsTableData}
+                  setDietMealsTableData={setDietMealsTableData}
+                  dishes={meals}
+                  patientName={state.selectedPatient?.fullName}
+                  onFillWithNaty={() => {
+                    toast.info("Naty está organizando tus preparaciones en la tabla de comidas...");
+                  }}
+                />
+              )}
+
+              {/* PASO 5: CARRITO */}
+              {state.flowMode === "full" && currentStep === 4 && (
                 <DietCartSection
                   cartItems={cartItems}
                   setCartItems={setCartItems}
@@ -403,7 +443,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                 />
               )}
 
-              {/* PASO 5: PLAN FINAL */}
+              {/* PASO 6: PLAN FINAL */}
               {currentStep === finalStepIndex && (
                 <DietFinalPlanSection
                   patientName={state.selectedPatient?.fullName}

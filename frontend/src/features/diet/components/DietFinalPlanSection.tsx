@@ -56,7 +56,7 @@ export function DietFinalPlanSection({
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600">Paso 5 de 5</span>
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600">Paso Final</span>
               <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-800">Plan Final</span>
             </div>
             <h2 className="mt-1 text-xl font-black text-slate-900">Resumen y Entregable Consolidado</h2>

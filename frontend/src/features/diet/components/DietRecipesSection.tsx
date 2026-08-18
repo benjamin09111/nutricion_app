@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import Image from "next/image";
 import {
   ChefHat,
   Plus,
@@ -15,11 +16,13 @@ import {
   Filter,
   Pencil,
   Scale,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { buildExchangeGuideForPatient } from "@/lib/exchange-portions";
+import { AiValidationModal } from "@/features/recipes/components/AiValidationModal";
 
 export interface DietMealBlock {
   id: string;
@@ -61,6 +64,13 @@ interface DietRecipesSectionProps {
   patientName?: string | null;
   onOpenAdvancedRecipes: () => void;
   onImportRecipe?: () => void;
+  isGeneratingAiDishes?: boolean;
+  onQuickGenerateAiDishes?: (categoryTargets?: Record<string, number>) => void;
+  isAiValidationModalOpen?: boolean;
+  setIsAiValidationModalOpen?: (open: boolean) => void;
+  pendingAiDishes?: any[];
+  onConfirmAiDishes?: (dishes: any[]) => void;
+  patient?: any;
 }
 
 export function DietRecipesSection({
@@ -69,6 +79,13 @@ export function DietRecipesSection({
   patientName,
   onOpenAdvancedRecipes,
   onImportRecipe,
+  isGeneratingAiDishes = false,
+  onQuickGenerateAiDishes,
+  isAiValidationModalOpen = false,
+  setIsAiValidationModalOpen,
+  pendingAiDishes = [],
+  onConfirmAiDishes,
+  patient,
 }: DietRecipesSectionProps) {
   const [activeTab, setActiveTab] = useState("Todos");
   const [currentPage, setCurrentPage] = useState(1);
@@ -226,88 +243,92 @@ export function DietRecipesSection({
   };
 
   return (
-    <div className="space-y-8">
-      {/* Header Banner */}
-      <div className="flex flex-col gap-4 rounded-3xl border border-indigo-100 bg-gradient-to-r from-indigo-50/80 via-white to-purple-50/50 p-6 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-start gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-md shadow-indigo-200">
-            <ChefHat className="h-6 w-6" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600">Paso 3 de 5</span>
-              <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-bold text-indigo-800">Recetas & Porciones</span>
-            </div>
-            <h2 className="mt-1 text-xl font-black text-slate-900">Estructuración de Comidas y Platos</h2>
-            <p className="mt-0.5 text-sm text-slate-600">
-              Personaliza recetas, porciones e instrucciones por tiempo de comida para {patientName || "el paciente"}.
+    <>
+      {isGeneratingAiDishes ? (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/45 backdrop-blur-sm">
+          <div className="mx-4 flex max-w-sm flex-col items-center rounded-3xl bg-white px-8 py-7 text-center shadow-2xl">
+            <Image
+              src="/nutria.webp"
+              alt="Nati está cocinando"
+              width={112}
+              height={112}
+              className="h-28 w-28 animate-pulse object-contain"
+            />
+            <p className="mt-4 text-[11px] font-black uppercase tracking-[0.28em] text-emerald-600">
+              Nati está cocinando
             </p>
+            <h3 className="mt-2 text-2xl font-black text-slate-900">
+              Creando preparaciones con tu dieta
+            </h3>
+            <p className="mt-2 text-sm font-medium text-slate-500">
+              Naty está diseñando platos personalizados basados en los alimentos de la pauta.
+            </p>
+            <div className="mt-5 flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-700">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Generando platos
+            </div>
           </div>
         </div>
+      ) : null}
 
-        <div className="flex flex-wrap items-center gap-2">
-          {onImportRecipe && (
-            <Button
-              type="button"
-              onClick={onImportRecipe}
-              variant="outline"
-              className="h-11 shrink-0 rounded-xl border-indigo-200 bg-white font-bold text-indigo-700 hover:bg-indigo-50 shadow-xs"
-            >
-              <Filter className="mr-2 h-4 w-4 text-indigo-600" />
-              Importar receta
-            </Button>
-          )}
-
-          <Button
-            type="button"
-            onClick={onOpenAdvancedRecipes}
-            variant="outline"
-            className="h-11 shrink-0 rounded-xl border-slate-200 bg-white font-bold text-slate-700 hover:bg-slate-50 shadow-xs"
-          >
-            <BookOpen className="mr-2 h-4 w-4" />
-            Planificador Avanzado
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-
-      {/* Sección 4: Platos (Reutilización de interfaz de /dashboard/rapido/recetas) */}
+      {/* Sección Única: Estructura de Comidas y Platos (Estilo NutriNet / Entregables) */}
       <div className="space-y-5 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        {/* Category Tabs */}
+        {/* Subheader & Naty IA trigger */}
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
           <div className="flex flex-wrap items-center gap-2">
-            {MEAL_SECTION_TABS.map((tab) => (
-              <button
-                key={tab}
-                type="button"
-                onClick={() => {
-                  setActiveTab(tab);
-                  setCurrentPage(1);
-                }}
-                className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${
-                  activeTab === tab
-                    ? "bg-slate-900 text-white shadow-xs"
-                    : "bg-slate-50 text-slate-600 hover:bg-slate-100"
-                }`}
-              >
-                {tab}
-              </button>
-            ))}
+            {MEAL_SECTION_TABS.map((tab) => {
+              const count =
+                tab === "Todos"
+                  ? meals.length
+                  : meals.filter(
+                      (m) =>
+                        m.section.toLowerCase().trim() ===
+                        tab.toLowerCase().trim(),
+                    ).length;
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => {
+                    setActiveTab(tab);
+                    setCurrentPage(1);
+                  }}
+                  className={`rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all cursor-pointer ${
+                    activeTab === tab
+                      ? "bg-slate-900 text-white shadow-xs"
+                      : "bg-slate-50 text-slate-600 hover:bg-slate-100"
+                  }`}
+                >
+                  {tab} ({count})
+                </button>
+              );
+            })}
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            {DEFAULT_MEAL_SECTIONS.map((item) => (
+          <div className="flex flex-wrap items-center gap-2">
+            {onQuickGenerateAiDishes && (
               <Button
-                key={item.section}
                 type="button"
-                variant="outline"
-                onClick={() => addMealBlock(item.section, item.time)}
-                className="h-8 rounded-xl border-slate-200 text-xs font-bold text-slate-700 hover:border-indigo-300 hover:bg-indigo-50/50"
+                onClick={() => onQuickGenerateAiDishes()}
+                disabled={isGeneratingAiDishes}
+                className="h-9 rounded-xl bg-emerald-600 text-xs font-bold text-white hover:bg-emerald-700 shadow-xs cursor-pointer transition-all"
               >
-                <Plus className="mr-1 h-3 w-3" />
-                + {item.section}
+                <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-200" />
+                {isGeneratingAiDishes ? "Nati está cocinando..." : "Generar platos con Naty IA"}
               </Button>
-            ))}
+            )}
+
+            {onImportRecipe && (
+              <Button
+                type="button"
+                onClick={onImportRecipe}
+                variant="outline"
+                className="h-9 rounded-xl border-indigo-200 bg-white text-xs font-bold text-indigo-700 hover:bg-indigo-50 shadow-xs cursor-pointer"
+              >
+                <Filter className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                Importar receta
+              </Button>
+            )}
           </div>
         </div>
 
@@ -356,6 +377,17 @@ export function DietRecipesSection({
               Importa recetas o usa los botones (+ Desayuno, + Almuerzo...) para agregar platos a la pauta.
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
+              {onQuickGenerateAiDishes && (
+                <Button
+                  type="button"
+                  onClick={() => onQuickGenerateAiDishes()}
+                  disabled={isGeneratingAiDishes}
+                  className="rounded-xl bg-emerald-600 text-xs font-bold text-white hover:bg-emerald-700 shadow-xs cursor-pointer"
+                >
+                  <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-200" />
+                  Generar platos con Naty IA
+                </Button>
+              )}
               {onImportRecipe && (
                 <Button
                   type="button"
@@ -597,47 +629,18 @@ export function DietRecipesSection({
         )}
       </div>
 
-      {/* Guía de Porciones de Intercambio (Collapsible) */}
-      <div className="space-y-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div
-          onClick={() => setShowPortionGuide(!showPortionGuide)}
-          className="flex cursor-pointer items-center justify-between"
-        >
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-50 text-amber-700">
-              <Scale className="h-5 w-5" />
-            </div>
-            <div>
-              <h3 className="text-base font-black text-slate-900">Guía de Porciones de Intercambio</h3>
-              <p className="text-xs text-slate-500">
-                Resumen de equivalencias y porciones para orientar al paciente.
-              </p>
-            </div>
-          </div>
-          <Button type="button" variant="ghost" size="sm" className="rounded-xl">
-            {showPortionGuide ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
-          </Button>
-        </div>
 
-        {showPortionGuide && (
-          <div className="mt-4 divide-y divide-slate-100 border-t border-slate-100 pt-3">
-            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 md:grid-cols-3">
-              {portionGuide.map((item) => (
-                <div
-                  key={item.id}
-                  className="rounded-2xl border border-slate-100 bg-slate-50/60 p-3.5 transition-all hover:bg-slate-50"
-                >
-                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                    {item.category}
-                  </span>
-                  <p className="mt-0.5 text-sm font-bold text-slate-800">{item.portion}</p>
-                  <p className="mt-1 text-xs text-slate-500">{item.notes}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
+
+      {isAiValidationModalOpen && setIsAiValidationModalOpen && onConfirmAiDishes ? (
+        <AiValidationModal
+          isOpen={isAiValidationModalOpen}
+          onClose={() => setIsAiValidationModalOpen(false)}
+          onConfirm={onConfirmAiDishes}
+          dishes={pendingAiDishes || []}
+          patient={patient || null}
+          dayLabel="Pauta Diaria"
+        />
+      ) : null}
+    </>
   );
 }

@@ -27,6 +27,7 @@ import {
 } from "../utils/diet-helpers";
 import { getMacroPctFromGrams } from "@/lib/nutrition-formulas";
 import { getGoalsFromPatient } from "@/features/recipes/utils/recipe-helpers";
+import { buildExchangeGuideForAi } from "@/lib/exchange-portions";
 
 interface UseDietStateProps {
   initialFoods: MarketPrice[];
@@ -245,6 +246,11 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
   const [isFoodInfoModalOpen, setIsFoodInfoModalOpen] = useState(false);
   const [selectedFoodForInfo, setSelectedFoodForInfo] =
     useState<MarketPrice | null>(null);
+
+  // -- Naty IA Dish Generation State --
+  const [isGeneratingAiDishes, setIsGeneratingAiDishes] = useState(false);
+  const [pendingAiDishes, setPendingAiDishes] = useState<any[]>([]);
+  const [isAiValidationModalOpen, setIsAiValidationModalOpen] = useState(false);
 
   // -- Import Creation Modal State --
   const [isImportCreationModalOpen, setIsImportCreationModalOpen] = useState(false);
@@ -734,10 +740,10 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
       ) {
         setEditingCreationId(creation.id);
         if (creation.name) setDietName(creation.name);
-        if (creation.tags && Array.isArray(creation.tags)) setDietTags(creation.tags);
+        // Hashtags (tags) and restrictions (activeConstraints) are intentionally ignored on import
+        // to preserve the active session/patient's constraints and avoid dirtying the current workspace.
         if (typeof content.planObjective === "string") setPlanObjective(content.planObjective);
         setShowPlanObjectiveInPdf(content.showPlanObjectiveInPdf === true);
-        if (Array.isArray(content.activeConstraints)) setActiveConstraints(content.activeConstraints);
         if (content.macroSettings) setMacroSettings(content.macroSettings);
 
         const recoveredManual: any[] = [];
@@ -1428,7 +1434,15 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
         msg.includes("free")
       ) {
         toast.error(e?.message || "Has alcanzado el límite de exportaciones en PDF de tu plan.", { id: toastId });
-        setIsUpgradeModalOpen(true);
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent("show-freemium-upgrade", {
+              detail: {
+                description: e?.message || "Has alcanzado el límite de exportaciones en PDF de tu plan.",
+              },
+            })
+          );
+        }
       } else {
         toast.error(e?.message || "Error al generar el PDF. Intenta de nuevo.", { id: toastId });
       }
@@ -1517,6 +1531,199 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
     }
 
     await continueToRecipes();
+  };
+
+  const handleQuickGenerateAiDishes = async (categoryTargets?: Record<string, number>) => {
+    const token = getAuthToken();
+    if (!token) {
+      toast.error("No se encontró una sesión activa.");
+      return;
+    }
+
+    const defaultTargets: Record<string, number> = {
+      desayuno: 1,
+      "colación am": 1,
+      almuerzo: 1,
+      "colación pm": 1,
+      cena: 1,
+    };
+
+    const activeTargets = categoryTargets || defaultTargets;
+
+    const targetSections = Object.entries(activeTargets)
+      .filter(([_, count]) => count > 0)
+      .map(([section, count]) => ({
+        mealSection: section.toLowerCase(),
+        count: count,
+      }));
+
+    if (targetSections.length === 0) {
+      toast.info("Selecciona al menos 1 plato en alguna categoría para generar con Naty.");
+      return;
+    }
+
+    const sourceFoodsList = [
+      ...includedFoods.map((f: any) => ({ name: f.producto || f.name || "", category: f.grupo || f.category || "" })),
+      ...manualAdditions.map((f: any) => ({ name: f.producto || f.name || "", category: f.grupo || f.category || "" })),
+    ].filter((f) => f.name.trim().length > 0);
+
+    setIsGeneratingAiDishes(true);
+
+    const totalCalories = includedFoods.reduce((acc, f: any) => acc + Number(f.energiaKcal || f.calorias || 0), 0);
+    const totalProtein = includedFoods.reduce((acc, f: any) => acc + Number(f.proteinas || f.protein || 0), 0);
+    const totalCarbs = includedFoods.reduce((acc, f: any) => acc + Number(f.carbohidratos || f.carbs || 0), 0);
+    const totalFats = includedFoods.reduce((acc, f: any) => acc + Number(f.lipidos || f.fats || 0), 0);
+
+    try {
+      const patient = selectedPatient;
+      const patientRestrictions = Array.isArray(patient?.dietRestrictions)
+        ? patient.dietRestrictions
+        : typeof patient?.dietRestrictions === "string"
+        ? [patient.dietRestrictions]
+        : [];
+
+      const patientDislikes = Array.isArray(patient?.dislikedFoods)
+        ? patient.dislikedFoods
+        : typeof patient?.dislikedFoods === "string"
+        ? [patient.dislikedFoods]
+        : [];
+
+      const activeConstraintsList = Array.isArray(activeConstraints)
+        ? activeConstraints
+        : typeof activeConstraints === "string"
+        ? [activeConstraints]
+        : [];
+
+      const combinedRestrictions = Array.from(
+        new Set([
+          ...activeConstraintsList,
+          ...patientRestrictions,
+          ...patientDislikes,
+        ])
+      ).filter((r): r is string => typeof r === "string" && Boolean(r.trim()));
+
+      const payload = {
+        payload: {
+          notes: "Prioriza usar los alimentos de la dieta base seleccionada. Naty puede incluir ingredientes complementarios básicos (como especias, condimentos, aceites o acompañamientos simples) si faltan para completar recetas realistas y deliciosas, pero RESPETANDO ESTRICTAMENTE Y SIN EXCEPCIÓN todas las restricciones, alergias e intolerancias del paciente.",
+          specialConsiderations: `RESTRICCIONES OBLIGATORIAS DEL PACIENTE: ${
+            combinedRestrictions.length > 0 ? combinedRestrictions.join(", ") : "Sin restricciones declaradas"
+          }. No incluyas bajo ninguna circunstancia ingredientes que violen estas restricciones.`,
+          allowedFoodsMain: sourceFoodsList,
+          exchangeGuide: buildExchangeGuideForAi(),
+          nutritionalTargets: {
+            dailyCalories: totalCalories > 0 ? totalCalories : 2000,
+            dailyProtein: totalProtein > 0 ? totalProtein : 100,
+            dailyCarbs: totalCarbs > 0 ? totalCarbs : 250,
+            dailyFats: totalFats > 0 ? totalFats : 60,
+          },
+          mealSectionTargets: targetSections,
+          generationMode: "single" as const,
+          patient: {
+            fullName: patient?.fullName ?? "",
+            gender: patient?.gender ?? "",
+            ageYears: patient?.ageYears ?? undefined,
+            restrictions: combinedRestrictions,
+            fitnessGoals: patient?.fitnessGoals ?? "",
+            clinicalSummary: patient?.nutritionalFocus ?? "",
+          },
+          patientId: patient?.id || undefined,
+        },
+      };
+
+      const response = await fetchApi("/recipes/quick-ai-fill", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData?.message || "No se pudo generar platos con IA.");
+      }
+
+      const result = await response.json();
+      const dishes = (result?.dishes || []).map((d: any) => ({
+        id: crypto.randomUUID(),
+        title: d.title || "Preparación sugerida",
+        mealSection: d.mealSection || "Almuerzo",
+        description: d.description || "",
+        preparation: d.preparation || d.instructions || "",
+        recommendedPortion: d.recommendedPortion || "1 porción estándar",
+        portions: d.portions != null ? Number(d.portions) : 1,
+        protein: Number(d.protein) || 0,
+        calories: Number(d.calories) || 0,
+        carbs: Number(d.carbs) || 0,
+        fats: Number(d.fats) || 0,
+        ingredients: Array.isArray(d.ingredients)
+          ? d.ingredients.map((ing: any) =>
+              typeof ing === "string" ? ing : `${ing.quantity || ""} ${ing.name || ""}`.trim()
+            )
+          : [],
+        ingredientDetails: Array.isArray(d.ingredients) ? d.ingredients : [],
+      }));
+
+      if (dishes.length === 0) {
+        toast.info("Naty no pudo generar platos con los ingredientes actuales. Agrega más alimentos a la dieta base.");
+        return;
+      }
+
+      setPendingAiDishes(dishes);
+      setIsAiValidationModalOpen(true);
+    } catch (err: any) {
+      console.error("Error al generar platos con Naty IA:", err);
+      toast.error(err?.message || "Error al conectar con Naty IA.");
+    } finally {
+      setIsGeneratingAiDishes(false);
+    }
+  };
+
+  const handleConfirmAiDishes = (validatedDishes: any[], setMeals?: React.Dispatch<React.SetStateAction<any[]>>) => {
+    const newMealBlocks: any[] = validatedDishes.map((d: any) => {
+      const sectionName = d.mealSection
+        ? d.mealSection.charAt(0).toUpperCase() + d.mealSection.slice(1)
+        : "Almuerzo";
+      const sectionTimes: Record<string, string> = {
+        Desayuno: "08:00",
+        "Colación AM": "11:00",
+        "Colacion am": "11:00",
+        Almuerzo: "13:30",
+        "Colación PM": "17:00",
+        "Colacion pm": "17:00",
+        Cena: "20:30",
+      };
+      const time = sectionTimes[sectionName] || "13:30";
+
+      const ingText = Array.isArray(d.ingredients)
+        ? d.ingredients.join("\n")
+        : typeof d.ingredients === "string"
+        ? d.ingredients
+        : "";
+
+      return {
+        id: d.id || `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        section: sectionName,
+        time: time,
+        name: d.title || "Plato sugerido por Naty",
+        ingredients: ingText,
+        instructions: d.preparation || d.description || "",
+        portion: d.recommendedPortion || "1 porción estándar",
+        calories: String(d.calories || 350),
+        protein: String(d.protein || 25),
+        carbs: String(d.carbs || 40),
+        fats: String(d.fats || 10),
+      };
+    });
+
+    if (setMeals) {
+      setMeals((prev: any[]) => [...prev, ...newMealBlocks]);
+    }
+    setIsAiValidationModalOpen(false);
+    setPendingAiDishes([]);
+    toast.success(`Se agregaron ${newMealBlocks.length} plato(s) generados por Naty IA a la pauta.`);
+    return newMealBlocks;
   };
 
   const confirmDeleteGroup = () => {
@@ -2410,6 +2617,17 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
     setIsLoadingSmart,
     smartInfoFood,
     setSmartInfoFood,
+
+    // Naty IA Dish Generation State
+    isGeneratingAiDishes,
+    setIsGeneratingAiDishes,
+    pendingAiDishes,
+    setPendingAiDishes,
+    isAiValidationModalOpen,
+    setIsAiValidationModalOpen,
+
+    handleQuickGenerateAiDishes,
+    handleConfirmAiDishes,
 
     // Food Info Modal State
     isFoodInfoModalOpen,

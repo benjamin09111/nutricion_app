@@ -199,9 +199,6 @@ export default function DietasClient({ initialFoods }: DietasClientProps) {
     if (creation?.content?.dietName || creation?.name) {
       state.setDietName(creation.content?.dietName || creation.name);
     }
-    if (creation?.content?.dietTags || creation?.tags) {
-      state.setDietTags(creation.content?.dietTags || creation.tags || []);
-    }
     state.setIsImportCreationModalOpen(false);
     toast.success(`Dieta "${creation.name}" importada exitosamente.`);
   };
