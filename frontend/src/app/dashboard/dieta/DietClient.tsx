@@ -405,12 +405,20 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                   onOpenAdvancedRecipes={() => void state.continueToRecipes()}
                   onImportRecipe={() => setIsImportRecipeModalOpen(true)}
                   isGeneratingAiDishes={state.isGeneratingAiDishes}
-                  onQuickGenerateAiDishes={state.handleQuickGenerateAiDishes}
+                  onQuickGenerateAiDishes={(options, setMealsFn) =>
+                    state.handleQuickGenerateAiDishes(options, setMealsFn || setMeals)
+                  }
                   isAiValidationModalOpen={state.isAiValidationModalOpen}
                   setIsAiValidationModalOpen={state.setIsAiValidationModalOpen}
                   pendingAiDishes={state.pendingAiDishes}
                   onConfirmAiDishes={(dishes) => state.handleConfirmAiDishes(dishes, setMeals)}
                   patient={state.selectedPatient}
+                  baseDietFoodsCount={
+                    Object.values(state.allGroupsToRender).reduce(
+                      (acc, foods) => acc + foods.length,
+                      0,
+                    )
+                  }
                 />
               )}
 

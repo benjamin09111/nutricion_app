@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { buildExchangeGuideForPatient } from "@/lib/exchange-portions";
 import { AiValidationModal } from "@/features/recipes/components/AiValidationModal";
+import { DietGenerateDishesModal } from "./DietGenerateDishesModal";
 
 export interface DietMealBlock {
   id: string;
@@ -65,12 +66,20 @@ interface DietRecipesSectionProps {
   onOpenAdvancedRecipes: () => void;
   onImportRecipe?: () => void;
   isGeneratingAiDishes?: boolean;
-  onQuickGenerateAiDishes?: (categoryTargets?: Record<string, number>) => void;
+  onQuickGenerateAiDishes?: (
+    options?: {
+      categoryTargets?: Record<string, number>;
+      instructions?: string;
+      useBaseDiet?: boolean;
+    },
+    setMeals?: React.Dispatch<React.SetStateAction<DietMealBlock[]>>
+  ) => void;
   isAiValidationModalOpen?: boolean;
   setIsAiValidationModalOpen?: (open: boolean) => void;
   pendingAiDishes?: any[];
   onConfirmAiDishes?: (dishes: any[]) => void;
   patient?: any;
+  baseDietFoodsCount?: number;
 }
 
 export function DietRecipesSection({
@@ -86,12 +95,14 @@ export function DietRecipesSection({
   pendingAiDishes = [],
   onConfirmAiDishes,
   patient,
+  baseDietFoodsCount = 0,
 }: DietRecipesSectionProps) {
   const [activeTab, setActiveTab] = useState("Todos");
   const [currentPage, setCurrentPage] = useState(1);
   const [expandedMealId, setExpandedMealId] = useState<string | null>(null);
   const [editingMealId, setEditingMealId] = useState<string | null>(null);
   const [showPortionGuide, setShowPortionGuide] = useState(true);
+  const [isDishesModalOpen, setIsDishesModalOpen] = useState(false);
 
   const [portionGuide] = useState(() =>
     buildExchangeGuideForPatient().map((item, idx) => ({
@@ -309,7 +320,7 @@ export function DietRecipesSection({
             {onQuickGenerateAiDishes && (
               <Button
                 type="button"
-                onClick={() => onQuickGenerateAiDishes()}
+                onClick={() => setIsDishesModalOpen(true)}
                 disabled={isGeneratingAiDishes}
                 className="h-9 rounded-xl bg-emerald-600 text-xs font-bold text-white hover:bg-emerald-700 shadow-xs cursor-pointer transition-all"
               >
@@ -380,7 +391,7 @@ export function DietRecipesSection({
               {onQuickGenerateAiDishes && (
                 <Button
                   type="button"
-                  onClick={() => onQuickGenerateAiDishes()}
+                  onClick={() => setIsDishesModalOpen(true)}
                   disabled={isGeneratingAiDishes}
                   className="rounded-xl bg-emerald-600 text-xs font-bold text-white hover:bg-emerald-700 shadow-xs cursor-pointer"
                 >
@@ -631,16 +642,17 @@ export function DietRecipesSection({
 
 
 
-      {isAiValidationModalOpen && setIsAiValidationModalOpen && onConfirmAiDishes ? (
-        <AiValidationModal
-          isOpen={isAiValidationModalOpen}
-          onClose={() => setIsAiValidationModalOpen(false)}
-          onConfirm={onConfirmAiDishes}
-          dishes={pendingAiDishes || []}
-          patient={patient || null}
-          dayLabel="Pauta Diaria"
-        />
-      ) : null}
+      <DietGenerateDishesModal
+        isOpen={isDishesModalOpen}
+        onClose={() => setIsDishesModalOpen(false)}
+        baseDietFoodsCount={baseDietFoodsCount}
+        isGenerating={isGeneratingAiDishes}
+        onGenerate={(options) => {
+          if (onQuickGenerateAiDishes) {
+            onQuickGenerateAiDishes(options, setMeals);
+          }
+        }}
+      />
     </>
   );
 }

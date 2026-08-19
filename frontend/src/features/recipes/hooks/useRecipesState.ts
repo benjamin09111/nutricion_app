@@ -7,7 +7,7 @@ import { useSubscription } from "@/context/SubscriptionContext";
 import { useDashboardShell } from "@/context/DashboardShellContext";
 import mealSectionsData from "@/content/meal-sections.json";
 import { fetchApi } from "@/lib/api-base";
-import { getAuthToken } from "@/lib/auth-token";
+import { getAuthToken, hasActiveSession } from "@/lib/auth-token";
 import { buildExchangeGuideForAi } from "@/lib/exchange-portions";
 import { downloadQuickRecipesPdf } from "@/features/pdf/quickRecipesPdfExport";
 import { getCurrentUser } from "@/lib/current-user";
@@ -1057,9 +1057,10 @@ export function useRecipesState({ id }: UseRecipesStateProps = {}) {
       return acc;
     }, []);
 
-    const token = getAuthToken();
-    if (!token) {
-      toast.error("No se encontró una sesión activa.");
+    if (!hasActiveSession()) {
+      if (typeof window !== "undefined") {
+        window.location.href = "/login";
+      }
       return;
     }
 
@@ -1101,11 +1102,12 @@ export function useRecipesState({ id }: UseRecipesStateProps = {}) {
         },
       };
 
+      const token = getAuthToken();
       const response = await fetchApi("/recipes/quick-ai-fill", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify(payload),
       });

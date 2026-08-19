@@ -6,6 +6,7 @@ import { DEFAULT_CONSTRAINTS } from "@/lib/constants";
 import { MarketPrice } from "@/features/foods";
 import { useDashboardShell } from "@/context/DashboardShellContext";
 import { fetchApi } from "@/lib/api-base";
+import { hasActiveSession } from "@/lib/auth-token";
 import {
   buildProjectAwarePath,
   createProject,
@@ -1533,10 +1534,18 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
     await continueToRecipes();
   };
 
-  const handleQuickGenerateAiDishes = async (categoryTargets?: Record<string, number>) => {
-    const token = getAuthToken();
-    if (!token) {
-      toast.error("No se encontró una sesión activa.");
+  const handleQuickGenerateAiDishes = async (
+    options?: {
+      categoryTargets?: Record<string, number>;
+      instructions?: string;
+      useBaseDiet?: boolean;
+    },
+    setMeals?: React.Dispatch<React.SetStateAction<any[]>>
+  ) => {
+    if (!hasActiveSession()) {
+      if (typeof window !== "undefined") {
+        window.location.href = "/login";
+      }
       return;
     }
 
@@ -1548,7 +1557,7 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
       cena: 1,
     };
 
-    const activeTargets = categoryTargets || defaultTargets;
+    const activeTargets = options?.categoryTargets || defaultTargets;
 
     const targetSections = Object.entries(activeTargets)
       .filter(([_, count]) => count > 0)
@@ -1562,10 +1571,13 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
       return;
     }
 
-    const sourceFoodsList = [
-      ...includedFoods.map((f: any) => ({ name: f.producto || f.name || "", category: f.grupo || f.category || "" })),
-      ...manualAdditions.map((f: any) => ({ name: f.producto || f.name || "", category: f.grupo || f.category || "" })),
-    ].filter((f) => f.name.trim().length > 0);
+    const useBaseDiet = options?.useBaseDiet !== false;
+    const sourceFoodsList = useBaseDiet
+      ? [
+          ...includedFoods.map((f: any) => String(f.producto || f.name || "")),
+          ...manualAdditions.map((f: any) => String(f.producto || f.name || "")),
+        ].filter((name): name is string => typeof name === "string" && Boolean(name.trim()))
+      : [];
 
     setIsGeneratingAiDishes(true);
 
@@ -1602,9 +1614,16 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
         ])
       ).filter((r): r is string => typeof r === "string" && Boolean(r.trim()));
 
+      const baseNotes = useBaseDiet
+        ? "Prioriza usar los alimentos de la dieta base seleccionada. Naty puede incluir ingredientes complementarios básicos (como especias, condimentos, aceites o acompañamientos simples) si faltan para completar recetas realistas y deliciosas, pero RESPETANDO ESTRICTAMENTE Y SIN EXCEPCIÓN todas las restricciones, alergias e intolerancias del paciente."
+        : "Crea preparaciones variadas y deliciosas para el paciente respetando sus requerimientos nutricionales.";
+
+      const customNotes = options?.instructions?.trim();
+      const finalNotes = customNotes ? `${customNotes}\n\n${baseNotes}` : baseNotes;
+
       const payload = {
         payload: {
-          notes: "Prioriza usar los alimentos de la dieta base seleccionada. Naty puede incluir ingredientes complementarios básicos (como especias, condimentos, aceites o acompañamientos simples) si faltan para completar recetas realistas y deliciosas, pero RESPETANDO ESTRICTAMENTE Y SIN EXCEPCIÓN todas las restricciones, alergias e intolerancias del paciente.",
+          notes: finalNotes,
           specialConsiderations: `RESTRICCIONES OBLIGATORIAS DEL PACIENTE: ${
             combinedRestrictions.length > 0 ? combinedRestrictions.join(", ") : "Sin restricciones declaradas"
           }. No incluyas bajo ninguna circunstancia ingredientes que violen estas restricciones.`,
@@ -1630,11 +1649,12 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
         },
       };
 
+      const token = getAuthToken();
       const response = await fetchApi("/recipes/quick-ai-fill", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify(payload),
       });
@@ -1670,8 +1690,7 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
         return;
       }
 
-      setPendingAiDishes(dishes);
-      setIsAiValidationModalOpen(true);
+      handleConfirmAiDishes(dishes, setMeals);
     } catch (err: any) {
       console.error("Error al generar platos con Naty IA:", err);
       toast.error(err?.message || "Error al conectar con Naty IA.");

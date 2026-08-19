@@ -108,7 +108,7 @@ export function TagInput({
   }, [inputValue, fetchSuggestionsUrl]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
+    if (e.key === "Enter" || e.key === ",") {
       e.preventDefault();
       addTag(inputValue);
     } else if (e.key === "Backspace" && inputValue === "" && value.length > 0) {
@@ -116,27 +116,51 @@ export function TagInput({
     }
   };
 
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const pasted = e.clipboardData.getData("text");
+    if (pasted && (pasted.includes(",") || pasted.includes(";") || pasted.includes("\n"))) {
+      e.preventDefault();
+      addTag(pasted);
+    }
+  };
+
   const addTag = (tag: string) => {
     const trimmed = tag.trim();
     if (!trimmed) return;
 
-    const isDuplicate = value.some(
-      (t) => t.toLowerCase() === trimmed.toLowerCase(),
-    );
+    const items = trimmed
+      .split(/[,;\n]+/)
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0);
 
-    if (!isDuplicate) {
-      const formatted =
-        trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
-      if (singleSelect) {
-        onChange([formatted]);
-      } else {
-        onChange([...value, formatted]);
+    if (items.length === 0) return;
+
+    const nextValues = [...value];
+    let changed = false;
+
+    for (const rawItem of items) {
+      const isDuplicate = nextValues.some(
+        (t) => t.toLowerCase() === rawItem.toLowerCase(),
+      );
+      if (!isDuplicate) {
+        const formatted =
+          rawItem.charAt(0).toUpperCase() + rawItem.slice(1).toLowerCase();
+        if (singleSelect) {
+          onChange([formatted]);
+          setInputValue("");
+          setShowSuggestions(false);
+          return;
+        }
+        nextValues.push(formatted);
+        changed = true;
       }
-      setInputValue("");
-      setShowSuggestions(false);
-    } else {
-      setInputValue("");
     }
+
+    if (changed) {
+      onChange(nextValues);
+    }
+    setInputValue("");
+    setShowSuggestions(false);
   };
 
   const removeTag = (tagToRemove: string) => {
@@ -209,10 +233,16 @@ export function TagInput({
               type="text"
               value={inputValue}
               onChange={(e) => {
-                setInputValue(e.target.value);
-                setShowSuggestions(true);
+                const val = e.target.value;
+                if (val.includes(",") || val.includes(";")) {
+                  addTag(val);
+                } else {
+                  setInputValue(val);
+                  setShowSuggestions(true);
+                }
               }}
               onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
               onFocus={() => setShowSuggestions(true)}
               placeholder={placeholder}
               className={cn(
