@@ -39,21 +39,21 @@ export interface DietMealBlock {
   fats?: string;
 }
 
-const DEFAULT_MEAL_SECTIONS = [
-  { section: "Desayuno", time: "08:00" },
-  { section: "Colación AM", time: "11:00" },
-  { section: "Almuerzo", time: "13:30" },
-  { section: "Colación PM", time: "17:00" },
-  { section: "Cena", time: "20:30" },
-];
+export interface MealCategoryConfig {
+  id: string;
+  label: string;
+  defaultTime: string;
+  defaultChecked: boolean;
+}
 
-const MEAL_SECTION_TABS = [
-  "Todos",
-  "Desayuno",
-  "Colación AM",
-  "Almuerzo",
-  "Colación PM",
-  "Cena",
+const ALL_MEAL_CATEGORIES: MealCategoryConfig[] = [
+  { id: "Desayuno", label: "Desayuno", defaultTime: "08:00", defaultChecked: true },
+  { id: "Colación AM", label: "Colación AM", defaultTime: "11:00", defaultChecked: false },
+  { id: "Almuerzo", label: "Almuerzo", defaultTime: "13:30", defaultChecked: true },
+  { id: "Colación PM", label: "Colación PM", defaultTime: "17:00", defaultChecked: false },
+  { id: "Once", label: "Once", defaultTime: "19:00", defaultChecked: false },
+  { id: "Cena", label: "Cena", defaultTime: "20:30", defaultChecked: true },
+  { id: "Post entreno", label: "Post entreno", defaultTime: "18:30", defaultChecked: false },
 ];
 
 const DISHES_PER_PAGE = 5;
@@ -103,6 +103,51 @@ export function DietRecipesSection({
   const [editingMealId, setEditingMealId] = useState<string | null>(null);
   const [showPortionGuide, setShowPortionGuide] = useState(true);
   const [isDishesModalOpen, setIsDishesModalOpen] = useState(false);
+
+  const [enabledCategories, setEnabledCategories] = useState<string[]>(() => [
+    "Desayuno",
+    "Almuerzo",
+    "Cena",
+  ]);
+
+  const [openCategoryAccordions, setOpenCategoryAccordions] = useState<string[]>(() => [
+    "Desayuno",
+    "Colación AM",
+    "Almuerzo",
+    "Colación PM",
+    "Once",
+    "Cena",
+    "Post entreno",
+  ]);
+
+  const activeCategoriesList = useMemo(() => {
+    const categoriesWithMeals = new Set(meals.map((m) => m.section));
+    const set = new Set([...enabledCategories, ...categoriesWithMeals]);
+
+    const standard = ALL_MEAL_CATEGORIES.filter((c) => set.has(c.id));
+    const customIds = Array.from(categoriesWithMeals).filter(
+      (sec) => !ALL_MEAL_CATEGORIES.some((c) => c.id.toLowerCase() === sec.toLowerCase())
+    );
+    const custom = customIds.map((id) => ({
+      id,
+      label: id,
+      defaultTime: "12:00",
+      defaultChecked: true,
+    }));
+
+    return [...standard, ...custom];
+  }, [enabledCategories, meals]);
+
+  const availableTabs = useMemo(() => {
+    return ["Todos", ...activeCategoriesList.map((c) => c.id)];
+  }, [activeCategoriesList]);
+
+  const categoriesToRender = useMemo(() => {
+    if (activeTab === "Todos") return activeCategoriesList;
+    return activeCategoriesList.filter(
+      (c) => c.id.toLowerCase().trim() === activeTab.toLowerCase().trim()
+    );
+  }, [activeTab, activeCategoriesList]);
 
   const [portionGuide] = useState(() =>
     buildExchangeGuideForPatient().map((item, idx) => ({
@@ -284,10 +329,64 @@ export function DietRecipesSection({
 
       {/* Sección Única: Estructura de Comidas y Platos (Estilo NutriNet / Entregables) */}
       <div className="space-y-5 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        {/* Selector de Categorías de Comida del Día (Checkboxes) */}
+        <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 space-y-2.5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Utensils className="h-4 w-4 text-emerald-600" />
+              <span className="text-xs font-black uppercase tracking-wider text-slate-800">
+                Categorías de comida en el día
+              </span>
+            </div>
+            <span className="text-[11px] font-semibold text-slate-500">
+              (Marcar/desmarcar para incluir en la pauta • Desayuno, Almuerzo y Cena por defecto)
+            </span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 pt-0.5">
+            {ALL_MEAL_CATEGORIES.map((cat) => {
+              const isChecked = enabledCategories.includes(cat.id);
+              const mealsCountInCat = meals.filter(
+                (m) => m.section.toLowerCase().trim() === cat.id.toLowerCase().trim()
+              ).length;
+
+              return (
+                <label
+                  key={cat.id}
+                  className={`group flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-bold transition-all ${
+                    isChecked
+                      ? "border-emerald-300 bg-emerald-50/90 text-emerald-900 shadow-2xs"
+                      : "border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isChecked}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setEnabledCategories((prev) => [...prev, cat.id]);
+                      } else {
+                        setEnabledCategories((prev) => prev.filter((id) => id !== cat.id));
+                      }
+                    }}
+                    className="h-4 w-4 rounded-md border-slate-300 text-emerald-600 focus:ring-emerald-500 accent-emerald-600 cursor-pointer"
+                  />
+                  <span>{cat.label}</span>
+                  {mealsCountInCat > 0 && (
+                    <span className="rounded-full bg-emerald-200/80 px-1.5 py-0.2 text-[10px] font-black text-emerald-900">
+                      {mealsCountInCat}
+                    </span>
+                  )}
+                </label>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Subheader & Naty IA trigger */}
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
           <div className="flex flex-wrap items-center gap-2">
-            {MEAL_SECTION_TABS.map((tab) => {
+            {availableTabs.map((tab) => {
               const count =
                 tab === "Todos"
                   ? meals.length
@@ -343,51 +442,15 @@ export function DietRecipesSection({
           </div>
         </div>
 
-        {/* Control Bar & Pagination */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h3 className="flex items-center gap-2 text-sm font-black uppercase tracking-widest text-slate-700">
-            <ChefHat className="h-4 w-4 text-amber-500" />
-            Platos ({filteredMeals.length})
-          </h3>
-
-          {filteredMeals.length > 0 && (
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage <= 1}
-                className="rounded-xl border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50"
-              >
-                Anterior
-              </Button>
-              <span className="text-xs font-semibold text-slate-500">
-                Página {currentPage} de {totalPages}
-              </span>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                disabled={currentPage >= totalPages}
-                className="rounded-xl border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50"
-              >
-                Siguiente
-              </Button>
-            </div>
-          )}
-        </div>
-
-        {/* Lista de Platos (Cards Desplegables Minimalistas) */}
-        {filteredMeals.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-8 text-center">
-            <Utensils className="h-10 w-10 text-slate-300" />
-            <p className="mt-3 text-sm font-bold text-slate-700">Aún no hay platos o preparaciones</p>
+        {/* Banner Informativo / Vacío General */}
+        {meals.length === 0 && (
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-6 text-center">
+            <Utensils className="h-9 w-9 text-slate-300" />
+            <p className="mt-2 text-sm font-bold text-slate-700">Aún no hay platos o preparaciones</p>
             <p className="mt-1 max-w-md text-xs text-slate-500">
-              Importa recetas o usa los botones (+ Desayuno, + Almuerzo...) para agregar platos a la pauta.
+              Selecciona arriba las categorías que quieres incluir en el día y agrega sus preparaciones o genera con Naty IA.
             </p>
-            <div className="mt-4 flex flex-wrap gap-2">
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
               {onQuickGenerateAiDishes && (
                 <Button
                   type="button"
@@ -404,243 +467,309 @@ export function DietRecipesSection({
                   type="button"
                   onClick={onImportRecipe}
                   variant="outline"
-                  className="rounded-xl border-indigo-200 text-xs font-bold text-indigo-700 hover:bg-indigo-50"
+                  className="rounded-xl border-indigo-200 text-xs font-bold text-indigo-700 hover:bg-indigo-50 cursor-pointer"
                 >
                   <Filter className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
                   Importar receta
                 </Button>
               )}
-              <Button
-                type="button"
-                onClick={() => addMealBlock("Almuerzo", "13:30")}
-                className="rounded-xl bg-indigo-600 text-xs font-bold text-white hover:bg-indigo-700 shadow-xs"
-              >
-                <Plus className="mr-1.5 h-3.5 w-3.5" />
-                Crear plato aquí
-              </Button>
             </div>
           </div>
-        ) : (
-          <div className="space-y-3">
-            {pagedMeals.map((dish) => {
-              const isExpanded = expandedMealId === dish.id;
-              const isEditing = editingMealId === dish.id;
+        )}
 
-              return (
-                <div
-                  key={dish.id}
-                  className={`overflow-hidden rounded-2xl border transition-all ${
-                    isExpanded
-                      ? "border-amber-300 bg-white shadow-sm ring-1 ring-amber-200/50"
-                      : "border-slate-200 bg-white hover:border-amber-200 hover:shadow-xs"
-                  }`}
-                >
-                  {/* Vista Simple Minimalista (Clickeable) */}
-                  <div
-                    onClick={() => {
-                      if (isEditing) return;
-                      setExpandedMealId(isExpanded ? null : dish.id);
-                    }}
-                    className="flex cursor-pointer flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
-                  >
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-800">
-                        <ChefHat className="h-5 w-5" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="rounded-full bg-amber-100/80 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-widest text-amber-800">
-                            {dish.section || "Plato"}
-                          </span>
-                          <span className="flex items-center gap-1 text-[11px] font-bold text-slate-400">
-                            <Clock className="h-3 w-3" />
-                            {dish.time}
-                          </span>
-                        </div>
-                        <h3 className="mt-0.5 truncate text-base font-bold text-slate-900">
-                          {dish.name.trim() || "Plato sin nombre"}
-                        </h3>
-                      </div>
+        {/* Lista de Acordeones por Categoría de Comida */}
+        <div className="space-y-4">
+          {categoriesToRender.map((cat) => {
+            const categoryMeals = meals.filter(
+              (m) => m.section.toLowerCase().trim() === cat.id.toLowerCase().trim()
+            );
+            const isCatOpen = openCategoryAccordions.includes(cat.id);
+
+            return (
+              <details
+                key={cat.id}
+                className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden transition-all duration-300"
+                open={isCatOpen}
+                onToggle={(e) => {
+                  const isOpen = e.currentTarget.open;
+                  setOpenCategoryAccordions((prev) =>
+                    isOpen
+                      ? Array.from(new Set([...prev, cat.id]))
+                      : prev.filter((id) => id !== cat.id)
+                  );
+                }}
+              >
+                <summary className="list-none cursor-pointer select-none bg-slate-50/80 p-4 border-b border-slate-100 flex items-center justify-between [&::-webkit-details-marker]:hidden hover:bg-slate-100/70 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <ChevronDown className="h-4 w-4 text-emerald-600 transition-transform group-open:rotate-180" />
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-bold text-slate-800 uppercase tracking-wide text-xs">
+                        {cat.label}
+                      </h3>
+                      <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-black text-slate-700">
+                        {categoryMeals.length}
+                      </span>
                     </div>
-
-                    <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
-                      {/* Nutrientes Badges: Kcal, Prot, Grasas, Carbos */}
-                      <div className="flex items-center gap-1.5 text-xs">
-                        <div className="rounded-xl border border-slate-100 bg-slate-50 px-2.5 py-1 text-center">
-                          <span className="block font-black text-slate-800">{dish.calories || "0"}</span>
-                          <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Kcal</span>
-                        </div>
-                        <div className="rounded-xl border border-slate-100 bg-slate-50 px-2.5 py-1 text-center">
-                          <span className="block font-black text-slate-800">{dish.protein || "0"}g</span>
-                          <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Prot.</span>
-                        </div>
-                        <div className="rounded-xl border border-slate-100 bg-slate-50 px-2.5 py-1 text-center">
-                          <span className="block font-black text-slate-800">{dish.fats || "0"}g</span>
-                          <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Grasas</span>
-                        </div>
-                        <div className="rounded-xl border border-slate-100 bg-slate-50 px-2.5 py-1 text-center hidden md:block">
-                          <span className="block font-black text-slate-800">{dish.carbs || "0"}g</span>
-                          <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Carbos</span>
-                        </div>
-                      </div>
-
-                      {/* Botones de acción */}
-                      <div className="flex items-center gap-1">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditingMealId(isEditing ? null : dish.id);
-                            if (!isExpanded) setExpandedMealId(dish.id);
-                          }}
-                          className="h-8 rounded-xl px-2.5 text-xs font-bold text-slate-600 hover:bg-amber-50 hover:text-amber-700"
-                        >
-                          <Pencil className="mr-1 h-3.5 w-3.5" />
-                          {isEditing ? "Listo" : "Editar"}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            removeMealBlock(dish.id);
-                          }}
-                          className="h-8 w-8 rounded-xl p-0 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setExpandedMealId(isExpanded ? null : dish.id);
-                          }}
-                          className="h-8 w-8 rounded-xl p-0 text-slate-400 hover:bg-slate-100"
-                        >
-                          {isExpanded ? (
-                            <ChevronUp className="h-4 w-4" />
-                          ) : (
-                            <ChevronDown className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                    </div>
+                    <span className="hidden sm:inline-block text-[10px] font-semibold text-slate-400">
+                      • Horario recomendado: {cat.defaultTime}
+                    </span>
                   </div>
 
-                  {/* Vista Desplegada (Detalles del Plato e Instrucciones) */}
-                  {isExpanded && (
-                    <div className="border-t border-slate-100 bg-slate-50/50 p-5 space-y-4">
-                      {/* Modo Edición Encabezado / Nutrientes */}
-                      {isEditing ? (
-                        <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
-                          <div>
-                            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                              Sección / Tiempo
-                            </label>
-                            <Input
-                              value={dish.section}
-                              onChange={(e) => updateMealBlock(dish.id, "section", e.target.value)}
-                              className="h-9 rounded-xl border-slate-200 bg-white text-xs font-bold"
-                            />
-                          </div>
-                          <div>
-                            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                              Horario
-                            </label>
-                            <Input
-                              type="time"
-                              value={dish.time}
-                              onChange={(e) => updateMealBlock(dish.id, "time", e.target.value)}
-                              className="h-9 rounded-xl border-slate-200 bg-white text-xs font-bold"
-                            />
-                          </div>
-                          <div>
-                            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                              Nombre del plato
-                            </label>
-                            <Input
-                              value={dish.name}
-                              onChange={(e) => updateMealBlock(dish.id, "name", e.target.value)}
-                              placeholder="Nombre del plato"
-                              className="h-9 rounded-xl border-slate-200 bg-white text-xs font-semibold"
-                            />
-                          </div>
-                          <div>
-                            <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                              Porción medida
-                            </label>
-                            <Input
-                              value={dish.portion}
-                              onChange={(e) => updateMealBlock(dish.id, "portion", e.target.value)}
-                              placeholder="Ej: 1 plato chico"
-                              className="h-9 rounded-xl border-slate-200 bg-white text-xs"
-                            />
-                          </div>
-                        </div>
-                      ) : null}
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        addMealBlock(cat.id, cat.defaultTime);
+                      }}
+                      className="h-8 rounded-xl bg-slate-900 px-3 text-xs font-bold text-white hover:bg-slate-800 shadow-2xs cursor-pointer"
+                    >
+                      <Plus className="mr-1 h-3.5 w-3.5" />
+                      Agregar plato
+                    </Button>
+                  </div>
+                </summary>
 
-                      {/* Botón Sugerencia con IA */}
-                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/60 pb-3">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-slate-700">Porción recomendada:</span>
-                          <span className="rounded-lg bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-800">
-                            {dish.portion || "1 porción estándar"}
-                          </span>
-                        </div>
-
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => suggestRecipeWithAi(dish.id)}
-                          className="h-8 rounded-xl border-emerald-200 bg-emerald-50 text-xs font-bold text-emerald-700 hover:bg-emerald-100"
-                        >
-                          <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-600" />
-                          Sugerir Receta con Nati
-                        </Button>
-                      </div>
-
-                      {/* Formulario Ingredientes & Instrucciones */}
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <div>
-                          <label className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-slate-600">
-                            Ingredientes y cantidades
-                          </label>
-                          <Textarea
-                            value={dish.ingredients}
-                            onChange={(e) => updateMealBlock(dish.id, "ingredients", e.target.value)}
-                            placeholder="150g pechuga, 3/4 taza quinoa, vegetales al gusto..."
-                            className="min-h-[90px] rounded-xl border-slate-200 bg-white text-xs text-slate-800 shadow-2xs"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-slate-600">
-                            Instrucciones de preparación / notas
-                          </label>
-                          <Textarea
-                            value={dish.instructions}
-                            onChange={(e) => updateMealBlock(dish.id, "instructions", e.target.value)}
-                            placeholder="Cocinar a la plancha con gotas de aceite de oliva..."
-                            className="min-h-[90px] rounded-xl border-slate-200 bg-white text-xs text-slate-800 shadow-2xs"
-                          />
-                        </div>
-                      </div>
+                <div className="p-4 space-y-3 bg-slate-50/30">
+                  {categoryMeals.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white p-5 text-center">
+                      <Utensils className="h-6 w-6 text-slate-300" />
+                      <p className="mt-1.5 text-xs font-bold text-slate-600">
+                        No hay preparaciones creadas en {cat.label} ({categoryMeals.length})
+                      </p>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => addMealBlock(cat.id, cat.defaultTime)}
+                        className="mt-2.5 h-8 rounded-xl bg-indigo-600 px-3 text-xs font-bold text-white hover:bg-indigo-700 shadow-2xs cursor-pointer"
+                      >
+                        <Plus className="mr-1.5 h-3.5 w-3.5" />
+                        Crear plato en {cat.label}
+                      </Button>
                     </div>
+                  ) : (
+                    categoryMeals.map((dish) => {
+                      const isExpanded = expandedMealId === dish.id;
+                      const isEditing = editingMealId === dish.id;
+
+                      return (
+                        <div
+                          key={dish.id}
+                          className={`overflow-hidden rounded-2xl border transition-all ${
+                            isExpanded
+                              ? "border-amber-300 bg-white shadow-sm ring-1 ring-amber-200/50"
+                              : "border-slate-200 bg-white hover:border-amber-200 hover:shadow-xs"
+                          }`}
+                        >
+                          {/* Vista Simple Minimalista (Clickeable) */}
+                          <div
+                            onClick={() => {
+                              if (isEditing) return;
+                              setExpandedMealId(isExpanded ? null : dish.id);
+                            }}
+                            className="flex cursor-pointer flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
+                          >
+                            <div className="flex items-center gap-3 min-w-0 flex-1">
+                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-800">
+                                <ChefHat className="h-5 w-5" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="rounded-full bg-amber-100/80 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-widest text-amber-800">
+                                    {dish.section || "Plato"}
+                                  </span>
+                                  <span className="flex items-center gap-1 text-[11px] font-bold text-slate-400">
+                                    <Clock className="h-3 w-3" />
+                                    {dish.time}
+                                  </span>
+                                </div>
+                                <h3 className="mt-0.5 truncate text-base font-bold text-slate-900">
+                                  {dish.name.trim() || "Plato sin nombre"}
+                                </h3>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
+                              {/* Nutrientes Badges: Kcal, Prot, Grasas, Carbos */}
+                              <div className="flex items-center gap-1.5 text-xs">
+                                <div className="rounded-xl border border-slate-100 bg-slate-50 px-2.5 py-1 text-center">
+                                  <span className="block font-black text-slate-800">{dish.calories || "0"}</span>
+                                  <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Kcal</span>
+                                </div>
+                                <div className="rounded-xl border border-slate-100 bg-slate-50 px-2.5 py-1 text-center">
+                                  <span className="block font-black text-slate-800">{dish.protein || "0"}g</span>
+                                  <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Prot.</span>
+                                </div>
+                                <div className="rounded-xl border border-slate-100 bg-slate-50 px-2.5 py-1 text-center">
+                                  <span className="block font-black text-slate-800">{dish.fats || "0"}g</span>
+                                  <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Grasas</span>
+                                </div>
+                                <div className="rounded-xl border border-slate-100 bg-slate-50 px-2.5 py-1 text-center hidden md:block">
+                                  <span className="block font-black text-slate-800">{dish.carbs || "0"}g</span>
+                                  <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Carbos</span>
+                                </div>
+                              </div>
+
+                              {/* Botones de acción */}
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingMealId(isEditing ? null : dish.id);
+                                    if (!isExpanded) setExpandedMealId(dish.id);
+                                  }}
+                                  className="h-8 rounded-xl px-2.5 text-xs font-bold text-slate-600 hover:bg-amber-50 hover:text-amber-700"
+                                >
+                                  <Pencil className="mr-1 h-3.5 w-3.5" />
+                                  {isEditing ? "Listo" : "Editar"}
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    removeMealBlock(dish.id);
+                                  }}
+                                  className="h-8 w-8 rounded-xl p-0 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setExpandedMealId(isExpanded ? null : dish.id);
+                                  }}
+                                  className="h-8 w-8 rounded-xl p-0 text-slate-400 hover:bg-slate-100"
+                                >
+                                  {isExpanded ? (
+                                    <ChevronUp className="h-4 w-4" />
+                                  ) : (
+                                    <ChevronDown className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Vista Desplegada (Detalles del Plato e Instrucciones) */}
+                          {isExpanded && (
+                            <div className="border-t border-slate-100 bg-slate-50/50 p-5 space-y-4">
+                              {/* Modo Edición Encabezado / Nutrientes */}
+                              {isEditing ? (
+                                <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
+                                  <div>
+                                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                                      Sección / Tiempo
+                                    </label>
+                                    <Input
+                                      value={dish.section}
+                                      onChange={(e) => updateMealBlock(dish.id, "section", e.target.value)}
+                                      className="h-9 rounded-xl border-slate-200 bg-white text-xs font-bold"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                                      Horario
+                                    </label>
+                                    <Input
+                                      type="time"
+                                      value={dish.time}
+                                      onChange={(e) => updateMealBlock(dish.id, "time", e.target.value)}
+                                      className="h-9 rounded-xl border-slate-200 bg-white text-xs font-bold"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                                      Nombre del plato
+                                    </label>
+                                    <Input
+                                      value={dish.name}
+                                      onChange={(e) => updateMealBlock(dish.id, "name", e.target.value)}
+                                      placeholder="Nombre del plato"
+                                      className="h-9 rounded-xl border-slate-200 bg-white text-xs font-semibold"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                                      Porción medida
+                                    </label>
+                                    <Input
+                                      value={dish.portion}
+                                      onChange={(e) => updateMealBlock(dish.id, "portion", e.target.value)}
+                                      placeholder="Ej: 1 plato chico"
+                                      className="h-9 rounded-xl border-slate-200 bg-white text-xs"
+                                    />
+                                  </div>
+                                </div>
+                              ) : null}
+
+                              {/* Botón Sugerencia con IA */}
+                              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/60 pb-3">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-bold text-slate-700">Porción recomendada:</span>
+                                  <span className="rounded-lg bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-800">
+                                    {dish.portion || "1 porción estándar"}
+                                  </span>
+                                </div>
+
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => suggestRecipeWithAi(dish.id)}
+                                  className="h-8 rounded-xl border-emerald-200 bg-emerald-50 text-xs font-bold text-emerald-700 hover:bg-emerald-100"
+                                >
+                                  <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-600" />
+                                  Sugerir Receta con Nati
+                                </Button>
+                              </div>
+
+                              {/* Formulario Ingredientes & Instrucciones */}
+                              <div className="grid gap-4 md:grid-cols-2">
+                                <div>
+                                  <label className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                                    Ingredientes y cantidades
+                                  </label>
+                                  <Textarea
+                                    value={dish.ingredients}
+                                    onChange={(e) => updateMealBlock(dish.id, "ingredients", e.target.value)}
+                                    placeholder="150g pechuga, 3/4 taza quinoa, vegetales al gusto..."
+                                    className="min-h-[90px] rounded-xl border-slate-200 bg-white text-xs text-slate-800 shadow-2xs"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                                    Instrucciones de preparación / notas
+                                  </label>
+                                  <Textarea
+                                    value={dish.instructions}
+                                    onChange={(e) => updateMealBlock(dish.id, "instructions", e.target.value)}
+                                    placeholder="Cocinar a la plancha con gotas de aceite de oliva..."
+                                    className="min-h-[90px] rounded-xl border-slate-200 bg-white text-xs text-slate-800 shadow-2xs"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
                   )}
                 </div>
-              );
-            })}
-          </div>
-        )}
+              </details>
+            );
+          })}
+        </div>
       </div>
-
-
 
       <DietGenerateDishesModal
         isOpen={isDishesModalOpen}

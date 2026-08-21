@@ -1,8 +1,8 @@
-Arreglar visual de planes
+Arreglar visual de planes xd
 
 Donde podemos usar nuestros grupos?
 y nuestrsa dietas? recetas?
--- re utilizar
+-- re utilizar e IMPORTAR testing
 
 arreglar el uso recomendado: tutorial de como usar cada modulo...
 

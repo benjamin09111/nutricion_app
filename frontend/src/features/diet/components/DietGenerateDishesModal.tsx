@@ -38,7 +38,9 @@ const DEFAULT_SECTIONS = [
   { key: "colación am", label: "Colación AM" },
   { key: "almuerzo", label: "Almuerzo" },
   { key: "colación pm", label: "Colación PM" },
+  { key: "once", label: "Once" },
   { key: "cena", label: "Cena" },
+  { key: "post entreno", label: "Post entreno" },
 ];
 
 export const DietGenerateDishesModal: React.FC<DietGenerateDishesModalProps> = ({
@@ -52,10 +54,12 @@ export const DietGenerateDishesModal: React.FC<DietGenerateDishesModalProps> = (
   const [instructions, setInstructions] = useState("");
   const [targets, setTargets] = useState<Record<string, number>>({
     desayuno: 1,
-    "colación am": 1,
+    "colación am": 0,
     almuerzo: 1,
-    "colación pm": 1,
+    "colación pm": 0,
+    once: 0,
     cena: 1,
+    "post entreno": 0,
   });
 
   if (!isOpen) return null;
