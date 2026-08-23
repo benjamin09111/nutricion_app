@@ -42,6 +42,8 @@ export function PlanWizardShell({
   const wizardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    document.body.style.overflow = "";
+    document.body.style.paddingRight = "";
     wizardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [currentStep]);
 
@@ -99,25 +101,34 @@ export function PlanWizardShell({
           nextDisabled={nextDisabled}
           nextLabel={nextLabel || (isLastStep ? "Finalizar" : "Continuar")}
           hideNext={hideNextOnLastStep && isLastStep}
-          className="mt-0 flex-1 max-w-none justify-end gap-3"
         />
       </div>
 
-      {children}
+      {/* Contenido del Paso */}
+      <div className="w-full">{children}</div>
 
       {/* Control Inferior */}
-      <div className="flex justify-center pt-4 border-t border-slate-100 w-full">
+      <div className="flex items-center justify-between pt-6 border-t border-slate-100">
+        <div>
+          {onReset && (
+            <button
+              type="button"
+              onClick={onReset}
+              className="text-xs font-bold text-slate-400 hover:text-rose-600 transition-colors"
+            >
+              Reiniciar creación
+            </button>
+          )}
+        </div>
         <FormNavigationFooter
           onBack={onBack}
           onNext={handleNext}
           isFirstStep={currentStep === 0}
-          nextDisabled={nextDisabled || (hideNextOnLastStep && isLastStep)}
+          nextDisabled={nextDisabled}
           nextLabel={nextLabel || (isLastStep ? "Finalizar" : "Continuar")}
           hideNext={hideNextOnLastStep && isLastStep}
-          className="mt-0 flex-1 max-w-none justify-center gap-3"
         />
       </div>
     </div>
   );
 }
-

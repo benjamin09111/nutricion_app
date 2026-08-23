@@ -929,7 +929,7 @@ export class RecipesService {
       patient: payload.patientContext || payload.patient || null,
       nutritionalTargets: payload.nutritionalTargets || null,
       existingDishes: this.sanitizeQuickExistingDishes(payload.existingDishes),
-      allowExternalFoods: Boolean((payload as any).allowExternalFoods),
+      allowExternalFoods: true,
       desiredDishCount,
       generationMode: (payload as any).generationMode || 'single',
       mealSectionTargets,
@@ -942,26 +942,27 @@ export class RecipesService {
         safePayload.notes ||
         'Crear recetas prácticas alineadas con el objetivo nutricional.',
       instruction: [
-        'Genera platos realistas de cocina chilena/latinoamericana.',
-        `Devuelve exactamente ${safePayload.desiredDishCount} platos y respeta mealSectionTargets.`,
-        'Ajusta porciones y macros según nutritionalTargets cuando exista.',
-        'Estas comidas se repetirán como una guía general durante la semana, no como recetas exactas para un día específico.',
-        'PROHIBIDO usar opciones alternativas con barra "/" en el nombre del plato (NO "Pan/Avena" ni "Pollo/Pescado"). El nombre debe ser una única opción clara, apetitosa y concreta (ej: "Pechuga de pollo a la plancha con arroz integral").',
-        'ES OBLIGATORIO que CADA ingrediente y su cantidad mencionada en el texto de preparation vaya encerrada entre asteriscos dobles para quedar en negrita (ej: "Batir **2 huevos** con **1 pizca de sal** y cocinar en sartén con **1 cdta de aceite de oliva**. Servir con **2 rebanadas de pan integral** tostado."). NUNCA dejes ingredientes sin sus asteriscos **ingrediente**.',
-        'Interpreta availableFoods como una guía de alimentos y categorías que el nutricionista desea utilizar, no como coincidencias literales. Por ejemplo, interpreta "ensaladas verdes" como ingredientes concretos apropiados, como lechuga, apio u otras hojas verdes.',
-        'Prioriza y representa esas categorías en los platos con ingredientes concretos adecuados; si una indicación es amplia, decide tú la composición más razonable.',
-        safePayload.allowExternalFoods
-          ? 'Si los alimentos principales son insuficientes, puedes complementar con ingredientes simples y generales disponibles para una familia promedio en Chile o en supermercados comunes.'
-          : 'No reemplaces, ignores ni complementes los alimentos principales entregados con alimentos fuera de esa lista.',
+        'Genera platos realistas, sabrosos y de cocina cotidiana.',
+        `Devuelve exactamente ${safePayload.desiredDishCount} platos respetando estrictamente mealSectionTargets.`,
+        'REGLAS DE CLASIFICACIÓN GASTRONÓMICA POR SECCIÓN (OBLIGATORIO):',
+        '1) Desayuno / Colación / Once: Usa lácteos (yogurt, leche, queso), frutas, cereales (avena, pan, galletas), frutos secos, huevos o mermelada.',
+        '2) Almuerzo / Cena: Usa proteínas (pollo, carne, pescado, pavo, huevos, legumbres), carbohidratos (papas, arroz, fideos, quinoa) y verduras/ensaladas.',
+        '3) PROHIBICIÓN ABSOLUTA: Queda estrictamente PROHIBIDO mezclar yogurt o lácteos dulces en almuerzos o cenas saladas (EJEMPLOS PROHIBIDOS: "Papa con Yogurt", "Arroz con Yogurt", "Pollo con Yogurt"). El yogurt NUNCA debe ir en un almuerzo o cena.',
+        '4) Si en alimentosDisponibles no hay alimentos adecuados para la sección (ejemplo: solo hay yogurt y papas, pero se solicita un Almuerzo o Cena), USA LAS PAPAS JUNTO A INGREDIENTES COTIDIANOS DE HOGAR (ejemplo: "Papas al horno con pechuga de pollo y ensalada" o "Papas cocidas con huevo duro y tomate") Y DEJA EL YOGURT EXCLUSIVAMENTE PARA EL DESAYUNO O COLACIÓN.',
+        '5) SIEMPRE agrega libremente ingredientes básicos que cualquier persona tiene en su casa (huevos, aceite, sal, cebolla, ajo, tomates, pollo, pan, verduras) cuando la lista inicial de alimentos sea pequeña.',
+        'PROHIBIDO usar opciones alternativas con barra "/" en el nombre del plato.',
+        'PROHIBIDO USAR FORMATO MARKDOWN, NEGRITAS O ASTERISCOS (**) EN LA PREPARACIÓN O INGREDIENTES.',
         `No repitas platos existentes: ${JSON.stringify(safePayload.existingDishes)}.`,
         safePayload.specialConsiderations,
       ]
         .filter(Boolean)
         .join(' '),
-       allowExternalFoods: safePayload.allowExternalFoods,
+       allowExternalFoods: true,
       rules: [
         'El título debe ser único, claro y sin barras "/".',
-        'CADA ingrediente en la preparación DEBE llevar asteriscos **ingrediente** (ej: **2 huevos**, **1 taza de avena**).',
+        'PROHIBIDO USAR YOGURT EN ALMUERZO O CENA. El yogurt solo va en desayuno, colación o una preparación dulce.',
+        'NUNCA generes combinaciones incoherentes como "Papa con Yogurt".',
+        'PROHIBIDO incluir asteriscos (**) ni formato Markdown en ninguna parte del texto. Todo debe ser texto plano.',
         'Genera entre 3 a 6 elementos en el arreglo de ingredients por plato con su name (ej: "Huevos") y quantity (ej: "2 u" o "150g").',
       ],
       tools: {

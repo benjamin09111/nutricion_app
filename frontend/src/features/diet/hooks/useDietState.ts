@@ -29,6 +29,7 @@ import {
 import { getMacroPctFromGrams } from "@/lib/nutrition-formulas";
 import { getGoalsFromPatient } from "@/features/recipes/utils/recipe-helpers";
 import { buildExchangeGuideForAi } from "@/lib/exchange-portions";
+import { buildAutoCartItems } from "../utils/cartIngredients";
 
 interface UseDietStateProps {
   initialFoods: MarketPrice[];
@@ -163,6 +164,7 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
   const [isExportConfirmOpen, setIsExportConfirmOpen] = useState(false);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [isSaveCreationModalOpen, setIsSaveCreationModalOpen] = useState(false);
   const [creationDescription, setCreationDescription] = useState("");
   const [isDraftFoodEditorOpen, setIsDraftFoodEditorOpen] = useState(false);
@@ -181,6 +183,21 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
     sodio: 0,
   });
   const [isSavingDraftFood, setIsSavingDraftFood] = useState(false);
+
+  // Flow & Step 3/4 State
+  const [currentStep, setCurrentStep] = useState(0);
+  const [meals, setMeals] = useState<any[]>([]);
+  const [includeMealsSection, setIncludeMealsSection] = useState(true);
+  const [includeExchangeGuideInPdf, setIncludeExchangeGuideInPdf] = useState(true);
+  const [includeCartSection, setIncludeCartSection] = useState(true);
+  const [dietMealsTableData, setDietMealsTableData] = useState<any[]>([
+    { id: "meal-1", section: "Desayuno", mealText: "", time: "08:30", portion: "1 porción" },
+    { id: "meal-2", section: "Colación AM", mealText: "", time: "11:00", portion: "1 porción" },
+    { id: "meal-3", section: "Almuerzo", mealText: "", time: "13:30", portion: "1 porción" },
+    { id: "meal-4", section: "Colación PM", mealText: "", time: "17:00", portion: "1 porción" },
+    { id: "meal-5", section: "Cena", mealText: "", time: "20:30", portion: "1 porción" },
+  ]);
+
   // Fetch full database catalog of ingredients (/foods?limit=1000)
   useEffect(() => {
     const fetchCatalog = async () => {
@@ -287,6 +304,56 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
   );
   const [editingCreationId, setEditingCreationId] = useState<string | null>(null);
   const [isHydrating, setIsHydrating] = useState(true);
+
+  // Synchronize Step 4 meal table with Step 3 dishes
+  useEffect(() => {
+    if (isHydrating) return;
+
+    setDietMealsTableData((prevRows) => {
+      if (meals.length === 0) {
+        if (prevRows.length === 0) {
+          return [
+            { id: "meal-1", section: "Desayuno", mealText: "", time: "08:30", portion: "1 porción" },
+            { id: "meal-2", section: "Almuerzo", mealText: "", time: "13:30", portion: "1 porción" },
+            { id: "meal-3", section: "Cena", mealText: "", time: "20:30", portion: "1 porción" },
+          ];
+        }
+        return prevRows;
+      }
+
+      // Extract unique categories from Step 3 dishes in exact order
+      const step3Sections: string[] = [];
+      meals.forEach((m) => {
+        if (m.section && !step3Sections.some((s) => s.toLowerCase() === m.section.toLowerCase())) {
+          step3Sections.push(m.section);
+        }
+      });
+
+      if (step3Sections.length === 0) return prevRows;
+
+      // Build Step 4 rows using ONLY the Step 3 categories
+      const syncRows = step3Sections.map((sec) => {
+        const matchingDish = meals.find(
+          (m) => m.section.toLowerCase() === sec.toLowerCase()
+        );
+
+        const existingRow = prevRows.find(
+          (r) => r.section.toLowerCase() === sec.toLowerCase()
+        );
+
+        return {
+          id: existingRow?.id || `meal-${sec.toLowerCase().replace(/\s+/g, "-")}-${Date.now()}`,
+          section: sec,
+          mealText: matchingDish?.name || existingRow?.mealText || "",
+          portion: matchingDish?.portion || existingRow?.portion || "1 porción",
+          time: matchingDish?.time || existingRow?.time || (sec.toLowerCase() === "desayuno" ? "08:30" : sec.toLowerCase() === "almuerzo" ? "13:30" : sec.toLowerCase() === "cena" ? "20:30" : "12:00"),
+          dishId: matchingDish?.id || existingRow?.dishId,
+        };
+      });
+
+      return syncRows;
+    });
+  }, [meals, isHydrating]);
 
   const { isSidebarCollapsed } = useDashboardShell();
 
@@ -958,6 +1025,12 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
           setCustomConstraints(draft.customConstraints);
         if (draft.selectedPatient) setSelectedPatient(draft.selectedPatient);
         if (draft.foodStatus) setFoodStatus({ ...statuses, ...draft.foodStatus });
+        if (typeof draft.currentStep === "number") setCurrentStep(draft.currentStep);
+        if (Array.isArray(draft.meals)) setMeals(draft.meals);
+        if (Array.isArray(draft.dietMealsTableData)) setDietMealsTableData(draft.dietMealsTableData);
+        if (typeof draft.includeMealsSection === "boolean") setIncludeMealsSection(draft.includeMealsSection);
+        if (typeof draft.includeExchangeGuideInPdf === "boolean") setIncludeExchangeGuideInPdf(draft.includeExchangeGuideInPdf);
+        if (typeof draft.includeCartSection === "boolean") setIncludeCartSection(draft.includeCartSection);
         setIsHydrating(false);
         return;
       } catch (e) {
@@ -1105,6 +1178,11 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
       });
   }, [initialFoods, manualAdditions, foodStatus, activeConstraints]);
 
+  const autoCartItems = useMemo(
+    () => buildAutoCartItems(includedFoods, meals),
+    [includedFoods, meals],
+  );
+
   const saveDraft = (overrides: any = {}) => {
     try {
       const currentDraftKey = getUserDraftKey();
@@ -1153,6 +1231,18 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
           overrides.macroSettings !== undefined
             ? overrides.macroSettings
             : macroSettings,
+        currentStep:
+          overrides.currentStep !== undefined ? overrides.currentStep : currentStep,
+        meals:
+          overrides.meals !== undefined ? overrides.meals : meals,
+        dietMealsTableData:
+          overrides.dietMealsTableData !== undefined ? overrides.dietMealsTableData : dietMealsTableData,
+        includeMealsSection:
+          overrides.includeMealsSection !== undefined ? overrides.includeMealsSection : includeMealsSection,
+        includeExchangeGuideInPdf:
+          overrides.includeExchangeGuideInPdf !== undefined ? overrides.includeExchangeGuideInPdf : includeExchangeGuideInPdf,
+        includeCartSection:
+          overrides.includeCartSection !== undefined ? overrides.includeCartSection : includeCartSection,
         favoritesEnabled,
         timestamp: Date.now(),
       };
@@ -1183,6 +1273,12 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
     macroSettings,
     manualAdditions,
     foodStatus,
+    currentStep,
+    meals,
+    dietMealsTableData,
+    includeMealsSection,
+    includeExchangeGuideInPdf,
+    includeCartSection,
     isHydrating,
   ]);
 
@@ -1422,6 +1518,8 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
           precioPromedio: f.precioPromedio,
           status: (foodStatus[f.producto] as any) ?? "base",
         })),
+        includeCartSection,
+        cartItems: autoCartItems.map((i) => ({ name: i.name, category: i.category })),
       });
       toast.success("PDF exportado correctamente.", { id: toastId });
     } catch (e: any) {
@@ -1615,8 +1713,8 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
       ).filter((r): r is string => typeof r === "string" && Boolean(r.trim()));
 
       const baseNotes = useBaseDiet
-        ? "Prioriza usar los alimentos de la dieta base seleccionada. Naty puede incluir ingredientes complementarios básicos (como especias, condimentos, aceites o acompañamientos simples) si faltan para completar recetas realistas y deliciosas, pero RESPETANDO ESTRICTAMENTE Y SIN EXCEPCIÓN todas las restricciones, alergias e intolerancias del paciente."
-        : "Crea preparaciones variadas y deliciosas para el paciente respetando sus requerimientos nutricionales.";
+        ? "Distribuye de forma gastronómicamente lógica los alimentos de la dieta base. El yogurt/lácteos dulces va únicamente en desayuno/colación/once, NUNCA en almuerzo o cena. NUNCA combines 'Papa con Yogurt' ni yogurt en platos salados de almuerzo o cena. Si faltan alimentos para platos realistas, agrega libremente alimentos cotidianos de cocina (huevos, aceite, sal, cebolla, pollo, pan, tomate). Respetar todas las restricciones e intolerancias del paciente. Sin negritas ni asteriscos en los textos."
+        : "Crea preparaciones variadas y deliciosas para el paciente respetando sus requerimientos nutricionales. Sin negritas ni asteriscos en los textos.";
 
       const customNotes = options?.instructions?.trim();
       const finalNotes = customNotes ? `${customNotes}\n\n${baseNotes}` : baseNotes;
@@ -1628,6 +1726,7 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
             combinedRestrictions.length > 0 ? combinedRestrictions.join(", ") : "Sin restricciones declaradas"
           }. No incluyas bajo ninguna circunstancia ingredientes que violen estas restricciones.`,
           allowedFoodsMain: sourceFoodsList,
+          allowExternalFoods: true,
           exchangeGuide: buildExchangeGuideForAi(),
           nutritionalTargets: {
             dailyCalories: totalCalories > 0 ? totalCalories : 2000,
@@ -1665,13 +1764,16 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
       }
 
       const result = await response.json();
+      const sanitizeText = (txt: any) =>
+        typeof txt === "string" ? txt.replace(/\*\*/g, "").replace(/\*/g, "").trim() : txt;
+
       const dishes = (result?.dishes || []).map((d: any) => ({
         id: crypto.randomUUID(),
-        title: d.title || "Preparación sugerida",
+        title: sanitizeText(d.title) || "Preparación sugerida",
         mealSection: d.mealSection || "Almuerzo",
-        description: d.description || "",
-        preparation: d.preparation || d.instructions || "",
-        recommendedPortion: d.recommendedPortion || "1 porción estándar",
+        description: sanitizeText(d.description) || "",
+        preparation: sanitizeText(d.preparation || d.instructions) || "",
+        recommendedPortion: sanitizeText(d.recommendedPortion) || "1 porción estándar",
         portions: d.portions != null ? Number(d.portions) : 1,
         protein: Number(d.protein) || 0,
         calories: Number(d.calories) || 0,
@@ -1679,10 +1781,20 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
         fats: Number(d.fats) || 0,
         ingredients: Array.isArray(d.ingredients)
           ? d.ingredients.map((ing: any) =>
-              typeof ing === "string" ? ing : `${ing.quantity || ""} ${ing.name || ""}`.trim()
+              sanitizeText(typeof ing === "string" ? ing : `${ing.quantity || ""} ${ing.name || ""}`.trim())
             )
           : [],
-        ingredientDetails: Array.isArray(d.ingredients) ? d.ingredients : [],
+        ingredientDetails: Array.isArray(d.ingredients)
+          ? d.ingredients.map((ing: any) =>
+              typeof ing === "object" && ing !== null
+                ? {
+                    ...ing,
+                    name: sanitizeText(ing.name),
+                    quantity: sanitizeText(ing.quantity),
+                  }
+                : ing
+            )
+          : [],
       }));
 
       if (dishes.length === 0) {
@@ -1692,8 +1804,21 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
 
       handleConfirmAiDishes(dishes, setMeals);
     } catch (err: any) {
-      console.error("Error al generar platos con Naty IA:", err);
-      toast.error(err?.message || "Error al conectar con Naty IA.");
+      const errMsg = (err?.message || "").toLowerCase();
+      const isQuotaLimit =
+        err?.status === 403 ||
+        errMsg.includes("límite") ||
+        errMsg.includes("limite") ||
+        errMsg.includes("cuota") ||
+        errMsg.includes("plan") ||
+        errMsg.includes("ai.calls.limit");
+
+      if (isQuotaLimit) {
+        setIsUpgradeModalOpen(true);
+      } else {
+        console.error("Error al generar platos con Naty IA:", err);
+        toast.error(err?.message || "Error al conectar con Naty IA.");
+      }
     } finally {
       setIsGeneratingAiDishes(false);
     }
@@ -1727,6 +1852,7 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
         time: time,
         name: d.title || "Plato sugerido por Naty",
         ingredients: ingText,
+        ingredientDetails: Array.isArray(d.ingredientDetails) ? d.ingredientDetails : [],
         instructions: d.preparation || d.description || "",
         portion: d.recommendedPortion || "1 porción estándar",
         calories: String(d.calories || 350),
@@ -1951,6 +2077,17 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
     setFoodStatus(createBaseFoodStatus() as any);
     setManualAdditions([]);
     setCustomGroups([]);
+    setCurrentStep(0);
+    setMeals([]);
+    setIncludeMealsSection(true);
+    setIncludeExchangeGuideInPdf(true);
+    setDietMealsTableData([
+      { id: "meal-1", section: "Desayuno", mealText: "", time: "08:30", portion: "1 porción" },
+      { id: "meal-2", section: "Colación AM", mealText: "", time: "11:00", portion: "1 porción" },
+      { id: "meal-3", section: "Almuerzo", mealText: "", time: "13:30", portion: "1 porción" },
+      { id: "meal-4", section: "Colación PM", mealText: "", time: "17:00", portion: "1 porción" },
+      { id: "meal-5", section: "Cena", mealText: "", time: "20:30", portion: "1 porción" },
+    ]);
     setDeletedBaseGroups([]);
     setCustomConstraints([]);
     setSelectedPatient(null);
@@ -2644,6 +2781,23 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
     setPendingAiDishes,
     isAiValidationModalOpen,
     setIsAiValidationModalOpen,
+    isUpgradeModalOpen,
+    setIsUpgradeModalOpen,
+
+    // Step 3 / Step 4 & Draft State
+    currentStep,
+    setCurrentStep,
+    meals,
+    setMeals,
+    dietMealsTableData,
+    setDietMealsTableData,
+    includeMealsSection,
+    setIncludeMealsSection,
+    includeExchangeGuideInPdf,
+    setIncludeExchangeGuideInPdf,
+    includeCartSection,
+    setIncludeCartSection,
+    autoCartItems,
 
     handleQuickGenerateAiDishes,
     handleConfirmAiDishes,

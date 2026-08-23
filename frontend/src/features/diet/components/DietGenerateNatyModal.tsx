@@ -284,16 +284,19 @@ export const DietGenerateNatyModal: React.FC<DietGenerateNatyModalProps> = ({
         { duration: 8000 }
       );
     } catch (err: any) {
-      console.error("Error generando dieta base con Naty:", err);
       const errMsg = (err?.message || "").toLowerCase();
-      if (
+      const isQuotaLimit =
         err?.status === 403 ||
         errMsg.includes("límite") ||
+        errMsg.includes("limite") ||
         errMsg.includes("cuota") ||
-        errMsg.includes("plan")
-      ) {
+        errMsg.includes("plan") ||
+        errMsg.includes("ai.calls.limit");
+
+      if (isQuotaLimit) {
         setIsUpgradeModalOpen(true);
       } else {
+        console.error("Error generando dieta base con Naty:", err);
         toast.error(
           err?.message || "No se pudo generar la dieta con Naty. Por favor intenta nuevamente."
         );

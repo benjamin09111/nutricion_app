@@ -44,31 +44,23 @@ const QUICK_SECTIONS = [
 interface DietMealsSectionProps {
   includeMealsSection: boolean;
   setIncludeMealsSection: React.Dispatch<React.SetStateAction<boolean>>;
-  tableMode: "simple" | "options";
-  setTableMode: React.Dispatch<React.SetStateAction<"simple" | "options">>;
-  optionCount: number;
-  setOptionCount: React.Dispatch<React.SetStateAction<number>>;
   dietMealsTableData: DietMealTableRow[];
   setDietMealsTableData: React.Dispatch<React.SetStateAction<DietMealTableRow[]>>;
   dishes: DietMealBlock[];
   patientName?: string | null;
-  onFillWithNaty?: () => void;
-  isGeneratingNaty?: boolean;
+  includeExchangeGuideInPdf?: boolean;
+  setIncludeExchangeGuideInPdf?: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 export function DietMealsSection({
   includeMealsSection,
   setIncludeMealsSection,
-  tableMode,
-  setTableMode,
-  optionCount,
-  setOptionCount,
   dietMealsTableData,
   setDietMealsTableData,
   dishes,
   patientName,
-  onFillWithNaty,
-  isGeneratingNaty = false,
+  includeExchangeGuideInPdf = true,
+  setIncludeExchangeGuideInPdf,
 }: DietMealsSectionProps) {
   const [activeDishSelectorId, setActiveDishSelectorId] = useState<string | null>(null);
   const [showPortionGuide, setShowPortionGuide] = useState(true);
@@ -142,25 +134,9 @@ export function DietMealsSection({
             </p>
           </div>
         </div>
-
-        {onFillWithNaty && (
-          <Button
-            type="button"
-            onClick={onFillWithNaty}
-            disabled={isGeneratingNaty}
-            className="h-11 shrink-0 rounded-xl bg-purple-600 font-bold text-white hover:bg-purple-700 shadow-md cursor-pointer transition-all"
-          >
-            {isGeneratingNaty ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin text-purple-200" />
-            ) : (
-              <Sparkles className="mr-2 h-4 w-4 text-purple-200" />
-            )}
-            Rellenar con Naty
-          </Button>
-        )}
       </div>
 
-      {/* Contenedor Principal de la Tabla de Comidas (Reutilizando diseño exacto de /rapido) */}
+      {/* Contenedor Principal de la Tabla de Comidas */}
       <div className="space-y-5 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between border-b border-slate-100 pb-4">
           <div>
@@ -184,43 +160,12 @@ export function DietMealsSection({
                     includeMealsSection ? "bg-emerald-500" : "bg-slate-300"
                   )}
                 />
-                {includeMealsSection ? "Ocultar sección" : "Sección visible"}
+                {includeMealsSection ? "Sección visible" : "Ocultar sección"}
               </button>
             </div>
             <p className="mt-1 text-xs text-slate-500">
-              {tableMode === "options"
-                ? "Crea alternativas completas por tiempo de comida. La tabla final mostrará las opciones en columnas."
-                : "Completa hora, indicación y porción para cada tiempo de comida."}
+              Completa hora, indicación y porción para cada tiempo de comida.
             </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex rounded-xl border border-slate-200 bg-slate-50 p-1">
-              <button
-                type="button"
-                onClick={() => setTableMode("simple")}
-                className={cn(
-                  "rounded-lg px-3 py-1.5 text-xs font-bold transition-all cursor-pointer",
-                  tableMode === "simple"
-                    ? "bg-emerald-600 text-white shadow-xs"
-                    : "text-slate-600 hover:bg-slate-100"
-                )}
-              >
-                Tabla simple
-              </button>
-              <button
-                type="button"
-                onClick={() => setTableMode("options")}
-                className={cn(
-                  "rounded-lg px-3 py-1.5 text-xs font-bold transition-all cursor-pointer",
-                  tableMode === "options"
-                    ? "bg-violet-600 text-white shadow-xs"
-                    : "text-slate-600 hover:bg-slate-100"
-                )}
-              >
-                Tabla con opciones
-              </button>
-            </div>
           </div>
         </div>
 
@@ -257,6 +202,9 @@ export function DietMealsSection({
                   {dietMealsTableData.map((row) => {
                     const selectedDish = dishes.find((d) => d.id === row.dishId);
                     const isSelectorOpen = activeDishSelectorId === row.id;
+                    const categoryDishes = dishes.filter(
+                      (d) => d.section.toLowerCase() === row.section.toLowerCase()
+                    );
 
                     return (
                       <tr key={row.id} className="hover:bg-slate-50/60 transition-colors">
@@ -276,73 +224,116 @@ export function DietMealsSection({
 
                         <td className="px-4 py-3 align-top">
                           <div className="space-y-1.5 relative">
-                            <Input
-                              value={row.mealText}
-                              onChange={(e) => updateMealRow(row.id, "mealText", e.target.value)}
-                              placeholder="Nombre del alimento o plato..."
-                              className="h-10 rounded-xl border-slate-200 bg-white text-xs font-semibold"
-                            />
-
-                            {/* Dropdown de Selección de Platos creados en Paso 3 */}
-                            <div className="flex items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={() => setActiveDishSelectorId(isSelectorOpen ? null : row.id)}
-                                className="inline-flex items-center gap-1.5 text-[11px] font-bold text-indigo-600 hover:text-indigo-800 transition-colors cursor-pointer"
-                              >
-                                <ChefHat className="h-3.5 w-3.5 text-indigo-500" />
-                                {selectedDish ? `Enlazado: ${selectedDish.name}` : "Elegir de mis platos/recetas"}
-                                <ChevronDown className="h-3 w-3" />
-                              </button>
-                            </div>
-
-                            {/* Popover Selector de Platos */}
-                            {isSelectorOpen && (
-                              <div className="absolute left-0 top-full z-30 mt-1 w-full max-w-md rounded-2xl border border-slate-200 bg-white p-3 shadow-xl space-y-2">
-                                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                                    Platos creados en la dieta ({dishes.length})
-                                  </span>
-                                  <button
-                                    type="button"
-                                    onClick={() => setActiveDishSelectorId(null)}
-                                    className="text-xs text-slate-400 hover:text-slate-600"
-                                  >
-                                    Cerrar
-                                  </button>
-                                </div>
-
-                                {dishes.length === 0 ? (
-                                  <p className="py-3 text-center text-xs text-slate-400 font-medium">
-                                    Aún no has creado platos en el paso anterior.
-                                  </p>
-                                ) : (
-                                  <div className="max-h-48 overflow-y-auto space-y-1 pr-1">
-                                    {dishes.map((dish) => (
-                                      <button
-                                        key={dish.id}
-                                        type="button"
-                                        onClick={() => selectDishForMealRow(row.id, dish)}
-                                        className={`flex w-full items-center justify-between rounded-xl border p-2 text-left text-xs transition-all cursor-pointer ${
-                                          row.dishId === dish.id
-                                            ? "border-indigo-300 bg-indigo-50/70 text-indigo-900 font-bold"
-                                            : "border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50 text-slate-700"
-                                        }`}
-                                      >
-                                        <div>
-                                          <p className="font-bold">{dish.name || "Plato sin nombre"}</p>
-                                          <span className="text-[10px] text-slate-400">
-                                            {dish.section} · {dish.portion || "1 porción"}
-                                          </span>
-                                        </div>
-                                        {row.dishId === dish.id && (
-                                          <Check className="h-4 w-4 text-indigo-600 shrink-0" />
-                                        )}
-                                      </button>
-                                    ))}
-                                  </div>
-                                )}
+                            {/* Selector Principal de Plato Creado en Paso 3 */}
+                            <button
+                              type="button"
+                              onClick={() => setActiveDishSelectorId(isSelectorOpen ? null : row.id)}
+                              className={cn(
+                                "flex h-10 w-full items-center justify-between rounded-xl border px-3 text-xs font-semibold transition-all cursor-pointer",
+                                selectedDish || row.mealText
+                                  ? "border-indigo-200 bg-indigo-50/60 text-indigo-950 hover:bg-indigo-50 shadow-2xs"
+                                  : "border-amber-200 bg-amber-50/60 text-amber-900 hover:bg-amber-50"
+                              )}
+                            >
+                              <div className="flex items-center gap-2 truncate">
+                                <ChefHat className={cn("h-4 w-4 shrink-0", selectedDish ? "text-indigo-600" : "text-amber-600")} />
+                                <span className="truncate font-bold">
+                                  {selectedDish
+                                    ? selectedDish.name
+                                    : row.mealText || `Seleccionar plato de ${row.section}...`}
+                                </span>
                               </div>
+                              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                            </button>
+
+                            {/* Popover Selector de Platos Creados en Paso 3 */}
+                            {isSelectorOpen && (
+                              <>
+                                <div
+                                  className="fixed inset-0 z-20"
+                                  onClick={() => setActiveDishSelectorId(null)}
+                                />
+                                <div className="absolute left-0 top-full z-30 mt-1 w-full max-w-md rounded-2xl border border-slate-200 bg-white p-3 shadow-xl space-y-2">
+                                  <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                                      Platos creados ({dishes.length})
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => setActiveDishSelectorId(null)}
+                                      className="text-xs font-bold text-slate-400 hover:text-slate-600 cursor-pointer"
+                                    >
+                                      Cerrar
+                                    </button>
+                                  </div>
+
+                                  {dishes.length === 0 ? (
+                                    <div className="py-4 text-center space-y-1">
+                                      <p className="text-xs text-amber-700 font-semibold">
+                                        No has creado ningún plato en el Paso 3.
+                                      </p>
+                                      <p className="text-[11px] text-slate-400">
+                                        Regresa al paso anterior ("Platos") para generar o crear tus preparaciones.
+                                      </p>
+                                    </div>
+                                  ) : (
+                                    <div className="max-h-56 overflow-y-auto space-y-1 pr-1">
+                                      {(categoryDishes.length > 0 ? categoryDishes : dishes).map((dish) => (
+                                        <button
+                                          key={dish.id}
+                                          type="button"
+                                          onClick={() => selectDishForMealRow(row.id, dish)}
+                                          className={`flex w-full items-center justify-between rounded-xl border p-2 text-left text-xs transition-all cursor-pointer ${
+                                            row.dishId === dish.id
+                                              ? "border-indigo-300 bg-indigo-50/80 text-indigo-900 font-bold"
+                                              : "border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50 text-slate-700"
+                                          }`}
+                                        >
+                                          <div>
+                                            <p className="font-bold">{dish.name || "Plato sin nombre"}</p>
+                                            <span className="text-[10px] text-slate-400">
+                                              {dish.section} · {dish.portion || "1 porción"}
+                                            </span>
+                                          </div>
+                                          {row.dishId === dish.id && (
+                                            <Check className="h-4 w-4 text-indigo-600 shrink-0" />
+                                          )}
+                                        </button>
+                                      ))}
+
+                                      {categoryDishes.length > 0 && categoryDishes.length < dishes.length && (
+                                        <div className="pt-2 border-t border-slate-100 mt-2">
+                                          <p className="text-[10px] font-bold text-slate-400 mb-1 px-1">OTRAS CATEGORÍAS</p>
+                                          {dishes
+                                            .filter((d) => d.section.toLowerCase() !== row.section.toLowerCase())
+                                            .map((dish) => (
+                                              <button
+                                                key={dish.id}
+                                                type="button"
+                                                onClick={() => selectDishForMealRow(row.id, dish)}
+                                                className={`flex w-full items-center justify-between rounded-xl border p-2 text-left text-xs transition-all cursor-pointer ${
+                                                  row.dishId === dish.id
+                                                    ? "border-indigo-300 bg-indigo-50/80 text-indigo-900 font-bold"
+                                                    : "border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50 text-slate-700"
+                                                }`}
+                                              >
+                                                <div>
+                                                  <p className="font-bold">{dish.name || "Plato sin nombre"}</p>
+                                                  <span className="text-[10px] text-slate-400">
+                                                    {dish.section} · {dish.portion || "1 porción"}
+                                                  </span>
+                                                </div>
+                                                {row.dishId === dish.id && (
+                                                  <Check className="h-4 w-4 text-indigo-600 shrink-0" />
+                                                )}
+                                              </button>
+                                            ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              </>
                             )}
                           </div>
                         </td>
@@ -382,26 +373,16 @@ export function DietMealsSection({
               </table>
             </div>
 
-            {/* Agregar Fila Manual */}
+            {/* Agregar Fila Rápida por Categoría */}
             <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => addMealRow("Almuerzo", "13:30")}
-                className="h-10 rounded-xl border-dashed border-slate-300 bg-slate-50 text-xs font-bold text-slate-700 hover:border-indigo-300 hover:bg-indigo-50/50 cursor-pointer"
-              >
-                <Plus className="mr-1.5 h-4 w-4 text-indigo-600" />
-                Agregar tiempo de comida
-              </Button>
-
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-[10px] font-black uppercase text-slate-400 mr-1">Rápido:</span>
-                {QUICK_SECTIONS.slice(0, 5).map((sec) => (
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 mr-1">Añadir comida:</span>
+                {QUICK_SECTIONS.map((sec) => (
                   <button
                     key={sec}
                     type="button"
                     onClick={() => addMealRow(sec)}
-                    className="rounded-xl border border-slate-200 bg-white px-2.5 py-1 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                    className="rounded-xl border border-slate-200 bg-white px-2.5 py-1 text-xs font-bold text-slate-600 hover:border-indigo-300 hover:bg-indigo-50/50 hover:text-indigo-700 cursor-pointer transition-all"
                   >
                     + {sec}
                   </button>
@@ -412,12 +393,9 @@ export function DietMealsSection({
         )}
       </div>
 
-      {/* Guía de Porciones de Intercambio (Collapsible) */}
+      {/* Guía de Porciones de Intercambio (Collapsible con Toggle para PDF) */}
       <div className="space-y-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div
-          onClick={() => setShowPortionGuide(!showPortionGuide)}
-          className="flex cursor-pointer items-center justify-between"
-        >
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-50 text-amber-700">
               <Scale className="h-5 w-5" />
@@ -429,9 +407,29 @@ export function DietMealsSection({
               </p>
             </div>
           </div>
-          <Button type="button" variant="ghost" size="sm" className="rounded-xl">
-            {showPortionGuide ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
-          </Button>
+
+          <div className="flex items-center gap-3">
+            {setIncludeExchangeGuideInPdf && (
+              <label className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50/70 px-3 py-1.5 text-xs font-bold text-amber-900 cursor-pointer hover:bg-amber-100/70 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={includeExchangeGuideInPdf}
+                  onChange={(e) => setIncludeExchangeGuideInPdf(e.target.checked)}
+                  className="h-4 w-4 rounded border-amber-300 text-amber-600 focus:ring-amber-500 cursor-pointer"
+                />
+                Incluir en el PDF final
+              </label>
+            )}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowPortionGuide(!showPortionGuide)}
+              className="rounded-xl cursor-pointer"
+            >
+              {showPortionGuide ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+            </Button>
+          </div>
         </div>
 
         {showPortionGuide && (

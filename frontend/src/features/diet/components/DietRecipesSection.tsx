@@ -17,6 +17,7 @@ import {
   Pencil,
   Scale,
   Loader2,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -25,12 +26,21 @@ import { buildExchangeGuideForPatient } from "@/lib/exchange-portions";
 import { AiValidationModal } from "@/features/recipes/components/AiValidationModal";
 import { DietGenerateDishesModal } from "./DietGenerateDishesModal";
 
+export interface DietMealIngredientDetail {
+  name: string;
+  quantity?: string;
+  amount?: number;
+  unit?: string;
+  optional?: boolean;
+}
+
 export interface DietMealBlock {
   id: string;
   section: string;
   time: string;
   name: string;
   ingredients: string;
+  ingredientDetails?: DietMealIngredientDetail[];
   instructions: string;
   portion: string;
   calories?: string;
@@ -58,6 +68,74 @@ const ALL_MEAL_CATEGORIES: MealCategoryConfig[] = [
 
 const DISHES_PER_PAGE = 5;
 const createMealId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
+function IngredientChipInput({
+  ingredients,
+  onAdd,
+  onRemove,
+}: {
+  ingredients: DietMealIngredientDetail[];
+  onAdd: (name: string) => void;
+  onRemove: (index: number) => void;
+}) {
+  const [draft, setDraft] = useState("");
+
+  const commit = () => {
+    if (!draft.trim()) return;
+    onAdd(draft);
+    setDraft("");
+  };
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-2.5 shadow-2xs">
+      <div className="flex gap-1.5">
+        <Input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              commit();
+            }
+          }}
+          placeholder="Ej: Pechuga de pollo"
+          className="h-9 rounded-lg border-slate-200 bg-white text-xs text-slate-800"
+        />
+        <Button
+          type="button"
+          onClick={commit}
+          className="h-9 shrink-0 rounded-lg bg-emerald-600 px-3 text-white hover:bg-emerald-700"
+        >
+          <Plus className="h-4 w-4" />
+        </Button>
+      </div>
+
+      {ingredients.length > 0 ? (
+        <div className="mt-2.5 flex flex-wrap gap-1.5">
+          {ingredients.map((ing, idx) => (
+            <span
+              key={`${ing.name}-${idx}`}
+              className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-800"
+            >
+              {ing.name}
+              <button
+                type="button"
+                onClick={() => onRemove(idx)}
+                className="rounded-full text-emerald-500 hover:text-emerald-800 cursor-pointer"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-2 text-[11px] text-slate-400">
+          Agrega los ingredientes de a uno para que aparezcan en el Carrito.
+        </p>
+      )}
+    </div>
+  );
+}
 
 interface DietRecipesSectionProps {
   meals: DietMealBlock[];
@@ -112,12 +190,6 @@ export function DietRecipesSection({
 
   const [openCategoryAccordions, setOpenCategoryAccordions] = useState<string[]>(() => [
     "Desayuno",
-    "Colación AM",
-    "Almuerzo",
-    "Colación PM",
-    "Once",
-    "Cena",
-    "Post entreno",
   ]);
 
   const activeCategoriesList = useMemo(() => {
@@ -178,6 +250,7 @@ export function DietRecipesSection({
       time: defaultTime,
       name: "",
       ingredients: "",
+      ingredientDetails: [],
       instructions: "",
       portion: "1 porción estándar",
       calories: "350",
@@ -193,6 +266,36 @@ export function DietRecipesSection({
   const updateMealBlock = (id: string, field: keyof DietMealBlock, value: string) => {
     setMeals((prev) =>
       prev.map((meal) => (meal.id === id ? { ...meal, [field]: value } : meal)),
+    );
+  };
+
+  const addIngredientChip = (id: string, name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    setMeals((prev) =>
+      prev.map((meal) => {
+        if (meal.id !== id) return meal;
+        const nextDetails = [...(meal.ingredientDetails || []), { name: trimmed }];
+        return {
+          ...meal,
+          ingredientDetails: nextDetails,
+          ingredients: nextDetails.map((ing) => ing.name).join("\n"),
+        };
+      }),
+    );
+  };
+
+  const removeIngredientChip = (id: string, index: number) => {
+    setMeals((prev) =>
+      prev.map((meal) => {
+        if (meal.id !== id) return meal;
+        const nextDetails = (meal.ingredientDetails || []).filter((_, i) => i !== index);
+        return {
+          ...meal,
+          ingredientDetails: nextDetails,
+          ingredients: nextDetails.map((ing) => ing.name).join("\n"),
+        };
+      }),
     );
   };
 
@@ -442,40 +545,6 @@ export function DietRecipesSection({
           </div>
         </div>
 
-        {/* Banner Informativo / Vacío General */}
-        {meals.length === 0 && (
-          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-6 text-center">
-            <Utensils className="h-9 w-9 text-slate-300" />
-            <p className="mt-2 text-sm font-bold text-slate-700">Aún no hay platos o preparaciones</p>
-            <p className="mt-1 max-w-md text-xs text-slate-500">
-              Selecciona arriba las categorías que quieres incluir en el día y agrega sus preparaciones o genera con Naty IA.
-            </p>
-            <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-              {onQuickGenerateAiDishes && (
-                <Button
-                  type="button"
-                  onClick={() => setIsDishesModalOpen(true)}
-                  disabled={isGeneratingAiDishes}
-                  className="rounded-xl bg-emerald-600 text-xs font-bold text-white hover:bg-emerald-700 shadow-xs cursor-pointer"
-                >
-                  <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-200" />
-                  Generar platos con Naty IA
-                </Button>
-              )}
-              {onImportRecipe && (
-                <Button
-                  type="button"
-                  onClick={onImportRecipe}
-                  variant="outline"
-                  className="rounded-xl border-indigo-200 text-xs font-bold text-indigo-700 hover:bg-indigo-50 cursor-pointer"
-                >
-                  <Filter className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
-                  Importar receta
-                </Button>
-              )}
-            </div>
-          </div>
-        )}
 
         {/* Lista de Acordeones por Categoría de Comida */}
         <div className="space-y-4">
@@ -711,7 +780,7 @@ export function DietRecipesSection({
                                 </div>
                               ) : null}
 
-                              {/* Botón Sugerencia con IA */}
+                              {/* Porción recomendada */}
                               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/60 pb-3">
                                 <div className="flex items-center gap-2">
                                   <span className="text-xs font-bold text-slate-700">Porción recomendada:</span>
@@ -719,30 +788,18 @@ export function DietRecipesSection({
                                     {dish.portion || "1 porción estándar"}
                                   </span>
                                 </div>
-
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => suggestRecipeWithAi(dish.id)}
-                                  className="h-8 rounded-xl border-emerald-200 bg-emerald-50 text-xs font-bold text-emerald-700 hover:bg-emerald-100"
-                                >
-                                  <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-600" />
-                                  Sugerir Receta con Nati
-                                </Button>
                               </div>
 
                               {/* Formulario Ingredientes & Instrucciones */}
                               <div className="grid gap-4 md:grid-cols-2">
                                 <div>
                                   <label className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-slate-600">
-                                    Ingredientes y cantidades
+                                    Ingredientes
                                   </label>
-                                  <Textarea
-                                    value={dish.ingredients}
-                                    onChange={(e) => updateMealBlock(dish.id, "ingredients", e.target.value)}
-                                    placeholder="150g pechuga, 3/4 taza quinoa, vegetales al gusto..."
-                                    className="min-h-[90px] rounded-xl border-slate-200 bg-white text-xs text-slate-800 shadow-2xs"
+                                  <IngredientChipInput
+                                    ingredients={dish.ingredientDetails || []}
+                                    onAdd={(name) => addIngredientChip(dish.id, name)}
+                                    onRemove={(idx) => removeIngredientChip(dish.id, idx)}
                                   />
                                 </div>
 

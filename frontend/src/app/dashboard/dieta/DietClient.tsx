@@ -17,7 +17,7 @@ import { DietConstraintSection } from "@/features/diet/components/DietConstraint
 import { DietMacroSection } from "@/features/diet/components/DietMacroSection";
 import { DietPlannerSection } from "@/features/diet/components/DietPlannerSection";
 import { DietRecipesSection, DietMealBlock } from "@/features/diet/components/DietRecipesSection";
-import { DietCartSection, DietCartItem } from "@/features/diet/components/DietCartSection";
+import { DietCartSection } from "@/features/diet/components/DietCartSection";
 import { DietFinalPlanSection } from "@/features/diet/components/DietFinalPlanSection";
 import { DietModals } from "@/features/diet/components/DietModals";
 import { FreemiumUpgradeModal } from "@/components/memberships/FreemiumUpgradeModal";
@@ -55,26 +55,13 @@ export default function DietClient({ initialFoods }: DietClientProps) {
   const state = useDietState({ initialFoods, startEmpty: true });
   const wizardSteps = state.flowMode === "quick" ? QUICK_WIZARD_STEPS : WIZARD_STEPS;
   const finalStepIndex = wizardSteps.length - 1;
-  const [currentStep, setCurrentStep] = useState(0);
+  const currentStep = state.currentStep;
+  const setCurrentStep = state.setCurrentStep;
   const deliveryDate = getTodayDateInputValue();
   const [showMacroCalculator, setShowMacroCalculator] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [isFoodReferenceBookOpen, setIsFoodReferenceBookOpen] = useState(false);
 
-  // Local state for Step 3 (Platos), Step 4 (Comidas) & Step 5 (Carrito)
-  const [meals, setMeals] = useState<DietMealBlock[]>([]);
-  const [includeMealsSection, setIncludeMealsSection] = useState(true);
-  const [tableMode, setTableMode] = useState<"simple" | "options">("simple");
-  const [optionCount, setOptionCount] = useState(1);
-  const [dietMealsTableData, setDietMealsTableData] = useState<DietMealTableRow[]>([
-    { id: "meal-1", section: "Desayuno", mealText: "", time: "08:30", portion: "1 porción" },
-    { id: "meal-2", section: "Colación AM", mealText: "", time: "11:00", portion: "1 porción" },
-    { id: "meal-3", section: "Almuerzo", mealText: "", time: "13:30", portion: "1 porción" },
-    { id: "meal-4", section: "Colación PM", mealText: "", time: "17:00", portion: "1 porción" },
-    { id: "meal-5", section: "Cena", mealText: "", time: "20:30", portion: "1 porción" },
-  ]);
-
-  const [cartItems, setCartItems] = useState<DietCartItem[]>([]);
   const [isImportRecipeModalOpen, setIsImportRecipeModalOpen] = useState(false);
 
   const handleImportRecipe = (creation: any) => {
@@ -144,7 +131,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     }
 
     if (newMeals.length > 0) {
-      setMeals((prev) => [...prev, ...newMeals]);
+      state.setMeals((prev) => [...prev, ...newMeals]);
       toast.success(`Receta "${creation.name}" importada correctamente.`);
     } else {
       toast.info(`No se encontraron platos en la creación "${creation.name}".`);
@@ -157,9 +144,6 @@ export default function DietClient({ initialFoods }: DietClientProps) {
 
   const handleResetDiet = () => {
     state.resetDiet();
-    setMeals([]);
-    setCartItems([]);
-    setCurrentStep(0);
   };
 
   const totalFoodGroups = Object.keys(state.allGroupsToRender).length;
@@ -172,8 +156,8 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     const fullStepCompletion = [
       Boolean(state.dietName.trim()),
       totalSelectedFoods > 0,
-      meals.length > 0,
-      cartItems.length > 0,
+      state.meals.length > 0,
+      state.autoCartItems.length > 0,
     ];
     const completion = state.flowMode === "quick"
       ? fullStepCompletion.slice(0, 2)
@@ -183,7 +167,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
       if (isComplete) completed.push(index);
       return completed;
     }, []);
-  }, [state.dietName, totalSelectedFoods, state.dietTags.length, state.flowMode, meals.length, cartItems.length]);
+  }, [state.dietName, totalSelectedFoods, state.dietTags.length, state.flowMode, state.meals.length, state.autoCartItems.length]);
 
   // Action Dock buttons: Reiniciar, Importar otra DIETA creada, Guardar, Descargar
   const actionItems: ActionDockItem[] = useMemo(
@@ -399,19 +383,19 @@ export default function DietClient({ initialFoods }: DietClientProps) {
               {/* PASO 3: PLATOS */}
               {state.flowMode === "full" && currentStep === 2 && (
                 <DietRecipesSection
-                  meals={meals}
-                  setMeals={setMeals}
+                  meals={state.meals}
+                  setMeals={state.setMeals}
                   patientName={state.selectedPatient?.fullName}
                   onOpenAdvancedRecipes={() => void state.continueToRecipes()}
                   onImportRecipe={() => setIsImportRecipeModalOpen(true)}
                   isGeneratingAiDishes={state.isGeneratingAiDishes}
                   onQuickGenerateAiDishes={(options, setMealsFn) =>
-                    state.handleQuickGenerateAiDishes(options, setMealsFn || setMeals)
+                    state.handleQuickGenerateAiDishes(options, setMealsFn || state.setMeals)
                   }
                   isAiValidationModalOpen={state.isAiValidationModalOpen}
                   setIsAiValidationModalOpen={state.setIsAiValidationModalOpen}
                   pendingAiDishes={state.pendingAiDishes}
-                  onConfirmAiDishes={(dishes) => state.handleConfirmAiDishes(dishes, setMeals)}
+                  onConfirmAiDishes={(dishes) => state.handleConfirmAiDishes(dishes, state.setMeals)}
                   patient={state.selectedPatient}
                   baseDietFoodsCount={
                     Object.values(state.allGroupsToRender).reduce(
@@ -425,29 +409,24 @@ export default function DietClient({ initialFoods }: DietClientProps) {
               {/* PASO 4: COMIDAS & HORARIOS */}
               {state.flowMode === "full" && currentStep === 3 && (
                 <DietMealsSection
-                  includeMealsSection={includeMealsSection}
-                  setIncludeMealsSection={setIncludeMealsSection}
-                  tableMode={tableMode}
-                  setTableMode={setTableMode}
-                  optionCount={optionCount}
-                  setOptionCount={setOptionCount}
-                  dietMealsTableData={dietMealsTableData}
-                  setDietMealsTableData={setDietMealsTableData}
-                  dishes={meals}
+                  includeMealsSection={state.includeMealsSection}
+                  setIncludeMealsSection={state.setIncludeMealsSection}
+                  dietMealsTableData={state.dietMealsTableData}
+                  setDietMealsTableData={state.setDietMealsTableData}
+                  dishes={state.meals}
                   patientName={state.selectedPatient?.fullName}
-                  onFillWithNaty={() => {
-                    toast.info("Naty está organizando tus preparaciones en la tabla de comidas...");
-                  }}
+                  includeExchangeGuideInPdf={state.includeExchangeGuideInPdf}
+                  setIncludeExchangeGuideInPdf={state.setIncludeExchangeGuideInPdf}
                 />
               )}
 
               {/* PASO 5: CARRITO */}
               {state.flowMode === "full" && currentStep === 4 && (
                 <DietCartSection
-                  cartItems={cartItems}
-                  setCartItems={setCartItems}
+                  autoCartItems={state.autoCartItems}
+                  includeCartSection={state.includeCartSection}
+                  setIncludeCartSection={state.setIncludeCartSection}
                   patientName={state.selectedPatient?.fullName}
-                  onOpenAdvancedCart={() => router.push("/dashboard/carrito")}
                 />
               )}
 
@@ -461,8 +440,8 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                   dietName={state.dietName}
                   totalFoodGroups={totalFoodGroups}
                   totalSelectedFoods={totalSelectedFoods}
-                  totalMeals={meals.length}
-                  totalCartItems={cartItems.length}
+                  totalMeals={state.meals.length}
+                  totalCartItems={state.includeCartSection ? state.autoCartItems.length : 0}
                   calorieTarget={state.macroTargets.calories}
                   onExportPdf={() => void state.performExportPdf()}
                   onSaveCreation={() => state.setIsSaveCreationModalOpen(true)}
@@ -561,9 +540,12 @@ export default function DietClient({ initialFoods }: DietClientProps) {
       </ModuleLayout>
 
       <FreemiumUpgradeModal
-        isOpen={isUpgradeModalOpen}
-        onClose={() => setIsUpgradeModalOpen(false)}
-        description="La importación de pautas y plantillas de dietas anteriores es una función exclusiva para usuarios con un plan de pago (Pro/Premium). ¡Actualiza tu plan para reutilizar tus creaciones guardadas y ahorrar tiempo en cada consulta!"
+        isOpen={isUpgradeModalOpen || state.isUpgradeModalOpen}
+        onClose={() => {
+          setIsUpgradeModalOpen(false);
+          state.setIsUpgradeModalOpen(false);
+        }}
+        description="Has alcanzado el límite de operaciones o generaciones con Naty IA de tu plan actual. ¡Actualiza a un plan Pro o Premium para disfrutar de acceso ilimitado y agilizar tus consultas!"
       />
 
       <FoodReferenceBook
