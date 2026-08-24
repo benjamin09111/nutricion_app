@@ -18,47 +18,11 @@ interface Testimonial {
   rating?: number;
 }
 
-const DEFAULT_TESTIMONIALS: Testimonial[] = [
-  {
-    name: "Dra. Camila Morales",
-    role: "Nutricionista Clínica & Deportiva",
-    clinic: "Consulta Particular / Centro Deportivo",
-    city: "Santiago",
-    timeSaved: "Ahorra 3.5 horas al día",
-    avatarText: "CM",
-    avatarBg: "from-purple-500 to-indigo-600",
-    quote: "Antes tardaba hasta 45 minutos armando cada pauta de alimentación en Excel y pasando los datos a Word para que quedara presentable. Con NutriNet, en 5 minutos tengo la dieta calculada, las recetas estructuradas y el carrito de supermercado listo en un PDF hermoso.",
-    highlight: "Pasé de 45 min a 5 min por pauta",
-    rating: 5,
-  },
-  {
-    name: "Nut. Felipe Contreras",
-    role: "Especialista en Nutrición Bariátrica & Metabolic",
-    clinic: "Red de Salud / Consulta Privada",
-    city: "Concepción",
-    timeSaved: "100% de adherencia en pacientes",
-    avatarText: "FC",
-    avatarBg: "from-emerald-500 to-teal-600",
-    quote: "Lo que más valoro es la seguridad clínica y el respaldo con alimentos de Chile. Mis pacientes aman el formato del entregable; les queda tan claro el carrito de compras que las dudas en WhatsApp disminuyeron un 80%. Es la mejor inversión de mi consulta.",
-    highlight: "Las dudas por WhatsApp bajaron 80%",
-    rating: 5,
-  },
-  {
-    name: "Nut. Valentina Silva",
-    role: "Nutricionista Pediátrica & Materno Infantil",
-    clinic: "Centro Médico de la Mujer",
-    city: "Viña del Mar",
-    timeSaved: "Aumento del 40% en pacientes mensuales",
-    avatarText: "VS",
-    avatarBg: "from-amber-500 to-rose-600",
-    quote: "Naty la Nutria, tu asistente me ayuda muchísimo a buscar recetas alternativas para pacientes con APLV o restricciones complejas en segundos. Me dio el impulso para atender más pacientes al día sin terminar agotada en la noche.",
-    highlight: "Atiendo más pacientes sin agotarme",
-    rating: 5,
-  },
-];
-
 export function TestimonialsSection() {
-  const [testimonials, setTestimonials] = useState<Testimonial[]>(DEFAULT_TESTIMONIALS);
+  // Sin datos de respaldo a proposito: la seccion solo existe si el admin ha
+  // publicado testimonios reales. Antes se mostraban ejemplos inventados, que
+  // en una landing publica se leen como avales autenticos.
+  const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
 
   useEffect(() => {
     let isMounted = true;
@@ -67,7 +31,7 @@ export function TestimonialsSection() {
         const response = await fetchApi("/testimonials/public");
         if (response.ok) {
           const data = (await response.json()) as Testimonial[];
-          if (isMounted && Array.isArray(data) && data.length > 0) {
+          if (isMounted && Array.isArray(data)) {
             setTestimonials(data);
           }
         }
@@ -80,6 +44,10 @@ export function TestimonialsSection() {
       isMounted = false;
     };
   }, []);
+
+  if (testimonials.length === 0) {
+    return null;
+  }
 
   return (
     <section id="testimonios" className="relative overflow-hidden py-20 bg-slate-900 text-white">
