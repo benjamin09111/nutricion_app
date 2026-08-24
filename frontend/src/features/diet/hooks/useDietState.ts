@@ -190,6 +190,26 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
   const [includeMealsSection, setIncludeMealsSection] = useState(true);
   const [includeExchangeGuideInPdf, setIncludeExchangeGuideInPdf] = useState(true);
   const [includeCartSection, setIncludeCartSection] = useState(true);
+  const [includeFoodTableSection, setIncludeFoodTableSection] = useState(true);
+  const [includeResourcesSection, setIncludeResourcesSection] = useState(true);
+  const [selectedResourceIds, setSelectedResourceIds] = useState<string[]>([
+    "labels",
+    "hydration",
+    "substitutes",
+  ]);
+  const [cartItemOverrides, setCartItemOverrides] = useState<Record<string, string>>({});
+  const [removedCartItemIds, setRemovedCartItemIds] = useState<string[]>([]);
+
+  const setCartItemOverride = (id: string, newName: string) => {
+    setCartItemOverrides((prev) => ({
+      ...prev,
+      [id]: newName.trim(),
+    }));
+  };
+
+  const removeCartItem = (id: string) => {
+    setRemovedCartItemIds((prev) => [...prev, id]);
+  };
   const [dietMealsTableData, setDietMealsTableData] = useState<any[]>([
     { id: "meal-1", section: "Desayuno", mealText: "", time: "08:30", portion: "1 porción" },
     { id: "meal-2", section: "Colación AM", mealText: "", time: "11:00", portion: "1 porción" },
@@ -350,6 +370,25 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
           dishId: matchingDish?.id || existingRow?.dishId,
         };
       });
+
+      const isIdentical =
+        syncRows.length === prevRows.length &&
+        syncRows.every((row, idx) => {
+          const prev = prevRows[idx];
+          return (
+            prev &&
+            prev.id === row.id &&
+            prev.section === row.section &&
+            prev.mealText === row.mealText &&
+            prev.portion === row.portion &&
+            prev.time === row.time &&
+            prev.dishId === row.dishId
+          );
+        });
+
+      if (isIdentical) {
+        return prevRows;
+      }
 
       return syncRows;
     });
@@ -599,44 +638,62 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
       ? normalizedPatient.dietRestrictions
       : [];
     const validRestrictions = normalizeConstraintList(restrictions);
-    const newConstraints = Array.from(
-      new Set([...activeConstraints, ...validRestrictions]),
-    );
 
-    setActiveConstraints(newConstraints);
+    let finalConstraints: string[] = [];
+    setActiveConstraints((prevConstraints) => {
+      const mergedSet = new Set([...prevConstraints, ...validRestrictions]);
+      if (
+        mergedSet.size === prevConstraints.length &&
+        prevConstraints.every((c) => mergedSet.has(c))
+      ) {
+        finalConstraints = prevConstraints;
+        return prevConstraints;
+      }
+      finalConstraints = Array.from(mergedSet);
+      return finalConstraints;
+    });
+
+    try {
+      const storedDraft = localStorage.getItem("nutri_active_draft");
+      let draft = storedDraft ? JSON.parse(storedDraft) : {};
+
+      draft.patientMeta = {
+        id: normalizedPatient.id,
+        fullName: normalizedPatient.fullName,
+        restrictions: validRestrictions,
+        nutritionalFocus: normalizedPatient.nutritionalFocus,
+        fitnessGoals: normalizedPatient.fitnessGoals,
+        birthDate: normalizedPatient.birthDate,
+        weight: normalizedPatient.weight,
+        height: normalizedPatient.height,
+        gender: normalizedPatient.gender,
+        patientData: normalizedPatient,
+        updatedAt: new Date().toISOString(),
+      };
+
+      draft.activeConstraints = finalConstraints;
+      if (!draft.diet) draft.diet = {};
+      draft.diet.activeConstraints = finalConstraints;
+      draft.diet.macroSettings = {
+        ...macroSettings,
+        referenceWeightKg:
+          normalizedPatient.weight || macroSettings.referenceWeightKg,
+      };
+
+      const serialized = JSON.stringify(draft);
+      localStorage.setItem("nutri_active_draft", serialized);
+      sessionStorage.setItem(getUserDraftKey(), serialized);
+      localStorage.setItem(getUserDraftKey(), serialized);
+    } catch (e) {
+      console.error("Error updating draft in applySelectedPatient", e);
+    }
+
     if (patient.weight) {
       setMacroSettings((prev) => ({
         ...prev,
         referenceWeightKg: patient.weight || prev.referenceWeightKg,
       }));
     }
-
-    const storedDraft = localStorage.getItem("nutri_active_draft");
-    let draft = storedDraft ? JSON.parse(storedDraft) : {};
-
-    draft.patientMeta = {
-      id: normalizedPatient.id,
-      fullName: normalizedPatient.fullName,
-      restrictions: validRestrictions,
-      nutritionalFocus: normalizedPatient.nutritionalFocus,
-      fitnessGoals: normalizedPatient.fitnessGoals,
-      birthDate: normalizedPatient.birthDate,
-      weight: normalizedPatient.weight,
-      height: normalizedPatient.height,
-      gender: normalizedPatient.gender,
-      patientData: normalizedPatient,
-      updatedAt: new Date().toISOString(),
-    };
-
-    if (!draft.diet) draft.diet = {};
-    draft.diet.activeConstraints = newConstraints;
-    draft.diet.macroSettings = {
-      ...macroSettings,
-      referenceWeightKg:
-        normalizedPatient.weight || macroSettings.referenceWeightKg,
-    };
-
-    localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
 
     if (shouldShowToast) {
       if (validRestrictions.length > 0) {
@@ -706,37 +763,54 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
       ? patient.dietRestrictions
       : [];
     const validRestrictions = normalizeConstraintList(restrictions);
-    const newConstraints = Array.from(
-      new Set([...activeConstraints, ...validRestrictions]),
-    );
 
-    setActiveConstraints(newConstraints);
+    let finalConstraints: string[] = [];
+    setActiveConstraints((prevConstraints) => {
+      const mergedSet = new Set([...prevConstraints, ...validRestrictions]);
+      if (
+        mergedSet.size === prevConstraints.length &&
+        prevConstraints.every((c) => mergedSet.has(c))
+      ) {
+        finalConstraints = prevConstraints;
+        return prevConstraints;
+      }
+      finalConstraints = Array.from(mergedSet);
+      return finalConstraints;
+    });
 
-    const storedDraft = localStorage.getItem("nutri_active_draft");
-    let draft = storedDraft ? JSON.parse(storedDraft) : {};
+    try {
+      const storedDraft = localStorage.getItem("nutri_active_draft");
+      let draft = storedDraft ? JSON.parse(storedDraft) : {};
 
-    draft.patientMeta = {
-      id: patient.id,
-      fullName: patient.fullName,
-      restrictions: validRestrictions,
-      nutritionalFocus: patient.nutritionalFocus,
-      fitnessGoals: patient.fitnessGoals,
-      birthDate: patient.birthDate,
-      weight: patient.weight,
-      height: patient.height,
-      gender: patient.gender,
-      patientData: patient,
-      updatedAt: new Date().toISOString(),
-    };
+      draft.patientMeta = {
+        id: patient.id,
+        fullName: patient.fullName,
+        restrictions: validRestrictions,
+        nutritionalFocus: patient.nutritionalFocus,
+        fitnessGoals: patient.fitnessGoals,
+        birthDate: patient.birthDate,
+        weight: patient.weight,
+        height: patient.height,
+        gender: patient.gender,
+        patientData: patient,
+        updatedAt: new Date().toISOString(),
+      };
 
-    if (!draft.diet) draft.diet = {};
-    draft.diet.activeConstraints = newConstraints;
-    draft.diet.macroSettings = {
-      ...macroSettings,
-      referenceWeightKg: patient.weight || macroSettings.referenceWeightKg,
-    };
+      draft.activeConstraints = finalConstraints;
+      if (!draft.diet) draft.diet = {};
+      draft.diet.activeConstraints = finalConstraints;
+      draft.diet.macroSettings = {
+        ...macroSettings,
+        referenceWeightKg: patient.weight || macroSettings.referenceWeightKg,
+      };
 
-    localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
+      const serialized = JSON.stringify(draft);
+      localStorage.setItem("nutri_active_draft", serialized);
+      sessionStorage.setItem(getUserDraftKey(), serialized);
+      localStorage.setItem(getUserDraftKey(), serialized);
+    } catch (e) {
+      console.error("Error updating draft in handleSelectPatientLegacy", e);
+    }
 
     if (validRestrictions.length > 0) {
       toast.success(`Paciente vinculado: ${patient.fullName}`, {
@@ -1031,6 +1105,11 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
         if (typeof draft.includeMealsSection === "boolean") setIncludeMealsSection(draft.includeMealsSection);
         if (typeof draft.includeExchangeGuideInPdf === "boolean") setIncludeExchangeGuideInPdf(draft.includeExchangeGuideInPdf);
         if (typeof draft.includeCartSection === "boolean") setIncludeCartSection(draft.includeCartSection);
+        if (typeof draft.includeFoodTableSection === "boolean") setIncludeFoodTableSection(draft.includeFoodTableSection);
+        if (typeof draft.includeResourcesSection === "boolean") setIncludeResourcesSection(draft.includeResourcesSection);
+        if (Array.isArray(draft.selectedResourceIds)) setSelectedResourceIds(draft.selectedResourceIds);
+        if (draft.cartItemOverrides && typeof draft.cartItemOverrides === "object") setCartItemOverrides(draft.cartItemOverrides);
+        if (Array.isArray(draft.removedCartItemIds)) setRemovedCartItemIds(draft.removedCartItemIds);
         setIsHydrating(false);
         return;
       } catch (e) {
@@ -1178,10 +1257,15 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
       });
   }, [initialFoods, manualAdditions, foodStatus, activeConstraints]);
 
-  const autoCartItems = useMemo(
-    () => buildAutoCartItems(includedFoods, meals),
-    [includedFoods, meals],
-  );
+  const autoCartItems = useMemo(() => {
+    const base = buildAutoCartItems(includedFoods, meals);
+    return base
+      .filter((item) => !removedCartItemIds.includes(item.id))
+      .map((item) => ({
+        ...item,
+        name: cartItemOverrides[item.id] || item.name,
+      }));
+  }, [includedFoods, meals, cartItemOverrides, removedCartItemIds]);
 
   const saveDraft = (overrides: any = {}) => {
     try {
@@ -1243,6 +1327,16 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
           overrides.includeExchangeGuideInPdf !== undefined ? overrides.includeExchangeGuideInPdf : includeExchangeGuideInPdf,
         includeCartSection:
           overrides.includeCartSection !== undefined ? overrides.includeCartSection : includeCartSection,
+        includeFoodTableSection:
+          overrides.includeFoodTableSection !== undefined ? overrides.includeFoodTableSection : includeFoodTableSection,
+        includeResourcesSection:
+          overrides.includeResourcesSection !== undefined ? overrides.includeResourcesSection : includeResourcesSection,
+        selectedResourceIds:
+          overrides.selectedResourceIds !== undefined ? overrides.selectedResourceIds : selectedResourceIds,
+        cartItemOverrides:
+          overrides.cartItemOverrides !== undefined ? overrides.cartItemOverrides : cartItemOverrides,
+        removedCartItemIds:
+          overrides.removedCartItemIds !== undefined ? overrides.removedCartItemIds : removedCartItemIds,
         favoritesEnabled,
         timestamp: Date.now(),
       };
@@ -1279,6 +1373,11 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
     includeMealsSection,
     includeExchangeGuideInPdf,
     includeCartSection,
+    includeFoodTableSection,
+    includeResourcesSection,
+    selectedResourceIds,
+    cartItemOverrides,
+    removedCartItemIds,
     isHydrating,
   ]);
 
@@ -1488,8 +1587,8 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
 
   const performExportPdf = async () => {
     if (isHydrating) return;
-    if (!includedFoods.length) {
-      toast.error("No hay alimentos en la dieta para exportar.");
+    if (!includedFoods.length && !meals.length && !dietMealsTableData?.length) {
+      toast.error("No hay datos en la dieta para exportar.");
       return;
     }
     if (!dietName.trim()) {
@@ -1499,28 +1598,115 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
     setIsExportingPdf(true);
     const toastId = toast.loading("Generando PDF...");
     try {
-      const { downloadDietPdf } = await import("@/features/pdf/pdfExport");
-      await downloadDietPdf({
-        dietName,
-        dietTags,
+      const { downloadFastDeliverablePdf } = await import(
+        "@/features/pdf/fastDeliverablePdfExport"
+      );
+      const { DIET_RESOURCES_CATALOG } = await import(
+        "@/features/diet/components/DietResourcesSection"
+      );
+
+      const patientDetails = selectedPatient
+        ? {
+            name: selectedPatient.fullName || null,
+            ageYears: selectedPatient.age ? Number(selectedPatient.age) : null,
+            weight: selectedPatient.weight ? Number(selectedPatient.weight) : null,
+            height: selectedPatient.height ? Number(selectedPatient.height) : null,
+            bmi:
+              selectedPatient.weight && selectedPatient.height
+                ? Number(
+                    (
+                      selectedPatient.weight /
+                      Math.pow(selectedPatient.height / 100, 2)
+                    ).toFixed(1)
+                  )
+                : null,
+          }
+        : null;
+
+      const allRestrictionsList = Array.from(
+        new Set([
+          ...activeConstraints,
+          ...(selectedPatient?.dietRestrictions || []),
+          ...(selectedPatient?.tags || []),
+        ].filter(Boolean))
+      );
+      const clinicalRestrictionStr =
+        allRestrictionsList.length > 0 ? allRestrictionsList.join(", ") : null;
+
+      const formattedMeals = (dietMealsTableData || [])
+        .filter((m: any) => m.mealText || m.section)
+        .map((m: any, idx: number) => ({
+          id: m.id || `meal-${idx}`,
+          section: m.section || `Comida ${idx + 1}`,
+          time: m.time || "12:00",
+          mealText: m.mealText || "Sin plato asignado",
+          portion: m.portion || "1 porción",
+        }));
+
+      const resolvedResources = (selectedResourceIds || [])
+        .map((id) => {
+          const item = DIET_RESOURCES_CATALOG.find((r) => r.id === id);
+          if (!item) return null;
+          return {
+            resourceId: item.id,
+            title: item.title,
+            content: `
+              <h2>${item.title}</h2>
+              <p><strong>Categoría:</strong> ${item.category}</p>
+              <p>${item.description}</p>
+              ${
+                item.recommendationReason
+                  ? `<p><em>${item.recommendationReason}</em></p>`
+                  : ""
+              }
+            `.trim(),
+          };
+        })
+        .filter(Boolean) as any[];
+
+      const groupedFoodsMap: Record<string, string[]> = {};
+      includedFoods.forEach((f) => {
+        const group = f.grupo || "Varios";
+        if (!groupedFoodsMap[group]) groupedFoodsMap[group] = [];
+        if (!groupedFoodsMap[group].includes(f.producto)) {
+          groupedFoodsMap[group].push(f.producto);
+        }
+      });
+
+      const portionGuideRows = Object.entries(groupedFoodsMap).map(
+        ([category, foods]) => ({
+          category,
+          portion: foods.join(", "),
+        })
+      );
+
+      await downloadFastDeliverablePdf({
+        name: dietName,
+        patientName: selectedPatient?.fullName || null,
+        patient: patientDetails,
+        clinicalRestriction: clinicalRestrictionStr,
+        contentMode: "table",
+        tableMode: "simple",
         planObjective: planObjective.trim() || undefined,
         showPlanObjectiveInPdf,
-        activeConstraints,
-        patientName: selectedPatient?.fullName || "tú persona",
-        foods: includedFoods.map((f) => ({
-          producto: f.producto,
-          grupo: f.grupo,
-          unidad: f.unidad,
-          calorias: f.calorias,
-          proteinas: f.proteinas,
-          lipidos: f.lipidos,
-          carbohidratos: f.carbohidratos,
-          precioPromedio: f.precioPromedio,
-          status: (foodStatus[f.producto] as any) ?? "base",
-        })),
-        includeCartSection,
-        cartItems: autoCartItems.map((i) => ({ name: i.name, category: i.category })),
+        meals:
+          formattedMeals.length > 0
+            ? formattedMeals
+            : [
+                {
+                  id: "1",
+                  section: "Plan Alimentario",
+                  time: "08:00",
+                  mealText: dietName,
+                  portion: "Ver guía de porciones",
+                },
+              ],
+        avoidFoods: [],
+        resources: resolvedResources,
+        portionGuide: portionGuideRows,
+        generatedAt: new Date().toLocaleDateString("es-CL"),
       });
+
       toast.success("PDF exportado correctamente.", { id: toastId });
     } catch (e: any) {
       console.error("Error generando PDF:", e);
@@ -2797,7 +2983,16 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
     setIncludeExchangeGuideInPdf,
     includeCartSection,
     setIncludeCartSection,
+    includeFoodTableSection,
+    setIncludeFoodTableSection,
+    includeResourcesSection,
+    setIncludeResourcesSection,
+    selectedResourceIds,
+    setSelectedResourceIds,
     autoCartItems,
+    cartItemOverrides,
+    setCartItemOverride,
+    removeCartItem,
 
     handleQuickGenerateAiDishes,
     handleConfirmAiDishes,

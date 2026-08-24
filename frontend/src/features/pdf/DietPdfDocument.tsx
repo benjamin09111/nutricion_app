@@ -28,17 +28,29 @@ export interface DietCartPdfItem {
     category: string;
 }
 
+export interface DietMealPdfItem {
+    section: string;
+    mealText: string;
+    time?: string;
+    portion?: string;
+}
+
 export interface DietPdfData {
     dietName: string;
     dietTags?: string[];
     activeConstraints?: string[];
     planObjective?: string;
     showPlanObjectiveInPdf?: boolean;
+    includeFoodTableSection?: boolean;
+    includeMealsSection?: boolean;
+    meals?: DietMealPdfItem[];
     patientName?: string;
     foods: DietFood[];
     generatedAt?: string;
     includeCartSection?: boolean;
     cartItems?: DietCartPdfItem[];
+    includeResourcesSection?: boolean;
+    selectedResourceIds?: string[];
 }
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
@@ -273,18 +285,6 @@ const S = StyleSheet.create({
     tableCellBold: {
         ...shared.tableCellBold,
     },
-    // Macro pill
-    macroPill: {
-        backgroundColor: colors.primaryLight,
-        borderRadius: 3,
-        paddingHorizontal: 5,
-        paddingVertical: 1,
-    },
-    macroPillText: {
-        fontSize: 7.5,
-        color: colors.primaryDark,
-        fontFamily: "Helvetica-Bold",
-    },
     // Page footer
     pageFooter: {
         ...shared.pageFooter,
@@ -330,18 +330,6 @@ function groupFoods(foods: DietFood[]): Record<string, DietFood[]> {
             return acc;
         },
         {} as Record<string, DietFood[]>,
-    );
-}
-
-function groupCartItems(items: DietCartPdfItem[]): Record<string, DietCartPdfItem[]> {
-    return items.reduce(
-        (acc, item) => {
-            const g = item.category || "Varios";
-            if (!acc[g]) acc[g] = [];
-            acc[g].push(item);
-            return acc;
-        },
-        {} as Record<string, DietCartPdfItem[]>,
     );
 }
 
@@ -613,85 +601,11 @@ function FoodTablePage({
     );
 }
 
-
-// ─── Cart List Page ─────────────────────────────────────────────────────────
-
-function CartListPage({
-    grouped,
-    patientName,
-    dietName,
-}: {
-    grouped: Record<string, DietCartPdfItem[]>;
-    patientName?: string;
-    dietName: string;
-}) {
-    const dateStr = new Date().toLocaleDateString("es-CL", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-    });
-
-    return (
-        <Page size="A4" style={S.page}>
-            {/* Page Header */}
-            <View style={S.pageHeader}>
-                <View style={{ flexDirection: "row", alignItems: "center" }}>
-                    <View style={S.headerDot} />
-                    <Text style={S.pageHeaderBrand}>NutriNet</Text>
-                    <Text style={{ ...S.pageHeaderTitle, marginLeft: 6 }}>
-                        — Carrito de Compras
-                    </Text>
-                </View>
-                {patientName && (
-                    <Text style={S.pageHeaderTitle}>Paciente: {patientName}</Text>
-                )}
-            </View>
-
-            {/* Section title */}
-            <Text style={shared.sectionTitle}>Lista de Alimentos e Ingredientes</Text>
-            <Text style={{ ...shared.sectionSubtitle, marginBottom: 12 }}>
-                {dietName} · Recopilación automática de la dieta y los platos
-            </Text>
-
-            {/* Groups */}
-            {Object.entries(grouped).map(([category, items]) => {
-                const dotColor = getGroupColor(category);
-                return (
-                    <View key={category}>
-                        <View style={S.groupHeader}>
-                            <View style={{ ...S.groupDot, backgroundColor: dotColor }} />
-                            <Text style={S.groupName}>{category}</Text>
-                            <Text style={S.groupCount}>{items.length} ítems</Text>
-                        </View>
-
-                        {items.map((item, idx) => (
-                            <View
-                                key={item.name}
-                                style={[S.tableRow, idx % 2 === 1 ? S.tableRowAlt : {}]}
-                            >
-                                <Text style={S.tableCellBold}>{item.name}</Text>
-                            </View>
-                        ))}
-                    </View>
-                );
-            })}
-
-            {/* Page Footer */}
-            <View style={S.pageFooter} fixed>
-                <Text style={S.pageFooterText}>{dateStr}</Text>
-                <Text style={S.watermark}>Powered by NutriNet</Text>
-                <Text style={S.pageFooterBrand}>Carrito de Compras</Text>
-            </View>
-        </Page>
-    );
-}
-
 // ─── Main Document ────────────────────────────────────────────────────────────
 
 export function DietPdfDocument({ data }: { data: DietPdfData }) {
     const grouped = groupFoods(data.foods);
-    const showCart = Boolean(data.includeCartSection && data.cartItems && data.cartItems.length > 0);
-    const groupedCart = showCart ? groupCartItems(data.cartItems as DietCartPdfItem[]) : {};
+    const showFoodTable = data.includeFoodTableSection !== false;
 
     return (
         <Document
@@ -701,14 +615,9 @@ export function DietPdfDocument({ data }: { data: DietPdfData }) {
             creator="NutriNet v1.0"
         >
             <CoverPage data={data} />
-            <FoodTablePage
-                grouped={grouped}
-                patientName={data.patientName}
-                dietName={data.dietName}
-            />
-            {showCart && (
-                <CartListPage
-                    grouped={groupedCart}
+            {showFoodTable && (
+                <FoodTablePage
+                    grouped={grouped}
                     patientName={data.patientName}
                     dietName={data.dietName}
                 />

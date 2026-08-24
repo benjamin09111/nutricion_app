@@ -122,6 +122,7 @@ export default function RecipesClient() {
         <WorkflowContextBanner
           projectName={state.currentProjectName}
           patientName={state.selectedPatient?.fullName || null}
+          patient={state.selectedPatient}
           mode={state.currentProjectMode}
           moduleLabel="Recetas"
         />

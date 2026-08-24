@@ -18,6 +18,7 @@ import { DietMacroSection } from "@/features/diet/components/DietMacroSection";
 import { DietPlannerSection } from "@/features/diet/components/DietPlannerSection";
 import { DietRecipesSection, DietMealBlock } from "@/features/diet/components/DietRecipesSection";
 import { DietCartSection } from "@/features/diet/components/DietCartSection";
+import { DietResourcesSection } from "@/features/diet/components/DietResourcesSection";
 import { DietFinalPlanSection } from "@/features/diet/components/DietFinalPlanSection";
 import { DietModals } from "@/features/diet/components/DietModals";
 import { FreemiumUpgradeModal } from "@/components/memberships/FreemiumUpgradeModal";
@@ -45,6 +46,7 @@ const WIZARD_STEPS = [
   "Platos",
   "Comidas",
   "Carrito",
+  "Recursos",
   "Plan final",
 ];
 
@@ -157,7 +159,10 @@ export default function DietClient({ initialFoods }: DietClientProps) {
       Boolean(state.dietName.trim()),
       totalSelectedFoods > 0,
       state.meals.length > 0,
-      state.autoCartItems.length > 0,
+      state.dietMealsTableData.length > 0 || state.meals.length > 0,
+      state.autoCartItems.length > 0 || currentStep > 4,
+      state.selectedResourceIds.length > 0 || currentStep > 5,
+      currentStep === finalStepIndex,
     ];
     const completion = state.flowMode === "quick"
       ? fullStepCompletion.slice(0, 2)
@@ -167,7 +172,17 @@ export default function DietClient({ initialFoods }: DietClientProps) {
       if (isComplete) completed.push(index);
       return completed;
     }, []);
-  }, [state.dietName, totalSelectedFoods, state.dietTags.length, state.flowMode, state.meals.length, state.autoCartItems.length]);
+  }, [
+    state.dietName,
+    totalSelectedFoods,
+    state.meals.length,
+    state.dietMealsTableData.length,
+    state.autoCartItems.length,
+    state.selectedResourceIds.length,
+    currentStep,
+    finalStepIndex,
+    state.flowMode,
+  ]);
 
   // Action Dock buttons: Reiniciar, Importar otra DIETA creada, Guardar, Descargar
   const actionItems: ActionDockItem[] = useMemo(
@@ -197,19 +212,9 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         onClick: () => setIsFoodReferenceBookOpen(true),
       },
       {
-        id: "save",
-        icon: Save,
-        label: "Guardar",
-        description: "Guardar borrador de la pauta",
-        variant: "emerald",
-        onClick: () => {
-          state.saveDraft();
-        },
-      },
-      {
         id: "pdf",
         icon: Download,
-        label: "Descargar",
+        label: "Descargar PDF",
         description: "Descargar PDF de la pauta",
         variant: "indigo",
         onClick: () => void state.performExportPdf(),
@@ -250,8 +255,11 @@ export default function DietClient({ initialFoods }: DietClientProps) {
             <WorkflowContextBanner
               projectName={state.currentProjectName}
               patientName={state.selectedPatient?.fullName || null}
+              patient={state.selectedPatient}
               mode={state.currentProjectMode}
               moduleLabel="Dieta"
+              activeConstraints={state.activeConstraints}
+              patientRestrictions={state.selectedPatient?.dietRestrictions || state.selectedPatient?.tags || []}
             />
 
             <PlanWizardShell
@@ -263,6 +271,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
               onNext={goNext}
               isLastStep={currentStep === finalStepIndex}
               lockFutureSteps
+              hideNextOnLastStep
               onReset={handleResetDiet}
               nextDisabled={
                 (currentStep === 0 && !state.dietName.trim()) ||
@@ -427,10 +436,29 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                   includeCartSection={state.includeCartSection}
                   setIncludeCartSection={state.setIncludeCartSection}
                   patientName={state.selectedPatient?.fullName}
+                  setCartItemOverride={state.setCartItemOverride}
+                  removeCartItem={state.removeCartItem}
                 />
               )}
 
-              {/* PASO 6: PLAN FINAL */}
+              {/* PASO 6: RECURSOS */}
+              {state.flowMode === "full" && currentStep === 5 && (
+                <DietResourcesSection
+                  selectedResourceIds={state.selectedResourceIds}
+                  setSelectedResourceIds={state.setSelectedResourceIds}
+                  includeResourcesSection={state.includeResourcesSection}
+                  setIncludeResourcesSection={state.setIncludeResourcesSection}
+                  patientName={state.selectedPatient?.fullName}
+                  activeConstraints={state.activeConstraints}
+                  patientRestrictions={
+                    state.selectedPatient?.dietRestrictions ||
+                    state.selectedPatient?.tags ||
+                    []
+                  }
+                />
+              )}
+
+              {/* PASO 7: PLAN FINAL */}
               {currentStep === finalStepIndex && (
                 <DietFinalPlanSection
                   patientName={state.selectedPatient?.fullName}
@@ -442,10 +470,18 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                   totalSelectedFoods={totalSelectedFoods}
                   totalMeals={state.meals.length}
                   totalCartItems={state.includeCartSection ? state.autoCartItems.length : 0}
+                  totalResources={state.includeResourcesSection ? state.selectedResourceIds.length : 0}
                   calorieTarget={state.macroTargets.calories}
                   onExportPdf={() => void state.performExportPdf()}
                   onSaveCreation={() => state.setIsSaveCreationModalOpen(true)}
-                  onContinueToDeliverable={() => void state.continueToRecipes()}
+                  includeFoodTableSection={state.includeFoodTableSection}
+                  setIncludeFoodTableSection={state.setIncludeFoodTableSection}
+                  includeMealsSection={state.includeMealsSection}
+                  setIncludeMealsSection={state.setIncludeMealsSection}
+                  includeCartSection={state.includeCartSection}
+                  setIncludeCartSection={state.setIncludeCartSection}
+                  includeResourcesSection={state.includeResourcesSection}
+                  setIncludeResourcesSection={state.setIncludeResourcesSection}
                 />
               )}
             </PlanWizardShell>

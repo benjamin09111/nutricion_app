@@ -1,15 +1,18 @@
 "use client";
 
-import { useMemo } from "react";
-import { ShoppingCart, Package } from "lucide-react";
+import { useState, useMemo } from "react";
+import { ShoppingCart, Package, Pencil, Check, X, AlertCircle, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import type { AutoCartItem } from "@/features/diet/utils/cartIngredients";
+import { cleanFoodName } from "@/features/diet/utils/cartIngredients";
 
 interface DietCartSectionProps {
   autoCartItems: AutoCartItem[];
   includeCartSection: boolean;
   setIncludeCartSection: (value: boolean) => void;
   patientName?: string | null;
+  setCartItemOverride?: (id: string, newName: string) => void;
+  removeCartItem?: (id: string) => void;
 }
 
 export function DietCartSection({
@@ -17,11 +20,33 @@ export function DietCartSection({
   includeCartSection,
   setIncludeCartSection,
   patientName,
+  setCartItemOverride,
+  removeCartItem,
 }: DietCartSectionProps) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingText, setEditingText] = useState<string>("");
+
   const categories = useMemo(() => {
     const set = new Set(autoCartItems.map((i) => i.category));
     return Array.from(set);
   }, [autoCartItems]);
+
+  const startEditing = (id: string, currentName: string) => {
+    setEditingId(id);
+    setEditingText(currentName);
+  };
+
+  const saveEditing = (id: string) => {
+    const trimmed = editingText.trim();
+    if (trimmed && setCartItemOverride) {
+      setCartItemOverride(id, trimmed);
+    }
+    setEditingId(null);
+  };
+
+  const cancelEditing = () => {
+    setEditingId(null);
+  };
 
   return (
     <div className="space-y-8">
@@ -76,6 +101,14 @@ export function DietCartSection({
         </div>
       ) : (
         <>
+          {/* Disclaimer Banner */}
+          <div className="flex items-center gap-3 rounded-2xl border border-amber-200/80 bg-amber-50/80 p-4 text-xs text-amber-900 shadow-sm">
+            <AlertCircle className="h-5 w-5 shrink-0 text-amber-600" />
+            <p className="font-medium leading-relaxed">
+              <strong>Nota sobre la lista:</strong> Esta recopilación se genera automáticamente a partir de la dieta y los platos, por lo que <strong>puede contener ligeras imprecisiones</strong>. Puedes editar manualmente cualquier ingrediente haciendo clic en su botón de edición.
+            </p>
+          </div>
+
           {/* Metric Cards */}
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-5">
@@ -116,11 +149,76 @@ export function DietCartSection({
                     </div>
 
                     <div className="divide-y divide-slate-100">
-                      {itemsInCat.map((item) => (
-                        <div key={item.id} className="flex items-center justify-between px-6 py-3 transition-colors hover:bg-slate-50/50">
-                          <p className="text-xs font-bold text-slate-900">{item.name}</p>
-                        </div>
-                      ))}
+                      {itemsInCat.map((item) => {
+                        const isEditing = editingId === item.id;
+                        const displayName = cleanFoodName(item.name);
+
+                        return (
+                          <div
+                            key={item.id}
+                            className="flex items-center justify-between gap-3 px-6 py-3 transition-colors hover:bg-slate-50/50"
+                          >
+                            {isEditing ? (
+                              <div className="flex flex-1 items-center gap-2">
+                                <input
+                                  type="text"
+                                  value={editingText}
+                                  onChange={(e) => setEditingText(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") saveEditing(item.id);
+                                    if (e.key === "Escape") cancelEditing();
+                                  }}
+                                  autoFocus
+                                  className="w-full rounded-xl border border-emerald-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => saveEditing(item.id)}
+                                  title="Guardar nombre"
+                                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 transition-colors cursor-pointer"
+                                >
+                                  <Check className="h-4 w-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={cancelEditing}
+                                  title="Cancelar"
+                                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 transition-colors cursor-pointer"
+                                >
+                                  <X className="h-4 w-4" />
+                                </button>
+                              </div>
+                            ) : (
+                              <>
+                                <p className="text-xs font-bold text-slate-900">{displayName}</p>
+                                <div className="flex items-center gap-1.5">
+                                  {setCartItemOverride && (
+                                    <button
+                                      type="button"
+                                      onClick={() => startEditing(item.id, displayName)}
+                                      title="Editar nombre"
+                                      className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600 opacity-75 transition-all hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 hover:opacity-100 cursor-pointer"
+                                    >
+                                      <Pencil className="h-3 w-3" />
+                                      <span>Editar</span>
+                                    </button>
+                                  )}
+                                  {removeCartItem && (
+                                    <button
+                                      type="button"
+                                      onClick={() => removeCartItem(item.id)}
+                                      title="Eliminar ingrediente"
+                                      className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-rose-500 opacity-75 transition-all hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 hover:opacity-100 cursor-pointer"
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </button>
+                                  )}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 );

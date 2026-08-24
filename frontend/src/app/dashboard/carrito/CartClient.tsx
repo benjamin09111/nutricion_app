@@ -1630,6 +1630,7 @@ export default function CartClient() {
         <WorkflowContextBanner
           projectName={currentProjectName}
           patientName={selectedPatient?.fullName || null}
+          patient={selectedPatient}
           mode={currentProjectMode}
           moduleLabel="Carrito"
         />

@@ -2492,6 +2492,7 @@ export default function DeliverableClient() {
         <WorkflowContextBanner
           projectName={currentProjectName}
           patientName={selectedPatient?.fullName || null}
+          patient={selectedPatient}
           moduleLabel="Entregable"
         />
 
