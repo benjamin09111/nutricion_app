@@ -16,7 +16,6 @@ import { Input } from "@/components/ui/Input";
 import { toast } from "sonner";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { ModuleFooter } from "@/components/shared/ModuleFooter";
-import Cookies from "js-cookie";
 import { useRouter } from "next/navigation";
 import { fetchApi } from "@/lib/api-base";
 

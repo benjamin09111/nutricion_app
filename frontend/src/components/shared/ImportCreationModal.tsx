@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { Loader2, Search, Library, Tag as TagIcon } from "lucide-react";
-import Cookies from "js-cookie";
 import { toast } from "sonner";
 import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";

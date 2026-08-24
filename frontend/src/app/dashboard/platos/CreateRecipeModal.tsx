@@ -6,7 +6,6 @@ import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { toast } from "sonner";
-import Cookies from "js-cookie";
 import { Plus, Trash2, Search, ChefHat, Info, Flame, Image as ImageIcon, Camera, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { fetchApi } from "@/lib/api-base";

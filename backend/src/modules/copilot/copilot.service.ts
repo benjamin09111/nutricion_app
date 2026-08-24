@@ -69,7 +69,7 @@ export class CopilotService {
         isStepCount(10),
       ],
       onEnd: (event: any) => {
-        const uAny = (event?.totalUsage || {}) as any;
+        const uAny = event?.totalUsage || {};
         const promptTokens =
           uAny?.promptTokens ?? uAny?.inputTokens ?? uAny?.prompt_tokens ?? 0;
         const completionTokens =
@@ -209,7 +209,7 @@ export class CopilotService {
               .array(z.string())
               .describe('Restricciones clinicas del paciente'),
           }),
-          execute: async ({ alimentos, restricciones }) => {
+          execute: ({ alimentos, restricciones }) => {
             const conflicts: Array<{
               alimento: string;
               restriccion: string;
@@ -336,8 +336,6 @@ export class CopilotService {
               (i) => `${i.nombre}${i.cantidad ? ` (${i.cantidad})` : ''}`,
             );
             try {
-              if (accountId) {
-              }
               const result = await this.aiService.generateStructuredObject(
                 'copilot.calculate-macros',
                 'Estima valores nutricionales por porción. Usa cero si faltan datos suficientes.',
@@ -399,8 +397,6 @@ export class CopilotService {
               ? `Preferencias: ${preferencias}. `
               : '';
             try {
-              if (accountId) {
-              }
               const result = await this.aiService.generateStructuredObject(
                 'copilot.generate-recipe',
                 'Genera una receta simple y clínicamente compatible.',

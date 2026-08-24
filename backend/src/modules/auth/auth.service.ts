@@ -28,11 +28,6 @@ import {
   AccountStatus,
 } from '@prisma/client';
 
-const resolvePlanForRole = (role: UserRole): SubscriptionPlan =>
-  role === 'NUTRITIONIST' || role === 'NUTRITIONIST_DEVELOPER'
-    ? SubscriptionPlan.FREE
-    : SubscriptionPlan.ENTERPRISE;
-
 const resolveGreetingName = (account: {
   role: UserRole;
   email: string;
@@ -430,7 +425,7 @@ export class AuthService {
           ? 'Acceso actualizado correctamente.'
           : 'Cuenta creada correctamente.',
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('CRITICAL ERROR creating account:', error);
       if (error instanceof BadRequestException) {
         throw error;
@@ -472,7 +467,9 @@ export class AuthService {
 
         await tx.notification.deleteMany({ where: { accountId } });
         await tx.payment.deleteMany({ where: { accountId } }).catch(() => null);
-        await tx.subscription.deleteMany({ where: { accountId } }).catch(() => null);
+        await tx.subscription
+          .deleteMany({ where: { accountId } })
+          .catch(() => null);
         await tx.account.delete({ where: { id: accountId } });
       });
     } catch (e) {
@@ -684,7 +681,7 @@ export class AuthService {
         account.nutritionist?.fullName || 'Usuario',
         `${frontendUrl}/verify-email?token=${verificationToken}`,
       );
-    } catch (error) {
+    } catch {
       await this.prisma.account.update({
         where: { id: account.id },
         data: { emailVerificationSentAt: null },
@@ -709,7 +706,7 @@ export class AuthService {
       }
       const normalizedEmail = email.toLowerCase().trim();
       await this.ensureAccountLoginAllowed(normalizedEmail);
-      let account = await this.prisma.account.findUnique({
+      const account = await this.prisma.account.findUnique({
         where: { email: normalizedEmail },
         include: {
           nutritionist: true,
@@ -780,11 +777,7 @@ export class AuthService {
         account.role === 'ADMIN_MASTER';
 
       const signOptions: any = {
-        expiresIn: isAdminAccount
-          ? '12h'
-          : loginDto.rememberMe
-            ? '30d'
-            : '24h',
+        expiresIn: isAdminAccount ? '12h' : loginDto.rememberMe ? '30d' : '24h',
       };
 
       const accessSnapshot = await this.permissionsService.getAccessSnapshot(

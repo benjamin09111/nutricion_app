@@ -5,7 +5,6 @@ import { Plus, Edit2, Trash2, Check, X, Star, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { toast } from "sonner";
-import Cookies from "js-cookie";
 import { fetchApi } from "@/lib/api-base";
 import { cn } from "@/lib/utils";
 import { getMembershipFeatureDisplay, type FeatureType } from "@/features/memberships/utils/feature-format";

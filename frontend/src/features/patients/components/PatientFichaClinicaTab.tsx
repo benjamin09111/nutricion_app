@@ -31,7 +31,7 @@ import { calculateBMI, calculateGET, calculateAge, getIdealWeightRange } from "@
 import { calculateGestationalData } from "@/lib/gestational-calculations";
 import { cn, toDateOnly, formatDateOnlyForLocale } from "../utils/patient-helpers";
 import { DEFAULT_CONSTRAINTS } from "@/lib/constants";
-import { WEEKLY_EXERCISE_OPTIONS } from "@/lib/validations/patient-form";
+import { WEEKLY_EXERCISE_OPTIONS } from "@/lib/schemas/patient-form";
 import { fetchApi } from "@/lib/api-base";
 
 const ACTIVITY_LEVELS: { key: ActivityLevel; label: string; icon: any }[] = [

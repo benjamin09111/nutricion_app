@@ -228,7 +228,7 @@ export class GoogleIntegrationService {
   private verifyState(token: string) {
     try {
       return jwt.verify(token, this.getAppSecret()) as GoogleState;
-    } catch (err) {
+    } catch {
       throw new BadRequestException(
         'La sesión de autenticación con Google expiró o es inválida. Intenta nuevamente.',
       );

@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Bell, Send, CheckCircle2, RotateCcw, Lock } from "lucide-react";
 import { toast } from "sonner";
-import Cookies from "js-cookie";
 import { fetchApi } from "@/lib/api-base";
 
 export default function AdminNotificationsPage() {

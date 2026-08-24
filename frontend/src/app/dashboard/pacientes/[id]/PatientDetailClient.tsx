@@ -37,7 +37,6 @@ import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { toast } from "sonner";
-import Cookies from "js-cookie";
 import { fetchApi } from "@/lib/api-base";
 import {
   calculateBMI,

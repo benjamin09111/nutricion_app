@@ -44,10 +44,12 @@ export class ResourcesService {
   }
 
   async findAll(nutritionistId: string, isAdmin: boolean, accountId: string) {
-    const canUseOwnResources = isAdmin || await this.permissionsService.checkFeatureAccess(
-      accountId,
-      PLAN_ENTITLEMENT_KEYS.RESOURCES_CREATE_ACCESS,
-    );
+    const canUseOwnResources =
+      isAdmin ||
+      (await this.permissionsService.checkFeatureAccess(
+        accountId,
+        PLAN_ENTITLEMENT_KEYS.RESOURCES_CREATE_ACCESS,
+      ));
     const whereClause = {
       OR: canUseOwnResources
         ? [
@@ -71,18 +73,22 @@ export class ResourcesService {
     );
   }
 
-  async findOne(id: string, nutritionistId: string, isAdmin: boolean, accountId: string) {
-    const canUseOwnResources = isAdmin || await this.permissionsService.checkFeatureAccess(
-      accountId,
-      PLAN_ENTITLEMENT_KEYS.RESOURCES_CREATE_ACCESS,
-    );
+  async findOne(
+    id: string,
+    nutritionistId: string,
+    isAdmin: boolean,
+    accountId: string,
+  ) {
+    const canUseOwnResources =
+      isAdmin ||
+      (await this.permissionsService.checkFeatureAccess(
+        accountId,
+        PLAN_ENTITLEMENT_KEYS.RESOURCES_CREATE_ACCESS,
+      ));
     const ownershipFilters = [
       { nutritionistId: null },
       ...(canUseOwnResources
-        ? [
-            { isPublic: true },
-            ...(nutritionistId ? [{ nutritionistId }] : []),
-          ]
+        ? [{ isPublic: true }, ...(nutritionistId ? [{ nutritionistId }] : [])]
         : []),
     ];
 

@@ -30,7 +30,6 @@ import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { toast } from "sonner";
 import { fetchApi } from "@/lib/api-base";
-import Cookies from "js-cookie";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));

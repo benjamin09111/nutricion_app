@@ -34,7 +34,6 @@ import { MetricTagInput } from "@/components/ui/metric-tag-input";
 import { calculateAge } from "@/lib/nutrition-formulas";
 import { TagInput } from "@/components/ui/TagInput";
 import { toast } from "sonner";
-import Cookies from "js-cookie";
 import { DEFAULT_METRICS } from "@/lib/constants";
 import { Consultation, Metric } from "@/features/consultations";
 import { Patient } from "@/features/patients";

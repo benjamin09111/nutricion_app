@@ -1,12 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import type { Prisma, MembershipPlan } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 
 const normalizeMembershipFeature = (value: unknown): string => {
   const feature = typeof value === 'string' ? value.trim() : '';
   if (!feature) return '';
 
-  if (/^([✓✔Xx★✨🔥])\s*(.*)$/.test(feature)) {
+  if (/^([✓✔Xx★✨🔥])\s*(.*)$/u.test(feature)) {
     return feature;
   }
 
@@ -28,8 +28,6 @@ const asStringArray = (value: Prisma.JsonValue): string[] => {
     return value.map((v) => (typeof v === 'string' ? v : ''));
   return [];
 };
-
-type PlanRow = MembershipPlan;
 
 const normalizeMembershipPlan = (plan: any) => ({
   ...plan,

@@ -36,7 +36,9 @@ export class PaymentsWebhookController {
   handleFlowReturn(@Res() res: Response, @Query('path') path: string) {
     const frontendUrl = process.env.FRONTEND_URL;
     if (!frontendUrl) {
-      throw new InternalServerErrorException('FRONTEND_URL no está configurada');
+      throw new InternalServerErrorException(
+        'FRONTEND_URL no está configurada',
+      );
     }
 
     // `path` viaja en la URL de retorno de Flow, así que se trata como entrada

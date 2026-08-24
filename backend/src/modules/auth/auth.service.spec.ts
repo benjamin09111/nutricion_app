@@ -138,34 +138,34 @@ describe('AuthService', () => {
     const update = jest.fn().mockResolvedValue(existingAccount);
 
     prisma.$transaction.mockImplementationOnce(async (callback: any) =>
-        callback({
-          account: {
-            findUnique: jest.fn().mockResolvedValueOnce(existingAccount),
-            update,
-            findUniqueOrThrow: jest.fn().mockResolvedValue({
-              ...existingAccount,
-              subscription: {
-                status: 'ACTIVE',
-                startDate: new Date(),
-                endDate: new Date(),
-                cancelAtPeriodEnd: false,
-                canceledAt: null,
-                planId: 'free-plan-id',
-                plan: { name: 'Gratis', slug: 'free', price: 0 },
-              },
-            }),
-          },
-          membershipPlan: {
-            findFirst: jest.fn().mockResolvedValue({
-              id: 'free-plan-id',
-              slug: 'free',
-              isActive: true,
-            }),
-          },
-          subscription: {
-            create: jest.fn().mockResolvedValue({}),
-          },
-        }),
+      callback({
+        account: {
+          findUnique: jest.fn().mockResolvedValueOnce(existingAccount),
+          update,
+          findUniqueOrThrow: jest.fn().mockResolvedValue({
+            ...existingAccount,
+            subscription: {
+              status: 'ACTIVE',
+              startDate: new Date(),
+              endDate: new Date(),
+              cancelAtPeriodEnd: false,
+              canceledAt: null,
+              planId: 'free-plan-id',
+              plan: { name: 'Gratis', slug: 'free', price: 0 },
+            },
+          }),
+        },
+        membershipPlan: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: 'free-plan-id',
+            slug: 'free',
+            isActive: true,
+          }),
+        },
+        subscription: {
+          create: jest.fn().mockResolvedValue({}),
+        },
+      }),
     );
 
     await service.loginWithGoogle({

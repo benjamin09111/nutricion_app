@@ -1,4 +1,3 @@
-import Cookies from "js-cookie";
 import { fetchApi, getApiUrl } from "@/lib/api-base";
 import { getCurrentUser } from "@/lib/current-user";
 

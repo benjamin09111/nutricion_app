@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import Cookies from "js-cookie";
 import { domToPng } from "modern-screenshot";
 import { fetchApi } from "@/lib/api-base";
 import { validateRut } from "@/lib/rut-utils";

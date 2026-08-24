@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useMemo, useEffect, Fragment } from "react";
-import Cookies from "js-cookie";
 import {
   ShoppingCart,
   ArrowRight,

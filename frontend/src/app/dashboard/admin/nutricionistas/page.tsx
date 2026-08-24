@@ -1,7 +1,6 @@
 "use client";
 
 import { toast } from "sonner";
-import Cookies from "js-cookie";
 import { createPortal } from "react-dom";
 import { useEffect, useRef, useState } from "react";
 import {

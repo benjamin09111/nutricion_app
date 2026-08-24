@@ -210,7 +210,11 @@ export const getMembershipPlanEntitlements = (slug: string) =>
 export const normalizeMembershipPlanKey = (value: string) => {
   const normalized = value.trim().toLowerCase();
 
-  if (normalized.includes('free') || normalized.includes('gratis') || normalized.includes('freemium'))
+  if (
+    normalized.includes('free') ||
+    normalized.includes('gratis') ||
+    normalized.includes('freemium')
+  )
     return 'free';
   if (normalized.includes('iniciante') || normalized.includes('starter'))
     return 'iniciante';

@@ -15,7 +15,6 @@ import {
   User,
 } from "lucide-react";
 import { toast } from "sonner";
-import Cookies from "js-cookie";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";

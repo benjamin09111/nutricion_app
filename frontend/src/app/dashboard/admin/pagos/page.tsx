@@ -16,7 +16,6 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import Cookies from "js-cookie";
 import { toast } from "sonner";
 import { Modal } from "@/components/ui/Modal";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";

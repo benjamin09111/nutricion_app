@@ -9,7 +9,7 @@ describe('CalculationsService', () => {
   it('applies Frisancho corrections in mm²', () => {
     const result = service.calculateArmComposition('Masculino', 30, 10);
     const cbMm = 300;
-    const expected = ((cbMm - Math.PI * 10) ** 2) / (4 * Math.PI) - 1000;
+    const expected = (cbMm - Math.PI * 10) ** 2 / (4 * Math.PI) - 1000;
 
     expect(result?.ambMm2).toBe(Math.round(expected * 10) / 10);
   });
@@ -21,7 +21,11 @@ describe('CalculationsService', () => {
   });
 
   it('does not produce a broken LMS result at 118 months', () => {
-    const result = service.getPediatricBmiAssessment(16.37, 'Masculino', 118 / 12);
+    const result = service.getPediatricBmiAssessment(
+      16.37,
+      'Masculino',
+      118 / 12,
+    );
 
     expect(result?.percentile).toEqual(expect.any(Number));
     expect(Number.isFinite(result?.percentile ?? Number.NaN)).toBe(true);

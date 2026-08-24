@@ -16,12 +16,6 @@ import { resolveAccountPlanFromMembershipPlan } from '../memberships/account-pla
 
 const ACTIVE_SUBSCRIPTION_STATUSES = new Set(['ACTIVE', 'TRIALING']);
 
-function hasDbEntitlements(plan: any): boolean {
-  const db = plan?.entitlements;
-  if (!db || typeof db !== 'object') return false;
-  return Object.keys(db).length > 0;
-}
-
 function resolveEntitlements(
   plan: any,
   hardcoded: EntitlementMap,
@@ -93,24 +87,19 @@ export class PermissionsService {
 
     let subscriptionSelectable = isSubscriptionSelectable({
       role: account.role,
-          subscription: account.subscription
-          ? {
-              status: account.subscription.status,
-              endDate: account.subscription.endDate,
-              plan: account.subscription.plan
-                ? {
-                    slug: account.subscription.plan.slug,
-                    price: account.subscription.plan.price,
-                  }
-                : null,
-            }
+      subscription: account.subscription
+        ? {
+            status: account.subscription.status,
+            endDate: account.subscription.endDate,
+            plan: account.subscription.plan
+              ? {
+                  slug: account.subscription.plan.slug,
+                  price: account.subscription.plan.price,
+                }
+              : null,
+          }
         : null,
     });
-
-    let hasPlanSelectionHistory =
-      account.plan !== 'FREE' ||
-      account.payments.length > 0 ||
-      subscriptionSelectable;
 
     const freeMembershipPlan = await this.prisma.membershipPlan.findFirst({
       where: {
@@ -236,11 +225,6 @@ export class PermissionsService {
       return { [SPECIAL_FEATURES.MEMBERSHIP_SELECTED]: true };
     }
 
-    const hasPlanSelectionHistory =
-      account.plan !== 'FREE' ||
-      Boolean(account.payments?.length) ||
-      isSubscriptionSelectable(account);
-
     if (!currentPlan) {
       return MEMBERSHIP_PLAN_ENTITLEMENTS.free;
     }
@@ -331,7 +315,9 @@ export class PermissionsService {
     }
 
     const planKey = snapshot.currentPlan?.key || 'free';
-    const fallbackMap = MEMBERSHIP_PLAN_ENTITLEMENTS[planKey] || MEMBERSHIP_PLAN_ENTITLEMENTS.free;
+    const fallbackMap =
+      MEMBERSHIP_PLAN_ENTITLEMENTS[planKey] ||
+      MEMBERSHIP_PLAN_ENTITLEMENTS.free;
     const fallbackValue = fallbackMap[limitKey];
     if (typeof fallbackValue === 'number') {
       return fallbackValue < 0 ? Infinity : fallbackValue;

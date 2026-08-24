@@ -12,6 +12,7 @@ export const resolveSafePostAuthPath = (
     return fallback;
   }
 
+  // eslint-disable-next-line no-control-regex -- rechazar caracteres de control es justamente el objetivo
   if (value.includes('\\') || /[\u0000-\u001F\u007F]/.test(value)) {
     return fallback;
   }
@@ -46,6 +47,7 @@ export const resolveSafeRelativePath = (
     return fallback;
   }
 
+  // eslint-disable-next-line no-control-regex -- rechazar caracteres de control es justamente el objetivo
   if (value.includes('\\') || /[\u0000-\u001F\u007F]/.test(value)) {
     return fallback;
   }

@@ -18,14 +18,19 @@ const isRemote =
   Boolean(process.env.RAILWAY_PUBLIC_DOMAIN) ||
   Boolean(
     process.env.API_URL &&
-      !process.env.API_URL.includes('localhost') &&
-      !process.env.API_URL.includes('127.0.0.1'),
+    !process.env.API_URL.includes('localhost') &&
+    !process.env.API_URL.includes('127.0.0.1'),
   ) ||
   Boolean(
     process.env.FRONTEND_URL &&
-      !process.env.FRONTEND_URL.includes('localhost') &&
-      !process.env.FRONTEND_URL.includes('127.0.0.1'),
+    !process.env.FRONTEND_URL.includes('localhost') &&
+    !process.env.FRONTEND_URL.includes('127.0.0.1'),
   );
+
+// Anotado como constante nombrada a proposito: dentro del literal el tipo
+// se ensancharia a `string` y dejaria de encajar en `CookieOptions`, y una
+// asercion en linea la elimina el autofix de no-unnecessary-type-assertion.
+const SAME_SITE: 'none' | 'lax' = isRemote ? 'none' : 'lax';
 
 // ─── Cookie option factories ──────────────────────────────────────────────────
 // In production/remote environments, frontend and backend are on different domains.
@@ -34,7 +39,7 @@ const isRemote =
 export const authSessionCookieOptions = (maxAge?: number) => ({
   httpOnly: true as const,
   secure: isRemote,
-  sameSite: (isRemote ? 'none' : 'lax') as 'none' | 'lax',
+  sameSite: SAME_SITE,
   path: '/',
   ...(maxAge ? { maxAge } : {}),
 });
@@ -43,7 +48,7 @@ export const authSessionCookieOptions = (maxAge?: number) => ({
 export const authPresenceCookieOptions = (maxAge?: number) => ({
   httpOnly: false as const,
   secure: isRemote,
-  sameSite: (isRemote ? 'none' : 'lax') as 'none' | 'lax',
+  sameSite: SAME_SITE,
   path: '/',
   ...(maxAge ? { maxAge } : {}),
 });
@@ -52,9 +57,7 @@ export const authPresenceCookieOptions = (maxAge?: number) => ({
 export const googleOauthCookieOptions = () => ({
   httpOnly: true as const,
   secure: isRemote,
-  sameSite: (isRemote ? 'none' : 'lax') as 'none' | 'lax',
+  sameSite: SAME_SITE,
   path: '/',
   maxAge: 10 * 60 * 1000,
 });
-
-

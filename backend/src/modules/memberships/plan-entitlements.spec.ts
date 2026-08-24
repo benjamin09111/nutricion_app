@@ -23,10 +23,16 @@ describe('Freemium entitlements', () => {
 
     expect(free[PLAN_ENTITLEMENT_KEYS.CREATIONS_EDIT_ACCESS]).toBe(false);
     expect(free[PLAN_ENTITLEMENT_KEYS.CREATIONS_IMPORT_ACCESS]).toBe(false);
-    expect(free[PLAN_ENTITLEMENT_KEYS.CLINICAL_RESTRICTIONS_CREATE_ACCESS]).toBe(false);
+    expect(
+      free[PLAN_ENTITLEMENT_KEYS.CLINICAL_RESTRICTIONS_CREATE_ACCESS],
+    ).toBe(false);
     expect(free[PLAN_ENTITLEMENT_KEYS.METRICS_CREATE_ACCESS]).toBe(false);
-    expect(free[PLAN_ENTITLEMENT_KEYS.CLINICAL_CALCULATOR_USE_ACCESS]).toBe(false);
-    expect(free[PLAN_ENTITLEMENT_KEYS.SCREENING_TESTS_DELETE_ACCESS]).toBe(false);
+    expect(free[PLAN_ENTITLEMENT_KEYS.CLINICAL_CALCULATOR_USE_ACCESS]).toBe(
+      false,
+    );
+    expect(free[PLAN_ENTITLEMENT_KEYS.SCREENING_TESTS_DELETE_ACCESS]).toBe(
+      false,
+    );
     expect(free[PLAN_ENTITLEMENT_KEYS.RESOURCES_CREATE_ACCESS]).toBe(false);
     expect(free[PLAN_ENTITLEMENT_KEYS.RESOURCES_EDIT_ACCESS]).toBe(false);
     expect(free[PLAN_ENTITLEMENT_KEYS.INGREDIENTS_CREATE_ACCESS]).toBe(false);

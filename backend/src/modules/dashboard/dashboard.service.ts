@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   getMembershipPlanEntitlements,
-  getMembershipPlanKey,
   normalizeMembershipPlanKey,
 } from '../memberships/plan-entitlements';
 
@@ -116,13 +115,21 @@ export class DashboardService {
       usageMap[usageKey] = (usageMap[usageKey] || 0) + counter.usageCount;
     }
 
-    const patientLimit = Number(
-      entitlements['patients.total.limit'] ?? entitlements['patients.active.limit'],
-    ) || 0;
+    const patientLimit =
+      Number(
+        entitlements['patients.total.limit'] ??
+          entitlements['patients.active.limit'],
+      ) || 0;
     const consultationLimit =
-      Number(entitlements['consultations.saved.limit'] ?? entitlements['consultations.monthly.limit']) || 0;
+      Number(
+        entitlements['consultations.saved.limit'] ??
+          entitlements['consultations.monthly.limit'],
+      ) || 0;
     const pdfLimit =
-      Number(entitlements['pdf.exports.total.limit'] ?? entitlements['pdf.monthly.limit']) || 0;
+      Number(
+        entitlements['pdf.exports.total.limit'] ??
+          entitlements['pdf.monthly.limit'],
+      ) || 0;
 
     const isFree =
       planKey === 'free' &&
@@ -141,7 +148,10 @@ export class DashboardService {
           limit: consultationLimit > 0 ? consultationLimit : Infinity,
         },
         {
-          used: usageMap['pdf.exports.total.limit'] || usageMap['pdf.monthly.limit'] || 0,
+          used:
+            usageMap['pdf.exports.total.limit'] ||
+            usageMap['pdf.monthly.limit'] ||
+            0,
           limit: pdfLimit > 0 ? pdfLimit : Infinity,
         },
       ];
@@ -186,7 +196,10 @@ export class DashboardService {
         usage: {
           patients: totalPatients,
           consultations: totalConsultations,
-          pdfs: usageMap['pdf.exports.total.limit'] || usageMap['pdf.monthly.limit'] || 0,
+          pdfs:
+            usageMap['pdf.exports.total.limit'] ||
+            usageMap['pdf.monthly.limit'] ||
+            0,
         },
       },
       recentPatients,

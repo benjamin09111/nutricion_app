@@ -52,7 +52,6 @@ import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { SaveCreationModal } from "@/components/ui/SaveCreationModal";
-import Cookies from "js-cookie";
 import { fetchApi } from "@/lib/api-base";
 import { getCurrentUser, setCurrentUser } from "@/lib/current-user";
 import { membershipService } from "@/features/memberships/services/membership.service";

@@ -138,9 +138,13 @@ export class RecipesService {
   }
 
   private ingredientAmountInGrams(amount: number, unit: string): number | null {
-    const normalized = String(unit || '').trim().toLowerCase();
+    const normalized = String(unit || '')
+      .trim()
+      .toLowerCase();
     if (['g', 'gr', 'gramo', 'gramos'].includes(normalized)) return amount;
-    if (['kg', 'kilo', 'kilos', 'kilogramo', 'kilogramos'].includes(normalized)) {
+    if (
+      ['kg', 'kilo', 'kilos', 'kilogramo', 'kilogramos'].includes(normalized)
+    ) {
       return amount * 1000;
     }
     return null;
@@ -150,7 +154,9 @@ export class RecipesService {
     ingredients: Array<{ ingredientId: string; amount: number; unit: string }>,
     portions: number,
   ) {
-    const ingredientIds = ingredients.map((ingredient) => ingredient.ingredientId);
+    const ingredientIds = ingredients.map(
+      (ingredient) => ingredient.ingredientId,
+    );
     const dbIngredients = await this.prisma.ingredient.findMany({
       where: { id: { in: ingredientIds } },
     });
@@ -165,14 +171,19 @@ export class RecipesService {
     };
 
     for (const ingredient of ingredients) {
-      const grams = this.ingredientAmountInGrams(ingredient.amount, ingredient.unit);
+      const grams = this.ingredientAmountInGrams(
+        ingredient.amount,
+        ingredient.unit,
+      );
       if (grams === null) {
         throw new BadRequestException(
           `No se pueden calcular macros automáticamente para la unidad "${ingredient.unit}". Usa gramos/kg o ingresa macros manuales por porción.`,
         );
       }
 
-      const dbIngredient = dbIngredients.find((item) => item.id === ingredient.ingredientId);
+      const dbIngredient = dbIngredients.find(
+        (item) => item.id === ingredient.ingredientId,
+      );
       if (!dbIngredient) continue;
       const factor = grams / 100;
       totals.calories += dbIngredient.calories * factor;
@@ -184,7 +195,10 @@ export class RecipesService {
     }
 
     return Object.fromEntries(
-      Object.entries(totals).map(([key, value]) => [key, Number((value / portions).toFixed(2))]),
+      Object.entries(totals).map(([key, value]) => [
+        key,
+        Number((value / portions).toFixed(2)),
+      ]),
     ) as typeof totals;
   }
 
@@ -826,7 +840,9 @@ export class RecipesService {
 
     const title = typeof dish?.title === 'string' ? dish.title.trim() : '';
     const slotId = typeof dish?.slotId === 'string' ? dish.slotId.trim() : '';
-    const optionIndex = Number.isInteger(dish?.optionIndex) ? Number(dish.optionIndex) : undefined;
+    const optionIndex = Number.isInteger(dish?.optionIndex)
+      ? Number(dish.optionIndex)
+      : undefined;
     const mealSection =
       typeof dish?.mealSection === 'string' ? dish.mealSection.trim() : '';
     const recommendedPortion =
@@ -867,7 +883,12 @@ export class RecipesService {
     };
   }
   private buildQuickAiPrompt(payload: QuickAiFillPayload): string {
-    type MealSectionTarget = { mealSection: string; count: number; slotId?: string; optionIndexes?: number[] };
+    type MealSectionTarget = {
+      mealSection: string;
+      count: number;
+      slotId?: string;
+      optionIndexes?: number[];
+    };
 
     const mealSectionTargets: MealSectionTarget[] = Array.isArray(
       (payload as any).mealSectionTargets,
@@ -878,13 +899,21 @@ export class RecipesService {
           )
           .map((target: any) => ({
             mealSection: String(target.mealSection).trim(),
-              count: Number.isFinite(Number(target.count))
-                ? Math.max(1, Math.min(14, Number(target.count)))
-                : 1,
-              slotId: typeof target.slotId === 'string' ? target.slotId.trim() : undefined,
-              optionIndexes: Array.isArray(target.optionIndexes)
-                ? target.optionIndexes.filter((index: unknown) => Number.isInteger(index) && Number(index) >= 0 && Number(index) <= 2)
+            count: Number.isFinite(Number(target.count))
+              ? Math.max(1, Math.min(14, Number(target.count)))
+              : 1,
+            slotId:
+              typeof target.slotId === 'string'
+                ? target.slotId.trim()
                 : undefined,
+            optionIndexes: Array.isArray(target.optionIndexes)
+              ? target.optionIndexes.filter(
+                  (index: unknown) =>
+                    Number.isInteger(index) &&
+                    Number(index) >= 0 &&
+                    Number(index) <= 2,
+                )
+              : undefined,
           }))
           .filter(
             (target: { mealSection: string; count: number }) =>
@@ -957,7 +986,7 @@ export class RecipesService {
       ]
         .filter(Boolean)
         .join(' '),
-       allowExternalFoods: true,
+      allowExternalFoods: true,
       rules: [
         'El título debe ser único, claro y sin barras "/".',
         'PROHIBIDO USAR YOGURT EN ALMUERZO O CENA. El yogurt solo va en desayuno, colación o una preparación dulce.',
@@ -973,7 +1002,8 @@ export class RecipesService {
       outputSchema: {
         dishes: [
           {
-            slotId: 'string opcional; obligatorio cuando generationMode sea options',
+            slotId:
+              'string opcional; obligatorio cuando generationMode sea options',
             optionIndex: 0,
             title: 'string',
             mealSection: 'string',
@@ -1037,11 +1067,20 @@ export class RecipesService {
       const targets = new Map(
         (payload.mealSectionTargets || [])
           .filter((target) => target.slotId)
-          .map((target) => [target.slotId as string, new Set(target.optionIndexes || [])]),
+          .map((target) => [
+            target.slotId as string,
+            new Set(target.optionIndexes || []),
+          ]),
       );
       normalizedDishes.forEach((dish: QuickAiDishOutput) => {
-        if (!dish.slotId || dish.optionIndex === undefined || !targets.get(dish.slotId)?.has(dish.optionIndex)) {
-          throw new BadRequestException('La IA devolvió una opción fuera de la celda solicitada. Intenta nuevamente.');
+        if (
+          !dish.slotId ||
+          dish.optionIndex === undefined ||
+          !targets.get(dish.slotId)?.has(dish.optionIndex)
+        ) {
+          throw new BadRequestException(
+            'La IA devolvió una opción fuera de la celda solicitada. Intenta nuevamente.',
+          );
         }
       });
     }
@@ -1111,20 +1150,19 @@ export class RecipesService {
           data.fiber == null ||
           data.sodium == null)
       ) {
-        const ingredientMacros = await this.calculateIngredientMacros(ingredients, portions);
+        const ingredientMacros = await this.calculateIngredientMacros(
+          ingredients,
+          portions,
+        );
 
         if (data.calories == null)
           calcMacros.calories = ingredientMacros.calories;
         if (data.proteins == null)
           calcMacros.proteins = ingredientMacros.proteins;
-        if (data.carbs == null)
-          calcMacros.carbs = ingredientMacros.carbs;
-        if (data.lipids == null)
-          calcMacros.lipids = ingredientMacros.lipids;
-        if (data.fiber == null)
-          calcMacros.fiber = ingredientMacros.fiber;
-        if (data.sodium == null)
-          calcMacros.sodium = ingredientMacros.sodium;
+        if (data.carbs == null) calcMacros.carbs = ingredientMacros.carbs;
+        if (data.lipids == null) calcMacros.lipids = ingredientMacros.lipids;
+        if (data.fiber == null) calcMacros.fiber = ingredientMacros.fiber;
+        if (data.sodium == null) calcMacros.sodium = ingredientMacros.sodium;
       }
 
       const recipe = await this.prisma.recipe.create({
@@ -1417,10 +1455,16 @@ export class RecipesService {
 
     if (ingredients) {
       const canCalculateIngredientMacros = ingredients.every(
-        (ingredient) => this.ingredientAmountInGrams(ingredient.amount, ingredient.unit) !== null,
+        (ingredient) =>
+          this.ingredientAmountInGrams(ingredient.amount, ingredient.unit) !==
+          null,
       );
-      const hasManualMacros = [data.calories, data.proteins, data.carbs, data.lipids]
-        .every((value) => value != null);
+      const hasManualMacros = [
+        data.calories,
+        data.proteins,
+        data.carbs,
+        data.lipids,
+      ].every((value) => value != null);
       const ingredientMacros = canCalculateIngredientMacros
         ? await this.calculateIngredientMacros(ingredients, data.portions ?? 1)
         : null;

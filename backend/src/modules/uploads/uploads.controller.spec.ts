@@ -5,7 +5,10 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PermissionsService } from '../permissions/permissions.service';
 import { StorageService } from '../../common/services/storage.service';
-import { BadRequestException, ServiceUnavailableException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 
 describe('UploadsController', () => {
   let controller: UploadsController;

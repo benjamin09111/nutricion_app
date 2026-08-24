@@ -25,7 +25,6 @@ import {
   Bookmark,
   PlusCircle,
 } from "lucide-react";
-import Cookies from "js-cookie";
 import appConfig from "@/content/config.json";
 import { fetchApi } from "@/lib/api-base";
 import {

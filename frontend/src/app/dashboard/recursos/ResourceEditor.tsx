@@ -11,7 +11,6 @@ import {
   Sparkles,
   Upload,
 } from "lucide-react";
-import Cookies from "js-cookie";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/Button";

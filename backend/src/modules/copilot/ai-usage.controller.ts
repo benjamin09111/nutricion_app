@@ -8,7 +8,12 @@ import { UserRole } from '@prisma/client';
 
 @Controller('admin/ai-usage')
 @UseGuards(AuthGuard, RolesGuard, PermissionsGuard)
-@Roles(UserRole.ADMIN, UserRole.ADMIN_MASTER, UserRole.ADMIN_GENERAL, UserRole.NUTRITIONIST_DEVELOPER)
+@Roles(
+  UserRole.ADMIN,
+  UserRole.ADMIN_MASTER,
+  UserRole.ADMIN_GENERAL,
+  UserRole.NUTRITIONIST_DEVELOPER,
+)
 export class AiUsageController {
   constructor(private readonly aiUsageService: AiUsageService) {}
 

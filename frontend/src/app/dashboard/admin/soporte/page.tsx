@@ -9,7 +9,6 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
-import Cookies from "js-cookie";
 import { fetchApi } from "@/lib/api-base";
 import { formatDateOnlyForLocale } from "@/features/patients/utils/patient-helpers";
 

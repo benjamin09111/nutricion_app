@@ -1,6 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Cookies from "js-cookie";
 import { toast } from "sonner";
 import { DEFAULT_CONSTRAINTS } from "@/lib/constants";
 import { MarketPrice } from "@/features/foods";

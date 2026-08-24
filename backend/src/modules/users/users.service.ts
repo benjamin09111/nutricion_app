@@ -32,7 +32,7 @@ export class UsersService {
     private prisma: PrismaService,
     private readonly mailService: MailService,
     private readonly discountCodesService: DiscountCodesService,
-  ) { }
+  ) {}
 
   /**
    * RULE: The backend must handle all heavy logic, filtering, and calculations.
@@ -56,9 +56,9 @@ export class UsersService {
     const normalizedRole =
       typeof role === 'string' && role.includes(',')
         ? role
-          .split(',')
-          .map((value) => value.trim())
-          .filter(Boolean)
+            .split(',')
+            .map((value) => value.trim())
+            .filter(Boolean)
         : role;
 
     if (normalizedRole) {
@@ -213,6 +213,7 @@ export class UsersService {
           },
         },
         orderBy: { createdAt: 'desc' },
+        skip,
         take: normalizedLimit,
       });
 
@@ -284,13 +285,13 @@ export class UsersService {
       paymentState,
       membershipPlan: subscriptionPlan
         ? {
-          id: subscriptionPlan.id,
-          name: subscriptionPlan.name,
-          slug: subscriptionPlan.slug,
-          price: Number(subscriptionPlan.price),
-          billingPeriod: subscriptionPlan.billingPeriod,
-          isActive: subscriptionPlan.isActive,
-        }
+            id: subscriptionPlan.id,
+            name: subscriptionPlan.name,
+            slug: subscriptionPlan.slug,
+            price: Number(subscriptionPlan.price),
+            billingPeriod: subscriptionPlan.billingPeriod,
+            isActive: subscriptionPlan.isActive,
+          }
         : null,
       fullName:
         acc.nutritionist?.fullName ||
@@ -431,10 +432,10 @@ export class UsersService {
     const publicProfileEnabled = settingsData.publicProfileEnabled === true;
     const publicSlug =
       typeof settingsData.publicSlug === 'string' &&
-        settingsData.publicSlug.trim()
+      settingsData.publicSlug.trim()
         ? settingsData.publicSlug.trim()
         : nutritionist.publicSlug ||
-        this.generateSlug(nutritionist.fullName, nutritionist.id);
+          this.generateSlug(nutritionist.fullName, nutritionist.id);
 
     return this.prisma.nutritionist.update({
       where: { accountId },
@@ -452,7 +453,7 @@ export class UsersService {
             : nutritionist.bio,
         consultationMode:
           typeof settingsData.consultationMode === 'string' &&
-            settingsData.consultationMode.trim()
+          settingsData.consultationMode.trim()
             ? settingsData.consultationMode.trim()
             : nutritionist.consultationMode || 'online',
         location:
@@ -1178,7 +1179,9 @@ export class UsersService {
     }
 
     if (isAdminRole(account.role)) {
-      throw new BadRequestException('No es posible suspender cuentas administradoras');
+      throw new BadRequestException(
+        'No es posible suspender cuentas administradoras',
+      );
     }
 
     await this.prisma.account.update({
@@ -1200,7 +1203,10 @@ export class UsersService {
         );
     }
 
-    return { success: true, message: 'Cuenta suspendida/bloqueada correctamente' };
+    return {
+      success: true,
+      message: 'Cuenta suspendida/bloqueada correctamente',
+    };
   }
 
   /**

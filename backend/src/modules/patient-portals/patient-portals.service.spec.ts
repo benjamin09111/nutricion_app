@@ -23,15 +23,15 @@ describe('PatientPortalsService access codes', () => {
     const { service, prisma } = buildService();
 
     const code = await (service as any).issueAccessCode('invitation-id');
-    const storedHash = prisma.patientPortalInvitation.update.mock.calls[0][0].data
-      .accessCodeHash as string;
+    const storedHash = prisma.patientPortalInvitation.update.mock.calls[0][0]
+      .data.accessCodeHash as string;
 
     expect(code).toMatch(/^\d{4}-\d{4}$/);
     expect(storedHash).toContain(':');
     expect(storedHash).not.toContain(code.replace('-', ''));
-    expect(
-      await (service as any).verifyAccessCode(storedHash, code),
-    ).toBe(true);
+    expect(await (service as any).verifyAccessCode(storedHash, code)).toBe(
+      true,
+    );
     expect(
       await (service as any).verifyAccessCode(storedHash, '0000-0000'),
     ).toBe(false);

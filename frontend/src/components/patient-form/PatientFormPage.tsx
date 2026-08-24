@@ -2,7 +2,6 @@
 
 import { useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import Cookies from "js-cookie";
 import { toast } from "sonner";
 import { User, Mail, Phone, Calendar, Activity, AlertCircle, Ruler, Target, Activity as ActivityIcon, HeartPulse, Dumbbell, Calculator, FileText, ChevronRight, Lock, RotateCcw } from "lucide-react";
 import { FormStepCard } from "@/components/patient-form/FormStepCard";

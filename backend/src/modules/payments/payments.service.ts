@@ -305,10 +305,10 @@ export class PaymentsService {
 
     const subscription = snapshot.subscription;
     const [
-       totalPatients,
+      totalPatients,
       totalConsultations,
       activeFollowUps,
-       pdfUsage,
+      pdfUsage,
       aiUsage,
       calculatorUsage,
       totalFoodGroups,
@@ -316,11 +316,11 @@ export class PaymentsService {
       totalDietCreations,
       pendingTransferCount,
     ] = await Promise.all([
-       this.prisma.patient.count({
-         where: { nutritionist: { accountId } },
+      this.prisma.patient.count({
+        where: { nutritionist: { accountId } },
       }),
       this.prisma.consultation.count({
-         where: { nutritionist: { accountId } },
+        where: { nutritionist: { accountId } },
       }),
       this.prisma.patientPortalInvitation.count({
         where: {
@@ -331,24 +331,24 @@ export class PaymentsService {
           expiresAt: { gte: new Date() },
         },
       }),
-       this.planUsageService.getUsage(accountId, 'pdf.exports.total.limit'),
+      this.planUsageService.getUsage(accountId, 'pdf.exports.total.limit'),
       this.planUsageService.getUsage(accountId, 'ai.calls.limit'),
       this.planUsageService.getUsage(accountId, 'clinical_calculator.limit'),
       this.prisma.ingredientGroup.count({
         where: { nutritionist: { accountId } },
       }),
-       this.prisma.creation.count({
-         where: {
-           nutritionist: { accountId },
-           type: { not: 'SCREENING_TEST' },
-         },
-       }),
-       this.prisma.creation.count({
-         where: {
-           nutritionist: { accountId },
-           type: 'DIET',
-         },
-       }),
+      this.prisma.creation.count({
+        where: {
+          nutritionist: { accountId },
+          type: { not: 'SCREENING_TEST' },
+        },
+      }),
+      this.prisma.creation.count({
+        where: {
+          nutritionist: { accountId },
+          type: 'DIET',
+        },
+      }),
       this.prisma.payment.count({
         where: {
           accountId,
@@ -394,7 +394,7 @@ export class PaymentsService {
         : null,
       entitlements: snapshot.entitlements,
       usage: {
-         patientsActive: totalPatients,
+        patientsActive: totalPatients,
         consultationsUsed: totalConsultations,
         followupsPrivateActive: activeFollowUps,
         pdfUsed: pdfUsage,
@@ -973,7 +973,10 @@ export class PaymentsService {
           source: 'payments.manual-transfer',
         })
         .catch((err) => {
-          this.logger.error('[Payments] Error enviando notificación email:', err);
+          this.logger.error(
+            '[Payments] Error enviando notificación email:',
+            err,
+          );
         });
     });
 
@@ -1216,7 +1219,9 @@ export class PaymentsService {
     startDate: Date,
     endDate: Date | null,
   ) {
-    const isFree = Number(plan?.price || 0) === 0 || (plan?.slug || '').toLowerCase().includes('free');
+    const isFree =
+      Number(plan?.price || 0) === 0 ||
+      (plan?.slug || '').toLowerCase().includes('free');
     const finalEndDate = isFree ? null : endDate;
 
     return tx.subscription.upsert({
@@ -1249,7 +1254,9 @@ export class PaymentsService {
     const accountPlan = resolveAccountPlanFromMembershipPlan(
       plan.slug || plan.name,
     );
-    const isFree = Number(plan?.price || 0) === 0 || (plan?.slug || '').toLowerCase().includes('free');
+    const isFree =
+      Number(plan?.price || 0) === 0 ||
+      (plan?.slug || '').toLowerCase().includes('free');
     const finalEndDate = isFree ? null : endDate;
 
     return tx.account.update({

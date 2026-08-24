@@ -1,4 +1,8 @@
-import { ForbiddenException, Injectable, InternalServerErrorException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PermissionsService } from './permissions.service';
 
@@ -27,9 +31,10 @@ export class PlanUsageService {
   ) {
     try {
       const counters = await this.prisma.planUsageCounter.findMany({
-        where: featureKey === PDF_EXPORT_FEATURE_KEY
-          ? { accountId, periodKey, featureKey: { startsWith: featureKey } }
-          : { accountId, periodKey, featureKey },
+        where:
+          featureKey === PDF_EXPORT_FEATURE_KEY
+            ? { accountId, periodKey, featureKey: { startsWith: featureKey } }
+            : { accountId, periodKey, featureKey },
         select: { usageCount: true },
       });
 
@@ -71,13 +76,23 @@ export class PlanUsageService {
         if (dedupeKey?.trim()) {
           const keyedFeatureKey = `${featureKey}${DEDUPE_SEPARATOR}${dedupeKey.trim()}`;
           const inserted = await tx.planUsageCounter.createMany({
-            data: { accountId, featureKey: keyedFeatureKey, periodKey, usageCount: amount },
+            data: {
+              accountId,
+              featureKey: keyedFeatureKey,
+              periodKey,
+              usageCount: amount,
+            },
             skipDuplicates: true,
           });
           const counters = await tx.planUsageCounter.findMany({
-            where: featureKey === PDF_EXPORT_FEATURE_KEY
-              ? { accountId, periodKey, featureKey: { startsWith: featureKey } }
-              : { accountId, periodKey, featureKey },
+            where:
+              featureKey === PDF_EXPORT_FEATURE_KEY
+                ? {
+                    accountId,
+                    periodKey,
+                    featureKey: { startsWith: featureKey },
+                  }
+                : { accountId, periodKey, featureKey },
             select: { usageCount: true },
           });
           const usageCount = counters.reduce(
@@ -137,14 +152,21 @@ export class PlanUsageService {
     featureKey: string,
     periodKey = LIFETIME_PERIOD_KEY,
   ) {
-    const limit = await this.permissionsService.getFeatureLimit(accountId, featureKey);
+    const limit = await this.permissionsService.getFeatureLimit(
+      accountId,
+      featureKey,
+    );
     if (limit === Infinity) return;
     if (limit <= 0) {
-      throw new ForbiddenException(`Su plan actual no incluye la cuota: ${featureKey}`);
+      throw new ForbiddenException(
+        `Su plan actual no incluye la cuota: ${featureKey}`,
+      );
     }
     const usage = await this.getUsage(accountId, featureKey, periodKey);
     if (usage >= limit) {
-      throw new ForbiddenException(`Su plan actual alcanzó el límite de ${featureKey}`);
+      throw new ForbiddenException(
+        `Su plan actual alcanzó el límite de ${featureKey}`,
+      );
     }
   }
 
@@ -198,6 +220,12 @@ export class PlanUsageService {
     periodKey = toPeriodKey(),
     dedupeKey?: string,
   ) {
-    return this.consumeQuota(accountId, featureKey, amount, periodKey, dedupeKey);
+    return this.consumeQuota(
+      accountId,
+      featureKey,
+      amount,
+      periodKey,
+      dedupeKey,
+    );
   }
 }

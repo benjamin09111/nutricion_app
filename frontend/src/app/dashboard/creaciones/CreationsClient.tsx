@@ -24,7 +24,6 @@ import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { Filtros_B } from "@/components/ui/Filtros_B";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import Cookies from "js-cookie";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { UsageLimitBadge } from "@/components/shared/UsageLimitBadge";
 import { useSubscription } from "@/context/SubscriptionContext";

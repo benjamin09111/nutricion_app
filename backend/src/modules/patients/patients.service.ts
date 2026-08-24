@@ -598,16 +598,19 @@ export class PatientsService {
       resolveValue('pliegueSuprailiaco', ['skinfolds', 'suprailiac']),
     );
 
-    const resolvedAge = this.calculateAge(patient.birthDate);
     const gender = this.normalizeGender(patient.gender);
     const activity = this.normalizeActivityLevel(patient.activityLevel);
-    const gynecoObstetric = (clinical.gynecoObstetric || {}) as Record<string, unknown>;
+    const gynecoObstetric = (clinical.gynecoObstetric || {}) as Record<
+      string,
+      unknown
+    >;
     const pregnancyWeek = this.toPositiveNumber(
       gynecoObstetric.pregnancyWeeks ?? gynecoObstetric.gestationalWeek,
     );
     const isPregnant = gynecoObstetric.isPregnant === true;
     const isLactating = gynecoObstetric.isLactating === true;
-    const lactationType = gynecoObstetric.lactationType === 'partial' ? 'partial' : 'exclusive';
+    const lactationType =
+      gynecoObstetric.lactationType === 'partial' ? 'partial' : 'exclusive';
 
     const calcResult = this.calculationsService.calculateAll({
       gender,

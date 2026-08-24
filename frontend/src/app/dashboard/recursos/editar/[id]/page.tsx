@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Cookies from "js-cookie";
 import { Loader2 } from "lucide-react";
 import { ResourceEditor } from "../../ResourceEditor";
 import { fetchApi } from "@/lib/api-base";

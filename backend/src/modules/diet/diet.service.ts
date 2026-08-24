@@ -4,7 +4,10 @@ import { VerifyFoodsDto } from './dto/verify-foods.dto';
 import { GenerateBaseDietDto } from './dto/generate-base-diet.dto';
 import { AiService } from '../../common/services/ai.service';
 import { PlanUsageService } from '../permissions/plan-usage.service';
-import { dietVerifyResponseSchema, dietGenerateBaseResponseSchema } from './diet-ai-schemas';
+import {
+  dietVerifyResponseSchema,
+  dietGenerateBaseResponseSchema,
+} from './diet-ai-schemas';
 
 type RestrictionConflict = {
   foodId: string;
@@ -235,7 +238,9 @@ export class DietService {
       'Tu objetivo es seleccionar la mejor combinación de alimentos saludables para estructurar una pauta alimentaria base.',
       `Categorías de alimentos solicitadas a completar: ${JSON.stringify(categories)}`,
       `Cantidad de alimentos por categoría: MÍNIMO 1 alimento y MÁXIMO ${maxFoodsPerCategory} alimentos.`,
-      instructions ? `Instrucciones clínicas o preferencias especiales del nutricionista: "${instructions}"` : '',
+      instructions
+        ? `Instrucciones clínicas o preferencias especiales del nutricionista: "${instructions}"`
+        : '',
       'Reglas OBLIGATORIAS:',
       `1. Para CADA categoría solicitada en la lista, DEBES incluir al menos 1 alimento relevante y máximo ${maxFoodsPerCategory} alimentos típicos del catálogo de Chile (ej: Leche descremada con Vit. D, Yogurt Natural, Queso Gouda, Pechuga de pollo sin piel, Vacuno posta, Salmón, Avena, Manzana, Palta, Almendras, etc.).`,
       '2. NUNCA dejes una categoría solicitada con lista vacía []; todas las categorías solicitadas deben incluir obligatoriamente entre 1 y el máximo de alimentos sugeridos.',
@@ -264,7 +269,9 @@ export class DietService {
       { accountId, feature: 'diet.generate-base' },
     );
 
-    this.logger.log(`[generateBaseDiet] Provider de IA usado: ${result.provider}`);
+    this.logger.log(
+      `[generateBaseDiet] Provider de IA usado: ${result.provider}`,
+    );
     this.logger.log(
       `[generateBaseDiet] Categorías devueltas por Naty (${result.object?.categories?.length || 0}): ${JSON.stringify(result.object?.categories)}`,
     );

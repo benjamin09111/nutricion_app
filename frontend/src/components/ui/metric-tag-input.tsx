@@ -3,7 +3,6 @@ import { cn } from "@/lib/utils";
 import { X, Search, Globe, User as UserIcon, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "./Input";
-import Cookies from "js-cookie";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { DEFAULT_METRICS } from "@/lib/constants";
 import { fetchApi } from "@/lib/api-base";
