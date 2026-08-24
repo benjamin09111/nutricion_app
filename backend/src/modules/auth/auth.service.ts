@@ -1040,9 +1040,12 @@ export class AuthService {
 
     const { user } = await this.buildSessionPayload(account as any);
     // Igual que en login: sin rol dentro del token, se resuelve en la BD.
+    // tokenVersion es obligatorio: sin él la sesión quedaría fuera del
+    // mecanismo de revocación instantánea que aplica JwtStrategy.
     const payload = {
       email: account.email,
       sub: account.id,
+      tokenVersion: (account as any).tokenVersion ?? 0,
     };
 
     return {

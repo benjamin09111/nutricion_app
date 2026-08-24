@@ -212,7 +212,6 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
 
     setIsSaving(true);
     try {
-      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const payload: Record<string, unknown> = {
         fullName: draft.fullName,
         email: draft.email || undefined,
@@ -237,7 +236,6 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(payload),
       });
@@ -358,10 +356,9 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
     if (!quickGender) { toast.error("Sexo biológico requerido"); return; }
     setIsSaving(true);
     try {
-      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const vars: any[] = [{ key: "evaluationDate", label: "Fecha de evaluación", value: new Date().toISOString().split("T")[0] }];
       if (quickMotivo) vars.push({ key: "motivoConsulta", label: "Motivo de consulta", value: quickMotivo });
-      const r = await fetchApi("/patients", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ fullName: quickName, email: quickEmail || undefined, phone: quickPhone || undefined, documentId: quickRut || undefined, birthDate: quickBirth ? new Date(quickBirth).toISOString() : undefined, gender: quickGender, weight: quickPeso ? parseFloat(quickPeso) : undefined, height: quickAltura ? parseFloat(quickAltura) : undefined, activityLevel: "sedentario", recalculateNutrition: true, customVariables: vars }) });
+      const r = await fetchApi("/patients", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fullName: quickName, email: quickEmail || undefined, phone: quickPhone || undefined, documentId: quickRut || undefined, birthDate: quickBirth ? new Date(quickBirth).toISOString() : undefined, gender: quickGender, weight: quickPeso ? parseFloat(quickPeso) : undefined, height: quickAltura ? parseFloat(quickAltura) : undefined, activityLevel: "sedentario", recalculateNutrition: true, customVariables: vars }) });
       if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.message || "Error"); }
       const p = await r.json();
       toast.success("Paciente creado");

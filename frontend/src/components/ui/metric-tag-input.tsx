@@ -43,15 +43,8 @@ export function MetricTagInput({
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [metricToDelete, setMetricToDelete] = useState<Metric | null>(null);
 
-  const token = typeof window !== "undefined" ? (Cookies.get("auth_token") || localStorage.getItem("auth_token")) : "";
-
   useEffect(() => {
     const fetchMetrics = async () => {
-      if (!token) {
-        setFetchedMetrics([]);
-        return;
-      }
-
       setIsLoading(true);
       try {
         const url =
@@ -59,9 +52,7 @@ export function MetricTagInput({
             ? `/metrics?limit=10`
             : `/metrics?search=${encodeURIComponent(inputValue)}`;
 
-        const response = await fetchApi(url, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const response = await fetchApi(url);
 
         if (response.ok) {
           const data = await response.json();
@@ -76,7 +67,7 @@ export function MetricTagInput({
 
     const timer = setTimeout(fetchMetrics, 300);
     return () => clearTimeout(timer);
-  }, [inputValue, token]);
+  }, [inputValue]);
 
   const addMetric = (metric: Metric) => {
     const isDuplicate = value.some((m) => m.key === metric.key);
@@ -102,7 +93,6 @@ export function MetricTagInput({
     try {
       const response = await fetchApi(`/metrics/${metric.id}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (response.ok) {

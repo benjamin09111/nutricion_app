@@ -40,6 +40,7 @@ import { CalculationsModule } from './modules/calculations/calculations.module';
 import { CopilotModule } from './modules/copilot/copilot.module';
 import { PersonalNotesModule } from './modules/personal-notes/personal-notes.module';
 import { TestimonialsModule } from './modules/testimonials/testimonials.module';
+import { UploadsModule } from './modules/uploads/uploads.module';
 
 @Module({
   imports: [
@@ -86,6 +87,7 @@ import { TestimonialsModule } from './modules/testimonials/testimonials.module';
     CopilotModule,
     PersonalNotesModule,
     TestimonialsModule,
+    UploadsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

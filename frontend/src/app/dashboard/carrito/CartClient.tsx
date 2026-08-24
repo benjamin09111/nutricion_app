@@ -1093,9 +1093,7 @@ export default function CartClient() {
     if (!query && !group) return;
     setIsSearchingEquivalents(true);
     try {
-      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const response = await fetchApi(`/foods/search?q=${encodeURIComponent(query)}&group=${encodeURIComponent(group)}`, {
-        headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
         const data = await response.json();
@@ -1111,10 +1109,7 @@ export default function CartClient() {
   const fetchPatients = async () => {
     setIsLoadingPatients(true);
     try {
-      const token =
-        Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const response = await fetchApi(`/patients?status=Activos`, {
-        headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
         const data = await response.json();
@@ -1255,13 +1250,10 @@ export default function CartClient() {
 
     const fetchFoods = async (retries = 2) => {
       setIsSearchingFoods(true);
-      const token =
-        Cookies.get("auth_token") || localStorage.getItem("auth_token");
       try {
         const res = await fetchApi(
           `/foods?search=${foodSearchQuery}&limit=10`,
           {
-            headers: { Authorization: `Bearer ${token}` },
           },
         );
         if (res.ok) {

@@ -38,7 +38,6 @@ const MEAL_SECTIONS = [
 
 export default function CrearPlatoClient() {
   const router = useRouter();
-  const token = Cookies.get("auth_token") || "";
 
   const [form, setForm] = useState({
     name: "",
@@ -97,9 +96,7 @@ export default function CrearPlatoClient() {
     const timer = setTimeout(async () => {
       setIsSearchingFoods(true);
       try {
-        const res = await fetchApi(`/foods?search=${encodeURIComponent(foodSearch)}&limit=5`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await fetchApi(`/foods?search=${encodeURIComponent(foodSearch)}&limit=5`);
         if (res.ok) {
           const data = await res.json();
           // API returns an array or { items: [] } depending on version. 
@@ -114,7 +111,7 @@ export default function CrearPlatoClient() {
     }, 400);
 
     return () => clearTimeout(timer);
-  }, [foodSearch, token]);
+  }, [foodSearch]);
 
   const addMainIngredient = (food: any) => {
     if (mainIngredients.find(i => i.id === food.id)) {
@@ -145,7 +142,6 @@ export default function CrearPlatoClient() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ ingredientNames: validIngredients }),
       });
@@ -235,7 +231,6 @@ export default function CrearPlatoClient() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(payload),
       });

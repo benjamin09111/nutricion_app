@@ -91,9 +91,7 @@ export function CreateRecipeModal({
 
       setIsSearching(true);
       try {
-        const token = Cookies.get("auth_token");
         const response = await fetchApi(`/foods?search=${encodeURIComponent(searchTerm)}`, {
-          headers: { Authorization: `Bearer ${token}` },
         });
         if (response.ok) {
           const data = await response.json();
@@ -148,7 +146,6 @@ export function CreateRecipeModal({
 
   const onSubmit = async (data: CreateRecipeForm) => {
     try {
-      const token = Cookies.get("auth_token");
       const payload = {
         ...data,
         portions: Number(data.portions),
@@ -164,7 +161,6 @@ export function CreateRecipeModal({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(payload),
       });

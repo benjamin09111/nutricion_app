@@ -41,7 +41,7 @@ import { NatyLoadingOverlay, PlanWizardShell } from "@/components/plans";
 import { ActionDockItem } from "@/components/ui/ActionDock";
 import { fetchApi, getApiUrl } from "@/lib/api-base";
 import { fetchCreation, saveCreation } from "@/lib/workflow";
-import { getAuthToken } from "@/lib/auth-token";
+import { hasActiveSession } from "@/lib/auth-token";
 import { useDashboardShell } from "@/context/DashboardShellContext";
 import { FeatureGate } from "@/components/memberships/FeatureGate";
 import { cn } from "@/lib/utils";
@@ -894,10 +894,7 @@ export default function QuickRecipesClient() {
     setPatientSearch("");
     setIsPatientModalOpen(true);
     try {
-      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
-       const response = await fetchApi("/patients?status=Activos", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+       const response = await fetchApi("/patients?status=Activos");
       if (response.ok) {
         const data = await response.json();
         setPatients(Array.isArray(data.data) ? data.data : []);
@@ -1085,7 +1082,6 @@ export default function QuickRecipesClient() {
     }
 
     try {
-      const token = getAuthToken();
       const hasValidTarget = mealGenerationTargets.some(
         (target) => target.enabled && target.count > 0,
       );
@@ -1155,7 +1151,6 @@ export default function QuickRecipesClient() {
         const response = await fetchApi("/recipes/quick-ai-fill", {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
@@ -1320,8 +1315,7 @@ export default function QuickRecipesClient() {
   });
 
   const persistGeneratedDishesToProfile = async (savedCreationId?: string) => {
-    const token = getAuthToken();
-    if (!token || dishes.length === 0) return 0;
+    if (!hasActiveSession() || dishes.length === 0) return 0;
 
     let createdCount = 0;
 
@@ -1331,7 +1325,6 @@ export default function QuickRecipesClient() {
       const response = await fetchApi("/recipes", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({

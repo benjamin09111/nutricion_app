@@ -34,6 +34,7 @@ import { sortPlansForLanding } from "@/features/memberships/utils/sort-plans";
 import LandingContactForm from "@/components/landing/LandingContactForm";
 import { RotatingWord } from "@/components/landing/RotatingWord";
 import { CookieBanner } from "@/components/landing/CookieBanner";
+import { TestimonialsSection } from "@/components/landing/TestimonialsSection";
 import {
   AboutNutriNetModal,
   type AboutSectionTab,
@@ -605,6 +606,8 @@ export default function LandingPage() {
             </div>
           </div>
         </section>
+
+        <TestimonialsSection />
 
         {/* Contact Form Section */}
         <section

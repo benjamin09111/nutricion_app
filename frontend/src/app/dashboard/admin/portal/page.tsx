@@ -67,11 +67,6 @@ export default function AdminPortalPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const getAuthHeaders = () => {
-    const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
-    return token ? { Authorization: `Bearer ${token}` } : ({} as Record<string, string>);
-  };
-
   const loadNutritionists = async (
     page = currentPage,
     searchValue = search,
@@ -90,9 +85,7 @@ export default function AdminPortalPage() {
         params.set("search", searchValue.trim());
       }
 
-      const response = await fetchApi(`/users?${params.toString()}`, {
-        headers: getAuthHeaders(),
-      });
+      const response = await fetchApi(`/users?${params.toString()}`);
 
       if (!response.ok) {
         throw new Error("No se pudieron cargar los perfiles");
@@ -141,10 +134,7 @@ export default function AdminPortalPage() {
     try {
       const response = await fetchApi(`/users/${pendingAction.nutritionist.id}/public-profile`, {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          ...getAuthHeaders(),
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           publicProfileEnabled: pendingAction.enabled,
         }),

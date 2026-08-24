@@ -31,3 +31,33 @@ export const resolveSafePostAuthPath = (
     return fallback;
   }
 };
+
+/**
+ * Sanitiza un path de retorno arbitrario (por ejemplo el de una pasarela de
+ * pago) antes de concatenarlo al origen del frontend. A diferencia de
+ * `resolveSafePostAuthPath` no aplica una lista blanca de rutas: sólo garantiza
+ * que el valor sea un path relativo al propio sitio y no un destino externo.
+ */
+export const resolveSafeRelativePath = (
+  value: string | null | undefined,
+  fallback = '/',
+) => {
+  if (!value || !value.startsWith('/') || value.startsWith('//')) {
+    return fallback;
+  }
+
+  if (value.includes('\\') || /[\u0000-\u001F\u007F]/.test(value)) {
+    return fallback;
+  }
+
+  try {
+    const base = new URL('https://nutrinet.local');
+    const parsed = new URL(value, base);
+
+    return parsed.origin === base.origin
+      ? `${parsed.pathname}${parsed.search}${parsed.hash}`
+      : fallback;
+  } catch {
+    return fallback;
+  }
+};

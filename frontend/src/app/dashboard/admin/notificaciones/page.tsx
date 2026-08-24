@@ -43,19 +43,10 @@ export default function AdminNotificationsPage() {
       return;
     }
 
-    const token = Cookies.get("auth_token");
-    if (!token) {
-      toast.error("Sesión no válida");
-      return;
-    }
-
     try {
       const res = await fetchApi(`/announcements`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title,
           message,

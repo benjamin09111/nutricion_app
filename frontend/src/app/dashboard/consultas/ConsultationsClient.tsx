@@ -88,9 +88,7 @@ export default function ConsultationsClient() {
   }, [searchTerm]);
 
   const getAuthHeaders = () => {
-    const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
     return {
-      Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     };
   };

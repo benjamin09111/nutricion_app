@@ -155,11 +155,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
 
     /** Lee el token en el momento de la petición para evitar valores obsoletos */
     const getAuthHeaders = () => {
-        const token =
-            Cookies.get("auth_token") ||
-            (typeof window !== "undefined" ? localStorage.getItem("auth_token") : "");
         return {
-            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
         };
     };

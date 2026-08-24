@@ -233,10 +233,7 @@ export default function AdminClientsPage() {
 
   const fetchMembershipPlans = async () => {
     try {
-      const token =
-        Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const response = await fetchApi(`/memberships`, {
-        headers: { Authorization: `Bearer ${token}` },
       });
       if (!response.ok) throw new Error("Error al cargar planes");
       const data = await response.json();
@@ -253,8 +250,6 @@ export default function AdminClientsPage() {
   const fetchClients = async (pageArg = currentPage) => {
     setIsLoading(true);
     try {
-      const token =
-        Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const params = new URLSearchParams({
         role: "ALL_NUTRITIONISTS",
         page: String(pageArg),
@@ -288,7 +283,6 @@ export default function AdminClientsPage() {
       }
 
       const response = await fetchApi(`/users?${params.toString()}`, {
-        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!response.ok) throw new Error("Error al cargar clientes");
@@ -318,10 +312,7 @@ export default function AdminClientsPage() {
   const fetchDeletionRequests = async () => {
     setIsLoadingDeletionRequests(true);
     try {
-      const token =
-        Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const response = await fetchApi(`/users/deletion-requests`, {
-        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!response.ok) throw new Error("Error al cargar solicitudes");
@@ -338,10 +329,7 @@ export default function AdminClientsPage() {
 
   const fetchDeletionRequestsCount = async () => {
     try {
-      const token =
-        Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const response = await fetchApi(`/users/deletion-requests/count`, {
-        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (response.ok) {
@@ -357,15 +345,12 @@ export default function AdminClientsPage() {
     if (!selectedDeletionRequest) return;
     setIsUpdating(true);
     try {
-      const token =
-        Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const response = await fetchApi(
         `/users/deletion-requests/${selectedDeletionRequest.id}/accept`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({}),
         },
@@ -393,11 +378,8 @@ export default function AdminClientsPage() {
     if (!selectedUser) return;
     setIsUpdating(true);
     try {
-      const token =
-        Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const response = await fetchApi(`/users/${selectedUser.id}/suspend`, {
         method: "PATCH",
-        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!response.ok) {
@@ -423,11 +405,8 @@ export default function AdminClientsPage() {
     if (!selectedUser) return;
     setIsUpdating(true);
     try {
-      const token =
-        Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const response = await fetchApi(`/users/${selectedUser.id}/unsuspend`, {
         method: "PATCH",
-        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!response.ok) {
@@ -500,13 +479,10 @@ export default function AdminClientsPage() {
 
     setIsUpdating(true);
     try {
-      const token =
-        Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const response = await fetchApi(`/users/${selectedUser.id}/plan`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           plan: targetPlan,
@@ -535,13 +511,10 @@ export default function AdminClientsPage() {
     if (!selectedUser) return;
     setIsUpdating(true);
     try {
-      const token =
-        Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const response = await fetchApi(
         `/users/${selectedUser.id}/delete`,
         {
           method: "PATCH",
-          headers: { Authorization: `Bearer ${token}` },
         },
       );
 
@@ -563,11 +536,8 @@ export default function AdminClientsPage() {
   const handleResetUnpaidPlans = async () => {
     setIsUpdating(true);
     try {
-      const token =
-        Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const response = await fetchApi(`/users/reset-unpaid-plans`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!response.ok) throw new Error("Error al resetear planes");

@@ -909,10 +909,8 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         onConfirm={async () => {
           if (!state.consultationToDelete) return;
           try {
-            const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
             const response = await fetchApi(`/consultations/${state.consultationToDelete}`, {
               method: "DELETE",
-              headers: { Authorization: `Bearer ${token}` },
             });
             if (response.ok) {
               toast.success("Consulta eliminada");

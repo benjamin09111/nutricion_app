@@ -39,10 +39,7 @@ export function SubstitutesClient() {
 
   const fetchSubstitutes = async (retries = 3) => {
     try {
-      const token =
-        Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const response = await fetchApi(`/substitutes`, {
-        headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
         const data = await response.json();
@@ -89,13 +86,10 @@ export function SubstitutesClient() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const token =
-        Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const response = await fetchApi(`/substitutes`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ content: substitutes }),
       });

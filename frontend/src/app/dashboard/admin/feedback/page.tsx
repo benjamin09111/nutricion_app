@@ -60,11 +60,7 @@ export default function AdminFeedbackPage() {
   const fetchFeedback = async () => {
     setIsLoading(true);
     try {
-      const token = localStorage.getItem("auth_token");
       const response = await fetchApi(`/support`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
       });
 
       if (!response.ok) throw new Error("Error al cargar feedback");
@@ -90,13 +86,11 @@ export default function AdminFeedbackPage() {
 
     setIsResolving(true);
     try {
-      const token = localStorage.getItem("auth_token");
       const response = await fetchApi(
         `/support/${selectedFeedback.id}/resolve`,
         {
           method: "PATCH",
           headers: {
-            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
@@ -123,12 +117,8 @@ export default function AdminFeedbackPage() {
   const handleDelete = async () => {
     if (!feedbackToDelete) return;
     try {
-      const token = localStorage.getItem("auth_token");
       const response = await fetchApi(`/support/${feedbackToDelete}`, {
         method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
       });
 
       if (!response.ok) throw new Error("Error al eliminar feedback");
@@ -150,12 +140,8 @@ export default function AdminFeedbackPage() {
 
   const handleDeleteResolved = async () => {
     try {
-      const token = localStorage.getItem("auth_token");
       const response = await fetchApi("/support/resolved", {
         method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
       });
 
       if (!response.ok) throw new Error("Error al eliminar feedback resueltos");

@@ -81,9 +81,7 @@ export function ImportCreationModal({
   const fetchCreations = async () => {
     setLoading(true);
     try {
-      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const response = await fetchApi("/creations", {
-        headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
         const data = await response.json();

@@ -69,14 +69,7 @@ export default function AdminInboxPage() {
   const loadInbox = async () => {
     setIsLoading(true);
     try {
-      const token =
-        Cookies.get("auth_token") ||
-        (typeof window !== "undefined" ? localStorage.getItem("auth_token") : null);
       const headers: Record<string, string> = {};
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
-      }
-
       const response = await fetchApi("/support", {
         headers,
       });
@@ -140,16 +133,9 @@ export default function AdminInboxPage() {
 
     setIsSending(true);
     try {
-      const token =
-        Cookies.get("auth_token") ||
-        (typeof window !== "undefined" ? localStorage.getItem("auth_token") : null);
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
       };
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
-      }
-
       const response = await fetchApi(`/support/${selectedItem.id}/reply`, {
         method: "PATCH",
         headers,

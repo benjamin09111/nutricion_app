@@ -35,9 +35,7 @@ export default function EditarRecursoPage() {
 
   async function fetchResource() {
     try {
-      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const res = await fetchApi(`/resources/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
       setResource(data);

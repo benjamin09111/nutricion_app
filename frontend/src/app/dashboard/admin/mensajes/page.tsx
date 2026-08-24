@@ -105,12 +105,9 @@ export default function MessagesPage() {
 
       setIsLoadingNutris(true);
       try {
-        const token =
-          Cookies.get("auth_token") || localStorage.getItem("auth_token");
         const res = await fetchApi(
           `/users?role=${role}&search=${searchQuery}`,
           {
-            headers: { Authorization: `Bearer ${token}` },
           },
         );
 
@@ -142,10 +139,7 @@ export default function MessagesPage() {
       if (activeTab !== "templates") return;
 
       try {
-        const token =
-          Cookies.get("auth_token") || localStorage.getItem("auth_token");
         const res = await fetchApi("/message-templates", {
-          headers: { Authorization: `Bearer ${token}` },
         });
 
         if (!res.ok) {
@@ -178,12 +172,6 @@ export default function MessagesPage() {
   const onSubmit = async (data: MessageForm) => {
     setIsSending(true);
     try {
-      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      if (!token) {
-        toast.error("Sesión no válida");
-        return;
-      }
-
       const recipientType: RecipientType = activeTab === "admin" ? "admin" : "nutri";
       const targetRoles =
         recipientType === "admin"
@@ -194,7 +182,6 @@ export default function MessagesPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           title: data.subject,
@@ -294,12 +281,6 @@ export default function MessagesPage() {
   };
 
   const saveTemplate = async () => {
-    const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
-    if (!token) {
-      toast.error("Sesión no válida");
-      return;
-    }
-
     if (!templateTitle.trim() || !templateSubject.trim() || !templateContent.trim()) {
       toast.error("Completa título, asunto y contenido.");
       return;
@@ -320,7 +301,6 @@ export default function MessagesPage() {
           method: editingTemplateId ? "PATCH" : "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify(payload),
         },

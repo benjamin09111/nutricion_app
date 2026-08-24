@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import path from "node:path";
 
 const apiOrigins = [
   process.env.NEXT_PUBLIC_API_URL,
@@ -31,7 +32,7 @@ const contentSecurityPolicy = [
 
 const nextConfig: NextConfig = {
   turbopack: {
-    root: ".",
+    root: path.resolve(process.cwd()),
   },
   images: {
     remotePatterns: [

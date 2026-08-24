@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import Cookies from "js-cookie";
 import { cn } from "@/lib/utils";
 import { useAdmin } from "@/context/AdminContext";
 import {
@@ -68,13 +67,9 @@ export default function PlatosClient() {
   const [sortBy, setSortBy] = useState<string>("newest");
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const token = Cookies.get("auth_token") || "";
-
   const fetchRecipes = async () => {
     try {
-      const response = await fetchApi("/recipes", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await fetchApi("/recipes");
       if (!response.ok) return;
       const data = (await response.json()) as RecipeSummary[];
       setRecipes(data);
@@ -87,7 +82,6 @@ export default function PlatosClient() {
     try {
       const response = await fetchApi(`/recipes/${id}/library`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
       });
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -107,8 +101,8 @@ export default function PlatosClient() {
       await fetchRecipes();
       setIsLoading(false);
     };
-    if (token) load();
-  }, [token]);
+    load();
+  }, []);
 
   const filteredRecipes = useMemo(() => {
     let result = recipes.filter((r) => {
@@ -167,7 +161,6 @@ export default function PlatosClient() {
     try {
       const response = await fetchApi(`/recipes/${id}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
       });
       if (!response.ok) throw new Error("Delete failed");
       toast.success("Plato eliminado.");

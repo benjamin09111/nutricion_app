@@ -116,10 +116,7 @@ export default function MembershipsPage() {
   const fetchPlans = async () => {
     setIsLoading(true);
     try {
-      const token =
-        Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const response = await fetchApi(`/memberships`, {
-        headers: { Authorization: `Bearer ${token}` },
       });
       if (!response.ok) throw new Error("Error al cargar planes");
       const data = await response.json();
@@ -160,13 +157,10 @@ export default function MembershipsPage() {
     };
 
     try {
-      const token =
-        Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const response = await fetchApi(`/memberships/${editingId}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(payload),
       });
@@ -189,11 +183,8 @@ export default function MembershipsPage() {
     if (!planToDelete) return;
 
     try {
-      const token =
-        Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const response = await fetchApi(`/memberships/${planToDelete}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!response.ok) throw new Error("Error al eliminar");
@@ -316,13 +307,10 @@ export default function MembershipsPage() {
     };
 
     try {
-      const token =
-        Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const response = await fetchApi(`/memberships`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(newPlan),
       });

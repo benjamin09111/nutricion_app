@@ -7,9 +7,11 @@ import {
   HttpCode,
   HttpStatus,
   Logger,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { FlowService } from './flow.service';
+import { resolveSafeRelativePath } from '../../common/utils/safe-redirect.util';
 
 @Controller('payments')
 export class PaymentsWebhookController {
@@ -31,20 +33,21 @@ export class PaymentsWebhookController {
   }
 
   @Post('flow/return')
-  async handleFlowReturn(
-    @Req() req: Request,
-    @Res() res: Response,
-    @Query('path') path: string,
-  ) {
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+  handleFlowReturn(@Res() res: Response, @Query('path') path: string) {
+    const frontendUrl = process.env.FRONTEND_URL;
+    if (!frontendUrl) {
+      throw new InternalServerErrorException('FRONTEND_URL no está configurada');
+    }
+
+    // `path` viaja en la URL de retorno de Flow, así que se trata como entrada
+    // no confiable: se fuerza a ser un path relativo de este mismo sitio.
+    const safePath = resolveSafeRelativePath(path, '/');
 
     // Add payment=pending if not already present
-    const separator = path?.includes('?') ? '&' : '?';
-    const returnPath = path
-      ? `${path}${separator}payment=pending`
-      : `/?payment=pending`;
+    const separator = safePath.includes('?') ? '&' : '?';
+    const returnPath = `${safePath}${separator}payment=pending`;
 
-    const redirectUrl = `${frontendUrl.replace(/\/$/, '')}${returnPath.startsWith('/') ? returnPath : `/${returnPath}`}`;
+    const redirectUrl = `${frontendUrl.replace(/\/$/, '')}${returnPath}`;
 
     return res.redirect(HttpStatus.FOUND, redirectUrl);
   }
