@@ -8,10 +8,9 @@ import {
   Apple,
   ChefHat,
   ShoppingCart,
-  CheckCircle2,
-  Calendar,
   Sparkles,
-  ArrowRight,
+  Ban,
+  MessageCircleHeart,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 
@@ -26,6 +25,7 @@ interface DietFinalPlanSectionProps {
   totalMeals: number;
   totalCartItems: number;
   totalResources: number;
+  totalAvoidFoods: number;
   calorieTarget: number;
   onExportPdf: () => void;
   onSaveCreation: () => void;
@@ -38,6 +38,12 @@ interface DietFinalPlanSectionProps {
   setIncludeCartSection: (val: boolean) => void;
   includeResourcesSection: boolean;
   setIncludeResourcesSection: (val: boolean) => void;
+  includeAvoidFoodsInPdf: boolean;
+  setIncludeAvoidFoodsInPdf: (val: boolean) => void;
+  includeIntroInPdf: boolean;
+  setIncludeIntroInPdf: (val: boolean) => void;
+  includeClosingInPdf: boolean;
+  setIncludeClosingInPdf: (val: boolean) => void;
 }
 
 export function DietFinalPlanSection({
@@ -51,6 +57,7 @@ export function DietFinalPlanSection({
   totalMeals,
   totalCartItems,
   totalResources,
+  totalAvoidFoods,
   calorieTarget,
   onExportPdf,
   onSaveCreation,
@@ -62,6 +69,12 @@ export function DietFinalPlanSection({
   setIncludeCartSection,
   includeResourcesSection,
   setIncludeResourcesSection,
+  includeAvoidFoodsInPdf,
+  setIncludeAvoidFoodsInPdf,
+  includeIntroInPdf,
+  setIncludeIntroInPdf,
+  includeClosingInPdf,
+  setIncludeClosingInPdf,
 }: DietFinalPlanSectionProps) {
   const handleSaveAndExport = () => {
     onSaveCreation();
@@ -127,7 +140,12 @@ export function DietFinalPlanSection({
       {/* Grid de Dimensiones de la Pauta */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {/* Dimensión 0: Portada e Introducción */}
-        <div className="space-y-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div
+          className={
+            "space-y-4 rounded-3xl border p-6 transition-all shadow-sm " +
+            (includeIntroInPdf ? "border-slate-200 bg-white" : "border-dashed border-slate-200 bg-slate-50/60 opacity-75")
+          }
+        >
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <div className="flex items-center gap-2.5">
               <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
@@ -135,10 +153,19 @@ export function DietFinalPlanSection({
               </div>
               <h3 className="text-sm font-black text-slate-900">Portada e Introducción</h3>
             </div>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700">
-              <span className="h-2 w-2 rounded-full bg-emerald-500" />
-              Incluido por defecto
-            </span>
+            <button
+              type="button"
+              onClick={() => setIncludeIntroInPdf(!includeIntroInPdf)}
+              className={
+                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-bold transition-all cursor-pointer " +
+                (includeIntroInPdf
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                  : "border-slate-200 bg-white text-slate-500 hover:bg-slate-100")
+              }
+            >
+              <span className={"h-2 w-2 rounded-full " + (includeIntroInPdf ? "bg-emerald-500" : "bg-slate-400")} />
+              {includeIntroInPdf ? "Incluido en PDF" : "Excluido de PDF"}
+            </button>
           </div>
 
           <div className="space-y-2 text-xs">
@@ -151,8 +178,8 @@ export function DietFinalPlanSection({
               <span className="font-semibold text-slate-800">NutriNet Pro</span>
             </div>
             <div className="flex justify-between">
-              <span className="font-medium text-slate-500">Mensaje introductorio:</span>
-              <span className="font-semibold text-emerald-700">Incluido en Portada</span>
+              <span className="font-medium text-slate-500">Paciente saludado:</span>
+              <span className="font-semibold text-slate-800">{patientName || "Sin paciente"}</span>
             </div>
           </div>
         </div>
@@ -379,6 +406,86 @@ export function DietFinalPlanSection({
             <div className="flex justify-between">
               <span className="font-medium text-slate-500">Material educativo:</span>
               <span className="font-semibold text-slate-800">Etiquetas, agua y variaciones</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Dimensión 6: Alimentos a evitar */}
+        <div
+          className={
+            "space-y-4 rounded-3xl border p-6 transition-all shadow-sm " +
+            (includeAvoidFoodsInPdf ? "border-slate-200 bg-white" : "border-dashed border-slate-200 bg-slate-50/60 opacity-75")
+          }
+        >
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-rose-50 text-rose-600">
+                <Ban className="h-4 w-4" />
+              </div>
+              <h3 className="text-sm font-black text-slate-900">6. Alimentos a Evitar</h3>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIncludeAvoidFoodsInPdf(!includeAvoidFoodsInPdf)}
+              className={
+                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-bold transition-all cursor-pointer " +
+                (includeAvoidFoodsInPdf
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                  : "border-slate-200 bg-white text-slate-500 hover:bg-slate-100")
+              }
+            >
+              <span className={"h-2 w-2 rounded-full " + (includeAvoidFoodsInPdf ? "bg-emerald-500" : "bg-slate-400")} />
+              {includeAvoidFoodsInPdf ? "Incluido en PDF" : "Excluido de PDF"}
+            </button>
+          </div>
+
+          <div className="space-y-2 text-xs">
+            <div className="flex justify-between">
+              <span className="font-medium text-slate-500">Alimentos restringidos:</span>
+              <span className="font-bold text-slate-900">{totalAvoidFoods} alimentos</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="font-medium text-slate-500">Configuración:</span>
+              <span className="font-semibold text-slate-800">Definida en paso "Comidas"</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Dimensión 7: Despedida */}
+        <div
+          className={
+            "space-y-4 rounded-3xl border p-6 transition-all shadow-sm " +
+            (includeClosingInPdf ? "border-slate-200 bg-white" : "border-dashed border-slate-200 bg-slate-50/60 opacity-75")
+          }
+        >
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
+                <MessageCircleHeart className="h-4 w-4" />
+              </div>
+              <h3 className="text-sm font-black text-slate-900">7. Despedida</h3>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIncludeClosingInPdf(!includeClosingInPdf)}
+              className={
+                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-bold transition-all cursor-pointer " +
+                (includeClosingInPdf
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                  : "border-slate-200 bg-white text-slate-500 hover:bg-slate-100")
+              }
+            >
+              <span className={"h-2 w-2 rounded-full " + (includeClosingInPdf ? "bg-emerald-500" : "bg-slate-400")} />
+              {includeClosingInPdf ? "Incluido en PDF" : "Excluido de PDF"}
+            </button>
+          </div>
+
+          <div className="space-y-2 text-xs">
+            <div className="flex justify-between">
+              <span className="font-medium text-slate-500">Mensaje de cierre:</span>
+              <span className="font-semibold text-slate-800">Editable en paso "Info general"</span>
             </div>
           </div>
         </div>

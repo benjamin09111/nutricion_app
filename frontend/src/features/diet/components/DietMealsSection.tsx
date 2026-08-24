@@ -14,6 +14,8 @@ import {
   ChevronUp,
   Clock,
   Scale,
+  Ban,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -50,6 +52,11 @@ interface DietMealsSectionProps {
   patientName?: string | null;
   includeExchangeGuideInPdf?: boolean;
   setIncludeExchangeGuideInPdf?: React.Dispatch<React.SetStateAction<boolean>>;
+  avoidFoods?: string[];
+  addAvoidFood?: (food: string) => void;
+  removeAvoidFood?: (food: string) => void;
+  includeAvoidFoodsInPdf?: boolean;
+  setIncludeAvoidFoodsInPdf?: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 export function DietMealsSection({
@@ -61,9 +68,23 @@ export function DietMealsSection({
   patientName,
   includeExchangeGuideInPdf = true,
   setIncludeExchangeGuideInPdf,
+  avoidFoods = [],
+  addAvoidFood,
+  removeAvoidFood,
+  includeAvoidFoodsInPdf = true,
+  setIncludeAvoidFoodsInPdf,
 }: DietMealsSectionProps) {
   const [activeDishSelectorId, setActiveDishSelectorId] = useState<string | null>(null);
   const [showPortionGuide, setShowPortionGuide] = useState(true);
+  const [avoidFoodInput, setAvoidFoodInput] = useState("");
+
+  const submitAvoidFood = () => {
+    if (!addAvoidFood) return;
+    const value = avoidFoodInput.trim();
+    if (!value) return;
+    addAvoidFood(value);
+    setAvoidFoodInput("");
+  };
 
   const [portionGuide] = useState(() =>
     buildExchangeGuideForPatient().map((item, idx) => ({
@@ -390,6 +411,82 @@ export function DietMealsSection({
               </div>
             </div>
           </div>
+        )}
+      </div>
+
+      {/* Alimentos a evitar (con toggle de inclusión en PDF) */}
+      <div className="space-y-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-50 text-rose-700">
+              <Ban className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-black text-slate-900">Alimentos a evitar</h3>
+              <p className="text-xs text-slate-500">
+                Agrega los alimentos que {patientName || "el paciente"} debe evitar en este plan.
+              </p>
+            </div>
+          </div>
+
+          {setIncludeAvoidFoodsInPdf && (
+            <label className="flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50/70 px-3 py-1.5 text-xs font-bold text-rose-900 cursor-pointer hover:bg-rose-100/70 transition-colors">
+              <input
+                type="checkbox"
+                checked={includeAvoidFoodsInPdf}
+                onChange={(e) => setIncludeAvoidFoodsInPdf(e.target.checked)}
+                className="h-4 w-4 rounded border-rose-300 text-rose-600 focus:ring-rose-500 cursor-pointer"
+              />
+              Incluir en el PDF final
+            </label>
+          )}
+        </div>
+
+        <div className="flex flex-wrap gap-2 items-center">
+          <Input
+            value={avoidFoodInput}
+            onChange={(e) => setAvoidFoodInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                submitAvoidFood();
+              }
+            }}
+            placeholder="Ej: Maní, Lácteos, Mariscos..."
+            className="h-10 max-w-xs rounded-xl border-slate-200 bg-white text-xs font-semibold"
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={submitAvoidFood}
+            className="rounded-xl border-slate-200 text-xs font-bold text-slate-700"
+          >
+            <Plus className="mr-1 h-3.5 w-3.5" /> Agregar
+          </Button>
+        </div>
+
+        {avoidFoods.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {avoidFoods.map((food) => (
+              <span
+                key={food}
+                className="inline-flex items-center gap-1.5 rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-bold text-rose-800"
+              >
+                {food}
+                <button
+                  type="button"
+                  onClick={() => removeAvoidFood?.(food)}
+                  className="text-rose-500 hover:text-rose-700 cursor-pointer"
+                  title="Quitar"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-slate-400 italic">No has agregado alimentos a evitar.</p>
         )}
       </div>
 

@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { GraduationCap, ChevronDown, ChevronUp, Calculator, User, Filter, Download, Loader2, RotateCcw, Lock, Save, Apple } from "lucide-react";
+import { GraduationCap, ChevronDown, ChevronUp, Calculator, User, Filter, Download, Loader2, RotateCcw, Lock, Save, Apple, MessageCircleHeart } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { Textarea } from "@/components/ui/Textarea";
 import { ActionDockItem } from "@/components/ui/ActionDock";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { ModuleUsageBadges } from "@/components/shared/ModuleUsageBadges";
@@ -275,6 +276,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
               onReset={handleResetDiet}
               nextDisabled={
                 (currentStep === 0 && !state.dietName.trim()) ||
+                (currentStep === 0 && !state.selectedPatient) ||
                 (currentStep === 1 && !Object.values(state.allGroupsToRender).some((foods) => foods.length > 0))
               }
             >
@@ -312,6 +314,63 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                     showGeneralInfo
                     showClinicalRestriction
                   />
+
+                  {/* Introducción y Despedida del PDF */}
+                  <div className="space-y-5 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-violet-50 text-violet-700">
+                        <MessageCircleHeart className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-base font-black text-slate-900">Introducción y despedida</h3>
+                        <p className="text-xs text-slate-500">
+                          Se generan automáticamente con el nombre de {state.selectedPatient?.fullName || "tu paciente"}; puedes editarlas libremente.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-black uppercase tracking-wider text-slate-500">Introducción</label>
+                        <label className="flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50/70 px-3 py-1 text-[11px] font-bold text-violet-900 cursor-pointer hover:bg-violet-100/70 transition-colors">
+                          <input
+                            type="checkbox"
+                            checked={state.includeIntroInPdf}
+                            onChange={(e) => state.setIncludeIntroInPdf(e.target.checked)}
+                            className="h-3.5 w-3.5 rounded border-violet-300 text-violet-600 focus:ring-violet-500 cursor-pointer"
+                          />
+                          Incluir en el PDF
+                        </label>
+                      </div>
+                      <Textarea
+                        value={state.introMessage}
+                        onChange={(e) => state.updateIntroMessage(e.target.value)}
+                        placeholder="Mensaje de bienvenida para el paciente..."
+                        className="min-h-[90px] rounded-xl text-sm"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-black uppercase tracking-wider text-slate-500">Despedida</label>
+                        <label className="flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50/70 px-3 py-1 text-[11px] font-bold text-violet-900 cursor-pointer hover:bg-violet-100/70 transition-colors">
+                          <input
+                            type="checkbox"
+                            checked={state.includeClosingInPdf}
+                            onChange={(e) => state.setIncludeClosingInPdf(e.target.checked)}
+                            className="h-3.5 w-3.5 rounded border-violet-300 text-violet-600 focus:ring-violet-500 cursor-pointer"
+                          />
+                          Incluir en el PDF
+                        </label>
+                      </div>
+                      <Textarea
+                        value={state.closingMessage}
+                        onChange={(e) => state.updateClosingMessage(e.target.value)}
+                        placeholder="Mensaje de cierre / despedida para el paciente..."
+                        className="min-h-[90px] rounded-xl text-sm"
+                      />
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -426,6 +485,11 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                   patientName={state.selectedPatient?.fullName}
                   includeExchangeGuideInPdf={state.includeExchangeGuideInPdf}
                   setIncludeExchangeGuideInPdf={state.setIncludeExchangeGuideInPdf}
+                  avoidFoods={state.avoidFoods}
+                  addAvoidFood={state.addAvoidFood}
+                  removeAvoidFood={state.removeAvoidFood}
+                  includeAvoidFoodsInPdf={state.includeAvoidFoodsInPdf}
+                  setIncludeAvoidFoodsInPdf={state.setIncludeAvoidFoodsInPdf}
                 />
               )}
 
@@ -471,6 +535,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                   totalMeals={state.meals.length}
                   totalCartItems={state.includeCartSection ? state.autoCartItems.length : 0}
                   totalResources={state.includeResourcesSection ? state.selectedResourceIds.length : 0}
+                  totalAvoidFoods={state.avoidFoods.length}
                   calorieTarget={state.macroTargets.calories}
                   onExportPdf={() => void state.performExportPdf()}
                   onSaveCreation={() => state.setIsSaveCreationModalOpen(true)}
@@ -482,6 +547,12 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                   setIncludeCartSection={state.setIncludeCartSection}
                   includeResourcesSection={state.includeResourcesSection}
                   setIncludeResourcesSection={state.setIncludeResourcesSection}
+                  includeAvoidFoodsInPdf={state.includeAvoidFoodsInPdf}
+                  setIncludeAvoidFoodsInPdf={state.setIncludeAvoidFoodsInPdf}
+                  includeIntroInPdf={state.includeIntroInPdf}
+                  setIncludeIntroInPdf={state.setIncludeIntroInPdf}
+                  includeClosingInPdf={state.includeClosingInPdf}
+                  setIncludeClosingInPdf={state.setIncludeClosingInPdf}
                 />
               )}
             </PlanWizardShell>

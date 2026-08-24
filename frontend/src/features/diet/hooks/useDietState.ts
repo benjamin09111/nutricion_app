@@ -28,8 +28,14 @@ import {
 } from "../utils/diet-helpers";
 import { getMacroPctFromGrams } from "@/lib/nutrition-formulas";
 import { getGoalsFromPatient } from "@/features/recipes/utils/recipe-helpers";
-import { buildExchangeGuideForAi } from "@/lib/exchange-portions";
+import { buildExchangeGuideForAi, buildExchangeGuideForPatient } from "@/lib/exchange-portions";
 import { buildAutoCartItems } from "../utils/cartIngredients";
+import { getCurrentUser } from "@/lib/current-user";
+import {
+  DEFAULT_INTRO_TEMPLATE,
+  DEFAULT_CLOSING_TEMPLATE,
+  resolveDeliverableCopyTemplate,
+} from "../constants/defaultDeliverableCopy";
 
 interface UseDietStateProps {
   initialFoods: MarketPrice[];
@@ -217,6 +223,51 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
     { id: "meal-4", section: "Colación PM", mealText: "", time: "17:00", portion: "1 porción" },
     { id: "meal-5", section: "Cena", mealText: "", time: "20:30", portion: "1 porción" },
   ]);
+
+  // Alimentos a evitar (paso "Comidas")
+  const [avoidFoods, setAvoidFoods] = useState<string[]>([]);
+  const [includeAvoidFoodsInPdf, setIncludeAvoidFoodsInPdf] = useState(true);
+
+  const addAvoidFood = (food: string) => {
+    const cleaned = food.trim();
+    if (!cleaned) return;
+    setAvoidFoods((prev) =>
+      prev.some((f) => f.toLowerCase() === cleaned.toLowerCase()) ? prev : [...prev, cleaned],
+    );
+  };
+  const removeAvoidFood = (food: string) => {
+    setAvoidFoods((prev) => prev.filter((f) => f !== food));
+  };
+
+  // Introducción y despedida del entregable
+  const [introMessage, setIntroMessage] = useState("");
+  const [includeIntroInPdf, setIncludeIntroInPdf] = useState(true);
+  const [closingMessage, setClosingMessage] = useState("");
+  const [includeClosingInPdf, setIncludeClosingInPdf] = useState(true);
+  const [hasCustomIntroMessage, setHasCustomIntroMessage] = useState(false);
+  const [hasCustomClosingMessage, setHasCustomClosingMessage] = useState(false);
+
+  // Regenera el texto por defecto de intro/despedida cuando cambia el paciente,
+  // salvo que el nutricionista ya lo haya editado manualmente.
+  useEffect(() => {
+    const name = selectedPatient?.fullName || null;
+    if (!hasCustomIntroMessage) {
+      setIntroMessage(resolveDeliverableCopyTemplate(DEFAULT_INTRO_TEMPLATE, name));
+    }
+    if (!hasCustomClosingMessage) {
+      setClosingMessage(resolveDeliverableCopyTemplate(DEFAULT_CLOSING_TEMPLATE, name));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedPatient?.fullName]);
+
+  const updateIntroMessage = (value: string) => {
+    setIntroMessage(value);
+    setHasCustomIntroMessage(true);
+  };
+  const updateClosingMessage = (value: string) => {
+    setClosingMessage(value);
+    setHasCustomClosingMessage(true);
+  };
 
   // Fetch full database catalog of ingredients (/foods?limit=1000)
   useEffect(() => {
@@ -513,6 +564,23 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
         timestamp: Date.now(),
         foods: finalizedFoods,
         includedFoods: finalizedFoods,
+        meals,
+        dietMealsTableData,
+        includeMealsSection,
+        includeExchangeGuideInPdf,
+        avoidFoods,
+        includeAvoidFoodsInPdf,
+        includeCartSection,
+        cartItemOverrides,
+        removedCartItemIds,
+        includeResourcesSection,
+        selectedResourceIds,
+        introMessage,
+        includeIntroInPdf,
+        hasCustomIntroMessage,
+        closingMessage,
+        includeClosingInPdf,
+        hasCustomClosingMessage,
       },
       metadata: {
         flowMode,
@@ -1044,6 +1112,29 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
             try {
               const data = JSON.parse(text);
               handleImportCreation(data);
+              // Restaurar los pasos 3-6 (Platos/Comidas/Carrito/Recursos + intro/despedida)
+              // al reabrir una dieta propia guardada previamente, ya que
+              // handleImportCreation solo restaura los alimentos base.
+              if (data?.type === "DIET" && data?.content) {
+                const c = data.content;
+                if (Array.isArray(c.meals)) setMeals(c.meals);
+                if (Array.isArray(c.dietMealsTableData)) setDietMealsTableData(c.dietMealsTableData);
+                if (typeof c.includeMealsSection === "boolean") setIncludeMealsSection(c.includeMealsSection);
+                if (typeof c.includeExchangeGuideInPdf === "boolean") setIncludeExchangeGuideInPdf(c.includeExchangeGuideInPdf);
+                if (Array.isArray(c.avoidFoods)) setAvoidFoods(c.avoidFoods);
+                if (typeof c.includeAvoidFoodsInPdf === "boolean") setIncludeAvoidFoodsInPdf(c.includeAvoidFoodsInPdf);
+                if (typeof c.includeCartSection === "boolean") setIncludeCartSection(c.includeCartSection);
+                if (c.cartItemOverrides && typeof c.cartItemOverrides === "object") setCartItemOverrides(c.cartItemOverrides);
+                if (Array.isArray(c.removedCartItemIds)) setRemovedCartItemIds(c.removedCartItemIds);
+                if (typeof c.includeResourcesSection === "boolean") setIncludeResourcesSection(c.includeResourcesSection);
+                if (Array.isArray(c.selectedResourceIds)) setSelectedResourceIds(c.selectedResourceIds);
+                if (typeof c.hasCustomIntroMessage === "boolean") setHasCustomIntroMessage(c.hasCustomIntroMessage);
+                if (typeof c.introMessage === "string") setIntroMessage(c.introMessage);
+                if (typeof c.includeIntroInPdf === "boolean") setIncludeIntroInPdf(c.includeIntroInPdf);
+                if (typeof c.hasCustomClosingMessage === "boolean") setHasCustomClosingMessage(c.hasCustomClosingMessage);
+                if (typeof c.closingMessage === "string") setClosingMessage(c.closingMessage);
+                if (typeof c.includeClosingInPdf === "boolean") setIncludeClosingInPdf(c.includeClosingInPdf);
+              }
               setIsHydrating(false);
             } catch (parseError) {
               console.error("Error parseando JSON de la creación:", parseError);
@@ -1110,6 +1201,14 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
         if (Array.isArray(draft.selectedResourceIds)) setSelectedResourceIds(draft.selectedResourceIds);
         if (draft.cartItemOverrides && typeof draft.cartItemOverrides === "object") setCartItemOverrides(draft.cartItemOverrides);
         if (Array.isArray(draft.removedCartItemIds)) setRemovedCartItemIds(draft.removedCartItemIds);
+        if (Array.isArray(draft.avoidFoods)) setAvoidFoods(draft.avoidFoods);
+        if (typeof draft.includeAvoidFoodsInPdf === "boolean") setIncludeAvoidFoodsInPdf(draft.includeAvoidFoodsInPdf);
+        if (typeof draft.hasCustomIntroMessage === "boolean") setHasCustomIntroMessage(draft.hasCustomIntroMessage);
+        if (typeof draft.introMessage === "string") setIntroMessage(draft.introMessage);
+        if (typeof draft.includeIntroInPdf === "boolean") setIncludeIntroInPdf(draft.includeIntroInPdf);
+        if (typeof draft.hasCustomClosingMessage === "boolean") setHasCustomClosingMessage(draft.hasCustomClosingMessage);
+        if (typeof draft.closingMessage === "string") setClosingMessage(draft.closingMessage);
+        if (typeof draft.includeClosingInPdf === "boolean") setIncludeClosingInPdf(draft.includeClosingInPdf);
         setIsHydrating(false);
         return;
       } catch (e) {
@@ -1337,6 +1436,22 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
           overrides.cartItemOverrides !== undefined ? overrides.cartItemOverrides : cartItemOverrides,
         removedCartItemIds:
           overrides.removedCartItemIds !== undefined ? overrides.removedCartItemIds : removedCartItemIds,
+        avoidFoods:
+          overrides.avoidFoods !== undefined ? overrides.avoidFoods : avoidFoods,
+        includeAvoidFoodsInPdf:
+          overrides.includeAvoidFoodsInPdf !== undefined ? overrides.includeAvoidFoodsInPdf : includeAvoidFoodsInPdf,
+        introMessage:
+          overrides.introMessage !== undefined ? overrides.introMessage : introMessage,
+        includeIntroInPdf:
+          overrides.includeIntroInPdf !== undefined ? overrides.includeIntroInPdf : includeIntroInPdf,
+        hasCustomIntroMessage:
+          overrides.hasCustomIntroMessage !== undefined ? overrides.hasCustomIntroMessage : hasCustomIntroMessage,
+        closingMessage:
+          overrides.closingMessage !== undefined ? overrides.closingMessage : closingMessage,
+        includeClosingInPdf:
+          overrides.includeClosingInPdf !== undefined ? overrides.includeClosingInPdf : includeClosingInPdf,
+        hasCustomClosingMessage:
+          overrides.hasCustomClosingMessage !== undefined ? overrides.hasCustomClosingMessage : hasCustomClosingMessage,
         favoritesEnabled,
         timestamp: Date.now(),
       };
@@ -1378,6 +1493,14 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
     selectedResourceIds,
     cartItemOverrides,
     removedCartItemIds,
+    avoidFoods,
+    includeAvoidFoodsInPdf,
+    introMessage,
+    includeIntroInPdf,
+    hasCustomIntroMessage,
+    closingMessage,
+    includeClosingInPdf,
+    hasCustomClosingMessage,
     isHydrating,
   ]);
 
@@ -1595,6 +1718,12 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
       toast.error("Asigna un nombre a la dieta antes de exportar.");
       return;
     }
+    if (!selectedPatient) {
+      toast.error(
+        "Debes importar un paciente antes de generar el entregable personalizado.",
+      );
+      return;
+    }
     setIsExportingPdf(true);
     const toastId = toast.loading("Generando PDF...");
     try {
@@ -1643,14 +1772,15 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
           portion: m.portion || "1 porción",
         }));
 
-      const resolvedResources = (selectedResourceIds || [])
-        .map((id) => {
-          const item = DIET_RESOURCES_CATALOG.find((r) => r.id === id);
-          if (!item) return null;
-          return {
-            resourceId: item.id,
-            title: item.title,
-            content: `
+      const resolvedResources = includeResourcesSection
+        ? ((selectedResourceIds || [])
+            .map((id) => {
+              const item = DIET_RESOURCES_CATALOG.find((r) => r.id === id);
+              if (!item) return null;
+              return {
+                resourceId: item.id,
+                title: item.title,
+                content: `
               <h2>${item.title}</h2>
               <p><strong>Categoría:</strong> ${item.category}</p>
               <p>${item.description}</p>
@@ -1660,25 +1790,62 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
                   : ""
               }
             `.trim(),
+              };
+            })
+            .filter(Boolean) as any[])
+        : [];
+
+      const recipesForPdf = (meals || [])
+        .filter((m: any) => m?.name?.trim())
+        .map((m: any, idx: number) => {
+          const ingredients =
+            Array.isArray(m.ingredientDetails) && m.ingredientDetails.length > 0
+              ? m.ingredientDetails
+                  .map((ing: any) => (typeof ing?.name === "string" ? ing.name.trim() : ""))
+                  .filter(Boolean)
+              : typeof m.ingredients === "string" && m.ingredients.trim()
+                ? m.ingredients
+                    .split(/[\n,;]+/)
+                    .map((i: string) => i.trim())
+                    .filter(Boolean)
+                : [];
+          return {
+            id: m.id || `recipe-${idx}`,
+            name: m.name,
+            section: m.section,
+            time: m.time,
+            portion: m.portion,
+            ingredients,
+            instructions: m.instructions,
+            calories: m.calories,
+            protein: m.protein,
+            carbs: m.carbs,
+            fats: m.fats,
           };
-        })
-        .filter(Boolean) as any[];
+        });
 
-      const groupedFoodsMap: Record<string, string[]> = {};
-      includedFoods.forEach((f) => {
-        const group = f.grupo || "Varios";
-        if (!groupedFoodsMap[group]) groupedFoodsMap[group] = [];
-        if (!groupedFoodsMap[group].includes(f.producto)) {
-          groupedFoodsMap[group].push(f.producto);
-        }
-      });
+      const cartForPdf = includeCartSection
+        ? autoCartItems.map((item) => ({
+            name: item.name,
+            category: item.category,
+            sources: item.sources,
+          }))
+        : [];
 
-      const portionGuideRows = Object.entries(groupedFoodsMap).map(
-        ([category, foods]) => ({
-          category,
-          portion: foods.join(", "),
-        })
-      );
+      const currentUser = getCurrentUser();
+      const nutritionistName =
+        currentUser?.nutritionist?.fullName || currentUser?.name || null;
+      const nutritionistEmail = currentUser?.email || null;
+
+      // Guía de porciones de intercambio real (clínica), no un listado repetido
+      // de los alimentos de la dieta. Respeta el toggle "Incluir en el PDF final"
+      // de la sección "Guía de Porciones de Intercambio" del paso Comidas.
+      const portionGuideRows = includeExchangeGuideInPdf
+        ? buildExchangeGuideForPatient().map((row) => ({
+            category: row.category,
+            portion: row.portion,
+          }))
+        : [];
 
       await downloadFastDeliverablePdf({
         name: dietName,
@@ -1689,6 +1856,12 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
         tableMode: "simple",
         planObjective: planObjective.trim() || undefined,
         showPlanObjectiveInPdf,
+        nutritionistName,
+        nutritionistEmail,
+        intro:
+          includeIntroInPdf && introMessage.trim()
+            ? { greetingName: selectedPatient?.fullName || null, message: introMessage.trim() }
+            : null,
         meals:
           formattedMeals.length > 0
             ? formattedMeals
@@ -1701,9 +1874,15 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
                   portion: "Ver guía de porciones",
                 },
               ],
-        avoidFoods: [],
+        avoidFoods: includeAvoidFoodsInPdf ? avoidFoods : [],
+        recipes: recipesForPdf,
+        cart: cartForPdf,
         resources: resolvedResources,
         portionGuide: portionGuideRows,
+        closing:
+          includeClosingInPdf && closingMessage.trim()
+            ? { message: closingMessage.trim() }
+            : null,
         generatedAt: new Date().toLocaleDateString("es-CL"),
       });
 
@@ -2993,6 +3172,23 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
     cartItemOverrides,
     setCartItemOverride,
     removeCartItem,
+
+    // Alimentos a evitar
+    avoidFoods,
+    addAvoidFood,
+    removeAvoidFood,
+    includeAvoidFoodsInPdf,
+    setIncludeAvoidFoodsInPdf,
+
+    // Introducción y despedida
+    introMessage,
+    updateIntroMessage,
+    includeIntroInPdf,
+    setIncludeIntroInPdf,
+    closingMessage,
+    updateClosingMessage,
+    includeClosingInPdf,
+    setIncludeClosingInPdf,
 
     handleQuickGenerateAiDishes,
     handleConfirmAiDishes,

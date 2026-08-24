@@ -22,13 +22,10 @@ export const DietPatientSection: React.FC<DietPatientSectionProps> = ({
         <div className="flex flex-col items-center gap-5 text-center">
           <div className="max-w-2xl">
             <p className="text-sm font-bold leading-6 text-amber-900">
-              Puedes crear tu estrategia sin paciente o importar uno para personalizar mejor la dieta.
+              Importa un paciente para continuar: es obligatorio para generar un entregable personalizado.
             </p>
             <p className="mt-2 text-xs leading-5 text-slate-500">
-              Si importas un paciente, podrás considerar sus restricciones, objetivos y contexto clínico.
-            </p>
-            <p className="mt-2 text-xs font-semibold leading-5 text-slate-500">
-              *Si no seleccionas un paciente, la dieta quedará asociada a "tú persona".
+              Con el paciente vinculado, el PDF incorpora sus datos, restricciones, objetivos y contexto clínico automáticamente.
             </p>
           </div>
           <Button
