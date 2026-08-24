@@ -214,67 +214,47 @@ function buildSummarySheet(data: ClinicalRecordPdfData) {
 // ─── Main export function ─────────────────────────────────────────────────────
 
 export async function downloadClinicalRecordExcel(data: ClinicalRecordPdfData): Promise<void> {
-  const XLSX = await import("xlsx");
+  const { createWorkbook, addSheet, downloadWorkbook } = await import(
+    "./excel-workbook"
+  );
 
-  const wb = XLSX.utils.book_new();
+  const wb = createWorkbook();
 
   // ── Sheet 1: Resumen ──────────────────────────────────────────────────────
   const summary = buildSummarySheet(data);
-  const wsSummary = XLSX.utils.aoa_to_sheet(summary.rows);
-  wsSummary["!cols"] = summary.cols;
-  wsSummary["!merges"] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 3 } },
-    { s: { r: 1, c: 0 }, e: { r: 1, c: 3 } },
-    { s: { r: 2, c: 0 }, e: { r: 2, c: 3 } },
-  ];
-  XLSX.utils.book_append_sheet(wb, wsSummary, "Resumen");
+  addSheet(wb, "Resumen", summary.rows, {
+    cols: summary.cols,
+    merges: [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 3 } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 3 } },
+      { s: { r: 2, c: 0 }, e: { r: 2, c: 3 } },
+    ],
+  });
 
   // ── Sheet 2: Identificación ───────────────────────────────────────────────
   const ident = buildIdentificationSheet(data);
-  const wsIdent = XLSX.utils.aoa_to_sheet(ident.rows);
-  wsIdent["!cols"] = ident.cols;
-  XLSX.utils.book_append_sheet(wb, wsIdent, "Identificación");
+  addSheet(wb, "Identificación", ident.rows, { cols: ident.cols });
 
   // ── Sheet 3: Objetivos ─────────────────────────────────────────────────────
   const obj = buildObjectivesSheet(data);
-  const wsObj = XLSX.utils.aoa_to_sheet(obj.rows);
-  wsObj["!cols"] = obj.cols;
-  XLSX.utils.book_append_sheet(wb, wsObj, "Objetivos");
+  addSheet(wb, "Objetivos", obj.rows, { cols: obj.cols });
 
   // ── Sheet 4: Antropometría ────────────────────────────────────────────────
   const anth = buildAnthropometrySheet(data);
-  const wsAnth = XLSX.utils.aoa_to_sheet(anth.rows);
-  wsAnth["!cols"] = anth.cols;
-  XLSX.utils.book_append_sheet(wb, wsAnth, "Antropometría");
+  addSheet(wb, "Antropometría", anth.rows, { cols: anth.cols });
 
   // ── Sheet 5: Anamnesis General ────────────────────────────────────────────
   const vital = buildVitalHistorySheet(data);
-  const wsVital = XLSX.utils.aoa_to_sheet(vital.rows);
-  wsVital["!cols"] = vital.cols;
-  XLSX.utils.book_append_sheet(wb, wsVital, "Anamnesis General");
+  addSheet(wb, "Anamnesis General", vital.rows, { cols: vital.cols });
 
   // ── Sheet 6: Anamnesis Nutricional ────────────────────────────────────────
   const nutr = buildNutritionalAnamnesisSheet(data);
-  const wsNutr = XLSX.utils.aoa_to_sheet(nutr.rows);
-  wsNutr["!cols"] = nutr.cols;
-  XLSX.utils.book_append_sheet(wb, wsNutr, "Anamnesis Nutricional");
+  addSheet(wb, "Anamnesis Nutricional", nutr.rows, { cols: nutr.cols });
 
   // ── Write file ────────────────────────────────────────────────────────────
   const safeName = (data.patientName || "Paciente")
     .replace(/\s+/g, "_")
     .replace(/[^\w-]/g, "");
-  const filename = `Ficha_Clinica_${safeName}_NutriNet.xlsx`;
 
-  const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-  const blob = new Blob([wbout], {
-    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  await downloadWorkbook(wb, `Ficha_Clinica_${safeName}_NutriNet.xlsx`);
 }

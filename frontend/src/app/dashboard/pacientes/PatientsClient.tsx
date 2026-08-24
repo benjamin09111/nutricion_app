@@ -141,7 +141,7 @@ export default function PatientsClient() {
     }
     setIsExporting(true);
     try {
-      exportPatientsToExcel(patients);
+      await exportPatientsToExcel(patients);
       toast.success("Excel de pacientes descargado");
     } catch {
       toast.error("Error al exportar pacientes");

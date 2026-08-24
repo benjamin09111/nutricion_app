@@ -51,6 +51,8 @@ export async function getPublicNutritionists(
     location?: string;
     page?: number;
     limit?: number;
+    /** Seconds to cache the response for; omit to always fetch fresh data. */
+    revalidate?: number;
   } = {},
 ): Promise<PublicNutritionistsResponse> {
   const query = new URLSearchParams();
@@ -64,11 +66,14 @@ export async function getPublicNutritionists(
   if (params.location) query.set("location", params.location);
 
   try {
+    // The public directory wants fresh data on every request, but the sitemap
+    // is revalidated on a schedule: without this override the `no-store` fetch
+    // makes /sitemap.xml impossible to render statically.
     const response = await fetchApi(
       `/public/nutritionists?${query.toString()}`,
-      {
-        cache: "no-store",
-      },
+      params.revalidate === undefined
+        ? { cache: "no-store" }
+        : { next: { revalidate: params.revalidate } },
     );
 
     if (!response.ok) {
@@ -112,14 +117,18 @@ export async function getPublicNutritionistBySlug(
   }
 }
 
-export async function getAllPublicNutritionistSlugs() {
+export async function getAllPublicNutritionistSlugs(revalidate?: number) {
   const pageSize = 100;
   const slugs: string[] = [];
   let page = 1;
   let lastPage = 1;
 
   do {
-    const result = await getPublicNutritionists({ page, limit: pageSize });
+    const result = await getPublicNutritionists({
+      page,
+      limit: pageSize,
+      revalidate,
+    });
     slugs.push(
       ...result.nutritionists.map((nutritionist) => nutritionist.slug),
     );

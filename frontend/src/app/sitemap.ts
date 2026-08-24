@@ -42,7 +42,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ];
 
   try {
-    const slugs = await getAllPublicNutritionistSlugs();
+    const slugs = await getAllPublicNutritionistSlugs(revalidate);
     const nutritionistRoutes: MetadataRoute.Sitemap = slugs.map((slug) => ({
       url: `${baseUrl}/nutricionistas/${slug}`,
       lastModified: new Date(),

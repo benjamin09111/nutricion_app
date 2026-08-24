@@ -19,7 +19,7 @@ import { DiscountCodesService } from '../discount-codes/discount-codes.service';
 import { resolveAccountPlanFromMembershipPlan } from '../memberships/account-plan';
 import { WhatsAppService } from '../notifications/whatsapp.service';
 import { MailService } from '../mail/mail.service';
-import * as XLSX from 'xlsx';
+import * as ExcelJS from 'exceljs';
 
 @Injectable()
 export class PaymentsService {
@@ -248,9 +248,10 @@ export class PaymentsService {
       .filter((row) => row.method === 'MANUAL')
       .reduce((sum, row) => sum + Number(row.amount_clp || 0), 0);
 
-    const workbook = XLSX.utils.book_new();
+    const workbook = new ExcelJS.Workbook();
 
-    const summarySheet = XLSX.utils.aoa_to_sheet([
+    const summarySheet = workbook.addWorksheet('Resumen');
+    summarySheet.addRows([
       ['NutriNet - Resumen Contable'],
       ['Generado el', toClDateTime(new Date())],
       [],
@@ -262,47 +263,32 @@ export class PaymentsService {
       ['Ingresos por Flow (CLP)', flowRevenue],
       ['Ingresos manuales (CLP)', manualRevenue],
     ]);
+    summarySheet.columns = [{ width: 32 }, { width: 28 }];
 
-    const salesSheet = XLSX.utils.json_to_sheet(paymentRows);
-    const transfersSheet = XLSX.utils.json_to_sheet(transferRows);
-
-    XLSX.utils.book_append_sheet(workbook, summarySheet, 'Resumen');
-    XLSX.utils.book_append_sheet(workbook, salesSheet, 'Ventas completadas');
-    XLSX.utils.book_append_sheet(
-      workbook,
-      transfersSheet,
-      'Transferencias aceptadas',
-    );
-
-    summarySheet['!cols'] = [{ wch: 32 }, { wch: 28 }];
-    salesSheet['!cols'] = [
-      { wch: 36 },
-      { wch: 36 },
-      { wch: 30 },
-      { wch: 28 },
-      { wch: 24 },
-      { wch: 18 },
-      { wch: 18 },
-      { wch: 14 },
-      { wch: 14 },
-      { wch: 16 },
-      { wch: 16 },
-      { wch: 18 },
-      { wch: 16 },
-      { wch: 16 },
-      { wch: 16 },
-      { wch: 18 },
-      { wch: 12 },
-      { wch: 20 },
-      { wch: 18 },
-      { wch: 18 },
-      { wch: 18 },
-      { wch: 18 },
-      { wch: 20 },
+    // Column widths for the two record sheets, keyed by position.
+    const recordColumnWidths = [
+      36, 36, 30, 28, 24, 18, 18, 14, 14, 16, 16, 18, 16, 16, 16, 18, 12, 20,
+      18, 18, 18, 18, 20,
     ];
-    transfersSheet['!cols'] = salesSheet['!cols'];
 
-    const buffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'buffer' });
+    const addRecordSheet = (name: string, records: Record<string, any>[]) => {
+      const sheet = workbook.addWorksheet(name);
+      const headers = records.length > 0 ? Object.keys(records[0]) : [];
+
+      sheet.columns = headers.map((header, index) => ({
+        header,
+        key: header,
+        width: recordColumnWidths[index] ?? 18,
+      }));
+      sheet.addRows(records);
+
+      return sheet;
+    };
+
+    addRecordSheet('Ventas completadas', paymentRows);
+    addRecordSheet('Transferencias aceptadas', transferRows);
+
+    const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
 
     return {
       buffer,
