@@ -3,6 +3,7 @@ import { ToolLoopAgent, tool, isStepCount } from 'ai';
 import { z } from 'zod';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AiService } from '../../common/services/ai.service';
+import { AiUsageService } from './ai-usage.service';
 
 const AGENT_INSTRUCTIONS = `# Copiloto Clinico de NutriNet
 
@@ -50,6 +51,7 @@ export class CopilotService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly aiService: AiService,
+    private readonly aiUsageService: AiUsageService,
   ) {}
 
   private buildAgent(accountId?: string) {
@@ -66,6 +68,30 @@ export class CopilotService {
         // max 10 steps, each step is a tool call or text response
         isStepCount(10),
       ],
+      onEnd: (event: any) => {
+        const uAny = (event?.totalUsage || {}) as any;
+        const promptTokens =
+          uAny?.promptTokens ?? uAny?.inputTokens ?? uAny?.prompt_tokens ?? 0;
+        const completionTokens =
+          uAny?.completionTokens ??
+          uAny?.outputTokens ??
+          uAny?.completion_tokens ??
+          0;
+        this.aiUsageService
+          .logUsage({
+            accountId,
+            feature: 'copilot.chat',
+            model: event?.modelId || modelConfig.modelId || 'unknown',
+            promptTokens,
+            completionTokens,
+            metadata: { provider: event?.provider || modelConfig.provider },
+          })
+          .catch((err: any) =>
+            this.logger.warn(
+              `Could not log copilot chat usage: ${err?.message || err}`,
+            ),
+          );
+      },
       tools: {
         buscarAlimentos: tool({
           description:

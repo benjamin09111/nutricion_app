@@ -1,7 +1,7 @@
 import { MembershipsService } from './memberships.service';
 
 describe('MembershipsService', () => {
-  it('returns Freemium and Plus while excluding inactive legacy Pro', async () => {
+  it('returns active and coming soon plans for landing page', async () => {
     const prisma = {
       membershipPlan: {
         findMany: jest.fn().mockResolvedValue([
@@ -12,6 +12,7 @@ describe('MembershipsService', () => {
             price: { toString: () => '0' },
             features: [],
             isComingSoon: false,
+            isActive: true,
           },
           {
             id: 'plus',
@@ -20,6 +21,16 @@ describe('MembershipsService', () => {
             price: { toString: () => '19990' },
             features: [],
             isComingSoon: false,
+            isActive: true,
+          },
+          {
+            id: 'pro',
+            name: 'Pro',
+            slug: 'pro',
+            price: { toString: () => '39990' },
+            features: [],
+            isComingSoon: true,
+            isActive: false,
           },
         ]),
       },
@@ -30,15 +41,10 @@ describe('MembershipsService', () => {
 
     expect(prisma.membershipPlan.findMany).toHaveBeenCalledWith({
       where: {
-        isActive: true,
-        NOT: [
-          { slug: { mode: 'insensitive', equals: 'pro' } },
-          { name: { mode: 'insensitive', equals: 'pro' } },
-          { price: 39990 },
-        ],
+        OR: [{ isActive: true }, { isComingSoon: true }],
       },
       orderBy: { displayOrder: 'asc' },
     });
-    expect(plans.map((plan) => plan.slug)).toEqual(['free', 'plus']);
+    expect(plans.map((plan) => plan.slug)).toEqual(['free', 'plus', 'pro']);
   });
 });

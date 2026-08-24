@@ -160,14 +160,36 @@ export function PlanSelector() {
                           const fd = getMembershipFeatureDisplay(feature);
                           return (
                             <li key={idx} className="flex items-start gap-3">
-                              <div className={`mt-0.5 rounded-full p-0.5 ${fd.isExcluded ? "bg-red-100" : "bg-emerald-100"}`}>
-                                {fd.isExcluded ? (
+                              <div
+                                className={`mt-0.5 rounded-full p-0.5 shrink-0 ${
+                                  fd.isNew
+                                    ? "bg-amber-100 border border-amber-300"
+                                    : fd.isExcluded
+                                      ? "bg-red-100"
+                                      : "bg-emerald-100"
+                                }`}
+                              >
+                                {fd.isNew ? (
+                                  <Sparkles className="h-3.5 w-3.5 text-amber-600 animate-pulse" />
+                                ) : fd.isExcluded ? (
                                   <X className="h-3.5 w-3.5 text-red-500" />
                                 ) : (
                                   <Check className="h-3.5 w-3.5 text-emerald-600" />
                                 )}
                               </div>
-                              <span className="text-sm text-slate-700">{fd.label}</span>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span
+                                  className={`text-sm ${
+                                    fd.isExcluded
+                                      ? "text-slate-400 line-through"
+                                      : fd.isNew
+                                        ? "text-slate-900 font-bold"
+                                        : "text-slate-700"
+                                  }`}
+                                >
+                                  {fd.label}
+                                </span>
+                              </div>
                             </li>
                           );
                         })}
@@ -244,15 +266,19 @@ export function PlanSelector() {
                         return (
                           <li key={idx} className="flex items-start gap-3">
                             <div
-                              className={`mt-0.5 rounded-full p-0.5 ${
-                                featureDisplay.isExcluded
-                                  ? "bg-red-100"
-                                  : isPopular
-                                    ? "bg-indigo-100"
-                                    : "bg-slate-100"
+                              className={`mt-0.5 rounded-full p-0.5 shrink-0 ${
+                                featureDisplay.isNew
+                                  ? "bg-amber-100 border border-amber-300"
+                                  : featureDisplay.isExcluded
+                                    ? "bg-red-100"
+                                    : isPopular
+                                      ? "bg-indigo-100"
+                                      : "bg-slate-100"
                               }`}
                             >
-                              {featureDisplay.isExcluded ? (
+                              {featureDisplay.isNew ? (
+                                <Sparkles className="h-3.5 w-3.5 text-amber-600 animate-pulse" />
+                              ) : featureDisplay.isExcluded ? (
                                 <X className="h-3.5 w-3.5 text-red-500" />
                               ) : (
                                 <Check
@@ -264,9 +290,19 @@ export function PlanSelector() {
                                 />
                               )}
                             </div>
-                            <span className="text-sm text-slate-700">
-                              {featureDisplay.label}
-                            </span>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span
+                                className={`text-sm ${
+                                  featureDisplay.isExcluded
+                                    ? "text-slate-400 line-through"
+                                    : featureDisplay.isNew
+                                      ? "text-slate-900 font-bold"
+                                      : "text-slate-700"
+                                }`}
+                              >
+                                {featureDisplay.label}
+                              </span>
+                            </div>
                           </li>
                         );
                       })}

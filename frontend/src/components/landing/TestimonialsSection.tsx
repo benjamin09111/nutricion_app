@@ -51,7 +51,7 @@ const DEFAULT_TESTIMONIALS: Testimonial[] = [
     timeSaved: "Aumento del 40% en pacientes mensuales",
     avatarText: "VS",
     avatarBg: "from-amber-500 to-rose-600",
-    quote: "Naty (la asistente de IA) me ayuda muchísimo a buscar recetas alternativas para pacientes con APLV o restricciones complejas en segundos. Me dio el impulso para atender más pacientes al día sin terminar agotada en la noche.",
+    quote: "Naty la Nutria, tu asistente me ayuda muchísimo a buscar recetas alternativas para pacientes con APLV o restricciones complejas en segundos. Me dio el impulso para atender más pacientes al día sin terminar agotada en la noche.",
     highlight: "Atiendo más pacientes sin agotarme",
     rating: 5,
   },

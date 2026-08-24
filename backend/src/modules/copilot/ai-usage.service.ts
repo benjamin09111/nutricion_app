@@ -99,7 +99,7 @@ export class AiUsageService {
 
     if (query.accountId) where.accountId = query.accountId;
     if (query.model) where.model = { contains: query.model, mode: 'insensitive' };
-    if (query.feature) where.feature = query.feature;
+    if (query.feature) where.feature = { contains: query.feature, mode: 'insensitive' };
 
     if (query.userSearch && query.userSearch.trim()) {
       const term = query.userSearch.trim();

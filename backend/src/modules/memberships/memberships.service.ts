@@ -6,13 +6,18 @@ const normalizeMembershipFeature = (value: unknown): string => {
   const feature = typeof value === 'string' ? value.trim() : '';
   if (!feature) return '';
 
-  if (/^([✓✔Xx])\s*(.*)$/.test(feature)) {
+  if (/^([✓✔Xx★✨🔥])\s*(.*)$/.test(feature)) {
     return feature;
   }
 
   const excludedMatch = feature.match(/^sin\s+(.*)$/i);
   if (excludedMatch) {
     return `X ${excludedMatch[1].trim()}`;
+  }
+
+  const newMatch = feature.match(/^(?:novedad|nuevo|new)\s+(.*)$/i);
+  if (newMatch) {
+    return `★ ${newMatch[1].trim()}`;
   }
 
   return `✓ ${feature}`;
@@ -47,12 +52,7 @@ export class MembershipsService {
   async findActive() {
     const plans = await this.prisma.membershipPlan.findMany({
       where: {
-        isActive: true,
-        NOT: [
-          { slug: { mode: 'insensitive', equals: 'pro' } },
-          { name: { mode: 'insensitive', equals: 'pro' } },
-          { price: 39990 },
-        ],
+        OR: [{ isActive: true }, { isComingSoon: true }],
       },
       orderBy: { displayOrder: 'asc' },
     });

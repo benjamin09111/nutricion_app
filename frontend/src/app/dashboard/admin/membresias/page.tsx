@@ -1,14 +1,14 @@
 "use client";
 
 import { useState, useEffect, type ReactNode } from "react";
-import { Plus, Edit2, Trash2, Check, X, Star } from "lucide-react";
+import { Plus, Edit2, Trash2, Check, X, Star, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { toast } from "sonner";
 import Cookies from "js-cookie";
 import { fetchApi } from "@/lib/api-base";
 import { cn } from "@/lib/utils";
-import { getMembershipFeatureDisplay } from "@/features/memberships/utils/feature-format";
+import { getMembershipFeatureDisplay, type FeatureType } from "@/features/memberships/utils/feature-format";
 import { normalizeMembershipPlansResponse } from "@/features/memberships/services/membership.service";
 
 interface MembershipPlan {
@@ -31,6 +31,7 @@ interface MembershipPlan {
 type FeatureDraft = {
   id: string;
   text: string;
+  type: FeatureType;
   isExcluded: boolean;
 };
 
@@ -40,6 +41,7 @@ type MembershipPlanForm = Omit<Partial<MembershipPlan>, "features"> & {
 
 const FEATURE_PREFIX_INCLUDED = "✓";
 const FEATURE_PREFIX_EXCLUDED = "X";
+const FEATURE_PREFIX_NEW = "★";
 
 const parseFeatureDraft = (value: string): FeatureDraft => {
   const featureDisplay = getMembershipFeatureDisplay(value);
@@ -47,6 +49,7 @@ const parseFeatureDraft = (value: string): FeatureDraft => {
   return {
     id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
     text: featureDisplay.label,
+    type: featureDisplay.type,
     isExcluded: featureDisplay.isExcluded,
   };
 };
@@ -58,7 +61,14 @@ const serializeFeatureDraft = (feature: FeatureDraft) => {
     return null;
   }
 
-  return `${feature.isExcluded ? FEATURE_PREFIX_EXCLUDED : FEATURE_PREFIX_INCLUDED} ${text}`;
+  const prefix =
+    feature.type === "new"
+      ? FEATURE_PREFIX_NEW
+      : feature.type === "excluded" || feature.isExcluded
+        ? FEATURE_PREFIX_EXCLUDED
+        : FEATURE_PREFIX_INCLUDED;
+
+  return `${prefix} ${text}`;
 };
 
 const renderBoldText = (text: string) => {
@@ -207,6 +217,7 @@ export default function MembershipsPage() {
         {
           id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
           text: "",
+          type: "included",
           isExcluded: false,
         },
       ],
@@ -227,11 +238,22 @@ export default function MembershipsPage() {
     setEditForm({ ...editForm, features: newFeatures });
   };
 
-  const toggleFeatureType = (index: number) => {
+  const cycleFeatureType = (index: number) => {
     const newFeatures = [...(editForm.features || [])];
+    const current =
+      newFeatures[index].type ||
+      (newFeatures[index].isExcluded ? "excluded" : "included");
+    const nextType: FeatureType =
+      current === "included"
+        ? "new"
+        : current === "new"
+          ? "excluded"
+          : "included";
+
     newFeatures[index] = {
       ...newFeatures[index],
-      isExcluded: !newFeatures[index].isExcluded,
+      type: nextType,
+      isExcluded: nextType === "excluded",
     };
     setEditForm({ ...editForm, features: newFeatures });
   };
@@ -515,14 +537,26 @@ export default function MembershipsPage() {
                           >
                             <button
                               type="button"
-                              onClick={() => toggleFeatureType(index)}
-                              className="mt-0.5 shrink-0 cursor-pointer"
-                              aria-label={feature.isExcluded ? "Marcar como incluido" : "Marcar como excluido"}
+                              onClick={() => cycleFeatureType(index)}
+                              className="mt-0.5 shrink-0 cursor-pointer flex items-center gap-1 transition-all"
+                              title="Haz clic para alternar: Incluido (✓) ➔ Novedad (✨) ➔ Excluido (X)"
+                              aria-label="Alternar estado de característica"
                             >
-                              {feature.isExcluded ? (
-                                <X className="h-4 w-4 text-red-500" />
+                              {feature.type === "new" ? (
+                                <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 rounded-md font-extrabold text-[10px] tracking-wide shadow-2xs">
+                                  <Sparkles className="h-3 w-3 text-amber-600 animate-pulse" />
+                                  NOVEDAD
+                                </span>
+                              ) : feature.type === "excluded" || feature.isExcluded ? (
+                                <span className="inline-flex items-center gap-1 bg-red-50 text-red-600 border border-red-200 px-2 py-0.5 rounded-md font-semibold text-[10px]">
+                                  <X className="h-3 w-3 text-red-500" />
+                                  Excluido
+                                </span>
                               ) : (
-                                <Check className="h-4 w-4 text-green-500" />
+                                <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-md font-semibold text-[10px]">
+                                  <Check className="h-3 w-3 text-emerald-600" />
+                                  Incluido
+                                </span>
                               )}
                             </button>
                             <input
@@ -537,7 +571,7 @@ export default function MembershipsPage() {
                             <button
                               type="button"
                               onClick={() => removeFeature(index)}
-                              className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 transition-opacity cursor-pointer"
+                              className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 transition-opacity cursor-pointer p-1"
                             >
                               <X className="h-3 w-3" />
                             </button>
@@ -557,14 +591,32 @@ export default function MembershipsPage() {
 
                         return (
                           <div key={index} className="flex items-start gap-2">
-                            {featureDisplay.isExcluded ? (
+                            {featureDisplay.isNew ? (
+                              <Sparkles className="h-4 w-4 text-amber-500 mt-0.5 shrink-0 animate-pulse" />
+                            ) : featureDisplay.isExcluded ? (
                               <X className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
                             ) : (
                               <Check className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
                             )}
-                            <span className="text-sm text-slate-700">
-                              {renderBoldText(featureDisplay.label)}
-                            </span>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span
+                                className={cn(
+                                  "text-sm font-medium",
+                                  featureDisplay.isExcluded
+                                    ? "text-slate-400 line-through"
+                                    : featureDisplay.isNew
+                                      ? "text-slate-900 font-bold"
+                                      : "text-slate-700",
+                                )}
+                              >
+                                {renderBoldText(featureDisplay.label)}
+                              </span>
+                              {featureDisplay.isNew && (
+                                <span className="px-2 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-2xs">
+                                  NOVEDAD
+                                </span>
+                              )}
+                            </div>
                           </div>
                         );
                       })

@@ -116,16 +116,6 @@ const groups: SidebarGroup[] = [
       },
     ],
   },
-  {
-    title: "Ayuda",
-    items: [
-      {
-        name: "Guía de uso",
-        href: "/dashboard/uso-recomendado",
-        icon: Settings,
-      },
-    ],
-  },
 ];
 
 const WORKER_ALLOWED_PATHS = new Set([
@@ -136,7 +126,6 @@ const WORKER_ALLOWED_PATHS = new Set([
   "/dashboard/admin/testimonios",
   "/dashboard/admin/cupones",
   "/dashboard/admin/ia-costos",
-  "/dashboard/uso-recomendado",
 ]);
 
 interface AdminSidebarProps {

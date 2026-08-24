@@ -15,6 +15,7 @@ import {
   User,
 } from "lucide-react";
 import { toast } from "sonner";
+import Cookies from "js-cookie";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
@@ -68,11 +69,16 @@ export default function AdminInboxPage() {
   const loadInbox = async () => {
     setIsLoading(true);
     try {
-      const token = localStorage.getItem("auth_token");
+      const token =
+        Cookies.get("auth_token") ||
+        (typeof window !== "undefined" ? localStorage.getItem("auth_token") : null);
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
       const response = await fetchApi("/support", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers,
       });
 
       if (!response.ok) {
@@ -134,13 +140,19 @@ export default function AdminInboxPage() {
 
     setIsSending(true);
     try {
-      const token = localStorage.getItem("auth_token");
+      const token =
+        Cookies.get("auth_token") ||
+        (typeof window !== "undefined" ? localStorage.getItem("auth_token") : null);
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
       const response = await fetchApi(`/support/${selectedItem.id}/reply`, {
         method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
+        headers,
         body: JSON.stringify({ message }),
       });
 

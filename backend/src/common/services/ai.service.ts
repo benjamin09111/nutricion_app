@@ -169,18 +169,26 @@ export class AiService {
         });
 
         if (this.prisma) {
-          const uAny = usage as any;
-          const promptTokens = uAny?.promptTokens ?? uAny?.inputTokens ?? 0;
-          const completionTokens = uAny?.completionTokens ?? uAny?.outputTokens ?? 0;
-          const totalTokens = uAny?.totalTokens ?? (promptTokens + completionTokens);
+          const uAny = (usage || {}) as any;
+          const promptTokens =
+            uAny?.promptTokens ?? uAny?.inputTokens ?? uAny?.prompt_tokens ?? 0;
+          const completionTokens =
+            uAny?.completionTokens ??
+            uAny?.outputTokens ??
+            uAny?.completion_tokens ??
+            0;
+          const totalTokens =
+            uAny?.totalTokens ??
+            uAny?.total_tokens ??
+            promptTokens + completionTokens;
           const costCents = calculateCostInCents(
             config.modelId,
             promptTokens,
             completionTokens,
           );
 
-          (this.prisma as any).aiUsageLog
-            ?.create({
+          this.prisma.aiUsageLog
+            .create({
               data: {
                 accountId: options?.accountId || null,
                 feature: options?.feature || taskName || 'general',
