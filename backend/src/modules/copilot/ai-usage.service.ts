@@ -36,24 +36,25 @@ export class AiUsageService {
 
     // Rates in USD per 1M tokens
     let promptRatePerM = 0.15;
-    let completionRatePerM = 0.60;
+    let completionRatePerM = 0.6;
 
     if (modelLower.includes('gpt-4o') && !modelLower.includes('mini')) {
-      promptRatePerM = 2.50;
-      completionRatePerM = 10.00;
+      promptRatePerM = 2.5;
+      completionRatePerM = 10.0;
     } else if (modelLower.includes('gpt-4o-mini')) {
       promptRatePerM = 0.15;
-      completionRatePerM = 0.60;
+      completionRatePerM = 0.6;
     } else if (modelLower.includes('gemini')) {
       promptRatePerM = 0.075;
-      completionRatePerM = 0.30;
+      completionRatePerM = 0.3;
     } else if (modelLower.includes('deepseek')) {
       promptRatePerM = 0.14;
       completionRatePerM = 0.28;
     }
 
     const promptCostUSD = (promptTokens / 1_000_000) * promptRatePerM;
-    const completionCostUSD = (completionTokens / 1_000_000) * completionRatePerM;
+    const completionCostUSD =
+      (completionTokens / 1_000_000) * completionRatePerM;
     const totalCostUSD = promptCostUSD + completionCostUSD;
 
     // Convert USD to Cents (1 USD = 100 Cents)
@@ -63,7 +64,8 @@ export class AiUsageService {
 
   async logUsage(params: LogAiUsageParams) {
     try {
-      const totalTokens = (params.promptTokens || 0) + (params.completionTokens || 0);
+      const totalTokens =
+        (params.promptTokens || 0) + (params.completionTokens || 0);
       const estimatedCostCents = this.calculateCostInCents(
         params.model,
         params.promptTokens || 0,
@@ -98,15 +100,19 @@ export class AiUsageService {
     }
 
     if (query.accountId) where.accountId = query.accountId;
-    if (query.model) where.model = { contains: query.model, mode: 'insensitive' };
-    if (query.feature) where.feature = query.feature;
+    if (query.model)
+      where.model = { contains: query.model, mode: 'insensitive' };
+    if (query.feature)
+      where.feature = { contains: query.feature, mode: 'insensitive' };
 
     if (query.userSearch && query.userSearch.trim()) {
       const term = query.userSearch.trim();
       where.account = {
         OR: [
           { email: { contains: term, mode: 'insensitive' } },
-          { nutritionist: { fullName: { contains: term, mode: 'insensitive' } } },
+          {
+            nutritionist: { fullName: { contains: term, mode: 'insensitive' } },
+          },
         ],
       };
     }
@@ -131,14 +137,20 @@ export class AiUsageService {
       },
     });
 
-    let totalCalls = logs.length;
+    const totalCalls = logs.length;
     let totalPromptTokens = 0;
     let totalCompletionTokens = 0;
     let totalTokens = 0;
     let totalCostCents = 0;
 
-    const byModel: Record<string, { calls: number; tokens: number; costCents: number }> = {};
-    const byFeature: Record<string, { calls: number; tokens: number; costCents: number }> = {};
+    const byModel: Record<
+      string,
+      { calls: number; tokens: number; costCents: number }
+    > = {};
+    const byFeature: Record<
+      string,
+      { calls: number; tokens: number; costCents: number }
+    > = {};
 
     for (const log of logs) {
       totalPromptTokens += log.promptTokens;
@@ -233,7 +245,9 @@ export class AiUsageService {
       },
     });
 
-    this.logger.log(`Cleaned up ${deleted.count} AI usage logs older than 60 days`);
+    this.logger.log(
+      `Cleaned up ${deleted.count} AI usage logs older than 60 days`,
+    );
     return deleted.count;
   }
 }

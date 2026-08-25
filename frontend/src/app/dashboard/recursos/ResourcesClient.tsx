@@ -17,7 +17,6 @@ import {
   Trash2,
   User as UserIcon,
 } from "lucide-react";
-import Cookies from "js-cookie";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/Button";
@@ -142,6 +141,22 @@ export function ResourcesClient() {
     );
   };
 
+  async function fetchTags() {
+    try {
+      const res = await fetchApi("/tags");
+      const data = res.ok ? await res.json() : [];
+      setAvailableTags(
+        Array.from(
+          new Set(
+            data
+              .map((x: string | { name?: string }) => (typeof x === "string" ? x : x.name))
+              .filter(Boolean),
+          ),
+        ) as string[],
+      );
+    } catch { }
+  }
+
   useEffect(() => {
     fetchTags();
   }, []);
@@ -213,24 +228,6 @@ export function ResourcesClient() {
 
 
 
-  async function fetchTags() {
-    try {
-      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const res = await fetchApi("/tags", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = res.ok ? await res.json() : [];
-      setAvailableTags(
-        Array.from(
-          new Set(
-            data
-              .map((x: string | { name?: string }) => (typeof x === "string" ? x : x.name))
-              .filter(Boolean),
-          ),
-        ) as string[],
-      );
-    } catch { }
-  }
 
   function openCreate(kind: "general" | "cover" | "intro" | "restriction" = "general") {
     if (resourcesLocked) {

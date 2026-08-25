@@ -41,7 +41,7 @@ describe('plan-ai-contract', () => {
     expect(request.pedido.permitirAlimentosFueraDeLista).toBe(false);
     expect(request.pedido.reglas).toEqual(
       expect.arrayContaining([
-        'Usa exclusivamente los alimentos de alimentosDisponibles.',
+        'Usa preferentemente los alimentos de alimentosDisponibles asignándolos de forma gastronómicamente lógica. Si faltan alimentos para un plato realista, agrega alimentos básicos cotidianos.',
         'Los condimentos básicos pueden agregarse solo como ingredientes opcionales con optional=true.',
       ]),
     );

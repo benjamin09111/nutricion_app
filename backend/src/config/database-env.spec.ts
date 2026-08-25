@@ -57,15 +57,18 @@ describe('configureDatabaseEnvironment', () => {
     );
   });
 
-  it.each([undefined, '', 'staging'])('rejects invalid selector %p', (value) => {
-    if (value === undefined) {
-      delete process.env.DATABASE;
-    } else {
-      process.env.DATABASE = value;
-    }
+  it.each([undefined, '', 'staging'])(
+    'rejects invalid selector %p',
+    (value) => {
+      if (value === undefined) {
+        delete process.env.DATABASE;
+      } else {
+        process.env.DATABASE = value;
+      }
 
-    expect(() => configureDatabaseEnvironment()).toThrow(
-      'DATABASE must be explicitly set to dev or prod',
-    );
-  });
+      expect(() => configureDatabaseEnvironment()).toThrow(
+        'DATABASE must be explicitly set to dev or prod',
+      );
+    },
+  );
 });

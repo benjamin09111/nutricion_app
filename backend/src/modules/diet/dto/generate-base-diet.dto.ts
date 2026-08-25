@@ -1,4 +1,11 @@
-import { IsArray, IsOptional, IsString, IsNumber, Min, Max } from 'class-validator';
+import {
+  IsArray,
+  IsOptional,
+  IsString,
+  IsNumber,
+  Min,
+  Max,
+} from 'class-validator';
 
 export class GenerateBaseDietDto {
   @IsOptional()

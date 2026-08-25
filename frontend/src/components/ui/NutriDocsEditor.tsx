@@ -43,6 +43,10 @@ const CustomKeyboardShortcuts = Extension.create({
   },
 });
 
+const ToolBtn = ({ active, onClick, title, children }: { active: boolean; onClick: () => void; title: string; children: React.ReactNode }) => (
+  <button type="button" onClick={onClick} className={cn("p-2 rounded-lg transition-all", active ? 'bg-slate-200 text-slate-900' : 'text-slate-600 hover:bg-white hover:shadow-sm')} title={title}>{children}</button>
+);
+
 export function NutriDocsEditor({ value, onChange }: NutriDocsEditorProps) {
   const cleanInitial = unescapeHtml(value);
   const initialContent = (!cleanInitial || cleanInitial.trim() === '' || cleanInitial.trim() === '<p></p>')
@@ -104,10 +108,6 @@ export function NutriDocsEditor({ value, onChange }: NutriDocsEditorProps) {
   const addParagraph = () => {
     editor.chain().focus('end').insertContent({ type: 'paragraph' }).run();
   };
-
-  const ToolBtn = ({ active, onClick, title, children }: { active: boolean; onClick: () => void; title: string; children: React.ReactNode }) => (
-    <button type="button" onClick={onClick} className={cn("p-2 rounded-lg transition-all", active ? 'bg-slate-200 text-slate-900' : 'text-slate-600 hover:bg-white hover:shadow-sm')} title={title}>{children}</button>
-  );
 
   return (
     <div className="relative border border-slate-200 rounded-xl overflow-visible bg-white flex flex-col focus-within:ring-2 ring-indigo-500/20 transition-shadow">

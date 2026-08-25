@@ -46,6 +46,7 @@ export function LegalPage({ title, description, lastUpdated, sections }: LegalPa
             alt="NutriNet"
             width={180}
             height={56}
+            style={{ height: "auto" }}
             className="h-auto w-[130px] object-contain sm:w-[160px]"
             priority
           />

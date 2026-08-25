@@ -51,14 +51,16 @@ export default function PortalLoginPage() {
         }),
       });
 
-      const data = await response.json();
       if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
         throw new Error(data.message || "Credenciales incorrectas");
       }
 
-      // Guardamos el token de forma global para el portal
-      // Usamos una clave especial que PortalClient reconozca como "sesión global"
-      safeLocalStorage.setItem("portal_session_me", data.accessToken);
+      // SEGURIDAD: el JWT del portal ya viaja en la cookie httpOnly que pone
+      // `POST /patient-portals/login`, así que aquí NO se guarda ningún token.
+      // Antes se escribía `data.accessToken` en localStorage, donde cualquier
+      // XSS podía leerlo. Sólo queda un marcador de presencia sin valor.
+      safeLocalStorage.setItem("portal_session_me", "1");
 
       toast.success("¡Bienvenido de nuevo!");
       // Redirigimos a la ruta de dashboard personal

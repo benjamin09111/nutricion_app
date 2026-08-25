@@ -253,6 +253,17 @@ export function SubscriptionProvider({
     }
   }, [applyStoredUserSnapshot, refreshSubscription]);
 
+  useEffect(() => {
+    const handleUsageUpdated = () => {
+      void refreshSubscription({ silent: true });
+    };
+
+    window.addEventListener("membership-usage-updated", handleUsageUpdated);
+    return () => {
+      window.removeEventListener("membership-usage-updated", handleUsageUpdated);
+    };
+  }, [refreshSubscription]);
+
   const forceUpdatePlan = useCallback((newPlan: SubscriptionPlan) => {
     setPlan(newPlan);
   }, []);

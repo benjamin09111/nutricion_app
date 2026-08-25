@@ -4,25 +4,26 @@ import {
   UseInterceptors,
   UploadedFile,
   UseGuards,
-  Request,
   BadRequestException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { extname } from 'path';
 import { randomUUID } from 'crypto';
-import { writeFileSync, mkdirSync, existsSync } from 'fs';
-import { join } from 'path';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { PermissionsGuard } from '../permissions/permissions.guard';
 import { RequireFeatures } from '../permissions/permissions.decorator';
 import { SPECIAL_FEATURES } from '../permissions/permissions.constants';
 import { verifyFileSignature } from '../../common/utils/magic-bytes.util';
+import { StorageService } from '../../common/services/storage.service';
 
 @Controller('uploads')
 @UseGuards(AuthGuard, PermissionsGuard)
 @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
 export class UploadsController {
+  constructor(private readonly storageService: StorageService) {}
+
   @Post()
   @UseInterceptors(
     FileInterceptor('file', {
@@ -53,9 +54,15 @@ export class UploadsController {
       },
     }),
   )
-  uploadFile(@UploadedFile() file: any, @Request() req: any) {
+  async uploadFile(@UploadedFile() file: any) {
     if (!file || !file.buffer) {
       throw new BadRequestException('No se recibió ningún archivo');
+    }
+
+    if (!this.storageService.isConfigured()) {
+      throw new ServiceUnavailableException(
+        'El almacenamiento de archivos no está configurado en el servidor.',
+      );
     }
 
     // Strict Magic Bytes Verification (Binary Header Check)
@@ -70,23 +77,11 @@ export class UploadsController {
     const fileExtension = extname(file.originalname).toLowerCase() || '.bin';
     const secureFilename = `${randomUUID()}${fileExtension}`;
 
-    const uploadDir = join(process.cwd(), 'uploads');
-    if (!existsSync(uploadDir)) {
-      mkdirSync(uploadDir, { recursive: true });
-    }
-
-    const filePath = join(uploadDir, secureFilename);
-    writeFileSync(filePath, file.buffer);
-
-    const forwardedProto = req.headers['x-forwarded-proto'];
-    const protocol = process.env.API_URL
-      ? null
-      : Array.isArray(forwardedProto)
-        ? forwardedProto[0]
-        : forwardedProto || req.protocol || 'http';
-    const host = req.get?.('host') || req.headers.host;
-    const baseUrl = process.env.API_URL || `${protocol}://${host}`;
-    const url = `${baseUrl}/uploads/${secureFilename}`;
+    const url = await this.storageService.upload({
+      path: secureFilename,
+      body: file.buffer,
+      contentType: signatureCheck.detectedType || file.mimetype,
+    });
 
     return {
       url,

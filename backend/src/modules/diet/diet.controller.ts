@@ -19,7 +19,10 @@ export class DietController {
   }
 
   @Post('generate-base')
-  async generateBaseDiet(@Request() req: any, @Body() body: GenerateBaseDietDto) {
+  async generateBaseDiet(
+    @Request() req: any,
+    @Body() body: GenerateBaseDietDto,
+  ) {
     return this.dietService.generateBaseDiet(req.user.id, body);
   }
 }

@@ -30,7 +30,10 @@ export function base32Encode(buffer: Buffer): string {
 }
 
 export function base32Decode(base32Str: string): Buffer {
-  const cleanStr = base32Str.toUpperCase().replace(/=+$/, '').replace(/\s+/g, '');
+  const cleanStr = base32Str
+    .toUpperCase()
+    .replace(/=+$/, '')
+    .replace(/\s+/g, '');
   let bits = 0;
   let value = 0;
   const bytes: number[] = [];
@@ -96,7 +99,9 @@ export function verifyTotpToken(
   for (let step = -windowSteps; step <= windowSteps; step++) {
     const testTimeMs = nowMs + step * timeWindowMs;
     const generated = generateTotpToken(secretBase32, testTimeMs);
-    if (crypto.timingSafeEqual(Buffer.from(generated), Buffer.from(tokenToVerify))) {
+    if (
+      crypto.timingSafeEqual(Buffer.from(generated), Buffer.from(tokenToVerify))
+    ) {
       return true;
     }
   }

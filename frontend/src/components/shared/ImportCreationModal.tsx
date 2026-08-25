@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { Loader2, Search, Library, Tag as TagIcon } from "lucide-react";
-import Cookies from "js-cookie";
 import { toast } from "sonner";
 import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
@@ -81,9 +80,7 @@ export function ImportCreationModal({
   const fetchCreations = async () => {
     setLoading(true);
     try {
-      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const response = await fetchApi("/creations", {
-        headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
         const data = await response.json();

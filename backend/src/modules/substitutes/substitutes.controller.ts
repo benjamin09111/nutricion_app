@@ -11,9 +11,10 @@ import { SubstitutesService } from './substitutes.service';
 import { PermissionsGuard } from '../permissions/permissions.guard';
 import { RequireFeatures } from '../permissions/permissions.decorator';
 import { SPECIAL_FEATURES } from '../permissions/permissions.constants';
+import { NutritionistScopeGuard } from '../../common/guards/nutritionist-scope.guard';
 
 @Controller('substitutes')
-@UseGuards(AuthGuard, PermissionsGuard)
+@UseGuards(AuthGuard, NutritionistScopeGuard, PermissionsGuard)
 @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
 export class SubstitutesController {
   constructor(private readonly substitutesService: SubstitutesService) {}

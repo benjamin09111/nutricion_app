@@ -38,19 +38,33 @@ const buildTargetUrl = (request: NextRequest, pathSegments?: string[]) => {
   return target;
 };
 
+// SEGURIDAD: allowlist, nunca blocklist.
+// Antes se reenviaba `new Headers(request.headers)` completo, así que cualquier
+// navegador podía inyectar `x-api-key`, `x-nutritionist-id` (suplantando a otro
+// nutricionista) o `x-forwarded-for` (falseando la IP que usa el rate limiting,
+// porque el backend corre con `trust proxy`). Sólo pasa lo imprescindible.
+const FORWARDED_REQUEST_HEADERS = [
+  "cookie",
+  "content-type",
+  "accept",
+  "accept-language",
+] as const;
+
 async function proxyRequest(request: NextRequest, context: ProxyContext) {
   const params = await resolveParams(context);
   const target = buildTargetUrl(request, params.path);
 
-  const headers = new Headers(request.headers);
+  const headers = new Headers();
+  for (const name of FORWARDED_REQUEST_HEADERS) {
+    const value = request.headers.get(name);
+    if (value) headers.set(name, value);
+  }
+
   const tenantId = getTenantId();
 
   if (tenantId) {
     headers.set("X-Tenant-ID", tenantId);
   }
-
-  headers.delete("host");
-  headers.delete("content-length");
 
   const init: RequestInit = {
     method: request.method,

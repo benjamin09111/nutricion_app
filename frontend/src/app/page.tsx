@@ -34,6 +34,7 @@ import { sortPlansForLanding } from "@/features/memberships/utils/sort-plans";
 import LandingContactForm from "@/components/landing/LandingContactForm";
 import { RotatingWord } from "@/components/landing/RotatingWord";
 import { CookieBanner } from "@/components/landing/CookieBanner";
+import { TestimonialsSection } from "@/components/landing/TestimonialsSection";
 import {
   AboutNutriNetModal,
   type AboutSectionTab,
@@ -177,7 +178,7 @@ export default function LandingPage() {
                 width={160}
                 height={50}
                 className="h-auto w-[118px] object-contain transition-transform duration-300 hover:scale-105 sm:w-[148px]"
-                style={{ width: "auto", height: "auto" }}
+                style={{ height: "auto" }}
                 priority
               />
             </Link>
@@ -531,15 +532,19 @@ export default function LandingPage() {
                             <li key={idx} className="flex items-start gap-3">
                               <div
                                 className={cn(
-                                  "mt-0.5 rounded-full p-0.5",
-                                  featureDisplay.isExcluded
-                                    ? "bg-red-100"
-                                    : isPopular
-                                      ? "bg-indigo-100"
-                                      : "bg-slate-100",
+                                  "mt-0.5 rounded-full p-0.5 shrink-0",
+                                  featureDisplay.isNew
+                                    ? "bg-amber-100 border border-amber-300"
+                                    : featureDisplay.isExcluded
+                                      ? "bg-red-100"
+                                      : isPopular
+                                        ? "bg-indigo-100"
+                                        : "bg-slate-100",
                                 )}
                               >
-                                {featureDisplay.isExcluded ? (
+                                {featureDisplay.isNew ? (
+                                  <Sparkles className="h-4 w-4 text-amber-600 animate-pulse" />
+                                ) : featureDisplay.isExcluded ? (
                                   <X className="h-4 w-4 text-red-500" />
                                 ) : (
                                   <Check
@@ -552,16 +557,20 @@ export default function LandingPage() {
                                   />
                                 )}
                               </div>
-                              <span
-                                className={cn(
-                                  "text-sm font-medium",
-                                  featureDisplay.isExcluded
-                                    ? "text-slate-400 line-through"
-                                    : "text-slate-700",
-                                )}
-                              >
-                                {featureDisplay.label}
-                              </span>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span
+                                  className={cn(
+                                    "text-sm font-medium",
+                                    featureDisplay.isExcluded
+                                      ? "text-slate-400 line-through"
+                                      : featureDisplay.isNew
+                                        ? "text-slate-900 font-bold"
+                                        : "text-slate-700",
+                                  )}
+                                >
+                                  {featureDisplay.label}
+                                </span>
+                              </div>
                             </li>
                           );
                         })}
@@ -597,6 +606,8 @@ export default function LandingPage() {
             </div>
           </div>
         </section>
+
+        <TestimonialsSection />
 
         {/* Contact Form Section */}
         <section
@@ -636,6 +647,7 @@ export default function LandingPage() {
               alt="nutrinet"
               width={140}
               height={45}
+              style={{ width: "auto", height: "auto" }}
               className="h-auto w-[120px] object-contain brightness-0 invert"
             />
             <span className="text-xs text-slate-400 border-l border-slate-800 pl-3">

@@ -1,4 +1,3 @@
-import Cookies from "js-cookie";
 import { fetchApi, getApiUrl } from "@/lib/api-base";
 import { getCurrentUser } from "@/lib/current-user";
 
@@ -40,9 +39,7 @@ export const getWorkflowApiUrl = () =>
 export const getWorkflowAuthHeaders = (
   extraHeaders: Record<string, string> = {},
 ) => {
-  const token = Cookies.get("auth_token") || "";
   return {
-    Authorization: `Bearer ${token}`,
     ...extraHeaders,
   };
 };

@@ -38,8 +38,14 @@ interface PortalPreview {
 
 
 
+// SEGURIDAD: aqui NUNCA se guarda el JWT del portal. El backend lo entrega en
+// una cookie httpOnly (`patient_portal_session`) que el navegador manda sola en
+// cada peticion gracias a `credentials: "include"` de fetchApi. En localStorage
+// solo vive el marcador "1", legible por JS y sin valor para un atacante.
 const getPortalStorageKey = (token: string) =>
   token === "me" ? "portal_session_me" : `portal_session_${token}`;
+
+const PORTAL_SESSION_MARKER = "1";
 
 // Helper for safe localStorage access
 const safeLocalStorage = {
@@ -75,7 +81,7 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
   const [preview, setPreview] = useState<PortalPreview | null>(null);
   const [email, setEmail] = useState("");
   const [accessCode, setAccessCode] = useState("");
-  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [hasPortalSession, setHasPortalSession] = useState(false);
   const [portalData, setPortalData] = useState<PortalVerificationResponse | null>(null);
   const [isMounted, setIsMounted] = useState(false);
   const nutritionistSettings = portalData?.patient?.nutritionist?.settings as
@@ -90,16 +96,9 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
     setIsMounted(true);
   }, []);
 
-  const loadPortal = useCallback(async (tokenStr?: string) => {
+  const loadPortal = useCallback(async () => {
     try {
-      const response = await fetchApi(
-        "/patient-portals/me",
-        tokenStr
-          ? {
-              headers: { Authorization: `Bearer ${tokenStr}` },
-            }
-          : undefined,
-      );
+      const response = await fetchApi("/patient-portals/me");
 
       if (response.ok) {
         const data = await response.json();
@@ -107,13 +106,13 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
       } else {
         if (token === "me") {
           safeLocalStorage.removeItem(getPortalStorageKey(token));
-          setAccessToken(null);
+          setHasPortalSession(false);
           router.push("/portal/login");
           return;
         }
 
         safeLocalStorage.removeItem(getPortalStorageKey(token));
-        setAccessToken(null);
+        setHasPortalSession(false);
       }
     } catch (error) {
       console.error("Error loading portal:", error);
@@ -126,7 +125,7 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
     if (!isMounted) return;
     const stored = safeLocalStorage.getItem(getPortalStorageKey(token));
     if (stored) {
-      setAccessToken(stored);
+      setHasPortalSession(true);
     } else if (token === "me") {
       router.push("/portal/login");
     }
@@ -160,9 +159,9 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
   }, [token, isMounted]);
 
   useEffect(() => {
-    if (!accessToken) return;
-    loadPortal(accessToken);
-  }, [accessToken, loadPortal]);
+    if (!hasPortalSession) return;
+    loadPortal();
+  }, [hasPortalSession, loadPortal]);
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -196,9 +195,8 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
         throw new Error(data.message || "Código de acceso incorrecto o correo no coincide");
       }
 
-      const tokenStr = data.accessToken;
-      safeLocalStorage.setItem(getPortalStorageKey(token), tokenStr);
-      setAccessToken(tokenStr);
+      safeLocalStorage.setItem(getPortalStorageKey(token), PORTAL_SESSION_MARKER);
+      setHasPortalSession(true);
       setPortalData(data);
       toast.success("¡Acceso verificado!");
     } catch (error: any) {
@@ -374,7 +372,7 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
   };
 
   const handleSubmitEntry = async () => {
-    if (!entryText.trim() || !accessToken) return;
+    if (!entryText.trim() || !hasPortalSession) return;
 
     setIsSubmittingEntry(true);
     try {
@@ -382,7 +380,6 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`
         },
         body: JSON.stringify({
           alimentacion: entryText.trim()
@@ -413,7 +410,7 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
   };
 
   const handleSubmitQuestion = async () => {
-    if (!questionText.trim() || !accessToken) return;
+    if (!questionText.trim() || !hasPortalSession) return;
 
     setIsSubmittingQuestion(true);
     try {
@@ -421,7 +418,6 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`
         },
         body: JSON.stringify({
           message: questionText.trim()
@@ -462,7 +458,7 @@ export default function PortalClient({ token: propToken }: { token?: string }) {
     );
   }
 
-  if (!accessToken || !portalData) {
+  if (!hasPortalSession || !portalData) {
     return (
       <div className="min-h-screen bg-[#fafaf9] flex flex-col items-center justify-center p-4">
         <div className="w-full max-w-md">

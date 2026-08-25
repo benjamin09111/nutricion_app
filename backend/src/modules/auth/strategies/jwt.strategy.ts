@@ -79,9 +79,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Sesión inválida');
     }
 
-    // Instant Session Revocation check (tokenVersion)
+    // Instant Session Revocation check (tokenVersion).
+    // El claim es obligatorio: si se tratara como opcional, un token emitido
+    // sin él quedaría permanentemente fuera del mecanismo de revocación.
     if (
-      typeof payload?.tokenVersion === 'number' &&
+      typeof payload?.tokenVersion !== 'number' ||
       payload.tokenVersion !== account.tokenVersion
     ) {
       throw new UnauthorizedException('La sesión ha sido revocada');

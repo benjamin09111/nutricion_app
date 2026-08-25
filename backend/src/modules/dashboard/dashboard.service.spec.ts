@@ -7,10 +7,7 @@ describe('DashboardService', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        DashboardService,
-        { provide: PrismaService, useValue: {} },
-      ],
+      providers: [DashboardService, { provide: PrismaService, useValue: {} }],
     }).compile();
 
     service = module.get<DashboardService>(DashboardService);

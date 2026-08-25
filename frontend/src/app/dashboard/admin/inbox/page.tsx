@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { fetchApi } from "@/lib/api-base";
+import { getAuthToken } from "@/lib/auth-token";
 
 type InboxItem = {
   id: string;
@@ -65,14 +66,16 @@ export default function AdminInboxPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
 
+  const getAuthHeaders = (): Record<string, string> => {
+    const token = getAuthToken();
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
+
   const loadInbox = async () => {
     setIsLoading(true);
     try {
-      const token = localStorage.getItem("auth_token");
       const response = await fetchApi("/support", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: getAuthHeaders(),
       });
 
       if (!response.ok) {
@@ -134,13 +137,13 @@ export default function AdminInboxPage() {
 
     setIsSending(true);
     try {
-      const token = localStorage.getItem("auth_token");
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        ...getAuthHeaders(),
+      };
       const response = await fetchApi(`/support/${selectedItem.id}/reply`, {
         method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
+        headers,
         body: JSON.stringify({ message }),
       });
 

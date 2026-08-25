@@ -39,8 +39,10 @@ function dataCell(text: string, isAlt = false, bold = false) {
   };
 }
 
-export function exportPatientsToExcel(patients: Patient[]) {
-  const XLSX = require("xlsx");
+export async function exportPatientsToExcel(patients: Patient[]) {
+  const { createWorkbook, addSheet, downloadWorkbook } = await import(
+    "./excel-workbook"
+  );
 
   const headers = [
     hdrCell("Nombre", 25),
@@ -129,24 +131,26 @@ export function exportPatientsToExcel(patients: Patient[]) {
     ...rows,
   ];
 
-  const ws = XLSX.utils.aoa_to_sheet(rows.length === 0 ? [headers] : topRows);
+  const wb = createWorkbook();
+  addSheet(wb, "Pacientes", rows.length === 0 ? [headers] : topRows, {
+    cols: [
+      { wch: 25 },
+      { wch: 14 },
+      { wch: 25 },
+      { wch: 14 },
+      { wch: 16 },
+      { wch: 8 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 10 },
+      { wch: 30 },
+      { wch: 16 },
+    ],
+  });
 
-  ws["!cols"] = [
-    { wch: 25 },
-    { wch: 14 },
-    { wch: 25 },
-    { wch: 14 },
-    { wch: 16 },
-    { wch: 8 },
-    { wch: 12 },
-    { wch: 12 },
-    { wch: 12 },
-    { wch: 10 },
-    { wch: 30 },
-    { wch: 16 },
-  ];
-
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Pacientes");
-  XLSX.writeFile(wb, `nutinet_pacientes_${date.replace(/\//g, "-")}.xlsx`);
+  await downloadWorkbook(
+    wb,
+    `nutinet_pacientes_${date.replace(/\//g, "-")}.xlsx`,
+  );
 }

@@ -11,7 +11,6 @@ import {
   Sparkles,
   Upload,
 } from "lucide-react";
-import Cookies from "js-cookie";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/Button";
@@ -114,9 +113,7 @@ export function ResourceEditor({ initialData, editingId }: ResourceEditorProps) 
 
   async function fetchTags() {
     try {
-      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const res = await fetchApi(`/tags`, {
-        headers: { Authorization: `Bearer ${token}` },
       });
       const data = res.ok ? await res.json() : [];
       setAvailableTags(
@@ -140,10 +137,8 @@ export function ResourceEditor({ initialData, editingId }: ResourceEditorProps) 
     const data = new FormData();
     data.append("file", file);
     try {
-      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const res = await fetchApi(`/uploads`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
         body: data,
       });
       const json = await res.json();
@@ -159,12 +154,10 @@ export function ResourceEditor({ initialData, editingId }: ResourceEditorProps) 
   async function extractPdf() {
     if (!formData.fileUrl) return toast.error("Sube primero un PDF.");
     try {
-      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const res = await fetchApi(`/resources/extract-text`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ fileUrl: formData.fileUrl }),
       });
@@ -197,7 +190,6 @@ export function ResourceEditor({ initialData, editingId }: ResourceEditorProps) 
 
     setIsSaving(true);
     try {
-      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const method = editingId ? "PATCH" : "POST";
       const url = editingId
         ? `/resources/${editingId}`
@@ -207,7 +199,6 @@ export function ResourceEditor({ initialData, editingId }: ResourceEditorProps) 
         method,
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ ...formData, format: formatChoice }),
       });

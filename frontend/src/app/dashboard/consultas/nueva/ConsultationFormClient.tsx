@@ -34,7 +34,6 @@ import { MetricTagInput } from "@/components/ui/metric-tag-input";
 import { calculateAge } from "@/lib/nutrition-formulas";
 import { TagInput } from "@/components/ui/TagInput";
 import { toast } from "sonner";
-import Cookies from "js-cookie";
 import { DEFAULT_METRICS } from "@/lib/constants";
 import { Consultation, Metric } from "@/features/consultations";
 import { Patient } from "@/features/patients";
@@ -155,11 +154,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
 
     /** Lee el token en el momento de la petición para evitar valores obsoletos */
     const getAuthHeaders = () => {
-        const token =
-            Cookies.get("auth_token") ||
-            (typeof window !== "undefined" ? localStorage.getItem("auth_token") : "");
         return {
-            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
         };
     };

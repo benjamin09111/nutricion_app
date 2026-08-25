@@ -1,4 +1,3 @@
-"useClient";
 "use client";
 
 import React, { useState } from "react";
@@ -17,6 +16,8 @@ import {
 } from "lucide-react";
 import { fetchApi } from "@/lib/api-base";
 import { Button } from "@/components/ui/Button";
+import { toast } from "sonner";
+import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 
 interface AiStats {
   summary: {
@@ -65,6 +66,7 @@ export default function AdminIaCostosPage() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [page, setPage] = useState(1);
+  const [isConfirmingClean, setIsConfirmingClean] = useState(false);
 
   const queryParams = new URLSearchParams();
   if (userFilter) queryParams.set("userSearch", userFilter);
@@ -100,12 +102,13 @@ export default function AdminIaCostosPage() {
       return res.json();
     },
     onSuccess: (data) => {
-      alert(`Se eliminaron ${data.deletedCount} registros antiguos (>60 días).`);
+      toast.success(`Se eliminaron ${data.deletedCount} registros antiguos (>60 días).`);
+      setIsConfirmingClean(false);
       queryClient.invalidateQueries({ queryKey: ["adminAiStats"] });
       queryClient.invalidateQueries({ queryKey: ["adminAiLogs"] });
     },
     onError: (err: any) => {
-      alert(`Error: ${err.message}`);
+      toast.error(err.message || "Error al limpiar registros antiguos.");
     },
   });
 
@@ -115,9 +118,7 @@ export default function AdminIaCostosPage() {
   };
 
   const handleCleanLogs = () => {
-    if (confirm("¿Deseas eliminar todos los registros de uso de IA mayores a 60 días?")) {
-      cleanMutation.mutate();
-    }
+    setIsConfirmingClean(true);
   };
 
   const summary = statsData?.summary || {
@@ -503,6 +504,18 @@ export default function AdminIaCostosPage() {
           </div>
         )}
       </div>
+
+      <ConfirmationModal
+        isOpen={isConfirmingClean}
+        onClose={() => setIsConfirmingClean(false)}
+        onConfirm={() => cleanMutation.mutate()}
+        title="Limpiar historial de IA"
+        description="¿Deseas eliminar permanentemente todos los registros de uso de IA mayores a 60 días? Esta acción libera espacio y no se puede deshacer."
+        confirmText="Limpiar registros"
+        cancelText="Cancelar"
+        variant="danger"
+        isLoading={cleanMutation.isPending}
+      />
     </div>
   );
 }

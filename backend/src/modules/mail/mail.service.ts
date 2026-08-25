@@ -705,7 +705,12 @@ export class MailService {
     await this.sendEmail({
       to,
       subject: 'NutriNet — Tu cuenta ha sido suspendida',
-      html: this.wrapHtml(title, body, 'Contactar a soporte', `${this.frontendUrl}/login`),
+      html: this.wrapHtml(
+        title,
+        body,
+        'Contactar a soporte',
+        `${this.frontendUrl}/login`,
+      ),
       channel: 'support',
     });
   }
@@ -727,7 +732,11 @@ export class MailService {
     });
   }
 
-  async sendPaymentApprovedEmail(to: string, fullName: string, planName: string) {
+  async sendPaymentApprovedEmail(
+    to: string,
+    fullName: string,
+    planName: string,
+  ) {
     const title = '¡Pago Aprobado y Plan Activado!';
     const body = `
       <p style="font-size:16px;font-weight:700;color:#0f172a;margin-bottom:12px">Hola ${this.escapeHtml(fullName)},</p>
@@ -739,12 +748,21 @@ export class MailService {
     await this.sendEmail({
       to,
       subject: `¡Tu pago ha sido aprobado! — ${planName} activado`,
-      html: this.wrapHtml(title, body, 'Ir a NutriNet', `${this.frontendUrl}/login`),
+      html: this.wrapHtml(
+        title,
+        body,
+        'Ir a NutriNet',
+        `${this.frontendUrl}/login`,
+      ),
       channel: 'notifications',
     });
   }
 
-  async sendPaymentRejectedEmail(to: string, fullName: string, planName: string) {
+  async sendPaymentRejectedEmail(
+    to: string,
+    fullName: string,
+    planName: string,
+  ) {
     const title = 'Actualización sobre tu comprobante de pago';
     const body = `
       <p style="font-size:16px;font-weight:700;color:#0f172a;margin-bottom:12px">Hola ${this.escapeHtml(fullName)},</p>
@@ -756,7 +774,12 @@ export class MailService {
     await this.sendEmail({
       to,
       subject: `NutriNet — Información sobre tu solicitud de pago`,
-      html: this.wrapHtml(title, body, 'Ver mis planes', `${this.frontendUrl}/dashboard/configuraciones`),
+      html: this.wrapHtml(
+        title,
+        body,
+        'Ver mis planes',
+        `${this.frontendUrl}/dashboard/configuraciones`,
+      ),
       channel: 'notifications',
     });
   }

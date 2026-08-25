@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import Link from "next/link";
 import {
   Calculator,
   Activity,
@@ -23,6 +24,7 @@ import {
   Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { Input } from "@/components/ui/Input";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
@@ -165,17 +167,6 @@ export default function CalculosClient() {
   // MNA modal & state
   const [mnaResult, setMnaResult] = useState<MNAData | null>(null);
   const [isMNAModalOpen, setIsMNAModalOpen] = useState(false);
-
-  // Screening Tests state
-  const [activeScreeningTest, setActiveScreeningTest] = useState<ScreeningTestType | null>(null);
-  const [isScreeningModalOpen, setIsScreeningModalOpen] = useState(false);
-  const [isTestSelectorModalOpen, setIsTestSelectorModalOpen] = useState(false);
-
-  const handleSelectScreeningTest = (type: ScreeningTestType) => {
-    setActiveScreeningTest(type);
-    setIsScreeningModalOpen(true);
-    setIsTestSelectorModalOpen(false);
-  };
 
   // UI state
   const [showGlossary, setShowGlossary] = useState(false);
@@ -444,22 +435,10 @@ export default function CalculosClient() {
   }
 
   return (
-    <div className="relative max-w-7xl mx-auto pb-24 px-4 sm:px-6">
-
-      {/* Encabezado Limpio */}
-      <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-            <span className="p-1.5 rounded-xl bg-indigo-600 text-white shadow-sm">
-              <Calculator className="w-5 h-5" />
-            </span>
-            Calculadora Clínica NutriNet
-          </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Evaluación nutricional rápida y módulos avanzados a pantalla completa.
-          </p>
-        </div>
-
+    <ModuleLayout
+      title="Calculadora Clínica NutriNet"
+      description="Evaluación nutricional rápida y módulos avanzados a pantalla completa para el cálculo de requerimientos, antropometría y composición."
+      rightContent={
         <div className="flex flex-wrap items-center gap-2">
           <Button
             variant="outline"
@@ -479,7 +458,7 @@ export default function CalculosClient() {
               }
               void openPatientImportModal();
             }}
-            className="text-xs border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 font-semibold h-8 rounded-xl flex-1 sm:flex-none justify-center gap-1"
+            className="text-xs border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 font-semibold h-8 rounded-xl flex-1 sm:flex-none justify-center gap-1 cursor-pointer"
           >
             {patientImportLocked ? (
               <Lock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
@@ -489,40 +468,28 @@ export default function CalculosClient() {
             <span>{selectedPatient ? "Cambiar paciente" : "Importar paciente"}</span>
           </Button>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              if (screeningTestsLocked) {
-                window.dispatchEvent(
-                  new CustomEvent("show-freemium-upgrade", {
-                    detail: { feature: "Tests de tamizaje nutricional" },
-                  }),
-                );
-                return;
-              }
-              setIsTestSelectorModalOpen(true);
-            }}
-            className="text-xs border-indigo-200 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 font-semibold h-8 rounded-xl flex-1 sm:flex-none justify-center gap-1"
-          >
-            {screeningTestsLocked ? (
-              <Lock className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-            ) : (
+          <Link href="/dashboard/herramientas/tests">
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs border-indigo-200 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 font-semibold h-8 rounded-xl flex-1 sm:flex-none justify-center gap-1 cursor-pointer"
+            >
               <FileText className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-            )}
-            <span>Tests de Tamizaje</span>
-          </Button>
+              <span>Ir a Tests de Tamizaje</span>
+            </Button>
+          </Link>
 
           <Button
             variant="outline"
             size="sm"
             onClick={handleQuickValues}
-            className="text-xs border-slate-200 text-slate-600 bg-white hover:bg-slate-50 h-8 rounded-xl flex-1 sm:flex-none justify-center"
+            className="text-xs border-slate-200 text-slate-600 bg-white hover:bg-slate-50 h-8 rounded-xl flex-1 sm:flex-none justify-center cursor-pointer"
           >
             <span>Cargar Caso Ejemplo</span>
           </Button>
         </div>
-      </div>
+      }
+    >
 
       {/* Glosario Clínico Toggle */}
       <div className="mb-6">
@@ -1456,51 +1423,6 @@ export default function CalculosClient() {
         isOpen={isMNAModalOpen}
         onClose={() => setIsMNAModalOpen(false)}
         onApplyMNA={(mnaData) => setMnaResult(mnaData)}
-      />
-
-      {/* Modal de Selección de Tests */}
-      {isTestSelectorModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-3xl w-full p-6 space-y-4 animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div>
-                <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-indigo-600" />
-                  Tests de Tamizaje Nutricional
-                </h2>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Selecciona una herramienta validada para evaluar el riesgo nutricional del paciente.
-                </p>
-              </div>
-              <button
-                onClick={() => setIsTestSelectorModalOpen(false)}
-                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <TestSelectorPanel
-              onSelect={handleSelectScreeningTest}
-              locked={screeningTestsLocked}
-              suggestedTest={suggestedTest}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Modal del Test Seleccionado */}
-      {activeScreeningTest && (
-        <ScreeningTestModal
-          isOpen={isScreeningModalOpen}
-          testType={activeScreeningTest}
-          onClose={() => {
-            setIsScreeningModalOpen(false);
-            setActiveScreeningTest(null);
-          }}
-          patientData={screeningAutoFillData}
-        />
-      )}
-    </div>
+      />    </ModuleLayout>
   );
 }

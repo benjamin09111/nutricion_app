@@ -12,7 +12,6 @@ import { UpdateFoodDto } from './dto/update-food.dto';
 import { PrismaService } from '../../prisma/prisma.service';
 import * as path from 'path';
 import * as fs from 'fs';
-import * as XLSX from 'xlsx';
 import { MarketPriceDto } from './dto/market-price.dto';
 
 import { CacheService } from '../../common/services/cache.service';
@@ -27,6 +26,56 @@ const buildPublicSlug = (fullName: string, id: string) => {
   const idPart = id.substring(0, 8);
   return `${namePart}-${idPart}`;
 };
+
+/**
+ * Minimal RFC-4180 CSV reader. The market prices file is a plain CSV, so this
+ * avoids pulling a spreadsheet parser (and its known CVEs) just to split rows.
+ */
+function parseCsv(content: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let field = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < content.length; i++) {
+    const char = content[i];
+
+    if (inQuotes) {
+      if (char === '"') {
+        if (content[i + 1] === '"') {
+          field += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        field += char;
+      }
+      continue;
+    }
+
+    if (char === '"') {
+      inQuotes = true;
+    } else if (char === ',' || char === ';') {
+      row.push(field);
+      field = '';
+    } else if (char === '\n') {
+      row.push(field);
+      rows.push(row);
+      row = [];
+      field = '';
+    } else if (char !== '\r') {
+      field += char;
+    }
+  }
+
+  if (field !== '' || row.length > 0) {
+    row.push(field);
+    rows.push(row);
+  }
+
+  return rows.filter((entry) => entry.some((value) => value.trim() !== ''));
+}
 
 @Injectable()
 export class FoodsService {
@@ -850,18 +899,11 @@ export class FoodsService {
         return [];
       }
 
-      const workbook = XLSX.readFile(filePath);
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
+      const jsonData = parseCsv(fs.readFileSync(filePath, 'utf-8'));
+      if (jsonData.length === 0) return [];
 
-      const jsonData = XLSX.utils.sheet_to_json(worksheet, {
-        range: 0,
-        header: 1,
-        defval: '',
-      });
-
-      const headers = jsonData[0] as string[];
-      const rows = jsonData.slice(1, limit + 1) as any[][];
+      const headers = jsonData[0];
+      const rows = jsonData.slice(1, limit + 1);
 
       return rows.map((row) => {
         const record: any = {};

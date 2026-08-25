@@ -1,19 +1,6 @@
-import * as jwt from 'jsonwebtoken';
+import { ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import {
-  AppointmentRequest,
-  NutritionistJwtPayload,
-} from './appointments.types';
-
-const readHeader = (
-  value: string | string[] | undefined,
-): string | undefined => {
-  if (Array.isArray(value)) {
-    return value[0];
-  }
-
-  return value;
-};
+import { AppointmentRequest } from './appointments.types';
 
 const buildNutritionistSlug = (accountId: string, email?: string | null) => {
   const base = (email || 'nutricionista')
@@ -28,77 +15,55 @@ const buildNutritionistSlug = (accountId: string, email?: string | null) => {
   return `${base || 'nutricionista'}-${accountId.slice(0, 8)}`;
 };
 
+/**
+ * Resuelve el nutricionista dueño de la petición.
+ *
+ * SEGURIDAD: la identidad sale EXCLUSIVAMENTE de `request.user`, que rellena
+ * `JwtStrategy` leyendo la cuenta desde la base de datos. Las cabeceras
+ * `x-nutritionist-id` y `x-api-key` que se aceptaban antes quedaron eliminadas:
+ * permitían indicar la agenda de cualquier otro nutricionista con un único
+ * secreto compartido, y ahora se ignoran por completo aunque lleguen.
+ */
 export async function resolveNutritionistIdFromRequest(
   request: AppointmentRequest,
   prisma: PrismaService,
 ): Promise<string> {
-  const headerId = readHeader(request.headers['x-nutritionist-id']);
-  const apiKey = readHeader(request.headers['x-api-key']);
-  const authHeader = readHeader(request.headers['authorization']);
+  const user = (request as any).user as
+    | { id?: string; role?: string; nutritionistId?: string }
+    | undefined;
 
-  if (headerId && apiKey && apiKey === process.env.APPOINTMENTS_API_KEY) {
-    const headerNutritionist = await prisma.nutritionist.findUnique({
-      where: { id: headerId },
-      select: { id: true },
+  const accountId = user?.id;
+  if (!accountId) {
+    throw new ForbiddenException('No se pudo identificar al nutricionista');
+  }
+
+  if (user?.nutritionistId) {
+    return user.nutritionistId;
+  }
+
+  // La cuenta es de nutricionista pero aún no tiene ficha creada (puede pasar en
+  // cuentas antiguas o creadas por un administrador). Se crea al vuelo.
+  if (user.role === 'NUTRITIONIST' || user.role === 'NUTRITIONIST_DEVELOPER') {
+    const account = await prisma.account.findUnique({
+      where: { id: accountId },
+      select: { id: true, email: true },
     });
 
-    if (headerNutritionist?.id) {
-      return headerNutritionist.id;
+    if (account) {
+      const created = await prisma.nutritionist.create({
+        data: {
+          accountId: account.id,
+          fullName: account.email.split('@')[0] || 'Nutricionista',
+          publicSlug: buildNutritionistSlug(account.id, account.email),
+        },
+        select: { id: true },
+      });
+
+      return created.id;
     }
   }
 
-  if (authHeader?.startsWith('Bearer ')) {
-    const token = authHeader.substring(7);
-
-    try {
-      const jwtSecret = process.env.JWT_SECRET;
-
-      if (!jwtSecret) {
-        throw new Error('JWT secret not configured');
-      }
-
-      const decoded = jwt.verify(token, jwtSecret) as NutritionistJwtPayload;
-
-      if (decoded?.sub) {
-        const account = await prisma.account.findUnique({
-          where: { id: decoded.sub },
-          include: { nutritionist: true },
-        });
-
-        if (account?.nutritionist?.id) {
-          return account.nutritionist.id;
-        }
-
-        const nutritionist = await prisma.nutritionist.findUnique({
-          where: { accountId: decoded.sub },
-          select: { id: true },
-        });
-
-        if (nutritionist?.id) {
-          return nutritionist.id;
-        }
-
-        if (
-          account &&
-          (account.role === 'NUTRITIONIST' ||
-            account.role === 'NUTRITIONIST_DEVELOPER')
-        ) {
-          const createdNutritionist = await prisma.nutritionist.create({
-            data: {
-              accountId: account.id,
-              fullName: account.email.split('@')[0] || 'Nutricionista',
-              publicSlug: buildNutritionistSlug(account.id, account.email),
-            },
-            select: { id: true },
-          });
-
-          return createdNutritionist.id;
-        }
-      }
-    } catch {
-      // Invalid JWTs fall back to the explicit nutritionist header.
-    }
-  }
-
-  throw new Error('No se pudo identificar al nutricionista');
+  throw new ForbiddenException(
+    'Esta sección es exclusiva de cuentas de nutricionista con perfil activo.',
+  );
 }

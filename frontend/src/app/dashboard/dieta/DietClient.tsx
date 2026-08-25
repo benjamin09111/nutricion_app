@@ -221,7 +221,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         onClick: () => void state.performExportPdf(),
       },
     ],
-    [state],
+    [state, setIsFoodReferenceBookOpen],
   );
 
   return (

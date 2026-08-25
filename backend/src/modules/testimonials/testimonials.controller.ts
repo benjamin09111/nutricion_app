@@ -16,7 +16,10 @@ import { UpdateTestimonialDto } from './dto/update-testimonial.dto';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { PermissionsGuard } from '../permissions/permissions.guard';
 import { RequireFeatures } from '../permissions/permissions.decorator';
-import { SPECIAL_FEATURES, isStaffRole } from '../permissions/permissions.constants';
+import {
+  SPECIAL_FEATURES,
+  isStaffRole,
+} from '../permissions/permissions.constants';
 
 @Controller('testimonials')
 export class TestimonialsController {

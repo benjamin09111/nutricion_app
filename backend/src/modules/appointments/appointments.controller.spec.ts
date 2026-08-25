@@ -1,4 +1,3 @@
-import { Reflector } from '@nestjs/core';
 import { PLAN_ENTITLEMENT_KEYS } from '../memberships/plan-entitlements';
 import { REQUIRED_FEATURES_KEY } from '../permissions/permissions.constants';
 import { AppointmentsController } from './appointments.controller';
@@ -13,26 +12,39 @@ const requiredFeatures = (controller: object, method: string) =>
 
 describe('Appointment entitlement protection', () => {
   it('protects authenticated calendar and appointment management routes', () => {
-    expect(requiredFeatures(AppointmentsController.prototype, 'getMyCalendar')).toEqual([
-      PLAN_ENTITLEMENT_KEYS.APPOINTMENTS_ACCESS,
-    ]);
-    expect(requiredFeatures(AppointmentsController.prototype, 'createAppointment')).toEqual([
-      PLAN_ENTITLEMENT_KEYS.APPOINTMENTS_ACCESS,
-    ]);
-    expect(requiredFeatures(AppointmentsController.prototype, 'approveAppointment')).toEqual([
-      PLAN_ENTITLEMENT_KEYS.APPOINTMENTS_ACCESS,
-    ]);
-    expect(requiredFeatures(AppointmentsRecordsController.prototype, 'listAppointments')).toEqual([
-      PLAN_ENTITLEMENT_KEYS.APPOINTMENTS_ACCESS,
-    ]);
+    expect(
+      requiredFeatures(AppointmentsController.prototype, 'getMyCalendar'),
+    ).toEqual([PLAN_ENTITLEMENT_KEYS.APPOINTMENTS_ACCESS]);
+    expect(
+      requiredFeatures(AppointmentsController.prototype, 'createAppointment'),
+    ).toEqual([PLAN_ENTITLEMENT_KEYS.APPOINTMENTS_ACCESS]);
+    expect(
+      requiredFeatures(AppointmentsController.prototype, 'approveAppointment'),
+    ).toEqual([PLAN_ENTITLEMENT_KEYS.APPOINTMENTS_ACCESS]);
+    expect(
+      requiredFeatures(
+        AppointmentsRecordsController.prototype,
+        'listAppointments',
+      ),
+    ).toEqual([PLAN_ENTITLEMENT_KEYS.APPOINTMENTS_ACCESS]);
   });
 
   it('requires both entitlements for Google Calendar integration routes', () => {
-    expect(requiredFeatures(AppointmentsController.prototype, 'connectGoogleCalendar')).toEqual([
+    expect(
+      requiredFeatures(
+        AppointmentsController.prototype,
+        'connectGoogleCalendar',
+      ),
+    ).toEqual([
       PLAN_ENTITLEMENT_KEYS.APPOINTMENTS_ACCESS,
       PLAN_ENTITLEMENT_KEYS.GOOGLE_CALENDAR_SYNC,
     ]);
-    expect(requiredFeatures(AppointmentsController.prototype, 'updateGoogleIntegration')).toEqual([
+    expect(
+      requiredFeatures(
+        AppointmentsController.prototype,
+        'updateGoogleIntegration',
+      ),
+    ).toEqual([
       PLAN_ENTITLEMENT_KEYS.APPOINTMENTS_ACCESS,
       PLAN_ENTITLEMENT_KEYS.GOOGLE_CALENDAR_SYNC,
     ]);
@@ -40,7 +52,10 @@ describe('Appointment entitlement protection', () => {
 
   it('does not add entitlement protection to public booking endpoints', () => {
     expect(
-      requiredFeatures(AppointmentsPublicController.prototype, 'getBookingLink'),
+      requiredFeatures(
+        AppointmentsPublicController.prototype,
+        'getBookingLink',
+      ),
     ).toBeUndefined();
     expect(
       requiredFeatures(

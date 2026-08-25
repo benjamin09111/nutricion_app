@@ -24,7 +24,14 @@ export class DiscountCodesService {
     count: number,
     createdByAdminId: string,
   ) {
-    const discountPercent = type === DiscountCodeType.NUTRI ? 50 : 90;
+    const discountPercent =
+      type === ('PROMO_30' as DiscountCodeType)
+        ? 30
+        : type === ('PROMO_15' as DiscountCodeType)
+          ? 15
+          : type === DiscountCodeType.NUTRI
+            ? 50
+            : 90;
     const codes: string[] = [];
 
     for (let i = 0; i < count; i++) {

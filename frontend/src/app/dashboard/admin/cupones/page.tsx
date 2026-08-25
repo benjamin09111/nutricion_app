@@ -12,7 +12,10 @@ import {
   membershipService,
   type DiscountCodeAdmin,
 } from "@/features/memberships/services/membership.service";
-import { DISCOUNT_OPTIONS } from "@/features/memberships/constants/discount-options";
+import {
+  DISCOUNT_OPTIONS,
+  type DiscountCodeTypeValue,
+} from "@/features/memberships/constants/discount-options";
 
 const PAGE_SIZE = 8;
 
@@ -22,7 +25,7 @@ export default function AdminCuponesPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [genType, setGenType] = useState<"NUTRI" | "BETA">("NUTRI");
+  const [genType, setGenType] = useState<DiscountCodeTypeValue>("NUTRI");
   const [genCount, setGenCount] = useState(1);
   const [filterUsed, setFilterUsed] = useState<string>("");
   const [showArchived, setShowArchived] = useState(false);
@@ -173,7 +176,7 @@ export default function AdminCuponesPage() {
             </label>
             <select
               value={genType}
-              onChange={(e) => setGenType(e.target.value as "NUTRI" | "BETA")}
+              onChange={(e) => setGenType(e.target.value as DiscountCodeTypeValue)}
               className="cursor-pointer rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-900"
             >
               {DISCOUNT_OPTIONS.map((opt) => (

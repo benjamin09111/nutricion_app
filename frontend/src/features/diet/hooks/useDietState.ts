@@ -1,6 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Cookies from "js-cookie";
 import { toast } from "sonner";
 import { DEFAULT_CONSTRAINTS } from "@/lib/constants";
 import { MarketPrice } from "@/features/foods";
@@ -449,9 +448,6 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
 
   const favoritesEnabled = true;
 
-  const getAuthToken = () =>
-    Cookies.get("auth_token") || localStorage.getItem("auth_token") || "";
-
   const availableClassificationTags = useMemo(
     () => availableTags.filter((tag) => tag.startsWith("#")),
     [availableTags],
@@ -500,10 +496,7 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
 
   const fetchAvailableTags = async (retries = 3) => {
     try {
-      const token = getAuthToken();
-      const response = await fetchApi(`/tags`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await fetchApi(`/tags`,);
       if (response.ok) {
         const tagsData = await response.json();
         const tags = tagsData.map((t: any) => t.name);
@@ -520,13 +513,9 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
 
   const createGlobalTag = async (tagName: string) => {
     try {
-      const token = getAuthToken();
       const response = await fetchApi(`/tags`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: tagName }),
       });
       if (response.ok) {
@@ -1091,11 +1080,7 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
       }
 
       try {
-        const token =
-          Cookies.get("auth_token") || localStorage.getItem("auth_token");
-        const response = await fetchApi(`/creations/${id}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const response = await fetchApi(`/creations/${id}`,);
 
         if (response.ok) {
           const text = await response.text();
@@ -1552,45 +1537,36 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
     setFoodStatus(nextStatus);
     saveDraft({ foodStatus: nextStatus });
 
-    const token = getAuthToken();
-    if (token) {
-      try {
-        let targetId = food.id;
+    try {
+      let targetId = food.id;
 
-        if (food.id && food.id.startsWith("base-")) {
-          const res = await fetchApi(
-            `/foods?search=${encodeURIComponent(productName)}&limit=1`,
-            {
-              headers: { Authorization: `Bearer ${token}` },
-            },
+      if (food.id && food.id.startsWith("base-")) {
+        const res = await fetchApi(
+          `/foods?search=${encodeURIComponent(productName)}&limit=1`,
+        );
+        if (res.ok) {
+          const results = await res.json();
+          const matching = results.find(
+            (r: any) => r.name.toLowerCase() === productName.toLowerCase(),
           );
-          if (res.ok) {
-            const results = await res.json();
-            const matching = results.find(
-              (r: any) => r.name.toLowerCase() === productName.toLowerCase(),
-            );
-            if (matching) targetId = matching.id;
-          }
+          if (matching) targetId = matching.id;
         }
-
-        if (
-          targetId &&
-          !targetId.startsWith("base-") &&
-          !targetId.startsWith("search-") &&
-          !targetId.startsWith("manual-")
-        ) {
-          await fetchApi(`/foods/${targetId}/preferences`, {
-            method: "PATCH",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ isFavorite: !isCurrentlyFavorite }),
-          });
-        }
-      } catch (e) {
-        console.error("Error toggling favorite", e);
       }
+
+      if (
+        targetId &&
+        !targetId.startsWith("base-") &&
+        !targetId.startsWith("search-") &&
+        !targetId.startsWith("manual-")
+      ) {
+        await fetchApi(`/foods/${targetId}/preferences`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ isFavorite: !isCurrentlyFavorite }),
+        });
+      }
+    } catch (e) {
+      console.error("Error toggling favorite", e);
     }
   };
 
@@ -2113,12 +2089,10 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
         },
       };
 
-      const token = getAuthToken();
       const response = await fetchApi("/recipes/quick-ai-fill", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify(payload),
       });
@@ -2314,14 +2288,9 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
 
     const fetchFoods = async () => {
       setIsSearchingFoods(true);
-      const token = Cookies.get("auth_token");
       try {
         const res = await fetchApi(
-          `/foods?search=${foodSearchQuery}&limit=20`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          },
-        );
+          `/foods?search=${foodSearchQuery}&limit=20`,);
         if (res.ok) {
           const data = await res.json();
           const normalizedTargetGroup = normalizeGroupName(
@@ -2381,14 +2350,9 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
 
     const fetchFoods = async () => {
       setIsSearchingInSmart(true);
-      const token = Cookies.get("auth_token");
       try {
         const res = await fetchApi(
-          `/foods?search=${smartSearchQuery}&limit=20`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          },
-        );
+          `/foods?search=${smartSearchQuery}&limit=20`,);
         if (res.ok) {
           const data = await res.json();
           setSmartSearchResults(data);
@@ -2730,12 +2694,9 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
 
   const applyNutritionistPreferences = async () => {
     setIsApplyingPreferences(true);
-    const token = getAuthToken();
     try {
       const normalizeName = (value: string) => value.toLowerCase().trim();
-      const response = await fetchApi(`/foods?limit=1000`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await fetchApi(`/foods?limit=1000`,);
 
       if (!response.ok) {
         toast.error("Error al cargar preferencias.");
@@ -2889,13 +2850,11 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
 
   const fetchSmartAddData = async () => {
     setIsLoadingSmart(true);
-    const token = getAuthToken();
     try {
-      const headers = { Authorization: `Bearer ${token}` };
       const [favoritesRes, myProductsRes, groupsRes] = await Promise.all([
-        fetchApi(`/foods?tab=favorites&limit=1000`, { headers }),
-        fetchApi(`/foods?tab=mine&limit=1000`, { headers }),
-        fetchApi(`/ingredient-groups`, { headers }),
+        fetchApi(`/foods?tab=favorites&limit=1000`),
+        fetchApi(`/foods?tab=mine&limit=1000`),
+        fetchApi(`/ingredient-groups`),
       ]);
 
       if (favoritesRes.ok) {

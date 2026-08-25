@@ -2,7 +2,7 @@ import { ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   EntitlementMap,
-  isStaffRole,
+  hasUnlimitedEntitlements,
   normalizeEntitlementMap,
   SPECIAL_FEATURES,
 } from './permissions.constants';
@@ -15,12 +15,6 @@ import {
 import { resolveAccountPlanFromMembershipPlan } from '../memberships/account-plan';
 
 const ACTIVE_SUBSCRIPTION_STATUSES = new Set(['ACTIVE', 'TRIALING']);
-
-function hasDbEntitlements(plan: any): boolean {
-  const db = plan?.entitlements;
-  if (!db || typeof db !== 'object') return false;
-  return Object.keys(db).length > 0;
-}
 
 function resolveEntitlements(
   plan: any,
@@ -45,7 +39,7 @@ const isSubscriptionSelectable = (account: {
     plan?: { slug?: string | null; price?: unknown } | null;
   } | null;
 }) => {
-  if (isStaffRole(account.role)) {
+  if (hasUnlimitedEntitlements(account.role)) {
     return true;
   }
 
@@ -93,24 +87,19 @@ export class PermissionsService {
 
     let subscriptionSelectable = isSubscriptionSelectable({
       role: account.role,
-          subscription: account.subscription
-          ? {
-              status: account.subscription.status,
-              endDate: account.subscription.endDate,
-              plan: account.subscription.plan
-                ? {
-                    slug: account.subscription.plan.slug,
-                    price: account.subscription.plan.price,
-                  }
-                : null,
-            }
+      subscription: account.subscription
+        ? {
+            status: account.subscription.status,
+            endDate: account.subscription.endDate,
+            plan: account.subscription.plan
+              ? {
+                  slug: account.subscription.plan.slug,
+                  price: account.subscription.plan.price,
+                }
+              : null,
+          }
         : null,
     });
-
-    let hasPlanSelectionHistory =
-      account.plan !== 'FREE' ||
-      account.payments.length > 0 ||
-      subscriptionSelectable;
 
     const freeMembershipPlan = await this.prisma.membershipPlan.findFirst({
       where: {
@@ -201,7 +190,7 @@ export class PermissionsService {
             }
           : null;
 
-    const requiresPlanSelection = isStaffRole(account.role)
+    const requiresPlanSelection = hasUnlimitedEntitlements(account.role)
       ? false
       : !account.membershipSelectedAt;
 
@@ -218,7 +207,7 @@ export class PermissionsService {
             )
           : account.plan === 'FREE'
             ? 'FREE'
-            : isStaffRole(account.role)
+            : hasUnlimitedEntitlements(account.role)
               ? account.plan
               : 'FREE',
     };
@@ -232,14 +221,9 @@ export class PermissionsService {
       entitlements: EntitlementMap;
     } | null,
   ): EntitlementMap {
-    if (isStaffRole(account.role)) {
+    if (hasUnlimitedEntitlements(account.role)) {
       return { [SPECIAL_FEATURES.MEMBERSHIP_SELECTED]: true };
     }
-
-    const hasPlanSelectionHistory =
-      account.plan !== 'FREE' ||
-      Boolean(account.payments?.length) ||
-      isSubscriptionSelectable(account);
 
     if (!currentPlan) {
       return MEMBERSHIP_PLAN_ENTITLEMENTS.free;
@@ -308,7 +292,7 @@ export class PermissionsService {
 
     const { account, entitlements } = snapshot;
 
-    if (isStaffRole(account.role)) {
+    if (hasUnlimitedEntitlements(account.role)) {
       return true;
     }
 
@@ -323,7 +307,7 @@ export class PermissionsService {
     const snapshot = await this.getAccountAccess(accountId);
 
     if (!snapshot) return 0;
-    if (isStaffRole(snapshot.role)) return Infinity;
+    if (hasUnlimitedEntitlements(snapshot.role)) return Infinity;
 
     const value = snapshot.entitlements[limitKey];
     if (typeof value === 'number') {
@@ -331,7 +315,9 @@ export class PermissionsService {
     }
 
     const planKey = snapshot.currentPlan?.key || 'free';
-    const fallbackMap = MEMBERSHIP_PLAN_ENTITLEMENTS[planKey] || MEMBERSHIP_PLAN_ENTITLEMENTS.free;
+    const fallbackMap =
+      MEMBERSHIP_PLAN_ENTITLEMENTS[planKey] ||
+      MEMBERSHIP_PLAN_ENTITLEMENTS.free;
     const fallbackValue = fallbackMap[limitKey];
     if (typeof fallbackValue === 'number') {
       return fallbackValue < 0 ? Infinity : fallbackValue;

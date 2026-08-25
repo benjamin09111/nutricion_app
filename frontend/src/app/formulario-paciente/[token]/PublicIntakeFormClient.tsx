@@ -23,6 +23,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
+import { toast } from 'sonner';
 import { DatePicker } from '@/components/ui/DatePicker';
 import { Button } from '@/components/ui/Button';
 import { intakeFormSchema } from '@/lib/schemas/intake-form.schema';
@@ -169,10 +170,10 @@ export default function PublicIntakeFormClient() {
         setIsSubmitted(true);
       } else {
         const errorData = await response.json();
-        alert(errorData.message || 'Error al enviar el formulario');
+        toast.error(errorData.message || 'Error al enviar el formulario');
       }
     } catch {
-      alert('Error de conexión. Intenta de nuevo.');
+      toast.error('Error de conexión. Intenta de nuevo.');
     } finally {
       setIsSubmitting(false);
     }

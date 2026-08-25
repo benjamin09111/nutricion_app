@@ -15,9 +15,10 @@ import { PermissionsGuard } from '../permissions/permissions.guard';
 import { RequireFeatures } from '../permissions/permissions.decorator';
 import { SPECIAL_FEATURES } from '../permissions/permissions.constants';
 import { PLAN_ENTITLEMENT_KEYS } from '../memberships/plan-entitlements';
+import { NutritionistScopeGuard } from '../../common/guards/nutritionist-scope.guard';
 
 @Controller('metrics')
-@UseGuards(AuthGuard, PermissionsGuard)
+@UseGuards(AuthGuard, NutritionistScopeGuard, PermissionsGuard)
 @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
 export class MetricsController {
   constructor(private readonly metricsService: MetricsService) {}

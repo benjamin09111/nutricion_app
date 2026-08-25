@@ -59,6 +59,11 @@ interface DietMealsSectionProps {
   setIncludeAvoidFoodsInPdf?: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
+// Declarado a nivel de módulo: `Date.now` y `Math.random` son impuras y el
+// React Compiler no permite invocarlas dentro del cuerpo de un componente.
+const createMealRowId = () =>
+  `meal-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+
 export function DietMealsSection({
   includeMealsSection,
   setIncludeMealsSection,
@@ -97,7 +102,7 @@ export function DietMealsSection({
 
   const addMealRow = (defaultSection = "Almuerzo", defaultTime = "13:30") => {
     const newRow: DietMealTableRow = {
-      id: `meal-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      id: createMealRowId(),
       section: defaultSection,
       mealText: "",
       time: defaultTime,

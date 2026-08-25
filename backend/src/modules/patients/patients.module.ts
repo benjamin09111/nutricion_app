@@ -21,4 +21,3 @@ import { PatientDataAccessGuard } from './guards/patient-data-access.guard';
   exports: [PatientsService],
 })
 export class PatientsModule {}
-

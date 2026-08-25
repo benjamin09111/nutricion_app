@@ -1,7 +1,10 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import { ExecutionContext } from '@nestjs/common';
 import { AuthGuard as PassportAuthGuard } from '@nestjs/passport';
-import { isStaffRole } from '../../permissions/permissions.constants';
+import {
+  isDeveloperRole,
+  isStaffRole,
+} from '../../permissions/permissions.constants';
 
 const RUT_EXEMPT_PATHS = [
   '/auth/me',
@@ -28,7 +31,8 @@ export class AuthGuard extends PassportAuthGuard('jwt') {
     }
 
     const user = request.user;
-    if (user && !isStaffRole(user.role) && !user.rut) {
+    const skipsRutCheck = isStaffRole(user?.role) || isDeveloperRole(user?.role);
+    if (user && !skipsRutCheck && !user.rut) {
       throw new ForbiddenException(
         'Debes completar tu RUT antes de usar la plataforma',
       );

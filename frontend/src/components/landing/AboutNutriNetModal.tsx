@@ -167,16 +167,16 @@ export function AboutNutriNetModal({
             </button>
           </div>
 
-          {/* TAB 1: Objetivos y Dirección */}
+          {/* TAB 1: Por qué existe NutriNet */}
           {activeTab === "objetivos" && (
             <div className="space-y-6 animate-in fade-in duration-300">
               <div className="p-4 rounded-2xl bg-indigo-50/60 border border-indigo-100 text-indigo-950 space-y-2">
                 <h3 className="font-black text-base flex items-center gap-2">
                   <Target className="h-5 w-5 text-indigo-600" />
-                  Nuestra Misión: Empoderar la consulta nutricional en Chile
+                  Por qué existe NutriNet
                 </h3>
                 <p className="text-xs text-indigo-900/80 leading-relaxed">
-                  NutriNet nace para resolver un dolor histórico en el ejercicio profesional de la nutrición: la enorme carga administrativa de calcular macros manualmente, armar listas de supermercado y diseñar entregables atractivos para cada paciente.
+                  Si eres nutricionista en Chile, sabes lo que es sentarte a las 22:00 a calcular macros a mano, armar la lista de supermercado paciente por paciente y después perder otra hora dejando el PDF &quot;presentable&quot;. Eso no es atención clínica, es pega administrativa que nadie te enseñó a evitar.
                 </p>
               </div>
 
@@ -185,9 +185,9 @@ export function AboutNutriNetModal({
                   <div className="p-2 rounded-xl bg-emerald-100 text-emerald-700 w-fit">
                     <Sparkles className="h-5 w-5" />
                   </div>
-                  <h4 className="font-bold text-sm text-slate-900">De 45 min a 5 min por plan</h4>
+                  <h4 className="font-bold text-sm text-slate-900">De 45 minutos a 5 por plan</h4>
                   <p className="text-xs text-slate-600 leading-relaxed">
-                    Automatizamos los cálculos de GET, macros por alimento y generación de PDFs vectoriales para que dediques tu tiempo a lo más importante: la adherencia y la relación clínica con tu paciente.
+                    NutriNet calcula el GET, distribuye los macros y arma el PDF automáticamente. Lo que te demorabas una tarde entera, ahora te toma minutos — y el tiempo que te devuelve es para lo que realmente importa: la consulta, el seguimiento, la adherencia del paciente.
                   </p>
                 </div>
 
@@ -195,27 +195,27 @@ export function AboutNutriNetModal({
                   <div className="p-2 rounded-xl bg-indigo-100 text-indigo-700 w-fit">
                     <FileCheck className="h-5 w-5" />
                   </div>
-                  <h4 className="font-bold text-sm text-slate-900">Criterio Clínico Humano Primero</h4>
+                  <h4 className="font-bold text-sm text-slate-900">Tú decides, la IA solo te ayuda</h4>
                   <p className="text-xs text-slate-600 leading-relaxed">
-                    La inteligencia artificial (Naty) actúa únicamente como copiloto invisible. Tú como profesional mantienes siempre el control total y la validación clínica de cada indicación.
+                    Naty la Nutria, tu asistente arma propuestas, no indicaciones. Cada plan pasa por tu criterio clínico antes de llegar al paciente. La responsabilidad profesional sigue siendo 100% tuya — nosotros solo te sacamos el trabajo repetitivo de encima.
                   </p>
                 </div>
               </div>
 
               <div className="border-t border-slate-100 pt-4 space-y-3">
-                <h4 className="font-bold text-sm text-slate-900">Los 3 Pilares de NutriNet</h4>
+                <h4 className="font-bold text-sm text-slate-900">Lo que hace distinto a NutriNet</h4>
                 <ul className="space-y-2 text-xs text-slate-600">
                   <li className="flex items-start gap-2">
                     <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
-                    <span><strong>Precisión Local:</strong> Basado en la Tabla de Composición de Alimentos de Chile y productos habituales del mercado nacional.</span>
+                    <span><strong>Datos chilenos, no genéricos:</strong> usamos la Tabla de Composición de Alimentos de Chile y productos que realmente se compran en el súper acá, no promedios internacionales que no aplican.</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
-                    <span><strong>Entregables de Alto Impacto:</strong> Documentos PDF claros, elegantes y fáciles de seguir que aumentan la motivación y el retorno de los pacientes.</span>
+                    <span><strong>PDFs que el paciente sí abre:</strong> entregables ordenados y fáciles de seguir, pensados para que el paciente vuelva, no para que abandone en la segunda semana.</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
-                    <span><strong>Continuidad y Seguimiento:</strong> Herramientas para monitorear evolución antropométrica, exámenes y diarios de alimentos en tiempo real.</span>
+                    <span><strong>Seguimiento sin planillas paralelas:</strong> antropometría, exámenes y registro alimentario, todo en un solo lugar.</span>
                   </li>
                 </ul>
               </div>
@@ -225,54 +225,19 @@ export function AboutNutriNetModal({
           {/* TAB 2: Equipo Detrás de NutriNet */}
           {activeTab === "equipo" && (
             <div className="space-y-6 animate-in fade-in duration-300">
-              <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-100 text-emerald-950 space-y-2">
+              <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-100 text-emerald-950 space-y-3">
                 <h3 className="font-black text-base flex items-center gap-2">
                   <Users className="h-5 w-5 text-emerald-600" />
-                  Diseñado en Chile por Nutricionistas e Ingenieros
+                  Equipo detrás de NutriNet
                 </h3>
-                <p className="text-xs text-emerald-900/80 leading-relaxed">
-                  No somos una multinacional genérica. NutriNet fue conceptualizado y desarrollado en Santiago de Chile por un equipo multidisciplinario que comprende los requerimientos reales de la consulta nutricional privada, ambulatoria e institucional en nuestro país.
+                <p className="text-xs text-emerald-900/90 leading-relaxed">
+                  Nutrinet nace de un equipo de programadores y estudiantes en distintas universidades. Siendo expertos en el área de proyectos, apoyados por estudiantes de nutrición o ya egresados.
                 </p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="p-5 rounded-2xl border border-slate-200 bg-white shadow-sm space-y-3">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-bold flex items-center justify-center text-sm shadow-sm">
-                      NC
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-sm text-slate-900">Equipo Clínico Nutricional</h4>
-                      <p className="text-[11px] text-slate-500">Asesoría Médica & Nutrición</p>
-                    </div>
-                  </div>
-                  <p className="text-xs text-slate-600 leading-relaxed">
-                    Nutricionistas egresados de las principales universidades del país (UC, UChile, UDD) que supervisan la precisión de las tablas nutricionales, algoritmos de cálculo y flujos clínicos.
-                  </p>
-                </div>
-
-                <div className="p-5 rounded-2xl border border-slate-200 bg-white shadow-sm space-y-3">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-bold flex items-center justify-center text-sm shadow-sm">
-                      IT
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-sm text-slate-900">Desarrollo e Innovación IA</h4>
-                      <p className="text-[11px] text-slate-500">Ingeniería de Software</p>
-                    </div>
-                  </div>
-                  <p className="text-xs text-slate-600 leading-relaxed">
-                    Ingenieros expertos en experiencia de usuario (UX) y arquitectura de inteligencia artificial dedicada a optimizar los tiempos de respuesta y la seguridad de la información.
-                  </p>
-                </div>
-              </div>
-
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-600 space-y-2">
-                <span className="font-bold text-slate-800 flex items-center gap-1.5">
-                  <Award className="h-4 w-4 text-amber-500" /> Compromiso con la Comunidad Nutricional
-                </span>
-                <p className="leading-relaxed">
-                  Recibimos retroalimentación constante de más de 500+ nutricionistas en todo Chile para actualizar mes a mes la base de datos de alimentos, agregar nuevas recetas y perfeccionar el generador de entregables.
+                <p className="text-xs text-emerald-900/90 leading-relaxed">
+                  Hemos trabajado con nutricionistas, en la creación de planes de alimentación, les hemos dado uso a distintos tipos de pacientes, como: personas con diabetes, polialergias, deportistas, etc. Para de esta forma, tener diferentes perspectivas de cómo se puede mejorar la experiencia del nutricionista y del paciente.
+                </p>
+                <p className="text-xs font-semibold text-emerald-950 leading-relaxed">
+                  Distintos puntos de vista para formar esta aplicación, con el único objetivo de ahorrar tiempo y mejorar la vida de los nutricionistas, dando una plataforma única y especializada.
                 </p>
               </div>
             </div>
@@ -285,10 +250,10 @@ export function AboutNutriNetModal({
                 <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50/60 space-y-1.5">
                   <h4 className="font-bold text-sm text-slate-900 flex items-center gap-2">
                     <HelpCircle className="h-4 w-4 text-[#a88aed]" />
-                    ¿Cómo funciona la asistencia con IA (Naty)?
+                    ¿Cómo funciona la asistencia de Naty la Nutria, tu asistente?
                   </h4>
                   <p className="text-xs text-slate-600 leading-relaxed">
-                    Naty es tu asistente interna. Te ayuda a redactar pautas, estructurar recetas y validar restricciones médicas según los datos de tu paciente. <strong>El paciente nunca interactúa directamente con la IA</strong>; el entregable que recibe es 100% firmado y personalizado por ti.
+                    Naty la Nutria, tu asistente es tu herramienta interna. Te ayuda a redactar pautas, estructurar recetas y validar restricciones médicas según los datos de tu paciente. <strong>El paciente nunca interactúa directamente con la IA</strong>; el entregable que recibe es 100% firmado y personalizado por ti.
                   </p>
                 </div>
 

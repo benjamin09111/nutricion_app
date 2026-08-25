@@ -64,7 +64,7 @@ describe('AuthController', () => {
       fullName: 'Nutri Ejemplo',
     };
 
-    controller.register(registration);
+    void controller.register(registration);
 
     expect(authService.register).toHaveBeenCalledWith(registration);
   });

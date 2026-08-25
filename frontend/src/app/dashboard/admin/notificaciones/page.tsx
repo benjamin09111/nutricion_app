@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Bell, Send, CheckCircle2, RotateCcw, Lock } from "lucide-react";
 import { toast } from "sonner";
-import Cookies from "js-cookie";
 import { fetchApi } from "@/lib/api-base";
 
 export default function AdminNotificationsPage() {
@@ -43,19 +42,10 @@ export default function AdminNotificationsPage() {
       return;
     }
 
-    const token = Cookies.get("auth_token");
-    if (!token) {
-      toast.error("Sesión no válida");
-      return;
-    }
-
     try {
       const res = await fetchApi(`/announcements`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title,
           message,

@@ -97,7 +97,7 @@ function LoginPageContent({ autoStart = false }: Props) {
                 alt="NutriNet"
                 width={200}
                 height={48}
-                style={{ width: "auto", height: "auto" }}
+                style={{ height: "auto" }}
                 className="h-auto w-[160px] object-contain"
                 priority
               />

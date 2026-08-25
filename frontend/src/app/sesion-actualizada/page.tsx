@@ -23,7 +23,7 @@ export default async function SessionUpdatedPage({ searchParams }: Props) {
     <main className="flex min-h-screen items-center justify-center bg-white px-4">
       <div className="w-full max-w-xl rounded-[2rem] border border-slate-200 bg-white p-8 text-center shadow-sm sm:p-10">
         <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-3xl bg-emerald-50 ring-1 ring-emerald-100">
-          <Image src="/logo_2.webp" alt="NutriNet" width={56} height={56} className="h-14 w-14 object-contain" priority />
+          <Image src="/logo_2.webp" alt="NutriNet" width={56} height={56} style={{ height: "auto" }} className="h-14 w-14 object-contain" priority />
         </div>
         <h1 className="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
           Tu plan se ha actualizado

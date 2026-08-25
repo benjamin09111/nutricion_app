@@ -1,4 +1,14 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Request, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Request,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { PermissionsGuard } from '../permissions/permissions.guard';
 import { RequireFeatures } from '../permissions/permissions.decorator';
@@ -24,7 +34,11 @@ export class PersonalNotesController {
   }
 
   @Patch('tabs/:id')
-  update(@Request() req: any, @Param('id') id: string, @Body() dto: UpdatePersonalNoteTabDto) {
+  update(
+    @Request() req: any,
+    @Param('id') id: string,
+    @Body() dto: UpdatePersonalNoteTabDto,
+  ) {
     return this.personalNotesService.update(req.user.id, id, dto);
   }
 

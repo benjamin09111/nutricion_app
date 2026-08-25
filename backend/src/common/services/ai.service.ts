@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, Logger, Optional } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  Optional,
+} from '@nestjs/common';
 import { generateObject, type LanguageModel } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOpenAI } from '@ai-sdk/openai';
@@ -22,20 +27,24 @@ interface AiModelConfig {
   modelId: string;
 }
 
-function calculateCostInCents(model: string, promptTokens: number, completionTokens: number): number {
+function calculateCostInCents(
+  model: string,
+  promptTokens: number,
+  completionTokens: number,
+): number {
   const modelLower = (model || '').toLowerCase();
   let promptRatePerM = 0.15;
-  let completionRatePerM = 0.60;
+  let completionRatePerM = 0.6;
 
   if (modelLower.includes('gpt-4o') && !modelLower.includes('mini')) {
-    promptRatePerM = 2.50;
-    completionRatePerM = 10.00;
+    promptRatePerM = 2.5;
+    completionRatePerM = 10.0;
   } else if (modelLower.includes('gpt-4o-mini')) {
     promptRatePerM = 0.15;
-    completionRatePerM = 0.60;
+    completionRatePerM = 0.6;
   } else if (modelLower.includes('gemini')) {
     promptRatePerM = 0.075;
-    completionRatePerM = 0.30;
+    completionRatePerM = 0.3;
   } else if (modelLower.includes('deepseek')) {
     promptRatePerM = 0.14;
     completionRatePerM = 0.28;
@@ -51,9 +60,7 @@ function calculateCostInCents(model: string, promptTokens: number, completionTok
 export class AiService {
   private readonly logger = new Logger(AiService.name);
 
-  constructor(
-    @Optional() private readonly prisma?: PrismaService,
-  ) {}
+  constructor(@Optional() private readonly prisma?: PrismaService) {}
 
   resolveModelConfig(provider: AiProvider): AiModelConfig | null {
     if (provider === 'gemini') {
@@ -169,18 +176,26 @@ export class AiService {
         });
 
         if (this.prisma) {
-          const uAny = usage as any;
-          const promptTokens = uAny?.promptTokens ?? uAny?.inputTokens ?? 0;
-          const completionTokens = uAny?.completionTokens ?? uAny?.outputTokens ?? 0;
-          const totalTokens = uAny?.totalTokens ?? (promptTokens + completionTokens);
+          const uAny = (usage || {}) as any;
+          const promptTokens =
+            uAny?.promptTokens ?? uAny?.inputTokens ?? uAny?.prompt_tokens ?? 0;
+          const completionTokens =
+            uAny?.completionTokens ??
+            uAny?.outputTokens ??
+            uAny?.completion_tokens ??
+            0;
+          const totalTokens =
+            uAny?.totalTokens ??
+            uAny?.total_tokens ??
+            promptTokens + completionTokens;
           const costCents = calculateCostInCents(
             config.modelId,
             promptTokens,
             completionTokens,
           );
 
-          (this.prisma as any).aiUsageLog
-            ?.create({
+          this.prisma.aiUsageLog
+            .create({
               data: {
                 accountId: options?.accountId || null,
                 feature: options?.feature || taskName || 'general',
@@ -193,7 +208,9 @@ export class AiService {
               },
             })
             .catch((err: any) =>
-              this.logger.warn(`Could not log AI usage: ${err?.message || err}`),
+              this.logger.warn(
+                `Could not log AI usage: ${err?.message || err}`,
+              ),
             );
         }
 

@@ -52,7 +52,6 @@ import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { SaveCreationModal } from "@/components/ui/SaveCreationModal";
-import Cookies from "js-cookie";
 import { fetchApi } from "@/lib/api-base";
 import { getCurrentUser, setCurrentUser } from "@/lib/current-user";
 import { membershipService } from "@/features/memberships/services/membership.service";
@@ -1493,12 +1492,10 @@ export default function DeliverableClient() {
     const nextTemplates = [templateText, ...existingTemplates];
     setIsSavingWelcomeTemplate(true);
     try {
-      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const response = await fetchApi(`/users/me/settings`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           deliverableWelcomeTemplates: nextTemplates,
@@ -1533,12 +1530,10 @@ export default function DeliverableClient() {
   const handleSaveProfessionalContact = async () => {
     setIsSavingProfessionalContact(true);
     try {
-      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const response = await fetchApi(`/users/me/settings`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           professionalInstagram: safeString(professionalInstagram),
@@ -1584,9 +1579,7 @@ export default function DeliverableClient() {
 
   const fetchResources = async () => {
     try {
-      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const response = await fetchApi(`/resources`, {
-        headers: { Authorization: `Bearer ${token}` },
       });
       if (!response.ok) return;
       const data = await response.json();
@@ -1616,12 +1609,10 @@ export default function DeliverableClient() {
     const resource = resources.find((item) => item.id === selectedResourceId);
     if (!resource) return;
     try {
-      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const response = await fetchApi(`/resources/resolve-variables`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           content: resource.content,
@@ -1670,12 +1661,10 @@ export default function DeliverableClient() {
     }
 
     try {
-      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const response = await fetchApi(`/resources/resolve-variables`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           content: resource.content,
@@ -1748,10 +1737,7 @@ export default function DeliverableClient() {
   const fetchPatients = async () => {
     setIsLoadingPatients(true);
     try {
-      const token =
-        Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const response = await fetchApi(`/patients?status=Activos`, {
-        headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
         const data = await response.json();
@@ -1767,9 +1753,7 @@ export default function DeliverableClient() {
   const handleSelectPatient = async (patient: any) => {
     let patientDetail = patient;
     try {
-      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const response = await fetchApi(`/patients/${patient.id}`, {
-        headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
         patientDetail = await response.json();

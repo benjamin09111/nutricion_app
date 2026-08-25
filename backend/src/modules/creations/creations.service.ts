@@ -239,7 +239,10 @@ export class CreationsService {
 
     if (type === 'SCREENING_TEST') {
       const savedTests = await this.prisma.creation.count({
-        where: { nutritionistId: resolvedNutritionistId, type: 'SCREENING_TEST' },
+        where: {
+          nutritionistId: resolvedNutritionistId,
+          type: 'SCREENING_TEST',
+        },
       });
       await this.permissionsService.ensureWithinLimit(
         accountId,
@@ -271,7 +274,9 @@ export class CreationsService {
       };
     } catch (error: any) {
       console.error('Error al guardar la creación:', error);
-      throw new BadRequestException('Error al guardar creación. Contactar al soporte.');
+      throw new BadRequestException(
+        'Error al guardar creación. Contactar al soporte.',
+      );
     }
   }
 
@@ -306,7 +311,9 @@ export class CreationsService {
     });
 
     if (!creation) {
-      throw new NotFoundException('La creación solicitada no existe o no tienes permiso para eliminarla.');
+      throw new NotFoundException(
+        'La creación solicitada no existe o no tienes permiso para eliminarla.',
+      );
     }
 
     if (creation.type === 'SCREENING_TEST') {
@@ -320,10 +327,11 @@ export class CreationsService {
         );
       }
     } else {
-      const canDeleteCreations = await this.permissionsService.checkFeatureAccess(
-        accountId,
-        PLAN_ENTITLEMENT_KEYS.CREATIONS_DELETE_ACCESS,
-      );
+      const canDeleteCreations =
+        await this.permissionsService.checkFeatureAccess(
+          accountId,
+          PLAN_ENTITLEMENT_KEYS.CREATIONS_DELETE_ACCESS,
+        );
       const canEditCreations = await this.permissionsService.checkFeatureAccess(
         accountId,
         PLAN_ENTITLEMENT_KEYS.CREATIONS_EDIT_ACCESS,

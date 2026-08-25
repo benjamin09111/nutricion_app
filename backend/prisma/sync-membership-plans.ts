@@ -31,6 +31,7 @@ const plans = [
     maxPatients: 3,
     maxStorage: null,
     isPopular: false,
+    isComingSoon: false,
     isActive: true,
     displayOrder: 1,
     entitlements: getMembershipPlanEntitlements('free'),
@@ -51,20 +52,36 @@ const plans = [
     maxPatients: null,
     maxStorage: null,
     isPopular: true,
+    isComingSoon: false,
     isActive: true,
     displayOrder: 2,
     entitlements: getMembershipPlanEntitlements('plus'),
+  },
+  {
+    name: 'Pro',
+    slug: 'pro',
+    description: 'Para clínicas y consultas avanzadas con funcionalidades exclusivas.',
+    price: 39990,
+    currency: 'CLP',
+    billingPeriod: 'monthly',
+    features: [
+      '✓ Todo lo del plan Plus',
+      '✓ Copiloto IA avanzado sin límites',
+      '✓ Portal para pacientes interactivo',
+      '✓ Sincronización de agendas y más',
+    ],
+    maxPatients: null,
+    maxStorage: null,
+    isPopular: false,
+    isComingSoon: true,
+    isActive: true,
+    displayOrder: 3,
+    entitlements: getMembershipPlanEntitlements('pro'),
   },
 ];
 
 async function sync() {
   console.log('🔄 Syncing membership plans in database...');
-
-  // Deactivate pro plan if it exists
-  await prisma.membershipPlan.updateMany({
-    where: { slug: 'pro' },
-    data: { isActive: false },
-  });
 
   for (const plan of plans) {
     const existing =

@@ -22,6 +22,7 @@ export default function NotFound() {
             alt="NutriNet"
             width={56}
             height={56}
+            style={{ height: "auto" }}
             className="h-14 w-14 object-contain"
             priority
           />

@@ -1,9 +1,12 @@
 const MIN_SECRET_LENGTH = 32;
 
+// ENCRYPTION_KEY se retiró de esta lista a propósito: era obligatoria para
+// arrancar pero ningún módulo la lee, así que sólo daba una falsa sensación de
+// que los datos estaban cifrados. Vuelve a añadirse cuando se implemente el
+// cifrado de datos de paciente.
 const REQUIRED_SECRETS = [
   'JWT_SECRET',
   'PORTAL_JWT_SECRET',
-  'ENCRYPTION_KEY',
   'OAUTH_STATE_SECRET',
 ] as const;
 

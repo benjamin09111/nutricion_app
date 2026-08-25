@@ -1,0 +1,3 @@
+-- AlterEnum
+ALTER TYPE "DiscountCodeType" ADD VALUE IF NOT EXISTS 'PROMO_30';
+ALTER TYPE "DiscountCodeType" ADD VALUE IF NOT EXISTS 'PROMO_15';

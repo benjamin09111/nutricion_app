@@ -25,8 +25,9 @@ import { Pagination } from "@/components/ui/Pagination";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { Modal } from "@/components/ui/Modal";
 import { TagInput } from "@/components/ui/TagInput";
+import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { fetchApi } from "@/lib/api-base";
-import { getAuthToken } from "@/lib/auth-token";
+import { hasActiveSession } from "@/lib/auth-token";
 import { cn } from "@/lib/utils";
 import { useScrollLock } from "@/hooks/useScrollLock";
 import { useSubscription } from "@/context/SubscriptionContext";
@@ -178,9 +179,9 @@ export default function GruposClient({
   const [createViewTab, setCreateViewTab] = useState<CreateViewTab>("alimentos");
   const [myGroupsTab, setMyGroupsTab] = useState<MyGroupsTab>("groups");
   const [groupsDisplayMode, setGroupsDisplayMode] = useState<"cards" | "table">("cards");
-  const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
-  const [expandedGroupData, setExpandedGroupData] = useState<Group | null>(null);
-  const [expandedGroupLoading, setExpandedGroupLoading] = useState(false);
+  const [isViewGroupModalOpen, setIsViewGroupModalOpen] = useState(false);
+  const [viewGroupModalGroup, setViewGroupModalGroup] = useState<Group | null>(null);
+  const [viewGroupModalLoading, setViewGroupModalLoading] = useState(false);
   const [isIngredientSourceLoading, setIsIngredientSourceLoading] = useState(false);
   const [ingredientSourceMeta, setIngredientSourceMeta] = useState<Record<IngredientSourceTab, SourceLoadingMeta>>({
     catalog: { loaded: true, loading: false, count: initialIngredients.length },
@@ -240,10 +241,8 @@ export default function GruposClient({
 
   const isAnyModalOpen = isDeleteConfirmOpen;
   useScrollLock(isAnyModalOpen);
-
-  const getToken = useCallback(() => getAuthToken(), []);
   const isFreemium = String(currentPlan?.key || currentPlan?.slug || "").toLowerCase() === "free";
-  const foodSourcesLocked = !isSubscriptionLoading && !can("ingredients.create.access");
+  const foodSourcesLocked = isFreemium || (!isSubscriptionLoading && !can("ingredients.create.access"));
   const freemiumGroupLimit = 1;
   const hasAuthoritativeGroupCount = typeof freemiumGroupCount === "number";
   const freemiumLimitReached =
@@ -251,15 +250,23 @@ export default function GruposClient({
   const isCreateFlowLoading = isSubscriptionLoading || isLoadingGroups || !hasAuthoritativeGroupCount;
   const isCreateFlowBlocked = !editingGroupId && (isCreateFlowLoading || freemiumLimitReached);
 
-  const showFoodUpgrade = () => {
+  const showFoodUpgrade = (customDescription?: string) => {
     window.dispatchEvent(
       new CustomEvent("show-freemium-upgrade", {
         detail: {
-          description: "Crear alimentos propios y acceder a fuentes personalizadas está disponible en los planes de pago.",
+          description:
+            customDescription ||
+            "Crear alimentos propios y acceder a fuentes personalizadas está disponible en los planes de pago.",
         },
       }),
     );
   };
+
+  useEffect(() => {
+    if (foodSourcesLocked && activeIngredientSource !== "catalog") {
+      setActiveIngredientSource("catalog");
+    }
+  }, [foodSourcesLocked, activeIngredientSource]);
 
   const sourceTabToApiTab = useCallback((sourceTab: IngredientSourceTab) => {
     switch (sourceTab) {
@@ -293,6 +300,10 @@ export default function GruposClient({
 
   const loadIngredientSourceTab = useCallback(
     async (sourceTab: IngredientSourceTab) => {
+      if (sourceTab !== "catalog" && foodSourcesLocked) {
+        showFoodUpgrade();
+        return;
+      }
       skipNextSourceFetchRef.current = true;
       setActiveIngredientSource(sourceTab);
       setStagedIngredientIds(new Set());
@@ -314,8 +325,7 @@ export default function GruposClient({
       if (meta.loading) return;
 
       setIngredients([]);
-      const token = getToken();
-      if (!token) {
+      if (!hasActiveSession()) {
         skipNextSourceFetchRef.current = false;
         return;
       }
@@ -336,7 +346,6 @@ export default function GruposClient({
 
         const res = await fetchApi(`/foods?${queryParams.toString()}`, {
           cache: "no-store",
-          headers: { Authorization: `Bearer ${token}` },
         });
 
         if (!res.ok) return;
@@ -370,7 +379,7 @@ export default function GruposClient({
         }));
       }
     },
-    [appliedCategory, appliedFilters.length, appliedSearch, getToken, mergeIngredients, sourceTabToApiTab],
+    [appliedCategory, appliedFilters.length, appliedSearch, mergeIngredients, sourceTabToApiTab],
   );
 
   const openPreviewSourceTab = useCallback(
@@ -387,8 +396,7 @@ export default function GruposClient({
         return;
       }
 
-      const token = getToken();
-      if (!token) {
+      if (!hasActiveSession()) {
         setIsSelectedSourceLoading(false);
         return;
       }
@@ -403,7 +411,6 @@ export default function GruposClient({
           `/foods?tab=${sourceTabToApiTab(sourceTab)}&limit=100`,
           {
             cache: "no-store",
-            headers: { Authorization: `Bearer ${token}` },
           },
         );
 
@@ -431,7 +438,7 @@ export default function GruposClient({
         }));
       }
     },
-    [getToken, sourceTabToApiTab],
+    [sourceTabToApiTab],
   );
 
   useEffect(() => {
@@ -443,13 +450,7 @@ export default function GruposClient({
   const fetchGroups = useCallback(async () => {
     setIsLoadingGroups(true);
     try {
-      const token = getToken();
-      const headers: Record<string, string> = {};
-      if (token) headers.Authorization = `Bearer ${token}`;
-
-      const res = await fetchApi("/ingredient-groups?type=INGREDIENT", {
-        headers,
-      });
+      const res = await fetchApi("/ingredient-groups?type=INGREDIENT");
       if (res.ok) {
         const data = await res.json();
         const groupArray = Array.isArray(data) ? data : [];
@@ -461,7 +462,7 @@ export default function GruposClient({
     } finally {
       setIsLoadingGroups(false);
     }
-  }, [getToken, onGroupCountChange]);
+  }, [onGroupCountChange]);
 
   const fetchIngredients = useCallback(
     async (sourceTab: IngredientSourceTab = activeIngredientSource) => {
@@ -478,8 +479,7 @@ export default function GruposClient({
 
       if (meta.loading) return;
 
-      const token = getToken();
-      if (!token) return;
+      if (!hasActiveSession()) return;
 
       setIsIngredientSourceLoading(true);
       setIngredientSourceMeta((prev) => ({
@@ -497,7 +497,6 @@ export default function GruposClient({
 
         const res = await fetchApi(`/foods?${queryParams.toString()}`, {
           cache: "no-store",
-          headers: { Authorization: `Bearer ${token}` },
         });
 
         if (!res.ok) return;
@@ -527,7 +526,7 @@ export default function GruposClient({
         }));
       }
     },
-    [activeIngredientSource, appliedCategory, appliedFilters.length, appliedSearch, getToken, mergeIngredients, sourceTabToApiTab],
+    [activeIngredientSource, appliedCategory, appliedFilters.length, appliedSearch, mergeIngredients, sourceTabToApiTab],
   );
 
   useEffect(() => {
@@ -569,11 +568,14 @@ export default function GruposClient({
 
   const categories = useMemo(() => {
     const values = new Set<string>();
+    allIngredients.forEach((ingredient) => {
+      if (ingredient.category?.name) values.add(ingredient.category.name);
+    });
     ingredients.forEach((ingredient) => {
       if (ingredient.category?.name) values.add(ingredient.category.name);
     });
-    return Array.from(values).sort((a, b) => a.localeCompare(b, "es"));
-  }, [ingredients]);
+    return ["Todas las categorías", ...Array.from(values).sort((a, b) => a.localeCompare(b, "es"))];
+  }, [allIngredients, ingredients]);
 
   const totalSelectedCount = confirmedIngredientIds.size + stagedIngredientIds.size;
   const stagedCount = stagedIngredientIds.size;
@@ -593,7 +595,11 @@ export default function GruposClient({
     return ingredients
       .filter((ingredient) => !confirmedIngredientIds.has(ingredient.id))
       .filter((ingredient) => {
-        if (appliedCategory !== "ALL" && ingredient.category?.name !== appliedCategory) {
+        if (
+          appliedCategory !== "ALL" &&
+          appliedCategory !== "Todas las categorías" &&
+          ingredient.category?.name !== appliedCategory
+        ) {
           return false;
         }
 
@@ -689,19 +695,16 @@ export default function GruposClient({
 
   const handleGroupClick = async (groupId: string) => {
     if (isFreemium) {
-      toast.info("La edición de grupos estará disponible en próximas actualizaciones.");
+      showFoodUpgrade("La edición de grupos de alimentos está disponible exclusivamente en los planes de pago.");
       return;
     }
 
-    const token = getToken();
-    if (!token) return;
+    if (!hasActiveSession()) return;
 
     setPendingGroupId(groupId);
     setIsLoadingSelectedGroup(true);
     try {
-      const res = await fetchApi(`/ingredient-groups/${groupId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await fetchApi(`/ingredient-groups/${groupId}`);
       if (res.ok) {
         const groupDetails = await res.json();
         setSelectedGroup(groupDetails);
@@ -735,42 +738,31 @@ export default function GruposClient({
     }
   };
 
-  const toggleGroupExpand = async (groupId: string) => {
-    if (expandedGroupId === groupId) {
-      setExpandedGroupId(null);
-      setExpandedGroupData(null);
-      return;
-    }
+  const openGroupViewModal = async (group: Group) => {
+    setViewGroupModalGroup(group);
+    setIsViewGroupModalOpen(true);
+    setViewGroupModalLoading(true);
 
-    setExpandedGroupId(groupId);
-    setExpandedGroupData(null);
-    setExpandedGroupLoading(true);
-
-    const token = getToken();
-    if (!token) {
-      setExpandedGroupLoading(false);
+    if (!hasActiveSession()) {
+      setViewGroupModalLoading(false);
       return;
     }
 
     try {
-      const res = await fetchApi(`/ingredient-groups/${groupId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await fetchApi(`/ingredient-groups/${group.id}`);
 
       if (!res.ok) {
         toast.error("Error al cargar el grupo");
-        setExpandedGroupId(null);
         return;
       }
 
       const groupDetails = (await res.json()) as Group;
-      setExpandedGroupData(groupDetails);
+      setViewGroupModalGroup(groupDetails);
     } catch (error) {
       console.error("Error fetching group view:", error);
       toast.error("Error al cargar el grupo");
-      setExpandedGroupId(null);
     } finally {
-      setExpandedGroupLoading(false);
+      setViewGroupModalLoading(false);
     }
   };
 
@@ -782,13 +774,11 @@ export default function GruposClient({
 
   const confirmDeleteGroup = async () => {
     if (!groupToDelete) return;
-    const token = getToken();
-    if (!token) return;
+    if (!hasActiveSession()) return;
 
     try {
       const res = await fetchApi(`/ingredient-groups/${groupToDelete}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (res.ok) {
@@ -877,9 +867,9 @@ export default function GruposClient({
       prev.map((draft) =>
         draft.id === draftId
           ? {
-              ...draft,
-              ...patch,
-            }
+            ...draft,
+            ...patch,
+          }
           : draft,
       ),
     );
@@ -920,9 +910,8 @@ export default function GruposClient({
       return;
     }
 
-    const token = getToken();
-    if (!token) {
-      toast.error("Sesión no válida");
+    if (!hasActiveSession()) {
+      toast.error("Sesión no válida. Por favor inicia sesión nuevamente.");
       return;
     }
 
@@ -942,7 +931,6 @@ export default function GruposClient({
           method: editingGroupId ? "PATCH" : "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify(payload),
         },
@@ -954,14 +942,12 @@ export default function GruposClient({
       }
 
       const savedGroup = await response.json();
-      const savedGroupId = savedGroup?.id || editingGroupId;
       toast.success(editingGroupId ? "Grupo actualizado correctamente" : "Grupo creado correctamente");
 
       await fetchGroups();
 
-      if (savedGroupId) {
-        await handleGroupClick(savedGroupId);
-      }
+      handleResetCreate();
+      setActiveTab("Mis grupos");
     } catch (error) {
       console.error("Error creating group:", error);
       toast.error(editingGroupId ? "No se pudo actualizar el grupo" : "No se pudo crear el grupo");
@@ -982,9 +968,8 @@ export default function GruposClient({
 
   const addIngredientToGroup = async (groupId: string, ingredient: IngredientWithMetrics) => {
 
-    const token = getToken();
-    if (!token) {
-      toast.error("Sesión no válida");
+    if (!hasActiveSession()) {
+      toast.error("Sesión no válida. Por favor inicia sesión nuevamente.");
       return;
     }
 
@@ -994,7 +979,6 @@ export default function GruposClient({
         cache: "no-store",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ ingredientIds: [ingredient.id] }),
       });
@@ -1025,9 +1009,8 @@ export default function GruposClient({
       toast.info("Espera a que se cargue la información de tus grupos.");
       return;
     }
-    const token = getToken();
-    if (!token) {
-      toast.error("Sesión no válida");
+    if (!hasActiveSession()) {
+      toast.error("Sesión no válida. Por favor inicia sesión nuevamente.");
       return;
     }
 
@@ -1036,7 +1019,6 @@ export default function GruposClient({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           name: groupName,
@@ -1145,8 +1127,8 @@ export default function GruposClient({
                       activeTab === label
                         ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200/70"
                         : isCrearDisabled
-                        ? "cursor-not-allowed text-slate-400 opacity-80"
-                        : "text-slate-500 hover:bg-white/70 hover:text-slate-700",
+                          ? "cursor-not-allowed text-slate-400 opacity-80"
+                          : "text-slate-500 hover:bg-white/70 hover:text-slate-700",
                     )}
                   >
                     {label === "Crear grupo" && isCrearDisabled ? (
@@ -1175,7 +1157,7 @@ export default function GruposClient({
                           <span>
                             {isCreateFlowLoading
                               ? "Cargando información de grupos..."
-                              : "Ya cumpliste 1 grupo ya creado (Plan Freemium)"}
+                              : "Ya creaste un grupo (Plan Gratuito)"}
                           </span>
                         </div>
                         <div className="w-2 h-2 bg-slate-900 rotate-45 -mt-1 border-r border-b border-slate-700" />
@@ -1201,27 +1183,27 @@ export default function GruposClient({
 
       {activeTab === "Mis grupos" && (
         <div className="space-y-4">
-            <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-100/80 p-1 sm:flex-row sm:items-center sm:justify-between">
-              <div className="grid grid-cols-1 sm:flex w-full sm:w-auto gap-1">
+          <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-100/80 p-1 sm:flex-row sm:items-center sm:justify-between">
+            <div className="grid grid-cols-1 sm:flex w-full sm:w-auto gap-1">
               {[
                 { key: "groups", label: "Mis grupos creados", icon: <Layers size={16} /> },
                 { key: "mine", label: "Mis alimentos creados", icon: <UtensilsCrossed size={16} /> },
                 { key: "community", label: "Alimentos de la comunidad", icon: <UtensilsCrossed size={16} /> },
-                ].map((tab) => {
-                  const isSelected = myGroupsTab === tab.key;
-                  const isFoodSourceLocked =
-                    foodSourcesLocked && (tab.key === "mine" || tab.key === "community");
-                  return (
-                    <button
-                      key={tab.key}
-                      type="button"
-                      aria-disabled={isFoodSourceLocked}
-                      onClick={() => {
-                        if (isFoodSourceLocked) {
-                          showFoodUpgrade();
-                          return;
-                        }
-                        if (tab.key === "groups") {
+              ].map((tab) => {
+                const isSelected = myGroupsTab === tab.key;
+                const isFoodSourceLocked =
+                  foodSourcesLocked && (tab.key === "mine" || tab.key === "community");
+                return (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    aria-disabled={isFoodSourceLocked}
+                    onClick={() => {
+                      if (isFoodSourceLocked) {
+                        showFoodUpgrade();
+                        return;
+                      }
+                      if (tab.key === "groups") {
                         setMyGroupsTab("groups");
                         setSelectedSourceGroup(null);
                         setSelectedSourceIngredients([]);
@@ -1233,15 +1215,15 @@ export default function GruposClient({
                     }}
                     className={cn(
                       "flex items-center justify-center gap-2 rounded-xl px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold transition-all",
-                        isSelected
-                          ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200/70"
-                          : isFoodSourceLocked
-                            ? "cursor-not-allowed text-slate-400"
-                            : "text-slate-500 hover:bg-white/70 hover:text-slate-700",
-                      )}
-                    >
-                      {isFoodSourceLocked ? <Lock size={16} /> : tab.icon}
-                      {tab.label}
+                      isSelected
+                        ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200/70"
+                        : isFoodSourceLocked
+                          ? "cursor-not-allowed text-slate-400"
+                          : "text-slate-500 hover:bg-white/70 hover:text-slate-700",
+                    )}
+                  >
+                    {isFoodSourceLocked ? <Lock size={16} /> : tab.icon}
+                    {tab.label}
                   </button>
                 );
               })}
@@ -1330,9 +1312,9 @@ export default function GruposClient({
                   <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-500">
                     Puedes crear colecciones de ingredientes para reutilizarlas en dietas, entregables y flujos rápidos.
                   </p>
-                   <Button
-                     onClick={() => setActiveTab("Crear grupo")}
-                     disabled={isCreateFlowBlocked}
+                  <Button
+                    onClick={() => setActiveTab("Crear grupo")}
+                    disabled={isCreateFlowBlocked}
                     className="mt-5 rounded-xl bg-indigo-600 px-6 py-2.5 font-semibold text-white transition-all hover:bg-indigo-700 active:scale-95"
                   >
                     <FolderPlus size={16} className="mr-2" />
@@ -1365,15 +1347,10 @@ export default function GruposClient({
                         <div className="flex items-center gap-1">
                           <button
                             type="button"
-                            title={expandedGroupId === group.id ? "Ocultar" : "Ver"}
-                            aria-label={expandedGroupId === group.id ? `Ocultar ${group.name}` : `Ver ${group.name}`}
-                            onClick={() => void toggleGroupExpand(group.id)}
-                            className={cn(
-                              "rounded-xl p-2 transition-all",
-                              expandedGroupId === group.id
-                                ? "text-indigo-600 bg-indigo-50"
-                                : "text-slate-500 hover:bg-slate-50 hover:text-slate-700",
-                            )}
+                            title="Ver alimentos del grupo"
+                            aria-label={`Ver ${group.name}`}
+                            onClick={() => void openGroupViewModal(group)}
+                            className="rounded-xl p-2 text-slate-500 transition-all hover:bg-indigo-50 hover:text-indigo-700"
                           >
                             <Eye size={14} />
                           </button>
@@ -1408,75 +1385,6 @@ export default function GruposClient({
                           </span>
                         ))}
                       </div>
-
-                      {expandedGroupId === group.id && (
-                        <div className="mt-4 border-t border-slate-100 pt-4">
-                          {expandedGroupLoading ? (
-                            <div className="flex items-center justify-center py-6">
-                              <span className="h-5 w-5 animate-spin rounded-full border-2 border-indigo-200 border-t-indigo-600" />
-                            </div>
-                          ) : expandedGroupData ? (
-                            <div className="space-y-4">
-                              {expandedGroupData.description && (
-                                <p className="text-xs leading-5 text-slate-500">{expandedGroupData.description}</p>
-                              )}
-                              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                                {(expandedGroupData.ingredients || []).map((entry) => {
-                                  const ingredient = entry.ingredient;
-                                  if (!ingredient) return null;
-                                  const origin = ingredient.isMine || !ingredient.isPublic ? "Creado por mí" : "Comunidad";
-                                  return (
-                                    <div
-                                      key={entry.entryId}
-                                      className="rounded-xl border border-slate-100 bg-slate-50/70 p-3"
-                                    >
-                                      <div className="flex items-start justify-between gap-2">
-                                        <p className="text-xs font-semibold text-slate-900 truncate">{ingredient.name}</p>
-                                        <span
-                                          className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${
-                                            origin === "Creado por mí"
-                                              ? "bg-emerald-50 text-emerald-700"
-                                              : "bg-slate-200 text-slate-600"
-                                          }`}
-                                        >
-                                          {origin}
-                                        </span>
-                                      </div>
-                                      <p className="mt-1 text-[10px] text-slate-400">
-                                        {ingredient.category?.name || "General"}
-                                        {ingredient.brand?.name ? ` · ${ingredient.brand.name}` : ""}
-                                      </p>
-                                      <div className="mt-2 grid grid-cols-3 gap-1.5 text-[10px]">
-                                        <div className="rounded-lg bg-white px-2 py-1.5 text-center">
-                                          <span className="block font-semibold text-slate-700">{entry.amount} {entry.unit}</span>
-                                          <span className="text-slate-400">Cant.</span>
-                                        </div>
-                                        <div className="rounded-lg bg-white px-2 py-1.5 text-center">
-                                          <span className="block font-semibold text-amber-700">{Math.round(ingredient.calories || 0)}</span>
-                                          <span className="text-slate-400">kcal</span>
-                                        </div>
-                                        <div className="rounded-lg bg-white px-2 py-1.5 text-center">
-                                          <span className="block font-semibold text-blue-700">{Number(ingredient.proteins || 0).toFixed(1)}</span>
-                                          <span className="text-slate-400">prot</span>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                              {(expandedGroupData.ingredients || []).length === 0 && (
-                                <p className="py-4 text-center text-xs text-slate-400">
-                                  Este grupo todavía no tiene alimentos.
-                                </p>
-                              )}
-                            </div>
-                          ) : (
-                            <p className="py-4 text-center text-xs text-slate-400">
-                              No se pudo cargar el grupo.
-                            </p>
-                          )}
-                        </div>
-                      )}
                     </div>
                   ))}
                 </div>
@@ -1494,125 +1402,55 @@ export default function GruposClient({
                     <tbody className="divide-y divide-slate-100 bg-white">
                       {visibleGroups.map((group) => (
                         <React.Fragment key={group.id}>
-                        <tr className="transition-colors hover:bg-slate-50/70">
-                          <td className="px-4 py-4 align-top">
-                            <div className="font-semibold text-slate-900">{group.name}</div>
-                            {group.description && <p className="mt-1 text-xs text-slate-500">{group.description}</p>}
-                          </td>
-                          <td className="px-4 py-4 align-top text-sm text-slate-600">
-                            {(group._count?.entries ?? group._count?.ingredients ?? 0)} alimentos
-                          </td>
-                          <td className="px-4 py-4 align-top">
-                            <div className="flex flex-wrap gap-1.5">
-                              {group.tags?.map((tag) => (
-                                <span key={tag.id} className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
-                                  #{tag.name}
-                                </span>
-                              ))}
-                            </div>
-                          </td>
-                          <td className="px-4 py-4 align-top">
-                            <div className="flex justify-end gap-1">
-                              <button
-                                type="button"
-                                title="Ver"
-                                aria-label={`Ver ${group.name}`}
-                                onClick={() => void toggleGroupExpand(group.id)}
-                                className="rounded-xl p-2 text-slate-500 transition-all hover:bg-slate-50 hover:text-slate-700"
-                              >
-                                <Eye size={14} />
-                              </button>
-                              <button
-                                type="button"
-                                title="Editar"
-                                aria-label={`Editar ${group.name}`}
-                                onClick={() => void handleGroupClick(group.id)}
-                                className="rounded-xl p-2 text-slate-500 transition-all hover:bg-indigo-50 hover:text-indigo-700"
-                              >
-                                <Pencil size={14} />
-                              </button>
-                              <button
-                                type="button"
-                                title="Eliminar"
-                                aria-label={`Eliminar ${group.name}`}
-                                onClick={(e) => handleDeleteGroup(group.id, e)}
-                                className="rounded-xl p-2 text-slate-400 transition-all hover:bg-red-50 hover:text-red-600"
-                              >
-                              <Trash2 size={14} />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                        {expandedGroupId === group.id && (
-                          <tr key={`${group.id}-expand`}>
-                            <td colSpan={4} className="bg-slate-50/50 px-6 py-4">
-                              {expandedGroupLoading ? (
-                                <div className="flex items-center justify-center py-6">
-                                  <span className="h-5 w-5 animate-spin rounded-full border-2 border-indigo-200 border-t-indigo-600" />
-                                </div>
-                              ) : expandedGroupData ? (
-                                <div className="space-y-4">
-                                  {expandedGroupData.description && (
-                                    <p className="text-xs leading-5 text-slate-500">{expandedGroupData.description}</p>
-                                  )}
-                                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                                    {(expandedGroupData.ingredients || []).map((entry) => {
-                                      const ingredient = entry.ingredient;
-                                      if (!ingredient) return null;
-                                      const origin = ingredient.isMine || !ingredient.isPublic ? "Creado por mí" : "Comunidad";
-                                      return (
-                                        <div
-                                          key={entry.entryId}
-                                          className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm"
-                                        >
-                                          <div className="flex items-start justify-between gap-2">
-                                            <p className="text-xs font-semibold text-slate-900 truncate">{ingredient.name}</p>
-                                            <span
-                                              className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${
-                                                origin === "Creado por mí"
-                                                  ? "bg-emerald-50 text-emerald-700"
-                                                  : "bg-slate-200 text-slate-600"
-                                              }`}
-                                            >
-                                              {origin}
-                                            </span>
-                                          </div>
-                                          <p className="mt-1 text-[10px] text-slate-400">
-                                            {ingredient.category?.name || "General"}
-                                            {ingredient.brand?.name ? ` · ${ingredient.brand.name}` : ""}
-                                          </p>
-                                          <div className="mt-2 grid grid-cols-3 gap-1.5 text-[10px]">
-                                            <div className="rounded-lg bg-slate-50 px-2 py-1.5 text-center">
-                                              <span className="block font-semibold text-slate-700">{entry.amount} {entry.unit}</span>
-                                              <span className="text-slate-400">Cant.</span>
-                                            </div>
-                                            <div className="rounded-lg bg-slate-50 px-2 py-1.5 text-center">
-                                              <span className="block font-semibold text-amber-700">{Math.round(ingredient.calories || 0)}</span>
-                                              <span className="text-slate-400">kcal</span>
-                                            </div>
-                                            <div className="rounded-lg bg-slate-50 px-2 py-1.5 text-center">
-                                              <span className="block font-semibold text-blue-700">{Number(ingredient.proteins || 0).toFixed(1)}</span>
-                                              <span className="text-slate-400">prot</span>
-                                            </div>
-                                          </div>
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                  {(expandedGroupData.ingredients || []).length === 0 && (
-                                    <p className="py-4 text-center text-xs text-slate-400">
-                                      Este grupo todavía no tiene alimentos.
-                                    </p>
-                                  )}
-                                </div>
-                              ) : (
-                                <p className="py-4 text-center text-xs text-slate-400">
-                                  No se pudo cargar el grupo.
-                                </p>
-                              )}
+                          <tr className="transition-colors hover:bg-slate-50/70">
+                            <td className="px-4 py-4 align-top">
+                              <div className="font-semibold text-slate-900">{group.name}</div>
+                              {group.description && <p className="mt-1 text-xs text-slate-500">{group.description}</p>}
+                            </td>
+                            <td className="px-4 py-4 align-top text-sm text-slate-600">
+                              {(group._count?.entries ?? group._count?.ingredients ?? 0)} alimentos
+                            </td>
+                            <td className="px-4 py-4 align-top">
+                              <div className="flex flex-wrap gap-1.5">
+                                {group.tags?.map((tag) => (
+                                  <span key={tag.id} className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
+                                    #{tag.name}
+                                  </span>
+                                ))}
+                              </div>
+                            </td>
+                            <td className="px-4 py-4 align-top">
+                              <div className="flex justify-end gap-1">
+                                <button
+                                  type="button"
+                                  title="Ver alimentos del grupo"
+                                  aria-label={`Ver ${group.name}`}
+                                  onClick={() => void openGroupViewModal(group)}
+                                  className="rounded-xl p-2 text-slate-500 transition-all hover:bg-indigo-50 hover:text-indigo-700"
+                                >
+                                  <Eye size={14} />
+                                </button>
+                                <button
+                                  type="button"
+                                  title="Editar"
+                                  aria-label={`Editar ${group.name}`}
+                                  onClick={() => void handleGroupClick(group.id)}
+                                  className="rounded-xl p-2 text-slate-500 transition-all hover:bg-indigo-50 hover:text-indigo-700"
+                                >
+                                  <Pencil size={14} />
+                                </button>
+                                <button
+                                  type="button"
+                                  title="Eliminar"
+                                  aria-label={`Eliminar ${group.name}`}
+                                  onClick={(e) => handleDeleteGroup(group.id, e)}
+                                  className="rounded-xl p-2 text-slate-400 transition-all hover:bg-red-50 hover:text-red-600"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
                             </td>
                           </tr>
-                        )}
                         </React.Fragment>
                       ))}
                     </tbody>
@@ -1941,109 +1779,218 @@ export default function GruposClient({
           </div>
 
           <div className="relative grid grid-cols-1 gap-6 xl:grid-cols-[1fr_380px]">
-          <div className="space-y-4">
-            {isLoadingSelectedGroup && (
-              <div className="rounded-3xl border border-indigo-100 bg-indigo-50 px-5 py-4 text-sm font-medium text-indigo-700 shadow-sm">
-                <div className="flex items-center gap-3">
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-indigo-200 border-t-indigo-600" />
-                  Cargando grupo{selectedGroup?.name ? `: ${selectedGroup.name}` : "..."}
-                </div>
-              </div>
-            )}
-
-            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="mb-5 flex flex-col gap-4 border-b border-slate-100 pb-4">
-                <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-slate-100 p-1">
-                  <button
-                    type="button"
-                    onClick={() => setCreateViewTab("alimentos")}
-                    className={cn(
-                      "flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition-all",
-                      createViewTab === "alimentos"
-                        ? "bg-white text-indigo-700 shadow-sm"
-                        : "text-slate-500 hover:text-slate-700",
-                    )}
-                  >
-                    <Search size={14} />
-                    Ingredientes
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCreateViewTab("agregados")}
-                    className={cn(
-                      "flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition-all",
-                      createViewTab === "agregados"
-                        ? "bg-white text-indigo-700 shadow-sm"
-                        : "text-slate-500 hover:text-slate-700",
-                    )}
-                  >
-                    <UtensilsCrossed size={14} />
-                    <span>Seleccionados</span>
-                    <span className="rounded-full bg-slate-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700 shadow-sm">
-                      {totalSelectedCount}
-                    </span>
-                  </button>
-                </div>
-
-                {createViewTab === "alimentos" && (
-                  <div className="space-y-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                      {[
-                        { key: "catalog", label: "Catálogo NutriNet" },
-                        { key: "mine", label: "Mis alimentos" },
-                        { key: "community", label: "Comunidad" },
-                      ].map((tab) => (
-                        <button
-                          key={tab.key}
-                          type="button"
-                          onClick={() => void loadIngredientSourceTab(tab.key as IngredientSourceTab)}
-                          className={cn(
-                            "rounded-xl px-3 py-1.5 text-xs font-semibold transition-all",
-                            activeIngredientSource === tab.key
-                              ? "bg-indigo-600 text-white shadow-sm"
-                              : "bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-700",
-                          )}
-                        >
-                          {tab.label}
-                        </button>
-                      ))}
-                    </div>
-
-                    <div className="max-w-xl">
-                      <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-                        Buscar rápido
-                      </label>
-                      <Input
-                        value={createSearchDraft}
-                        onChange={(e) => handleQuickSearchChange(e.target.value)}
-                        placeholder="Buscar por nombre, marca o tag..."
-                        className="h-10 rounded-xl border-slate-200 text-sm focus:ring-emerald-500"
-                      />
-                    </div>
+            <div className="space-y-4">
+              {isLoadingSelectedGroup && (
+                <div className="rounded-3xl border border-indigo-100 bg-indigo-50 px-5 py-4 text-sm font-medium text-indigo-700 shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-indigo-200 border-t-indigo-600" />
+                    Cargando grupo{selectedGroup?.name ? `: ${selectedGroup.name}` : "..."}
                   </div>
-                )}
-              </div>
-
-              {isIngredientSourceLoading && createViewTab === "alimentos" && (
-                <div className="mb-4 flex items-center gap-3 rounded-2xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm font-medium text-indigo-700 shadow-sm">
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-indigo-200 border-t-indigo-600" />
-                  Cargando alimentos de esta fuente...
                 </div>
               )}
 
-              {createViewTab === "alimentos" ? (
-                isIngredientSourceLoading ? (
-                  <div className="py-10 text-center">
-                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
-                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-indigo-200 border-t-indigo-600" />
-                    </div>
-                    <p className="mt-3 text-sm font-semibold text-slate-700">Cargando alimentos...</p>
-                    <p className="mt-2 text-sm text-slate-500">Un momento, estamos trayendo la información.</p>
+              <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="mb-5 flex flex-col gap-4 border-b border-slate-100 pb-4">
+                  <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-slate-100 p-1">
+                    <button
+                      type="button"
+                      onClick={() => setCreateViewTab("alimentos")}
+                      className={cn(
+                        "flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition-all",
+                        createViewTab === "alimentos"
+                          ? "bg-white text-indigo-700 shadow-sm"
+                          : "text-slate-500 hover:text-slate-700",
+                      )}
+                    >
+                      <Search size={14} />
+                      Ingredientes
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCreateViewTab("agregados")}
+                      className={cn(
+                        "flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition-all",
+                        createViewTab === "agregados"
+                          ? "bg-white text-indigo-700 shadow-sm"
+                          : "text-slate-500 hover:text-slate-700",
+                      )}
+                    >
+                      <UtensilsCrossed size={14} />
+                      <span>Seleccionados</span>
+                      <span className="rounded-full bg-slate-50 px-2 py-0.5 text-[10px] font-bold text-indigo-700 shadow-sm">
+                        {totalSelectedCount}
+                      </span>
+                    </button>
                   </div>
-                ) : activeCreateIngredients.length === 0 ? (
+
+                  {createViewTab === "alimentos" && (
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {[
+                          { key: "catalog", label: "Catálogo NutriNet" },
+                          { key: "mine", label: "Mis alimentos" },
+                          { key: "community", label: "Comunidad" },
+                        ].map((tab) => {
+                          const isTabLocked = tab.key !== "catalog" && foodSourcesLocked;
+                          return (
+                            <button
+                              key={tab.key}
+                              type="button"
+                              onClick={() => {
+                                if (isTabLocked) {
+                                  showFoodUpgrade();
+                                  return;
+                                }
+                                void loadIngredientSourceTab(tab.key as IngredientSourceTab);
+                              }}
+                              title={isTabLocked ? "Disponible en planes de pago" : undefined}
+                              className={cn(
+                                "flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all",
+                                activeIngredientSource === tab.key
+                                  ? "bg-indigo-600 text-white shadow-sm"
+                                  : isTabLocked
+                                    ? "bg-slate-100 text-slate-400 hover:bg-slate-200/80 cursor-pointer opacity-80"
+                                    : "bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-700",
+                              )}
+                            >
+                              <span>{tab.label}</span>
+                              {isTabLocked && <Lock className="h-3.5 w-3.5 text-amber-500 shrink-0" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 max-w-2xl">
+                        <div>
+                          <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                            Buscar rápido
+                          </label>
+                          <Input
+                            value={createSearchDraft}
+                            onChange={(e) => handleQuickSearchChange(e.target.value)}
+                            placeholder="Buscar por nombre, marca o tag..."
+                            className="h-10 rounded-xl border-slate-200 text-sm focus:ring-indigo-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                            Categoría
+                          </label>
+                          <SearchableSelect
+                            options={categories}
+                            value={createCategoryDraft === "ALL" ? "Todas las categorías" : createCategoryDraft}
+                            onChange={(val) => {
+                              const actualVal = val === "Todas las categorías" ? "ALL" : val;
+                              setCreateCategoryDraft(actualVal);
+                              setAppliedCategory(actualVal);
+                              setCreateCurrentPage(1);
+                            }}
+                            placeholder="Todas las categorías"
+                            className="w-full"
+                            triggerClassName="h-10 rounded-xl border-slate-200 text-sm"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {isIngredientSourceLoading && createViewTab === "alimentos" && (
+                  <div className="mb-4 flex items-center gap-3 rounded-2xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm font-medium text-indigo-700 shadow-sm">
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-indigo-200 border-t-indigo-600" />
+                    Cargando alimentos de esta fuente...
+                  </div>
+                )}
+
+                {createViewTab === "alimentos" ? (
+                  isIngredientSourceLoading ? (
+                    <div className="py-10 text-center">
+                      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-indigo-200 border-t-indigo-600" />
+                      </div>
+                      <p className="mt-3 text-sm font-semibold text-slate-700">Cargando alimentos...</p>
+                      <p className="mt-2 text-sm text-slate-500">Un momento, estamos trayendo la información.</p>
+                    </div>
+                  ) : activeCreateIngredients.length === 0 ? (
+                    <div className="py-10 text-center">
+                      <p className="text-sm font-semibold text-slate-700">No hay alimentos para mostrar.</p>
+                      <p className="mt-2 text-sm text-slate-500">Prueba otra fuente o ajusta los filtros.</p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto rounded-2xl border border-slate-100">
+                      <table className="w-full border-collapse">
+                        <thead>
+                          <tr className="border-b border-slate-100 bg-slate-50/80 text-left">
+                            <th className="w-10 px-4 py-3" />
+                            <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Ingrediente</th>
+                            <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Categoría</th>
+                            <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Calorías</th>
+                            <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Proteínas</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 bg-white">
+                          {activeCreateIngredients.map((ingredient) => {
+                            const isStaged = stagedIngredientIds.has(ingredient.id);
+                            const isConfirmed = confirmedIngredientIds.has(ingredient.id);
+                            const isSelected = isStaged;
+
+                            return (
+                              <tr
+                                key={ingredient.id}
+                                onClick={() => {
+                                  setStagedIngredientIds((prev) => {
+                                    const next = new Set(prev);
+                                    if (next.has(ingredient.id)) next.delete(ingredient.id);
+                                    else next.add(ingredient.id);
+                                    return next;
+                                  });
+                                }}
+                                className={cn(
+                                  "cursor-pointer transition-colors",
+                                  isSelected ? "bg-indigo-50/70" : "hover:bg-slate-50/70",
+                                )}
+                              >
+                                <td className="px-4 py-4 align-top">
+                                  <div
+                                    className={cn(
+                                      "flex h-5 w-5 items-center justify-center rounded border transition-colors",
+                                      isSelected ? "border-indigo-600 bg-indigo-600 text-white" : "border-slate-300 bg-white",
+                                    )}
+                                  >
+                                    {isSelected && <Check size={12} />}
+                                  </div>
+                                </td>
+                                <td className="px-4 py-4 align-top">
+                                  <div className="font-semibold text-slate-900">{ingredient.name}</div>
+                                  <div className="mt-1 flex flex-wrap gap-1.5">
+                                    {(ingredient.tags || []).slice(0, 3).map((tag) => (
+                                      <span
+                                        key={tag.id}
+                                        className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-600"
+                                      >
+                                        #{tag.name}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </td>
+                                <td className="px-4 py-4 align-top text-sm text-slate-600">{ingredient.category?.name || "-"}</td>
+                                <td className="px-4 py-4 align-top text-right text-sm font-semibold text-slate-700">
+                                  {Math.round(ingredient.calories || 0)}
+                                </td>
+                                <td className="px-4 py-4 align-top text-right text-sm font-semibold text-blue-700">
+                                  {Number(ingredient.proteins || 0).toFixed(1)}g
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )
+                ) : selectedIngredients.length === 0 ? (
                   <div className="py-10 text-center">
-                    <p className="text-sm font-semibold text-slate-700">No hay alimentos para mostrar.</p>
-                    <p className="mt-2 text-sm text-slate-500">Prueba otra fuente o ajusta los filtros.</p>
+                    <p className="text-sm font-semibold text-slate-700">No tienes alimentos confirmados en este grupo.</p>
+                    <p className="mt-2 text-sm text-slate-500">Vuelve a la pestaña de ingredientes para agregar alimentos.</p>
                   </div>
                 ) : (
                   <div className="overflow-x-auto rounded-2xl border border-slate-100">
@@ -2059,15 +2006,13 @@ export default function GruposClient({
                       </thead>
                       <tbody className="divide-y divide-slate-100 bg-white">
                         {activeCreateIngredients.map((ingredient) => {
-                          const isStaged = stagedIngredientIds.has(ingredient.id);
-                          const isConfirmed = confirmedIngredientIds.has(ingredient.id);
-                          const isSelected = isStaged;
+                          const isSelected = confirmedIngredientIds.has(ingredient.id);
 
                           return (
                             <tr
                               key={ingredient.id}
                               onClick={() => {
-                                setStagedIngredientIds((prev) => {
+                                setConfirmedIngredientIds((prev) => {
                                   const next = new Set(prev);
                                   if (next.has(ingredient.id)) next.delete(ingredient.id);
                                   else next.add(ingredient.id);
@@ -2076,17 +2021,17 @@ export default function GruposClient({
                               }}
                               className={cn(
                                 "cursor-pointer transition-colors",
-                                isSelected ? "bg-indigo-50/70" : "hover:bg-slate-50/70",
+                                isSelected ? "bg-red-50/70" : "hover:bg-slate-50/70",
                               )}
                             >
                               <td className="px-4 py-4 align-top">
                                 <div
                                   className={cn(
                                     "flex h-5 w-5 items-center justify-center rounded border transition-colors",
-                                    isSelected ? "border-indigo-600 bg-indigo-600 text-white" : "border-slate-300 bg-white",
+                                    isSelected ? "border-red-600 bg-red-600 text-white" : "border-slate-300 bg-white",
                                   )}
                                 >
-                                  {isSelected && <Check size={12} />}
+                                  {isSelected && <X size={12} />}
                                 </div>
                               </td>
                               <td className="px-4 py-4 align-top">
@@ -2103,314 +2048,240 @@ export default function GruposClient({
                                 </div>
                               </td>
                               <td className="px-4 py-4 align-top text-sm text-slate-600">{ingredient.category?.name || "-"}</td>
-                              <td className="px-4 py-4 align-top text-right text-sm font-semibold text-slate-700">
-                                {Math.round(ingredient.calories || 0)}
-                              </td>
-                              <td className="px-4 py-4 align-top text-right text-sm font-semibold text-blue-700">
-                                {Number(ingredient.proteins || 0).toFixed(1)}g
-                              </td>
+                              <td className="px-4 py-4 align-top text-right text-sm font-semibold text-slate-700">{Math.round(ingredient.calories || 0)}</td>
+                              <td className="px-4 py-4 align-top text-right text-sm font-semibold text-blue-700">{Number(ingredient.proteins || 0).toFixed(1)}g</td>
                             </tr>
                           );
                         })}
                       </tbody>
                     </table>
                   </div>
-                )
-              ) : selectedIngredients.length === 0 ? (
-                <div className="py-10 text-center">
-                  <p className="text-sm font-semibold text-slate-700">No tienes alimentos confirmados en este grupo.</p>
-                  <p className="mt-2 text-sm text-slate-500">Vuelve a la pestaña de ingredientes para agregar alimentos.</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto rounded-2xl border border-slate-100">
-                  <table className="w-full border-collapse">
-                    <thead>
-                      <tr className="border-b border-slate-100 bg-slate-50/80 text-left">
-                        <th className="w-10 px-4 py-3" />
-                        <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Ingrediente</th>
-                        <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Categoría</th>
-                        <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Calorías</th>
-                        <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Proteínas</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 bg-white">
-                      {activeCreateIngredients.map((ingredient) => {
-                        const isSelected = confirmedIngredientIds.has(ingredient.id);
+                )}
 
-                        return (
-                          <tr
-                            key={ingredient.id}
-                            onClick={() => {
-                              setConfirmedIngredientIds((prev) => {
-                                const next = new Set(prev);
-                                if (next.has(ingredient.id)) next.delete(ingredient.id);
-                                else next.add(ingredient.id);
-                                return next;
-                              });
-                            }}
-                            className={cn(
-                              "cursor-pointer transition-colors",
-                              isSelected ? "bg-red-50/70" : "hover:bg-slate-50/70",
-                            )}
-                          >
-                            <td className="px-4 py-4 align-top">
-                              <div
-                                className={cn(
-                                  "flex h-5 w-5 items-center justify-center rounded border transition-colors",
-                                  isSelected ? "border-red-600 bg-red-600 text-white" : "border-slate-300 bg-white",
-                                )}
-                              >
-                                {isSelected && <X size={12} />}
-                              </div>
-                            </td>
-                            <td className="px-4 py-4 align-top">
-                              <div className="font-semibold text-slate-900">{ingredient.name}</div>
-                              <div className="mt-1 flex flex-wrap gap-1.5">
-                                {(ingredient.tags || []).slice(0, 3).map((tag) => (
-                                  <span
-                                    key={tag.id}
-                                    className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-600"
-                                  >
-                                    #{tag.name}
-                                  </span>
-                                ))}
-                              </div>
-                            </td>
-                            <td className="px-4 py-4 align-top text-sm text-slate-600">{ingredient.category?.name || "-"}</td>
-                            <td className="px-4 py-4 align-top text-right text-sm font-semibold text-slate-700">{Math.round(ingredient.calories || 0)}</td>
-                            <td className="px-4 py-4 align-top text-right text-sm font-semibold text-blue-700">{Number(ingredient.proteins || 0).toFixed(1)}g</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {activeCreateTotalPages > 1 && (
-                <div className="mt-6 flex justify-center">
-                  <Pagination
-                    currentPage={createViewTab === "alimentos" ? createCurrentPage : selectedCurrentPage}
-                    totalPages={activeCreateTotalPages}
-                    onPageChange={createViewTab === "alimentos" ? setCreateCurrentPage : setSelectedCurrentPage}
-                  />
-                </div>
-              )}
-            </div>
-
-          </div>
-
-          <aside className="space-y-4 xl:sticky xl:top-[25vh] xl:self-start">
-            {createViewTab === "alimentos" && (
-              <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-slate-400">Filtros</p>
-                    <p className="mt-1 text-sm text-slate-500">Ajusta reglas y categoría desde aquí.</p>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setIsFiltersOpen((prev) => !prev)}
-                    className="rounded-xl text-slate-500 hover:bg-slate-50 hover:text-slate-700"
-                  >
-                    <Filter size={14} className="mr-2" />
-                    {isFiltersOpen ? "Ocultar" : `Mostrar${activeFiltersCount > 0 ? ` (${activeFiltersCount})` : ""}`}
-                  </Button>
-                </div>
-
-                {isFiltersOpen && (
-                  <div className="mt-4 border-t border-slate-100 pt-4">
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <label className="block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Categoría</label>
-                        <select
-                          value={createCategoryDraft}
-                          onChange={(e) => setCreateCategoryDraft(e.target.value)}
-                          className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-600 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
-                        >
-                          <option value="ALL">Todas las categorías</option>
-                          {categories.map((category) => (
-                            <option key={category} value={category}>
-                              {category}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3">
-                        <div className="mb-3 flex items-center justify-between gap-2">
-                          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Reglas</p>
-                          <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold text-slate-600 shadow-sm">
-                            {createFilterDrafts.length}
-                          </span>
-                        </div>
-
-                        <div className="max-h-72 space-y-3 overflow-y-auto pr-1">
-                          {createFilterDrafts.map((draft, index) => {
-                            const nutrient = nutrientOptions.find((option) => option.value === draft.nutrient);
-
-                            return (
-                              <div key={draft.id} className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-                                <div className="mb-3 flex items-center justify-between gap-2">
-                                  <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400">
-                                    Regla {index + 1}
-                                  </p>
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    onClick={() => removeFilterDraft(draft.id)}
-                                    className="h-8 rounded-xl px-2 text-slate-400 hover:bg-slate-50 hover:text-slate-700"
-                                  >
-                                    <X size={14} />
-                                  </Button>
-                                </div>
-
-                                <div className="grid gap-2">
-                                  <select
-                                    value={draft.nutrient}
-                                    onChange={(e) => updateFilterDraft(draft.id, { nutrient: e.target.value as NutrientKey })}
-                                    className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
-                                  >
-                                    {nutrientOptions.map((option) => (
-                                      <option key={option.value} value={option.value}>
-                                        {option.label}
-                                      </option>
-                                    ))}
-                                  </select>
-
-                                  <div className="grid grid-cols-2 gap-2">
-                                    <select
-                                      value={draft.comparator}
-                                      onChange={(e) => updateFilterDraft(draft.id, { comparator: e.target.value as Comparator })}
-                                      className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
-                                    >
-                                      <option value="gte">Mayor o igual</option>
-                                      <option value="lte">Menor o igual</option>
-                                    </select>
-
-                                    <Input
-                                      type="number"
-                                      inputMode="decimal"
-                                      value={draft.value}
-                                      onChange={(e) => updateFilterDraft(draft.id, { value: e.target.value })}
-                                      placeholder={nutrient ? nutrient.unit : "Valor"}
-                                      className="h-10 rounded-xl border-slate-200 text-sm focus:border-emerald-500 focus:ring-emerald-500/20"
-                                    />
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-
-                        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={addFilterDraft}
-                            className="w-full rounded-xl border-slate-200 text-slate-600 hover:bg-white"
-                          >
-                            <Plus size={14} className="mr-2" />
-                            Agregar regla
-                          </Button>
-
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            onClick={handleClearFilters}
-                            className="w-full rounded-xl text-slate-500 hover:bg-white hover:text-slate-700"
-                          >
-                            Limpiar
-                          </Button>
-
-                          <Button
-                            type="button"
-                            onClick={handleApplyFilters}
-                            className="w-full rounded-xl bg-emerald-600 px-4 text-white hover:bg-emerald-700 sm:col-span-2"
-                          >
-                            Aplicar filtros
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
+                {activeCreateTotalPages > 1 && (
+                  <div className="mt-6 flex justify-center">
+                    <Pagination
+                      currentPage={createViewTab === "alimentos" ? createCurrentPage : selectedCurrentPage}
+                      totalPages={activeCreateTotalPages}
+                      onPageChange={createViewTab === "alimentos" ? setCreateCurrentPage : setSelectedCurrentPage}
+                    />
                   </div>
                 )}
               </div>
-            )}
 
-            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-slate-400">
-                    Alimentos
-                  </p>
-                  <p className="mt-1 text-4xl font-semibold tracking-tight text-slate-900">
-                    {totalSelectedCount}
-                  </p>
-                </div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
-                  <UtensilsCrossed size={22} />
-                </div>
-              </div>
-              <p className="mt-2 text-xs leading-5 text-slate-500">
-                Seleccionados para el grupo actual.
-              </p>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-slate-400">
-                Atajos rápidos
-              </p>
-              <div className="mt-3 space-y-3">
-                <Button
-                  type="button"
-                  onClick={handleConfirmSelection}
-                  disabled={stagedCount === 0}
-                  className="w-full min-h-[52px] h-auto cursor-pointer rounded-xl border-indigo-100 bg-indigo-50 px-4 text-indigo-700 shadow-sm transition-all hover:bg-indigo-100"
-                >
-                  <div className="flex items-center justify-center gap-2 py-1.5 w-full">
-                    <Plus size={18} className="shrink-0" />
-                    <span className="font-semibold text-xs sm:text-[13px] leading-tight text-center whitespace-normal max-w-[200px]">
-                      Confirmar {stagedCount} seleccionados
-                    </span>
+            <aside className="space-y-4 xl:sticky xl:top-[25vh] xl:self-start">
+              {createViewTab === "alimentos" && (
+                <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-slate-400">Filtros</p>
+                      <p className="mt-1 text-sm text-slate-500">Ajusta reglas y categoría desde aquí.</p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsFiltersOpen((prev) => !prev)}
+                      className="rounded-xl text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+                    >
+                      <Filter size={14} className="mr-2" />
+                      {isFiltersOpen ? "Ocultar" : `Mostrar${activeFiltersCount > 0 ? ` (${activeFiltersCount})` : ""}`}
+                    </Button>
                   </div>
-                </Button>
-                <Button
-                  type="button"
-                  onClick={handleCreateGroup}
-                  disabled={
-                    totalSelectedCount === 0 ||
-                    !groupName.trim() ||
-                    isCreateSubmitting ||
-                     isCreateFlowBlocked ||
-                    (editingGroupId ? !hasGroupChanges : false)
-                  }
-                  className="w-full h-[52px] cursor-pointer rounded-xl bg-indigo-600 px-4 text-white shadow-sm transition-all hover:bg-indigo-700"
-                >
-                  <div className="flex items-center justify-center gap-2">
-                    {isCreateSubmitting ? (
-                      <span className="inline-block h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                    ) : (
-                      <Check size={18} className="shrink-0" />
-                    )}
-                    <span className="font-semibold text-sm">{editingGroupId ? "Guardar grupo" : "Crear grupo"}</span>
+
+                  {isFiltersOpen && (
+                    <div className="mt-4 border-t border-slate-100 pt-4">
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <label className="block text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Categoría</label>
+                          <select
+                            value={createCategoryDraft}
+                            onChange={(e) => setCreateCategoryDraft(e.target.value)}
+                            className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-600 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+                          >
+                            <option value="ALL">Todas las categorías</option>
+                            {categories.map((category) => (
+                              <option key={category} value={category}>
+                                {category}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3">
+                          <div className="mb-3 flex items-center justify-between gap-2">
+                            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Reglas</p>
+                            <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold text-slate-600 shadow-sm">
+                              {createFilterDrafts.length}
+                            </span>
+                          </div>
+
+                          <div className="max-h-72 space-y-3 overflow-y-auto pr-1">
+                            {createFilterDrafts.map((draft, index) => {
+                              const nutrient = nutrientOptions.find((option) => option.value === draft.nutrient);
+
+                              return (
+                                <div key={draft.id} className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+                                  <div className="mb-3 flex items-center justify-between gap-2">
+                                    <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400">
+                                      Regla {index + 1}
+                                    </p>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      onClick={() => removeFilterDraft(draft.id)}
+                                      className="h-8 rounded-xl px-2 text-slate-400 hover:bg-slate-50 hover:text-slate-700"
+                                    >
+                                      <X size={14} />
+                                    </Button>
+                                  </div>
+
+                                  <div className="grid gap-2">
+                                    <select
+                                      value={draft.nutrient}
+                                      onChange={(e) => updateFilterDraft(draft.id, { nutrient: e.target.value as NutrientKey })}
+                                      className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+                                    >
+                                      {nutrientOptions.map((option) => (
+                                        <option key={option.value} value={option.value}>
+                                          {option.label}
+                                        </option>
+                                      ))}
+                                    </select>
+
+                                    <div className="grid grid-cols-2 gap-2">
+                                      <select
+                                        value={draft.comparator}
+                                        onChange={(e) => updateFilterDraft(draft.id, { comparator: e.target.value as Comparator })}
+                                        className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+                                      >
+                                        <option value="gte">Mayor o igual</option>
+                                        <option value="lte">Menor o igual</option>
+                                      </select>
+
+                                      <Input
+                                        type="number"
+                                        inputMode="decimal"
+                                        value={draft.value}
+                                        onChange={(e) => updateFilterDraft(draft.id, { value: e.target.value })}
+                                        placeholder={nutrient ? nutrient.unit : "Valor"}
+                                        className="h-10 rounded-xl border-slate-200 text-sm focus:border-emerald-500 focus:ring-emerald-500/20"
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={addFilterDraft}
+                              className="w-full rounded-xl border-slate-200 text-slate-600 hover:bg-white"
+                            >
+                              <Plus size={14} className="mr-2" />
+                              Agregar regla
+                            </Button>
+
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              onClick={handleClearFilters}
+                              className="w-full rounded-xl text-slate-500 hover:bg-white hover:text-slate-700"
+                            >
+                              Limpiar
+                            </Button>
+
+                            <Button
+                              type="button"
+                              onClick={handleApplyFilters}
+                              className="w-full rounded-xl bg-emerald-600 px-4 text-white hover:bg-emerald-700 sm:col-span-2"
+                            >
+                              Aplicar filtros
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-slate-400">
+                      Alimentos
+                    </p>
+                    <p className="mt-1 text-4xl font-semibold tracking-tight text-slate-900">
+                      {totalSelectedCount}
+                    </p>
                   </div>
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleResetCreate}
-                  className="w-full h-[52px] cursor-pointer rounded-xl border-slate-200 px-4 text-slate-600 transition-all hover:bg-slate-50"
-                >
-                  <span className="font-semibold text-sm">Reiniciar</span>
-                </Button>
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
+                    <UtensilsCrossed size={22} />
+                  </div>
+                </div>
+                <p className="mt-2 text-xs leading-5 text-slate-500">
+                  Seleccionados para el grupo actual.
+                </p>
               </div>
-            </div>
-          </aside>
+
+              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-slate-400">
+                  Atajos rápidos
+                </p>
+                <div className="mt-3 space-y-3">
+                  <Button
+                    type="button"
+                    onClick={handleConfirmSelection}
+                    disabled={stagedCount === 0}
+                    className="w-full min-h-[52px] h-auto cursor-pointer rounded-xl border-indigo-100 bg-indigo-50 px-4 text-indigo-700 shadow-sm transition-all hover:bg-indigo-100"
+                  >
+                    <div className="flex items-center justify-center gap-2 py-1.5 w-full">
+                      <Plus size={18} className="shrink-0" />
+                      <span className="font-semibold text-xs sm:text-[13px] leading-tight text-center whitespace-normal max-w-[200px]">
+                        Confirmar {stagedCount} seleccionados
+                      </span>
+                    </div>
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={handleCreateGroup}
+                    disabled={
+                      totalSelectedCount === 0 ||
+                      !groupName.trim() ||
+                      isCreateSubmitting ||
+                      isCreateFlowBlocked ||
+                      (editingGroupId ? !hasGroupChanges : false)
+                    }
+                    className="w-full h-[52px] cursor-pointer rounded-xl bg-indigo-600 px-4 text-white shadow-sm transition-all hover:bg-indigo-700"
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      {isCreateSubmitting ? (
+                        <span className="inline-block h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                      ) : (
+                        <Check size={18} className="shrink-0" />
+                      )}
+                      <span className="font-semibold text-sm">{editingGroupId ? "Guardar grupo" : "Crear grupo"}</span>
+                    </div>
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleResetCreate}
+                    className="w-full h-[52px] cursor-pointer rounded-xl border-slate-200 px-4 text-slate-600 transition-all hover:bg-slate-50"
+                  >
+                    <span className="font-semibold text-sm">Reiniciar</span>
+                  </Button>
+                </div>
+              </div>
+            </aside>
+          </div>
         </div>
-      </div>
       )}
       <Modal
         isOpen={isAddToGroupOpen}
@@ -2496,6 +2367,145 @@ export default function GruposClient({
         confirmText="Eliminar"
         variant="destructive"
       />
+
+      {/* Modal para ver alimentos de un grupo */}
+      <Modal
+        isOpen={isViewGroupModalOpen}
+        onClose={() => {
+          setIsViewGroupModalOpen(false);
+          setViewGroupModalGroup(null);
+        }}
+        className="max-w-3xl rounded-3xl p-6"
+      >
+        {viewGroupModalGroup && (
+          <div className="space-y-5">
+            {/* Header */}
+            <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-xl font-extrabold text-slate-900 tracking-tight">
+                    {viewGroupModalGroup.name}
+                  </h3>
+                  <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-semibold text-indigo-700">
+                    {(viewGroupModalGroup.ingredients?.length ?? viewGroupModalGroup._count?.entries ?? viewGroupModalGroup._count?.ingredients ?? 0)} alimentos
+                  </span>
+                </div>
+                {viewGroupModalGroup.description && (
+                  <p className="mt-1 text-sm font-medium text-slate-500">
+                    {viewGroupModalGroup.description}
+                  </p>
+                )}
+                {viewGroupModalGroup.tags && viewGroupModalGroup.tags.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {viewGroupModalGroup.tags.map((tag) => (
+                      <span
+                        key={tag.id}
+                        className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-600"
+                      >
+                        #{tag.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Content */}
+            {viewGroupModalLoading ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <span className="h-8 w-8 animate-spin rounded-full border-2 border-indigo-200 border-t-indigo-600" />
+                <p className="mt-3 text-sm font-semibold text-slate-600">Cargando alimentos del grupo...</p>
+              </div>
+            ) : (viewGroupModalGroup.ingredients || []).length === 0 ? (
+              <div className="py-10 text-center">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
+                  <UtensilsCrossed size={22} />
+                </div>
+                <p className="mt-3 text-sm font-semibold text-slate-700">Este grupo todavía no tiene alimentos.</p>
+                <p className="mt-1 text-xs text-slate-500 font-medium">Edita el grupo para agregarle ingredientes.</p>
+              </div>
+            ) : (
+              <div className="max-h-[60vh] overflow-y-auto pr-1 space-y-3">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {(viewGroupModalGroup.ingredients || []).map((entry) => {
+                    const ingredient = entry.ingredient;
+                    if (!ingredient) return null;
+                    const origin = ingredient.isMine || !ingredient.isPublic ? "Creado por mí" : "Comunidad";
+                    return (
+                      <div
+                        key={entry.entryId || ingredient.id}
+                        className="rounded-2xl border border-slate-200 bg-slate-50/60 p-3.5 shadow-sm transition-all hover:bg-white hover:shadow-md"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-sm font-semibold text-slate-900 truncate">{ingredient.name}</p>
+                          <span
+                            className={cn(
+                              "shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide",
+                              origin === "Creado por mí"
+                                ? "bg-emerald-50 text-emerald-700"
+                                : "bg-slate-200 text-slate-600",
+                            )}
+                          >
+                            {origin}
+                          </span>
+                        </div>
+                        <p className="mt-0.5 text-xs font-medium text-slate-500">
+                          {ingredient.category?.name || "General"}
+                          {ingredient.brand?.name ? ` · ${ingredient.brand.name}` : ""}
+                        </p>
+                        <div className="mt-2.5 grid grid-cols-3 gap-1.5 text-xs">
+                          <div className="rounded-xl bg-white p-2 text-center border border-slate-100">
+                            <span className="block font-bold text-slate-800">{entry.amount} {entry.unit}</span>
+                            <span className="text-[10px] text-slate-400 font-medium">Cant.</span>
+                          </div>
+                          <div className="rounded-xl bg-white p-2 text-center border border-slate-100">
+                            <span className="block font-bold text-amber-600">{Math.round(ingredient.calories || 0)}</span>
+                            <span className="text-[10px] text-slate-400 font-medium">kcal</span>
+                          </div>
+                          <div className="rounded-xl bg-white p-2 text-center border border-slate-100">
+                            <span className="block font-bold text-blue-600">{Number(ingredient.proteins || 0).toFixed(1)}g</span>
+                            <span className="text-[10px] text-slate-400 font-medium">prot</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Footer */}
+            <div className="flex items-center justify-between border-t border-slate-100 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  const targetId = viewGroupModalGroup.id;
+                  setIsViewGroupModalOpen(false);
+                  setViewGroupModalGroup(null);
+                  void handleGroupClick(targetId);
+                }}
+                className="rounded-xl border-indigo-200 bg-indigo-50/50 px-4 text-xs font-bold text-indigo-700 hover:bg-indigo-100/70"
+              >
+                <Pencil size={14} className="mr-1.5 shrink-0" />
+                Editar grupo
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsViewGroupModalOpen(false);
+                  setViewGroupModalGroup(null);
+                }}
+                className="rounded-xl px-5 text-sm font-semibold"
+              >
+                Cerrar
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

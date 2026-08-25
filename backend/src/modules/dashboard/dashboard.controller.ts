@@ -12,9 +12,10 @@ import { CacheTTL } from '@nestjs/cache-manager';
 import { PermissionsGuard } from '../permissions/permissions.guard';
 import { RequireFeatures } from '../permissions/permissions.decorator';
 import { SPECIAL_FEATURES } from '../permissions/permissions.constants';
+import { NutritionistScopeGuard } from '../../common/guards/nutritionist-scope.guard';
 
 @Controller('dashboard')
-@UseGuards(AuthGuard, PermissionsGuard)
+@UseGuards(AuthGuard, NutritionistScopeGuard, PermissionsGuard)
 @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
 @UseInterceptors(HttpCacheInterceptor)
 @CacheTTL(600000) // 10 minutes for dashboard stats

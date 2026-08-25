@@ -9,14 +9,18 @@ describe('verifyFileSignature', () => {
   });
 
   it('should detect valid PNG signature', () => {
-    const pngBuffer = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]);
+    const pngBuffer = Buffer.from([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0,
+    ]);
     const result = verifyFileSignature(pngBuffer);
     expect(result.valid).toBe(true);
     expect(result.detectedType).toBe('image/png');
   });
 
   it('should detect valid JPEG signature', () => {
-    const jpegBuffer = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    const jpegBuffer = Buffer.from([
+      0xff, 0xd8, 0xff, 0xe0, 0, 0, 0, 0, 0, 0, 0, 0,
+    ]);
     const result = verifyFileSignature(jpegBuffer);
     expect(result.valid).toBe(true);
     expect(result.detectedType).toBe('image/jpeg');

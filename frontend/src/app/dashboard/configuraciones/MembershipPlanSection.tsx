@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Crown, ShieldCheck, Sparkles, Check, Loader2, XCircle } from "lucide-react";
+import { Crown, ShieldCheck, Sparkles, Check, Loader2, XCircle, X } from "lucide-react";
 import { toast } from "sonner";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
@@ -112,7 +112,7 @@ export function MembershipPlanSection({
 
   const currentPrice = Number(currentPlan?.price || 0);
   const canChangePlan = currentPrice === 0;
-  const featuredPlan = availablePlans.find((p) => p.price > 0);
+  const featuredPlan = availablePlans.find((p) => p.price > 0 && !p.isComingSoon);
   const nextPaymentLabel = useMemo(() => {
     if (currentPrice === 0) return "Sin cobro";
     return formatDate(billing?.nextPaymentAt || subscriptionEndsAt?.toISOString() || null);
@@ -175,7 +175,15 @@ export function MembershipPlanSection({
     setPlansLoadError(null);
     try {
       const plans = await membershipService.getActivePlans();
-      setAvailablePlans(plans.filter((p) => p.id !== currentPlan?.id));
+      setAvailablePlans(
+        plans.filter((p) => {
+          const isComingSoon =
+            p.isComingSoon ||
+            String(p.slug || "").toLowerCase() === "proximamente" ||
+            String(p.slug || "").toLowerCase() === "future";
+          return p.id !== currentPlan?.id && !isComingSoon;
+        })
+      );
     } catch (error) {
       const message = error instanceof Error ? error.message : "No se pudieron cargar los planes.";
       setPlansLoadError(message);
@@ -184,6 +192,22 @@ export function MembershipPlanSection({
       setIsLoadingPlans(false);
     }
   };
+
+  useEffect(() => {
+    if (currentPlan) {
+      void membershipService.getActivePlans().then((plans) => {
+        setAvailablePlans(
+          plans.filter((p) => {
+            const isComingSoon =
+              p.isComingSoon ||
+              String(p.slug || "").toLowerCase() === "proximamente" ||
+              String(p.slug || "").toLowerCase() === "future";
+            return p.id !== currentPlan.id && !isComingSoon;
+          })
+        );
+      }).catch(() => {});
+    }
+  }, [currentPlan]);
 
   useEffect(() => {
     if (autoOpenChangePlan && !hasAutoOpenedChangePlan) {
@@ -549,12 +573,23 @@ export function MembershipPlanSection({
                       </div>
                     </div>
                     <div className="space-y-2 mb-6">
-                      {planFeatureRows.slice(0, 5).map((feature) => (
-                        <div key={feature.key} className="flex items-center gap-2 text-sm">
-                          <Check className="h-4 w-4 text-indigo-500 shrink-0" />
-                          <span className="text-slate-600">{feature.label}</span>
-                        </div>
-                      ))}
+                      {(plan.features || []).slice(0, 6).map((feature, idx) => {
+                        const display = getMembershipFeatureDisplay(feature);
+                        return (
+                          <div key={idx} className="flex items-center gap-2 text-sm">
+                            {display.isNew ? (
+                              <Sparkles className="h-4 w-4 text-amber-500 shrink-0 animate-pulse" />
+                            ) : display.isExcluded ? (
+                              <X className="h-4 w-4 text-red-500 shrink-0" />
+                            ) : (
+                              <Check className="h-4 w-4 text-indigo-500 shrink-0" />
+                            )}
+                            <span className={cn("text-slate-600", display.isExcluded && "line-through text-slate-400", display.isNew && "font-bold text-slate-900")}>
+                              {display.label}
+                            </span>
+                          </div>
+                        );
+                      })}
                     </div>
                     {plan.isComingSoon ? (
                       <button
