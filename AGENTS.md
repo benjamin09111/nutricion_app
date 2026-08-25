@@ -39,6 +39,7 @@
     - **Dynamic Sitemap**: `sitemap.ts` MUST dynamically aggregate all active public entities (`/nutricionistas/${slug}`) and include all primary public landing pages (`/`, `/nutricionistas`, `/sobre-nutrinet`, `/privacy-policy`, `/terms`).
     - **Dynamic Site URL**: Always resolve site domains via `process.env.NEXT_PUBLIC_APP_URL || "https://nutrinet.cl"`.
     - **Custom 404 Maintenance**: Maintain `src/app/not-found.tsx` with proper 404 UI, clean CTAs, and `noindex` metadata.
+20. **Unified Module Typography & Layout Hierarchy (Immutable)**: Every dashboard module page MUST be wrapped in `ModuleLayout` (`src/components/shared/ModuleLayout.tsx`) to guarantee 100% unified typography and header scaling across the application. Page titles (`<h1>`) must scale at `text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight`, descriptions at `text-xs sm:text-sm text-slate-500 font-medium`, section headers (`<h2>`) at `text-base sm:text-lg font-extrabold`, and cards/containers with standard `rounded-2xl` radii and `rounded-xl` buttons. Never introduce arbitrary font sizes or non-standard header styles.
 
 ## Linguistic Conventions
 - **UI text**: Professional, warm Spanish (español de Chile).

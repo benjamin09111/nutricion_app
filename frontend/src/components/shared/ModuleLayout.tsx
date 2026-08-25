@@ -57,12 +57,12 @@ export function ModuleLayout({
             </div>
           )}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
-            <h1 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight leading-none">
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight leading-tight">
               {title}
             </h1>
             {rightContent}
           </div>
-          <div className="text-sm sm:text-base text-slate-500 font-medium leading-relaxed">
+          <div className="text-xs sm:text-sm text-slate-500 font-medium leading-relaxed max-w-4xl">
             {description}
           </div>
         </div>

@@ -18,7 +18,7 @@ import Link from "next/link";
 
 const updates = [
   {
-    title: "Recordatorios por WhatsApp (Kapso)",
+    title: "Recordatorios por WhatsApp opcionales",
     description:
       "Envío automático de pautas, recordatorios de citas y avisos personalizados directo al WhatsApp de tus pacientes.",
     icon: MessageSquare,
@@ -27,7 +27,14 @@ const updates = [
   {
     title: "Portal de nutricionistas",
     description:
-      "Un espacio dedicado para gestionar pacientes, seguimiento y trabajo diario con más velocidad.",
+      "Un espacio dedicado para nutricionistas, date a conocer y que los pacientes lleguen a ti.",
+    icon: Users,
+    tone: "indigo",
+  },
+  {
+    title: "Plataforma para tus pacientes",
+    description:
+      "Un espacio dedicado para tener un canal con tu paciente de forma privada, formal y automatizada. Es una oferta única que puedes hacerles a tus pacientes!",
     icon: Users,
     tone: "indigo",
   },
@@ -124,28 +131,15 @@ const toneStyles: Record<string, { bg: string; icon: string; ring: string }> = {
   },
 };
 
+import { ModuleLayout } from "@/components/shared/ModuleLayout";
+
 export default function UpdatesPage() {
   return (
-    <div className="min-h-screen bg-slate-50 pb-16">
-      <section className="border-b border-slate-200 bg-white/90">
-        <div className="mx-auto max-w-7xl px-3 py-12 sm:px-6 lg:px-8">
-          <div className="inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.25em] text-indigo-700">
-            <Sparkles className="h-3.5 w-3.5" />
-            Futuras funciones y actualizaciones
-          </div>
-
-          <div className="mt-5 max-w-2xl">
-            <h1 className="text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
-              Lo que viene para tu flujo clínico
-            </h1>
-            <p className="mt-4 text-sm leading-7 text-slate-500 sm:text-base">
-              Estamos construyendo nuevas herramientas para ahorrar tiempo, automatizar tareas y hacer tu trabajo diario más fluido.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <main className="mx-auto max-w-7xl px-3 pt-8 sm:px-6 lg:px-8">
+    <ModuleLayout
+      title="Futuras Funciones y Actualizaciones"
+      description="Lo que viene para tu flujo clínico: nuevas herramientas en desarrollo para ahorrar tiempo, automatizar tareas y hacer tu trabajo más fluido."
+    >
+      <div className="space-y-8">
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {updates.map((item) => {
             const styles = toneStyles[item.tone];
@@ -210,7 +204,7 @@ export default function UpdatesPage() {
             </Link>
           </div>
         </section>
-      </main>
-    </div>
+      </div>
+    </ModuleLayout>
   );
 }

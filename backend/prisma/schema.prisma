@@ -45,6 +45,7 @@ model Account {
   deletionRequests          AccountDeletionRequest[]
   personalNoteTabs          PersonalNoteTab[]
   aiUsageLogs               AiUsageLog[]
+  appRating                 AppRating?
 
   @@index([role, createdAt])
   @@map("accounts")
@@ -966,6 +967,8 @@ enum SubscriptionStatus {
 enum DiscountCodeType {
   NUTRI
   BETA
+  PROMO_30
+  PROMO_15
 }
 
 enum DiscountCodeStatus {
@@ -1151,5 +1154,19 @@ model Testimonial {
   @@index([isPublished, displayOrder])
   @@index([isReviewed])
   @@map("testimonials")
+}
+
+model AppRating {
+  id        String   @id @default(uuid())
+  accountId String   @unique @map("account_id")
+  stars     Int      @db.SmallInt
+  comment   String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+  @@map("app_ratings")
 }
 

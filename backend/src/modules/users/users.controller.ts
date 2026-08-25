@@ -241,6 +241,70 @@ export class UsersController {
     return this.usersService.softDelete(id);
   }
 
+  @Get('trash')
+  @UseGuards(AuthGuard, PermissionsGuard)
+  async getTrashAccounts(
+    @Request() req: any,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+  ) {
+    if (!isAdminRole(req.user.role)) {
+      throw new UnauthorizedException(
+        'Solo administradores pueden ver la papelera',
+      );
+    }
+    return this.usersService.findTrashAccounts(
+      page ? Number(page) : 1,
+      limit ? Number(limit) : 10,
+      search,
+    );
+  }
+
+  @Get('trash/count')
+  @UseGuards(AuthGuard, PermissionsGuard)
+  async countTrashAccounts(@Request() req: any) {
+    if (!isAdminRole(req.user.role)) {
+      throw new UnauthorizedException(
+        'Solo administradores pueden ver la papelera',
+      );
+    }
+    return this.usersService.countTrashAccounts();
+  }
+
+  @Delete('trash/empty')
+  @UseGuards(AuthGuard, PermissionsGuard)
+  async emptyTrash(@Request() req: any) {
+    if (!isAdminRole(req.user.role)) {
+      throw new UnauthorizedException(
+        'Solo administradores pueden vaciar la papelera',
+      );
+    }
+    return this.usersService.emptyTrash();
+  }
+
+  @Delete('trash/:id')
+  @UseGuards(AuthGuard, PermissionsGuard)
+  async purgeFromTrash(@Param('id') id: string, @Request() req: any) {
+    if (!isAdminRole(req.user.role)) {
+      throw new UnauthorizedException(
+        'Solo administradores pueden eliminar permanentemente',
+      );
+    }
+    return this.usersService.hardDelete(id);
+  }
+
+  @Post('trash/:id/restore')
+  @UseGuards(AuthGuard, PermissionsGuard)
+  async restoreFromTrash(@Param('id') id: string, @Request() req: any) {
+    if (!isAdminRole(req.user.role)) {
+      throw new UnauthorizedException(
+        'Solo administradores pueden restaurar usuarios',
+      );
+    }
+    return this.usersService.restoreAccount(id);
+  }
+
   @Delete(':id')
   @UseGuards(AuthGuard, PermissionsGuard)
   @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)

@@ -160,7 +160,9 @@ return (
               alt="nutrinet"
               width={110}
               height={35}
+              style={{ height: "auto" }}
               className="h-auto w-[100px] sm:w-[130px] object-contain"
+              priority
             />
           </Link>
           <nav className="flex items-center gap-3 sm:gap-5">

@@ -10,6 +10,8 @@ import { NutriaChatWidget } from "@/components/layout/NutriaChatWidget";
 import { NotesAgendaWidget } from "@/components/layout/NotesAgendaWidget";
 import { NatyWelcomeDrawer } from "@/components/copilot/NatyWelcomeDrawer";
 import { WelcomeOverlay } from "@/components/welcome/WelcomeOverlay";
+import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
+import { AppRatingModal } from "@/components/ratings/AppRatingModal";
 import { AdminProvider, useAdmin } from "@/context/AdminContext";
 import {
   DashboardShellProvider,
@@ -126,6 +128,8 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
           <NutriaChatWidget />
           <NotesAgendaWidget />
           <WelcomeOverlay />
+          <MobileBottomNav />
+          <AppRatingModal />
         </>
       )}
 

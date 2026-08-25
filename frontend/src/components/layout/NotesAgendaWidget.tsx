@@ -8,6 +8,7 @@ import { getCurrentUser } from "@/lib/current-user";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { personalNotesService } from "@/features/personal-notes/personal-notes.service";
 import type { PersonalNoteTab } from "@/features/personal-notes/types";
+import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 
 const POSITION_KEY = "nutri_notes_agenda_position";
 const getErrorStatus = (error: unknown) => (error as { status?: number })?.status;
@@ -21,6 +22,7 @@ export function NotesAgendaWidget() {
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [position, setPosition] = useState(() => ({ x: 0, y: 0 }));
   const [isDesktop, setIsDesktop] = useState(false);
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
   const loadedRef = useRef(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savingRef = useRef(false);
@@ -106,11 +108,13 @@ export function NotesAgendaWidget() {
     setSaveState("saving");
     const submittedSnapshot = `${tab.title}\n${tab.content}`;
     let didSave = false;
+    let newSavedTab: PersonalNoteTab | null = null;
     try {
       const saved = await personalNotesService.update(tab, {
         title: tab.title,
         content: tab.content,
       });
+      newSavedTab = saved;
       setTabs((current) => {
         const next = current.map((item) => {
           if (item.id !== saved.id) return item;
@@ -130,7 +134,18 @@ export function NotesAgendaWidget() {
     } catch (error) {
       setSaveState("error");
       if (getErrorStatus(error) === 409) {
-        toast.error("Esta nota cambió en otro dispositivo. Recarga la agenda para verla.");
+        try {
+          const freshTabs = await personalNotesService.list();
+          setTabs(freshTabs);
+          latestTabsRef.current = freshTabs;
+          const freshTab = freshTabs.find((t) => t.id === tab.id);
+          if (freshTab) {
+            savedSnapshotRef.current.set(freshTab.id, `${freshTab.title}\n${freshTab.content}`);
+          }
+          setSaveState("saved");
+        } catch {
+          toast.error("Esta nota cambió en otro dispositivo. Recarga la agenda para verla.");
+        }
       } else {
         toast.error("No pudimos guardar tu nota.");
       }
@@ -140,7 +155,8 @@ export function NotesAgendaWidget() {
         saveAgainRef.current = false;
         const latest = latestTabsRef.current.find((item) => item.id === tab.id);
         if (latest && savedSnapshotRef.current.get(latest.id) !== `${latest.title}\n${latest.content}`) {
-          void saveTab(latest);
+          const tabToSave = newSavedTab ? { ...latest, version: newSavedTab.version } : latest;
+          void saveTab(tabToSave);
         }
       }
     }
@@ -198,17 +214,23 @@ export function NotesAgendaWidget() {
     }
   };
 
-  const removeTab = async () => {
+  const removeTab = () => {
     if (!activeTab || tabs.length === 1) {
       toast.info("Siempre debes conservar una pestaña de notas.");
       return;
     }
-    if (!window.confirm("¿Eliminar esta pestaña y todo su contenido?")) return;
+    setIsConfirmingDelete(true);
+  };
+
+  const confirmRemoveTab = async () => {
+    if (!activeTab) return;
     try {
       await personalNotesService.remove(activeTab.id);
       const remaining = tabs.filter((tab) => tab.id !== activeTab.id);
       setTabs(remaining);
       setActiveId(remaining[0]?.id || null);
+      setIsConfirmingDelete(false);
+      toast.success("Pestaña eliminada.");
     } catch {
       toast.error("No pudimos eliminar la pestaña.");
     }
@@ -306,6 +328,17 @@ export function NotesAgendaWidget() {
           <Trash2 className="h-3.5 w-3.5" /> Eliminar
         </button>
       </div>
+
+      <ConfirmationModal
+        isOpen={isConfirmingDelete}
+        onClose={() => setIsConfirmingDelete(false)}
+        onConfirm={confirmRemoveTab}
+        title="Eliminar pestaña de notas"
+        description={`¿Estás seguro de que deseas eliminar la pestaña "${activeTab?.title}" y todo su contenido?`}
+        confirmText="Eliminar pestaña"
+        cancelText="Cancelar"
+        variant="danger"
+      />
     </section>
   );
 }

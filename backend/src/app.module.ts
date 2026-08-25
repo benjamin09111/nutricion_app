@@ -41,6 +41,7 @@ import { CopilotModule } from './modules/copilot/copilot.module';
 import { PersonalNotesModule } from './modules/personal-notes/personal-notes.module';
 import { TestimonialsModule } from './modules/testimonials/testimonials.module';
 import { UploadsModule } from './modules/uploads/uploads.module';
+import { RatingsModule } from './modules/ratings/ratings.module';
 
 @Module({
   imports: [
@@ -88,6 +89,7 @@ import { UploadsModule } from './modules/uploads/uploads.module';
     PersonalNotesModule,
     TestimonialsModule,
     UploadsModule,
+    RatingsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

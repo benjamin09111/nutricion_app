@@ -183,41 +183,101 @@ describe('AuthService', () => {
     expect(updateInput.data).not.toHaveProperty('rut');
   });
 
-  it.each(['SUSPENDED', 'DELETED'])(
-    'does not reactivate a %s account through Google',
-    async (status) => {
-      const update = jest.fn();
-      const blockedAccount = {
-        id: 'blocked-account',
+  it('does not allow a SUSPENDED account to log in through Google', async () => {
+    const update = jest.fn();
+    const blockedAccount = {
+      id: 'blocked-account',
+      email: 'blocked@nutrinet.cl',
+      password: 'hash',
+      role: 'NUTRITIONIST',
+      plan: 'FREE',
+      status: 'SUSPENDED',
+      googleSub: 'blocked-google-sub',
+      nutritionist: null,
+      subscription: null,
+    };
+
+    prisma.$transaction.mockImplementationOnce(async (callback: any) =>
+      callback({
+        account: {
+          findUnique: jest.fn().mockResolvedValueOnce(blockedAccount),
+          update,
+        },
+      }),
+    );
+
+    await expect(
+      service.loginWithGoogle({
+        sub: 'blocked-google-sub',
         email: 'blocked@nutrinet.cl',
-        password: 'hash',
-        role: 'NUTRITIONIST',
-        plan: 'FREE',
-        status,
-        googleSub: 'blocked-google-sub',
-        nutritionist: null,
-        subscription: null,
-      };
+        email_verified: true,
+      }),
+    ).rejects.toThrow('Tu cuenta ha sido suspendida. Contacta al administrador.');
+    expect(update).not.toHaveBeenCalled();
+  });
 
-      prisma.$transaction.mockImplementationOnce(async (callback: any) =>
-        callback({
-          account: {
-            findUnique: jest.fn().mockResolvedValueOnce(blockedAccount),
-            update,
-          },
-        }),
-      );
+  it('purges a DELETED account and allows re-registration through Google', async () => {
+    const deletedAccount = {
+      id: 'deleted-account',
+      email: 'deleted@nutrinet.cl',
+      password: 'hash',
+      role: 'NUTRITIONIST',
+      plan: 'FREE',
+      status: 'DELETED',
+      googleSub: 'deleted-google-sub',
+      nutritionist: null,
+      subscription: null,
+    };
 
-      await expect(
-        service.loginWithGoogle({
-          sub: 'blocked-google-sub',
-          email: 'blocked@nutrinet.cl',
-          email_verified: true,
-        }),
-      ).rejects.toThrow();
-      expect(update).not.toHaveBeenCalled();
-    },
-  );
+    const newAccount = {
+      id: 'new-account-id',
+      email: 'deleted@nutrinet.cl',
+      role: 'NUTRITIONIST',
+      plan: 'FREE',
+      status: 'ACTIVE',
+      googleSub: 'deleted-google-sub',
+      nutritionist: { id: 'new-nutri-id', fullName: 'Nueva Nutri' },
+      subscription: null,
+    };
+
+    const deleteMany = jest.fn().mockResolvedValue({ count: 1 });
+    const deleteAccount = jest.fn().mockResolvedValue(deletedAccount);
+    const createAccount = jest.fn().mockResolvedValue(newAccount);
+
+    prisma.$transaction.mockImplementationOnce(async (callback: any) =>
+      callback({
+        account: {
+          findUnique: jest
+            .fn()
+            .mockResolvedValueOnce(deletedAccount)
+            .mockResolvedValueOnce(null),
+          create: createAccount,
+          delete: deleteAccount,
+          findUniqueOrThrow: jest.fn().mockResolvedValue(newAccount),
+        },
+        accountDeletionRequest: { deleteMany },
+        nutritionist: {
+          findUnique: jest.fn().mockResolvedValue(null),
+          create: jest.fn().mockResolvedValue({ id: 'new-nutri-id' }),
+          update: jest.fn().mockResolvedValue(undefined),
+        },
+        notification: { deleteMany },
+        payment: { deleteMany },
+        subscription: { deleteMany },
+      }),
+    );
+
+    const result = await service.loginWithGoogle({
+      sub: 'deleted-google-sub',
+      email: 'deleted@nutrinet.cl',
+      email_verified: true,
+      name: 'Nueva Nutri',
+    });
+
+    expect(deleteAccount).toHaveBeenCalledWith({ where: { id: 'deleted-account' } });
+    expect(createAccount).toHaveBeenCalled();
+    expect(result.user.email).toBe('deleted@nutrinet.cl');
+  });
 
   it('rejects an expired email verification token', async () => {
     const update = jest.fn();

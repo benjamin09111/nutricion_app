@@ -141,9 +141,16 @@ export class SupportService {
   }
 
   async remove(id: string) {
-    return this.prisma.supportRequest.delete({
-      where: { id },
-    });
+    try {
+      return await this.prisma.supportRequest.delete({
+        where: { id },
+      });
+    } catch (error: any) {
+      if (error.code === "P2025") {
+        return { count: 1, message: "Registro ya eliminado" };
+      }
+      throw error;
+    }
   }
 
   async removeResolved() {

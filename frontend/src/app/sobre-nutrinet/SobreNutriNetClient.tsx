@@ -112,7 +112,7 @@ function SobreNutriNetContent() {
                 width={140}
                 height={45}
                 className="h-auto w-[118px] object-contain transition-transform duration-300 hover:scale-105 sm:w-[140px]"
-                style={{ width: "auto", height: "auto" }}
+                style={{ height: "auto" }}
                 priority
               />
             </Link>
@@ -449,6 +449,7 @@ function SobreNutriNetContent() {
               alt="nutrinet"
               width={120}
               height={40}
+              style={{ width: "auto", height: "auto" }}
               className="h-auto w-[110px] object-contain brightness-0 invert"
             />
             <span className="text-xs text-slate-400 border-l border-slate-800 pl-3">

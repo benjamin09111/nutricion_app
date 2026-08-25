@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Search, ChevronDown, ArrowRight, HelpCircle, Sparkles } from "lucide-react";
 
+import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import faqData from "@/content/faq.json";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -52,7 +53,11 @@ export function FaqClient() {
   const hasFilters = search.trim().length > 0 || selectedCategory !== "Todos";
 
   return (
-    <section className="space-y-6 pb-10">
+    <ModuleLayout
+      title="Preguntas Frecuentes"
+      description="Respuestas claras y accesos directos para resolver dudas sobre el flujo clínico, automatización, entregables y gestión de pacientes en NutriNet."
+    >
+      <div className="space-y-6 pb-10">
       <Card className="overflow-hidden border-slate-200 bg-gradient-to-br from-indigo-50 via-white to-emerald-50 shadow-[0_24px_80px_-40px_rgba(79,70,229,0.35)]">
         <CardContent className="p-0">
           <div className="grid gap-6 p-4 sm:p-6 md:grid-cols-[1.35fr_0.95fr] md:p-8">
@@ -279,6 +284,7 @@ export function FaqClient() {
           </Card>
         )}
       </div>
-    </section>
-  );
+    </div>
+  </ModuleLayout>
+);
 }

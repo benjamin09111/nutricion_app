@@ -75,9 +75,16 @@ export const PatientSelectionModal: React.FC<PatientSelectionModalProps> = ({
   };
 
   const filteredPatients = useMemo(() => {
-    if (!searchQuery.trim()) return patients;
+    const list: SelectablePatient[] = Array.isArray(patients)
+      ? patients
+      : Array.isArray((patients as any)?.data)
+        ? (patients as any).data
+        : Array.isArray((patients as any)?.items)
+          ? (patients as any).items
+          : [];
+    if (!searchQuery.trim()) return list;
     const query = searchQuery.toLowerCase().trim();
-    return patients.filter((patient) => {
+    return list.filter((patient) => {
       const name = getPatientName(patient).toLowerCase();
       const email = (patient.email || "").toLowerCase();
       const rut = (patient.rut || "").toLowerCase();

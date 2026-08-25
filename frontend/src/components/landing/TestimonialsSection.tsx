@@ -45,7 +45,7 @@ export function TestimonialsSection() {
     };
   }, []);
 
-  if (testimonials.length === 0) {
+  if (testimonials.length < 3) {
     return null;
   }
 

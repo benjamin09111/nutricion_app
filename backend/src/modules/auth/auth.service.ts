@@ -82,12 +82,6 @@ const ensureGoogleLoginAllowed = (account: { status: AccountStatus }) => {
       'Tu cuenta ha sido suspendida. Contacta al administrador.',
     );
   }
-
-  if (account.status === 'DELETED') {
-    throw new UnauthorizedException(
-      'Tu cuenta figura como eliminada. Puedes registrarte nuevamente o contactar a soporte.',
-    );
-  }
 };
 
 const getFrontendUrl = () =>
@@ -436,42 +430,53 @@ export class AuthService {
     }
   }
 
-  private async purgeDeletedAccount(accountId: string) {
-    try {
-      await this.prisma.$transaction(async (tx) => {
-        await tx.accountDeletionRequest.deleteMany({ where: { accountId } });
-        const nutritionist = await tx.nutritionist.findUnique({
-          where: { accountId },
+  private async purgeDeletedAccount(
+    accountId: string,
+    txClient?: Prisma.TransactionClient,
+  ) {
+    const runPurge = async (tx: Prisma.TransactionClient) => {
+      await tx.accountDeletionRequest.deleteMany({ where: { accountId } });
+      const nutritionist = await tx.nutritionist.findUnique({
+        where: { accountId },
+        select: { id: true },
+      });
+
+      if (nutritionist) {
+        const nutritionistId = nutritionist.id;
+        const patients = await tx.patient.findMany({
+          where: { nutritionistId },
           select: { id: true },
         });
+        const patientIds = patients.map((p) => p.id);
 
-        if (nutritionist) {
-          const nutritionistId = nutritionist.id;
-          const patients = await tx.patient.findMany({
-            where: { nutritionistId },
-            select: { id: true },
-          });
-          const patientIds = patients.map((p) => p.id);
-
-          for (const patientId of patientIds) {
-            await tx.clinicalRecord.deleteMany({ where: { patientId } });
-            await tx.patientExam.deleteMany({ where: { patientId } });
-            await tx.consultation.deleteMany({ where: { patientId } });
-          }
-          await tx.patient.deleteMany({ where: { nutritionistId } });
-          await tx.project.deleteMany({ where: { nutritionistId } });
-          await tx.creation.deleteMany({ where: { nutritionistId } });
-          await tx.recipe.deleteMany({ where: { nutritionistId } });
-          await tx.nutritionist.delete({ where: { id: nutritionistId } });
+        for (const patientId of patientIds) {
+          await tx.clinicalRecord.deleteMany({ where: { patientId } });
+          await tx.patientExam.deleteMany({ where: { patientId } });
+          await tx.consultation.deleteMany({ where: { patientId } });
         }
+        await tx.patient.deleteMany({ where: { nutritionistId } });
+        await tx.project.deleteMany({ where: { nutritionistId } });
+        await tx.creation.deleteMany({ where: { nutritionistId } });
+        await tx.recipe.deleteMany({ where: { nutritionistId } });
+        await tx.nutritionist.delete({ where: { id: nutritionistId } });
+      }
 
-        await tx.notification.deleteMany({ where: { accountId } });
-        await tx.payment.deleteMany({ where: { accountId } }).catch(() => null);
-        await tx.subscription
-          .deleteMany({ where: { accountId } })
-          .catch(() => null);
-        await tx.account.delete({ where: { id: accountId } });
-      });
+      await tx.notification.deleteMany({ where: { accountId } });
+      await tx.payment.deleteMany({ where: { accountId } }).catch(() => null);
+      await tx.subscription
+        .deleteMany({ where: { accountId } })
+        .catch(() => null);
+      await tx.account.delete({ where: { id: accountId } });
+    };
+
+    try {
+      if (txClient) {
+        await runPurge(txClient);
+      } else {
+        await this.prisma.$transaction(async (tx) => {
+          await runPurge(tx);
+        });
+      }
     } catch (e) {
       console.error('Error purging deleted account:', e);
     }
@@ -865,31 +870,35 @@ export class AuthService {
 
       if (existingByGoogle) {
         ensureGoogleLoginAllowed(existingByGoogle);
-        const updated = await tx.account.update({
-          where: { id: existingByGoogle.id },
-          data: {
-            googleEmail: normalizedEmail,
-            googleAvatarUrl:
-              profile.picture || existingByGoogle.googleAvatarUrl,
-            emailVerifiedAt: existingByGoogle.emailVerifiedAt || new Date(),
-            emailVerificationToken: null,
-            emailVerificationSentAt: null,
-            status:
-              existingByGoogle.status === 'PENDING'
-                ? AccountStatus.ACTIVE
-                : existingByGoogle.status,
-            lastLoginAt: new Date(),
-            authProvider: existingByGoogle.password
-              ? 'credentials_google'
-              : 'google',
-          },
-          include: {
-            nutritionist: true,
-            subscription: { include: { plan: true } },
-          },
-        });
+        if (existingByGoogle.status === 'DELETED') {
+          await this.purgeDeletedAccount(existingByGoogle.id, tx);
+        } else {
+          const updated = await tx.account.update({
+            where: { id: existingByGoogle.id },
+            data: {
+              googleEmail: normalizedEmail,
+              googleAvatarUrl:
+                profile.picture || existingByGoogle.googleAvatarUrl,
+              emailVerifiedAt: existingByGoogle.emailVerifiedAt || new Date(),
+              emailVerificationToken: null,
+              emailVerificationSentAt: null,
+              status:
+                existingByGoogle.status === 'PENDING'
+                  ? AccountStatus.ACTIVE
+                  : existingByGoogle.status,
+              lastLoginAt: new Date(),
+              authProvider: existingByGoogle.password
+                ? 'credentials_google'
+                : 'google',
+            },
+            include: {
+              nutritionist: true,
+              subscription: { include: { plan: true } },
+            },
+          });
 
-        return updated;
+          return updated;
+        }
       }
 
       const existingByEmail = await tx.account.findUnique({
@@ -902,68 +911,72 @@ export class AuthService {
 
       if (existingByEmail) {
         ensureGoogleLoginAllowed(existingByEmail);
-        shouldSendWelcomeEmail =
-          existingByEmail.authProvider !== 'google' ||
-          !existingByEmail.googleSub;
-        welcomeFullName =
-          existingByEmail.nutritionist?.fullName || welcomeFullName;
+        if (existingByEmail.status === 'DELETED') {
+          await this.purgeDeletedAccount(existingByEmail.id, tx);
+        } else {
+          shouldSendWelcomeEmail =
+            existingByEmail.authProvider !== 'google' ||
+            !existingByEmail.googleSub;
+          welcomeFullName =
+            existingByEmail.nutritionist?.fullName || welcomeFullName;
 
-        const updated = await tx.account.update({
-          where: { id: existingByEmail.id },
-          data: {
-            googleSub: profile.sub,
-            googleEmail: normalizedEmail,
-            googleAvatarUrl: profile.picture || existingByEmail.googleAvatarUrl,
-            emailVerifiedAt: existingByEmail.emailVerifiedAt || new Date(),
-            emailVerificationToken: null,
-            emailVerificationSentAt: null,
-            status:
-              existingByEmail.status === 'PENDING'
-                ? AccountStatus.ACTIVE
-                : existingByEmail.status,
-            lastLoginAt: new Date(),
-            authProvider: existingByEmail.password
-              ? 'credentials_google'
-              : 'google',
-          },
-          include: {
-            nutritionist: true,
-            subscription: { include: { plan: true } },
-          },
-        });
-
-        if (
-          (updated.role === 'NUTRITIONIST' ||
-            updated.role === 'NUTRITIONIST_DEVELOPER') &&
-          !updated.nutritionist
-        ) {
-          const nutritionist = await tx.nutritionist.create({
+          const updated = await tx.account.update({
+            where: { id: existingByEmail.id },
             data: {
-              accountId: updated.id,
-              fullName: profile.name || 'Usuario',
+              googleSub: profile.sub,
+              googleEmail: normalizedEmail,
+              googleAvatarUrl: profile.picture || existingByEmail.googleAvatarUrl,
+              emailVerifiedAt: existingByEmail.emailVerifiedAt || new Date(),
+              emailVerificationToken: null,
+              emailVerificationSentAt: null,
+              status:
+                existingByEmail.status === 'PENDING'
+                  ? AccountStatus.ACTIVE
+                  : existingByEmail.status,
+              lastLoginAt: new Date(),
+              authProvider: existingByEmail.password
+                ? 'credentials_google'
+                : 'google',
             },
-          });
-
-          await tx.nutritionist.update({
-            where: { id: nutritionist.id },
-            data: {
-              publicSlug: buildPublicSlug(
-                profile.name || 'Usuario',
-                nutritionist.id,
-              ),
-            },
-          });
-
-          return tx.account.findUniqueOrThrow({
-            where: { id: updated.id },
             include: {
               nutritionist: true,
               subscription: { include: { plan: true } },
             },
           });
-        }
 
-        return updated;
+          if (
+            (updated.role === 'NUTRITIONIST' ||
+              updated.role === 'NUTRITIONIST_DEVELOPER') &&
+            !updated.nutritionist
+          ) {
+            const nutritionist = await tx.nutritionist.create({
+              data: {
+                accountId: updated.id,
+                fullName: profile.name || 'Usuario',
+              },
+            });
+
+            await tx.nutritionist.update({
+              where: { id: nutritionist.id },
+              data: {
+                publicSlug: buildPublicSlug(
+                  profile.name || 'Usuario',
+                  nutritionist.id,
+                ),
+              },
+            });
+
+            return tx.account.findUniqueOrThrow({
+              where: { id: updated.id },
+              include: {
+                nutritionist: true,
+                subscription: { include: { plan: true } },
+              },
+            });
+          }
+
+          return updated;
+        }
       }
 
       shouldSendWelcomeEmail = true;
@@ -1125,13 +1138,17 @@ export class AuthService {
 
     const rutOwner = await this.prisma.account.findUnique({
       where: { rut: normalizedRut },
-      select: { id: true },
+      select: { id: true, status: true },
     });
 
     if (rutOwner && rutOwner.id !== userId) {
-      throw new ConflictException(
-        'Este RUT ya está asociado a otra cuenta. Contacta soporte si crees que es un error.',
-      );
+      if (rutOwner.status === 'DELETED') {
+        await this.purgeDeletedAccount(rutOwner.id);
+      } else {
+        throw new ConflictException(
+          'Este RUT ya está asociado a otra cuenta. Contacta soporte si crees que es un error.',
+        );
+      }
     }
 
     await this.prisma.account.update({

@@ -4,7 +4,12 @@ export const SPECIAL_FEATURES = {
   MEMBERSHIP_SELECTED: 'membership.selected',
 } as const;
 
-export const ADMIN_ROLES = ['ADMIN', 'ADMIN_MASTER', 'ADMIN_GENERAL'] as const;
+export const ADMIN_ROLES = [
+  'ADMIN',
+  'ADMIN_MASTER',
+  'ADMIN_GENERAL',
+  'NUTRITIONIST_DEVELOPER',
+] as const;
 export const WORKER_ROLES = ['WORKER'] as const;
 export const STAFF_ROLES = [...ADMIN_ROLES, ...WORKER_ROLES] as const;
 

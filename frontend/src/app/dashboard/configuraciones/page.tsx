@@ -16,6 +16,7 @@ import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { MembershipPlanSection } from "./MembershipPlanSection";
 import { getCurrentUser, setCurrentUser } from "@/lib/current-user";
+import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -219,6 +220,7 @@ function ComplianceTabSection() {
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [hasPendingDeletionRequest, setHasPendingDeletionRequest] = useState(false);
   const [isSubmittingDeletion, setIsSubmittingDeletion] = useState(false);
+  const [isConfirmingClearLogs, setIsConfirmingClearLogs] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -378,11 +380,14 @@ El Subencargado se somete a auditorías anuales independientes y asume la respon
   };
 
   const handleClearLogs = () => {
-    if (confirm("¿Estás seguro de que deseas eliminar permanentemente el historial de auditoría de IA de este navegador? Esta acción no se puede deshacer.")) {
-      localStorage.removeItem("nutri_ai_audit_logs");
-      setAuditLogs([]);
-      toast.success("Historial de auditoría eliminado correctamente.");
-    }
+    setIsConfirmingClearLogs(true);
+  };
+
+  const confirmClearLogs = () => {
+    localStorage.removeItem("nutri_ai_audit_logs");
+    setAuditLogs([]);
+    setIsConfirmingClearLogs(false);
+    toast.success("Historial de auditoría eliminado correctamente.");
   };
 
   const handleDownloadLogs = () => {
@@ -644,6 +649,17 @@ El Subencargado se somete a auditorías anuales independientes y asume la respon
           </div>
         )}
       </div>
+
+      <ConfirmationModal
+        isOpen={isConfirmingClearLogs}
+        onClose={() => setIsConfirmingClearLogs(false)}
+        onConfirm={confirmClearLogs}
+        title="Eliminar historial de auditoría"
+        description="¿Estás seguro de que deseas eliminar permanentemente el historial de auditoría de IA de este navegador? Esta acción no se puede deshacer."
+        confirmText="Eliminar historial"
+        cancelText="Cancelar"
+        variant="danger"
+      />
     </div>
   );
 }

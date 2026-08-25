@@ -1106,14 +1106,26 @@ export class UsersService {
         await tx.metricDefinition.deleteMany({ where: { nutritionistId } });
         await tx.recipe.deleteMany({ where: { nutritionistId } });
 
-        await tx.nutritionist.delete({ where: { id: nutritionistId } });
+        await tx.nutritionist.deleteMany({ where: { id: nutritionistId } });
       }
 
       await tx.accountDeletionRequest.deleteMany({ where: { accountId } });
+      await tx.discountCode.updateMany({
+        where: { usedByAccountId: accountId },
+        data: { usedByAccountId: null },
+      }).catch(() => null);
+      await tx.discountCode.updateMany({
+        where: { archivedByAdminId: accountId },
+        data: { archivedByAdminId: null },
+      }).catch(() => null);
+      await tx.discountCode.updateMany({
+        where: { createdByAdminId: accountId },
+        data: { createdByAdminId: null },
+      }).catch(() => null);
       await tx.account.delete({ where: { id: accountId } });
 
       return { success: true, message: 'Cuenta eliminada permanentemente' };
-    });
+    }, { maxWait: 10000, timeout: 60000 });
 
     if (targetEmail) {
       this.mailService
@@ -1145,7 +1157,7 @@ export class UsersService {
 
     await this.prisma.account.update({
       where: { id },
-      data: { status: 'DELETED' as AccountStatus },
+      data: { status: 'DELETED' as AccountStatus, rut: null },
     });
 
     if (account.email) {
@@ -1505,5 +1517,113 @@ export class UsersService {
       }
     }
     return [];
+  }
+
+  /**
+   * List soft-deleted accounts for Admin Trash module.
+   */
+  async findTrashAccounts(page = 1, limit = 10, search?: string) {
+    const where: any = { status: 'DELETED' as AccountStatus };
+
+    if (search) {
+      where.OR = [
+        { email: { contains: search, mode: 'insensitive' } },
+        { nutritionist: { fullName: { contains: search, mode: 'insensitive' } } },
+      ];
+    }
+
+    const normalizedPage = Math.max(1, Math.trunc(page || 1));
+    const normalizedLimit = Math.min(50, Math.max(1, Math.trunc(limit || 10)));
+
+    const [total, accounts] = await Promise.all([
+      this.prisma.account.count({ where }),
+      this.prisma.account.findMany({
+        where,
+        include: {
+          nutritionist: {
+            select: { id: true, fullName: true },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: (normalizedPage - 1) * normalizedLimit,
+        take: normalizedLimit,
+      }),
+    ]);
+
+    const totalPages = Math.max(1, Math.ceil(total / normalizedLimit));
+
+    return {
+      total,
+      page: normalizedPage,
+      limit: normalizedLimit,
+      totalPages,
+      data: accounts,
+    };
+  }
+
+  /**
+   * Count accounts in trash (status: DELETED).
+   */
+  async countTrashAccounts() {
+    const count = await this.prisma.account.count({
+      where: { status: 'DELETED' as AccountStatus },
+    });
+    return { count };
+  }
+
+  /**
+   * Empty trash: purge all accounts with status DELETED permanently.
+   */
+  async emptyTrash() {
+    const deletedAccounts = await this.prisma.account.findMany({
+      where: { status: 'DELETED' as AccountStatus },
+      select: { id: true },
+    });
+
+    let count = 0;
+    for (const acc of deletedAccounts) {
+      try {
+        await this.hardDelete(acc.id);
+        count++;
+      } catch (err) {
+        this.logger.error(
+          `Error al purgar cuenta ${acc.id} durante emptyTrash:`,
+          err,
+        );
+      }
+    }
+
+    return {
+      success: true,
+      count,
+      message: `${count} cuenta(s) purgada(s) permanentemente de la base de datos`,
+    };
+  }
+
+  /**
+   * Restore a soft-deleted account.
+   */
+  async restoreAccount(id: string) {
+    const account = await this.prisma.account.findUnique({
+      where: { id },
+    });
+
+    if (!account) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+
+    if (account.status !== 'DELETED') {
+      throw new BadRequestException('La cuenta no está en la papelera');
+    }
+
+    await this.prisma.account.update({
+      where: { id },
+      data: { status: 'ACTIVE' as AccountStatus },
+    });
+
+    return {
+      success: true,
+      message: 'Cuenta restaurada con éxito',
+    };
   }
 }

@@ -21,6 +21,8 @@ import { toast } from "sonner";
 import { fetchApi } from "@/lib/api-base";
 import { getAuthToken } from "@/lib/auth-token";
 import { useAdmin } from "@/context/AdminContext";
+import { cn } from "@/lib/utils";
+import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import {
   TestimonialFormModal,
   TestimonialItem,
@@ -35,6 +37,8 @@ export default function TestimoniosAdminPage() {
   const [activeTab, setActiveTab] = useState<FilterTab>("unreviewed");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [testimonialToEdit, setTestimonialToEdit] = useState<TestimonialItem | null>(null);
+  const [testimonialToDelete, setTestimonialToDelete] = useState<TestimonialItem | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchTestimonials = async () => {
     try {
@@ -139,11 +143,13 @@ export default function TestimoniosAdminPage() {
     }
   };
 
-  const handleDelete = async (item: TestimonialItem) => {
-    if (!confirm(`¿Seguro que deseas eliminar el testimonio de "${item.name}"?`)) {
-      return;
-    }
+  const handleDelete = (item: TestimonialItem) => {
+    setTestimonialToDelete(item);
+  };
 
+  const confirmDeleteTestimonial = async () => {
+    if (!testimonialToDelete) return;
+    setIsDeleting(true);
     try {
       const token = getAuthToken();
       const headers: Record<string, string> = {};
@@ -151,7 +157,7 @@ export default function TestimoniosAdminPage() {
         headers["Authorization"] = `Bearer ${token}`;
       }
 
-      const response = await fetchApi(`/testimonials/admin/${item.id}`, {
+      const response = await fetchApi(`/testimonials/admin/${testimonialToDelete.id}`, {
         method: "DELETE",
         headers,
       });
@@ -159,11 +165,14 @@ export default function TestimoniosAdminPage() {
       if (!response.ok) throw new Error("No se pudo eliminar el testimonio.");
 
       toast.success("Testimonio eliminado.");
+      setTestimonialToDelete(null);
       fetchTestimonials();
       notifySidebarUpdate();
     } catch (error: any) {
       console.error(error);
       toast.error(error.message || "Error al eliminar.");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -202,6 +211,54 @@ export default function TestimoniosAdminPage() {
             <Plus className="h-4 w-4" />
             Nuevo Testimonio
           </button>
+        </div>
+
+        {/* Status Banner: Minimum 3 published required for Landing */}
+        <div
+          className={cn(
+            "p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all shadow-xs",
+            publishedCount >= 3
+              ? "bg-emerald-50/60 border-emerald-200 text-emerald-900"
+              : "bg-amber-50/60 border-amber-200 text-amber-900"
+          )}
+        >
+          <div className="flex items-center gap-3">
+            <div
+              className={cn(
+                "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl font-black text-sm shadow-xs",
+                publishedCount >= 3
+                  ? "bg-emerald-600 text-white"
+                  : "bg-amber-500 text-white"
+              )}
+            >
+              {publishedCount}/3
+            </div>
+            <div>
+              <p className="text-xs font-bold tracking-tight">
+                {publishedCount >= 3
+                  ? "Sección de Testimonios activa en Landing Page"
+                  : "Sección oculta en Landing Page (Requiere mínimo 3 testimonios)"}
+              </p>
+              <p className="text-[11px] opacity-80 mt-0.5">
+                {publishedCount >= 3
+                  ? `Tienes ${publishedCount} testimonios públicos activos visibles en la landing.`
+                  : `Actualmente hay ${publishedCount} de 3 testimonios publicados requeridos para activar el bloque en la landing.`}
+              </p>
+            </div>
+          </div>
+
+          <div className="shrink-0">
+            <span
+              className={cn(
+                "inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-extrabold uppercase tracking-wider",
+                publishedCount >= 3
+                  ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                  : "bg-amber-100 text-amber-800 border border-amber-300"
+              )}
+            >
+              {publishedCount >= 3 ? "✓ Activa en Landing" : "⚠ Inactiva (Faltan " + (3 - publishedCount) + ")"}
+            </span>
+          </div>
         </div>
 
         {/* Filters and Counters */}
@@ -421,6 +478,18 @@ export default function TestimoniosAdminPage() {
           notifySidebarUpdate();
         }}
         testimonialToEdit={testimonialToEdit}
+      />
+
+      <ConfirmationModal
+        isOpen={Boolean(testimonialToDelete)}
+        onClose={() => !isDeleting && setTestimonialToDelete(null)}
+        onConfirm={confirmDeleteTestimonial}
+        title="Eliminar testimonio"
+        description={`¿Estás seguro de que deseas eliminar el testimonio de "${testimonialToDelete?.name}"? Esta acción no se puede deshacer.`}
+        confirmText="Eliminar testimonio"
+        cancelText="Cancelar"
+        variant="danger"
+        isLoading={isDeleting}
       />
     </div>
   );

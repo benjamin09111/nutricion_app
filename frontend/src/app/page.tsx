@@ -178,7 +178,7 @@ export default function LandingPage() {
                 width={160}
                 height={50}
                 className="h-auto w-[118px] object-contain transition-transform duration-300 hover:scale-105 sm:w-[148px]"
-                style={{ width: "auto", height: "auto" }}
+                style={{ height: "auto" }}
                 priority
               />
             </Link>
@@ -647,6 +647,7 @@ export default function LandingPage() {
               alt="nutrinet"
               width={140}
               height={45}
+              style={{ width: "auto", height: "auto" }}
               className="h-auto w-[120px] object-contain brightness-0 invert"
             />
             <span className="text-xs text-slate-400 border-l border-slate-800 pl-3">

@@ -22,6 +22,7 @@ import {
 import { toast } from "sonner";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { fetchApi } from "@/lib/api-base";
+import { getAuthToken } from "@/lib/auth-token";
 
 interface Feedback {
   id: string;
@@ -54,22 +55,32 @@ export default function AdminFeedbackPage() {
   );
   const [resolutionNote, setResolutionNote] = useState("");
   const [isResolving, setIsResolving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [isDeleteResolvedConfirmOpen, setIsDeleteResolvedConfirmOpen] =
     useState(false);
+
+  const getAuthHeaders = (): Record<string, string> => {
+    const token = getAuthToken();
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
 
   const fetchFeedback = async () => {
     setIsLoading(true);
     try {
       const response = await fetchApi(`/support`, {
+        headers: getAuthHeaders(),
       });
 
-      if (!response.ok) throw new Error("Error al cargar feedback");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.message || `Error ${response.status}: No se pudo cargar el feedback`);
+      }
 
       const data = await response.json();
       setFeedbackList(data.filter((item: Feedback) => item.type !== "CONTACT"));
-    } catch (error) {
-      console.error(error);
-      toast.error("No se pudieron cargar los mensajes de feedback");
+    } catch (error: any) {
+      console.error("fetchFeedback error:", error);
+      toast.error(error?.message || "No se pudieron cargar los mensajes de feedback");
     } finally {
       setIsLoading(false);
     }
@@ -92,6 +103,7 @@ export default function AdminFeedbackPage() {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
+            ...getAuthHeaders(),
           },
           body: JSON.stringify({
             adminMessage: resolutionNote.trim() || undefined,
@@ -115,26 +127,35 @@ export default function AdminFeedbackPage() {
   };
 
   const handleDelete = async () => {
-    if (!feedbackToDelete) return;
+    if (!feedbackToDelete || isDeleting) return;
+    setIsDeleting(true);
+    const id = feedbackToDelete;
+
+    // Optimistic UI update: remove item immediately from local state
+    setFeedbackList((prev) => prev.filter((item) => item.id !== id));
+    setIsDeleteConfirmOpen(false);
+    setFeedbackToDelete(null);
+
     try {
-      const response = await fetchApi(`/support/${feedbackToDelete}`, {
+      const response = await fetchApi(`/support/${id}`, {
         method: "DELETE",
+        headers: getAuthHeaders(),
       });
 
-      if (!response.ok) throw new Error("Error al eliminar feedback");
+      if (!response.ok && response.status !== 404) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.message || "Error al eliminar feedback");
+      }
 
       toast.success("Feedback eliminado");
-      // Remove from state immediately to feel snappy
-      setFeedbackList((prev) =>
-        prev.filter((item) => item.id !== feedbackToDelete),
-      );
       window.dispatchEvent(new CustomEvent("admin-feedback-updated"));
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      toast.error("Error al eliminar");
+      toast.error(error?.message || "Error al eliminar");
+      // Refetch if error occurs to restore actual server state
+      fetchFeedback();
     } finally {
-      setIsDeleteConfirmOpen(false);
-      setFeedbackToDelete(null);
+      setIsDeleting(false);
     }
   };
 
@@ -142,6 +163,7 @@ export default function AdminFeedbackPage() {
     try {
       const response = await fetchApi("/support/resolved", {
         method: "DELETE",
+        headers: getAuthHeaders(),
       });
 
       if (!response.ok) throw new Error("Error al eliminar feedback resueltos");
@@ -542,14 +564,17 @@ export default function AdminFeedbackPage() {
       <ConfirmationModal
         isOpen={isDeleteConfirmOpen}
         onClose={() => {
-          setIsDeleteConfirmOpen(false);
-          setFeedbackToDelete(null);
+          if (!isDeleting) {
+            setIsDeleteConfirmOpen(false);
+            setFeedbackToDelete(null);
+          }
         }}
         onConfirm={handleDelete}
         title="¿Eliminar feedback?"
         description="¿Estás seguro de eliminar este mensaje? Esta acción no se puede deshacer."
         confirmText="Sí, eliminar"
         variant="destructive"
+        isLoading={isDeleting}
       />
     </div>
   );
