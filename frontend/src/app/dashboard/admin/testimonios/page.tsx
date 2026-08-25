@@ -488,7 +488,7 @@ export default function TestimoniosAdminPage() {
         description={`¿Estás seguro de que deseas eliminar el testimonio de "${testimonialToDelete?.name}"? Esta acción no se puede deshacer.`}
         confirmText="Eliminar testimonio"
         cancelText="Cancelar"
-        variant="danger"
+        variant="destructive"
         isLoading={isDeleting}
       />
     </div>

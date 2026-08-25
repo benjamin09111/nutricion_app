@@ -112,7 +112,7 @@ export function MembershipPlanSection({
 
   const currentPrice = Number(currentPlan?.price || 0);
   const canChangePlan = currentPrice === 0;
-  const featuredPlan = availablePlans.find((p) => p.price > 0);
+  const featuredPlan = availablePlans.find((p) => p.price > 0 && !p.isComingSoon);
   const nextPaymentLabel = useMemo(() => {
     if (currentPrice === 0) return "Sin cobro";
     return formatDate(billing?.nextPaymentAt || subscriptionEndsAt?.toISOString() || null);
@@ -175,7 +175,15 @@ export function MembershipPlanSection({
     setPlansLoadError(null);
     try {
       const plans = await membershipService.getActivePlans();
-      setAvailablePlans(plans.filter((p) => p.id !== currentPlan?.id));
+      setAvailablePlans(
+        plans.filter((p) => {
+          const isComingSoon =
+            p.isComingSoon ||
+            String(p.slug || "").toLowerCase() === "proximamente" ||
+            String(p.slug || "").toLowerCase() === "future";
+          return p.id !== currentPlan?.id && !isComingSoon;
+        })
+      );
     } catch (error) {
       const message = error instanceof Error ? error.message : "No se pudieron cargar los planes.";
       setPlansLoadError(message);
@@ -184,6 +192,22 @@ export function MembershipPlanSection({
       setIsLoadingPlans(false);
     }
   };
+
+  useEffect(() => {
+    if (currentPlan) {
+      void membershipService.getActivePlans().then((plans) => {
+        setAvailablePlans(
+          plans.filter((p) => {
+            const isComingSoon =
+              p.isComingSoon ||
+              String(p.slug || "").toLowerCase() === "proximamente" ||
+              String(p.slug || "").toLowerCase() === "future";
+            return p.id !== currentPlan.id && !isComingSoon;
+          })
+        );
+      }).catch(() => {});
+    }
+  }, [currentPlan]);
 
   useEffect(() => {
     if (autoOpenChangePlan && !hasAutoOpenedChangePlan) {

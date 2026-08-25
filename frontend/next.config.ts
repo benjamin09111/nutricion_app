@@ -14,11 +14,24 @@ const apiOrigins = [
     }
   });
 
+// Host del bucket de Supabase Storage (avatares, PDF, exámenes). Sin esto el
+// CSP bloquea en producción toda imagen subida por la aplicación, porque
+// `img-src` sólo permitía 'self' y los avatares de Google.
+const storageOrigin = (() => {
+  const raw = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!raw) return null;
+  try {
+    return new URL(raw).origin;
+  } catch {
+    return null;
+  }
+})();
+
 const contentSecurityPolicy = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval'",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://*.googleusercontent.com",
+  `img-src 'self' data: blob: https://*.googleusercontent.com${storageOrigin ? ` ${storageOrigin}` : ""}`,
   "font-src 'self' data:",
   `connect-src 'self' ${apiOrigins.join(" ")} https://accounts.google.com https://oauth2.googleapis.com`,
   "object-src 'none'",
@@ -44,6 +57,14 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "*.googleusercontent.com",
       },
+      ...(storageOrigin
+        ? [
+            {
+              protocol: "https" as const,
+              hostname: new URL(storageOrigin).hostname,
+            },
+          ]
+        : []),
     ],
   },
   async headers() {

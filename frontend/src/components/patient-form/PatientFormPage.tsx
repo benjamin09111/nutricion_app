@@ -349,17 +349,19 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
         : "Estamos verificando el uso de tu plan. Intenta nuevamente en unos segundos.");
       return;
     }
-    if (!quickName || quickName.length < 2) { toast.error("Nombre requerido"); return; }
-    if (!quickEmail || !quickEmail.includes("@")) { toast.error("Email válido requerido"); return; }
-    if (quickRut && !validateRut(quickRut)) { toast.error("El RUT ingresado no es válido."); return; }
+    if (!quickName.trim() || !quickEmail.trim()) { toast.error("Nombre y email requeridos"); return; }
+    if (quickRut && !validateRut(quickRut)) { toast.error("RUT no válido"); return; }
     if (!quickGender) { toast.error("Sexo biológico requerido"); return; }
     setIsSaving(true);
     try {
       const vars: any[] = [{ key: "evaluationDate", label: "Fecha de evaluación", value: new Date().toISOString().split("T")[0] }];
-      if (quickMotivo) vars.push({ key: "motivoConsulta", label: "Motivo de consulta", value: quickMotivo });
+      if (quickMotivo) vars.push({ key: "motivoConsulta", label: "Motivo de consulta", value: quickMotivo, unit: "" });
       const r = await fetchApi("/patients", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fullName: quickName, email: quickEmail || undefined, phone: quickPhone || undefined, documentId: quickRut || undefined, birthDate: quickBirth ? new Date(quickBirth).toISOString() : undefined, gender: quickGender, weight: quickPeso ? parseFloat(quickPeso) : undefined, height: quickAltura ? parseFloat(quickAltura) : undefined, activityLevel: "sedentario", recalculateNutrition: true, customVariables: vars }) });
       if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.message || "Error"); }
       const p = await r.json();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("membership-usage-updated"));
+      }
       toast.success("Paciente creado");
       router.push(`/dashboard/pacientes/${p.id}`);
     } catch (e: any) { toast.error(e.message); }
@@ -824,7 +826,7 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-4 sm:px-6 sm:py-6 lg:px-0">
+    <div className="w-full max-w-[84rem] mx-auto px-2 sm:px-4 py-4 sm:py-6">
       <div className="flex justify-center mb-6">
         <div className="w-full max-w-md bg-slate-100 p-1 rounded-2xl flex flex-col gap-1 border border-slate-200/60 shadow-sm sm:w-auto sm:max-w-none sm:flex-row">
           <button type="button" onClick={() => setShowQuick(true)} className={cn("w-full px-4 py-2 text-xs font-black rounded-xl transition-all uppercase tracking-wider sm:w-auto sm:px-5", showQuick ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-800")}>Creación rápida</button>
@@ -841,7 +843,7 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
       </div>
 
       {showQuick ? (
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-3xl mx-auto">
           <FormStepCard icon={<User className="w-4 h-4 text-indigo-600" />} title="Datos del Paciente" description="Información básica de identificación">
             <div className="grid gap-4">
               <div className="space-y-1.5">
@@ -914,7 +916,7 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
           </FormStepCard>
         </div>
       ) : (
-    <div className="flex gap-8 max-w-6xl mx-auto min-w-0">
+    <div className="flex flex-col lg:flex-row gap-6 sm:gap-8 w-full min-w-0">
       <SidebarQuickNav
         sections={SECTIONS}
         activeSection={SECTIONS[currentStep].id}
@@ -944,7 +946,7 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
           </div>
         )}
         {renderStepContent()}
-        <div className="flex flex-col-reverse items-stretch gap-3 max-w-2xl mt-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col-reverse items-stretch gap-3 w-full mt-6 sm:flex-row sm:items-center sm:justify-between">
           <FormNavigationFooter
             onBack={goBack}
             onNext={goNext}

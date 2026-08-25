@@ -8,7 +8,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AppointmentsService } from './appointments.service';
-import { ApiKeyGuard } from './api-key.guard';
+import { AppointmentsAuthGuard } from './appointments-auth.guard';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import type { AppointmentRequest } from './appointments.types';
@@ -18,7 +18,7 @@ import { RequireFeatures } from '../permissions/permissions.decorator';
 import { PLAN_ENTITLEMENT_KEYS } from '../memberships/plan-entitlements';
 
 @Controller('appointments')
-@UseGuards(ApiKeyGuard, PermissionsGuard)
+@UseGuards(AppointmentsAuthGuard, PermissionsGuard)
 export class AppointmentsRecordsController {
   constructor(
     private readonly appointmentsService: AppointmentsService,

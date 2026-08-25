@@ -1118,9 +1118,8 @@ export class UsersService {
         where: { archivedByAdminId: accountId },
         data: { archivedByAdminId: null },
       }).catch(() => null);
-      await tx.discountCode.updateMany({
+      await tx.discountCode.deleteMany({
         where: { createdByAdminId: accountId },
-        data: { createdByAdminId: null },
       }).catch(() => null);
       await tx.account.delete({ where: { id: accountId } });
 

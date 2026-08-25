@@ -16,9 +16,10 @@ import { RequireFeatures } from '../permissions/permissions.decorator';
 import { SPECIAL_FEATURES } from '../permissions/permissions.constants';
 import { PLAN_ENTITLEMENT_KEYS } from '../memberships/plan-entitlements';
 import { PermissionsService } from '../permissions/permissions.service';
+import { NutritionistScopeGuard } from '../../common/guards/nutritionist-scope.guard';
 
 @Controller('tags')
-@UseGuards(AuthGuard, PermissionsGuard)
+@UseGuards(AuthGuard, NutritionistScopeGuard, PermissionsGuard)
 @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
 export class TagsController {
   constructor(

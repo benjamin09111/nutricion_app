@@ -2,7 +2,7 @@ import { ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   EntitlementMap,
-  isStaffRole,
+  hasUnlimitedEntitlements,
   normalizeEntitlementMap,
   SPECIAL_FEATURES,
 } from './permissions.constants';
@@ -39,7 +39,7 @@ const isSubscriptionSelectable = (account: {
     plan?: { slug?: string | null; price?: unknown } | null;
   } | null;
 }) => {
-  if (isStaffRole(account.role)) {
+  if (hasUnlimitedEntitlements(account.role)) {
     return true;
   }
 
@@ -190,7 +190,7 @@ export class PermissionsService {
             }
           : null;
 
-    const requiresPlanSelection = isStaffRole(account.role)
+    const requiresPlanSelection = hasUnlimitedEntitlements(account.role)
       ? false
       : !account.membershipSelectedAt;
 
@@ -207,7 +207,7 @@ export class PermissionsService {
             )
           : account.plan === 'FREE'
             ? 'FREE'
-            : isStaffRole(account.role)
+            : hasUnlimitedEntitlements(account.role)
               ? account.plan
               : 'FREE',
     };
@@ -221,7 +221,7 @@ export class PermissionsService {
       entitlements: EntitlementMap;
     } | null,
   ): EntitlementMap {
-    if (isStaffRole(account.role)) {
+    if (hasUnlimitedEntitlements(account.role)) {
       return { [SPECIAL_FEATURES.MEMBERSHIP_SELECTED]: true };
     }
 
@@ -292,7 +292,7 @@ export class PermissionsService {
 
     const { account, entitlements } = snapshot;
 
-    if (isStaffRole(account.role)) {
+    if (hasUnlimitedEntitlements(account.role)) {
       return true;
     }
 
@@ -307,7 +307,7 @@ export class PermissionsService {
     const snapshot = await this.getAccountAccess(accountId);
 
     if (!snapshot) return 0;
-    if (isStaffRole(snapshot.role)) return Infinity;
+    if (hasUnlimitedEntitlements(snapshot.role)) return Infinity;
 
     const value = snapshot.entitlements[limitKey];
     if (typeof value === 'number') {

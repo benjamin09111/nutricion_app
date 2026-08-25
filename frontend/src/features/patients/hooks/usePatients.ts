@@ -91,6 +91,9 @@ export function usePatients(params: UsePatientsParams) {
     mutationFn: deletePatient,
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["patients"] });
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("membership-usage-updated"));
+      }
     },
   });
 
@@ -99,6 +102,9 @@ export function usePatients(params: UsePatientsParams) {
       mutatePatient(patientId, { status }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["patients"] });
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("membership-usage-updated"));
+      }
     },
   });
 

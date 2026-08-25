@@ -74,7 +74,7 @@ export default function PatientsClient() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [patientToDelete, setPatientToDelete] = useState<Patient | null>(null);
   const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
-  const { currentPlan, entitlements, usage, isLoading: isSubscriptionLoading, isDeveloper } = useSubscription();
+  const { currentPlan, entitlements, usage, isLoading: isSubscriptionLoading, isDeveloper, refreshSubscription } = useSubscription();
 
   const rawPatientLimit = currentPlan?.entitlements?.["patients.total.limit"] ??
     currentPlan?.entitlements?.["patients.active.limit"] ??
@@ -93,6 +93,10 @@ export default function PatientsClient() {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
+  useEffect(() => {
+    void refreshSubscription({ silent: true });
+  }, [refreshSubscription]);
+
   const { patients, meta, isLoading, isFetching, togglePatientStatus, deletePatient, isDeleting } =
     usePatients({
       page,
@@ -102,13 +106,11 @@ export default function PatientsClient() {
       startDateFilter: "",
     });
   const patientDataPending = isLoading || isFetching;
-  const subscriptionPatientsUsed = usage?.patientsActive;
+  const isDefaultView = !showInactive && !debouncedSearchTerm && classificationTags.length === 0;
+  const authoritativePatientCount = isDefaultView && !isLoading && !isFetching ? meta.total : undefined;
   const hasAuthoritativePatientCount =
-    typeof subscriptionPatientsUsed === "number" ||
-    (!isLoading && !isFetching && !showInactive && !debouncedSearchTerm && classificationTags.length === 0);
-  const patientsUsed = typeof subscriptionPatientsUsed === "number"
-    ? subscriptionPatientsUsed
-    : hasAuthoritativePatientCount ? meta.total : undefined;
+    authoritativePatientCount !== undefined || typeof usage?.patientsActive === "number";
+  const patientsUsed = authoritativePatientCount ?? usage?.patientsActive ?? meta.total;
 
   const handleTogglePatientStatus = async (patient: Patient) => {
     const newStatus = patient.status === "Active" ? "Inactive" : "Active";

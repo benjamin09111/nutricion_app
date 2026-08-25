@@ -1772,6 +1772,9 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
       });
 
       if (response.ok) {
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("membership-usage-updated"));
+        }
         toast.success("Paciente eliminado correctamente");
         router.push("/dashboard/pacientes");
       } else {
@@ -1798,6 +1801,9 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
       });
 
       if (response.ok) {
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("membership-usage-updated"));
+        }
         const updated = await response.json();
         setPatient(updated);
         toast.success(
