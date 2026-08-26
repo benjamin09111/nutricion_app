@@ -72,6 +72,7 @@ export function DatePicker({
   mode = "date",
 }: DatePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [openUpward, setOpenUpward] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const componentId = useId();
 
@@ -86,6 +87,15 @@ export function DatePicker({
       setViewDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1));
     }
   }, [value]);
+
+  useEffect(() => {
+    if (isOpen && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      setOpenUpward(spaceBelow < 340 && spaceAbove > spaceBelow);
+    }
+  }, [isOpen]);
 
   // Close on click outside
   useEffect(() => {
@@ -237,10 +247,16 @@ export function DatePicker({
       {isOpen && (
         <div
           className={cn(
-            "z-50 bg-white animate-in fade-in-50 zoom-in-95 duration-150",
+            "z-50 bg-white animate-in fade-in-50 zoom-in-95 duration-150 shadow-xl border border-slate-200 rounded-2xl",
             isBirthDate
-              ? "fixed inset-0 overflow-y-auto p-4 sm:absolute sm:inset-auto sm:left-0 sm:mt-1.5 sm:w-72 sm:rounded-2xl sm:border sm:border-slate-200 sm:p-3.5 sm:shadow-xl"
-              : "absolute left-0 mt-1.5 w-72 rounded-2xl border border-slate-200 p-3.5 shadow-xl",
+              ? cn(
+                  "fixed inset-0 overflow-y-auto p-4 sm:absolute sm:inset-auto sm:left-0 sm:w-72 sm:p-3.5",
+                  openUpward ? "sm:bottom-full sm:mb-1.5" : "sm:top-full sm:mt-1.5",
+                )
+              : cn(
+                  "absolute left-0 w-72 p-3.5",
+                  openUpward ? "bottom-full mb-1.5" : "top-full mt-1.5",
+                ),
           )}
         >
           {isBirthDate && (

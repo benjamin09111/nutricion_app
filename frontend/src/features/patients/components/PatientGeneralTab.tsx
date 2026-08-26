@@ -134,7 +134,13 @@ export function PatientGeneralTab({
   const fitnessGoals = isEditing ? (editForm.fitnessGoals ?? patient.fitnessGoals) : patient.fitnessGoals;
   const clinicalSummary = isEditing ? (editForm.clinicalSummary ?? patient.clinicalSummary) : patient.clinicalSummary;
   const likes = isEditing ? (editForm.likes ?? patient.likes) : patient.likes;
-  const rejectedFoods = getCV("rejectedFoods");
+  const dislikedFoodsArr = isEditing ? editForm.dislikedFoods : patient.dislikedFoods;
+  const dislikedFoodsStr = Array.isArray(dislikedFoodsArr) && dislikedFoodsArr.length > 0
+    ? dislikedFoodsArr.join(", ")
+    : typeof dislikedFoodsArr === "string"
+    ? dislikedFoodsArr
+    : "";
+  const rejectedFoods = dislikedFoodsStr || getCV("rejectedFoods");
   const gestationalSupplementation: string[] = (() => {
     const val = getCV("gestationalSupplementation");
     if (Array.isArray(val)) return val;

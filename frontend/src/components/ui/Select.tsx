@@ -31,10 +31,20 @@ export function Select({
 }: SelectProps) {
   const { isDarkMode } = useTheme();
   const [open, setOpen] = useState(false);
+  const [openUpward, setOpenUpward] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const selectedLabel =
     options.find((opt) => opt.value === value)?.label || undefined;
+
+  useEffect(() => {
+    if (open && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      setOpenUpward(spaceBelow < 220 && spaceAbove > spaceBelow);
+    }
+  }, [open]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -82,7 +92,8 @@ export function Select({
       {open && (
         <div
           className={cn(
-            "absolute z-50 top-full left-0 mt-1 w-full overflow-auto rounded-lg py-1 text-sm shadow-lg ring-1 animate-in fade-in zoom-in-95 duration-100",
+            "absolute z-50 left-0 w-full overflow-auto rounded-lg py-1 text-sm shadow-lg ring-1 animate-in fade-in zoom-in-95 duration-100",
+            openUpward ? "bottom-full mb-1" : "top-full mt-1",
             isDarkMode ? "bg-slate-950 ring-emerald-400/10" : "bg-white ring-black/5",
           )}
           style={{ maxHeight: "min(14rem, calc(100vh - 14rem))" }}

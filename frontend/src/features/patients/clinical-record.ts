@@ -448,7 +448,11 @@ export function buildClinicalRecordFromPatientDraft(patient: Partial<Patient>) {
     nutritionalAnamnesis: {
       eatingPreferences: text(patient.likes),
       clinicalObservations: text(patient.clinicalSummary),
-      rejectedFoods: text(getVar("rejectedFoods")),
+      rejectedFoods: Array.isArray(patient.dislikedFoods) && patient.dislikedFoods.length > 0
+        ? patient.dislikedFoods.join(", ")
+        : typeof patient.dislikedFoods === "string" && Boolean(patient.dislikedFoods)
+        ? text(patient.dislikedFoods)
+        : text(getVar("rejectedFoods")),
       gestationalSymptoms: list(getVar("gestationalSymptoms")),
       gestationalSupplementation: list(getVar("gestationalSupplementation")),
       diagnosticoNutricional: text(getVar("diagnosticoNutricional")),

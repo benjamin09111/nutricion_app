@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreatePatientDto } from './dto/create-patient.dto';
@@ -62,6 +63,35 @@ export class PatientsService {
       totalPatients,
     );
 
+    if (patientData.documentId?.trim()) {
+      const cleanRut = patientData.documentId
+        .replace(/[^0-9kK]/g, '')
+        .toUpperCase();
+      if (cleanRut) {
+        const existingActivePatients = await this.prisma.patient.findMany({
+          where: {
+            nutritionistId,
+            NOT: { status: 'Inactive' },
+            documentId: { not: null },
+          },
+          select: { id: true, documentId: true },
+        });
+
+        const duplicate = existingActivePatients.find((p) => {
+          if (!p.documentId) return false;
+          return (
+            p.documentId.replace(/[^0-9kK]/g, '').toUpperCase() === cleanRut
+          );
+        });
+
+        if (duplicate) {
+          throw new BadRequestException(
+            'Ya existe un paciente activo con el mismo RUT para este nutricionista.',
+          );
+        }
+      }
+    }
+
     const customVariables = this.withAutomaticNutritionCalculations(
       patientData.customVariables,
       patientForCalculations,
@@ -77,12 +107,25 @@ export class PatientsService {
         },
       });
 
+      const dislikedFoodsStr = Array.isArray(patientData.dislikedFoods)
+        ? patientData.dislikedFoods.join(', ')
+        : typeof patientData.dislikedFoods === 'string'
+        ? patientData.dislikedFoods
+        : '';
+
+      const nutritionalAnamnesis = {
+        ...(clinicalRecordData?.nutritionalAnamnesis || {}),
+        ...(dislikedFoodsStr && !(clinicalRecordData?.nutritionalAnamnesis?.rejectedFoods)
+          ? { rejectedFoods: dislikedFoodsStr }
+          : {}),
+      };
+
       await tx.clinicalRecord.create({
         data: {
           patientId: createdPatient.id,
           vitalHistory: clinicalRecordData?.vitalHistory || {},
           gynecoObstetric: clinicalRecordData?.gynecoObstetric || {},
-          nutritionalAnamnesis: clinicalRecordData?.nutritionalAnamnesis || {},
+          nutritionalAnamnesis,
           anthropometry: clinicalRecordData?.anthropometry || {},
           dataSources: clinicalRecordData?.dataSources || {},
         },
@@ -297,6 +340,42 @@ export class PatientsService {
     });
     const { recalculateNutrition, clinicalRecord, ...patientData } =
       updatePatientDto as any;
+
+    const targetDocumentId = patientData.documentId ?? current?.documentId;
+    const targetStatus = patientData.status ?? current?.status;
+    const isTargetActive = targetStatus !== 'Inactive';
+
+    if (
+      targetDocumentId?.trim() &&
+      isTargetActive &&
+      (patientData.documentId !== undefined || patientData.status !== undefined)
+    ) {
+      const cleanRut = targetDocumentId.replace(/[^0-9kK]/g, '').toUpperCase();
+      if (cleanRut) {
+        const existingActivePatients = await this.prisma.patient.findMany({
+          where: {
+            nutritionistId,
+            id: { not: id },
+            NOT: { status: 'Inactive' },
+            documentId: { not: null },
+          },
+          select: { id: true, documentId: true },
+        });
+
+        const duplicate = existingActivePatients.find((p) => {
+          if (!p.documentId) return false;
+          return (
+            p.documentId.replace(/[^0-9kK]/g, '').toUpperCase() === cleanRut
+          );
+        });
+
+        if (duplicate) {
+          throw new BadRequestException(
+            'Ya existe un paciente activo con el mismo RUT para este nutricionista.',
+          );
+        }
+      }
+    }
     const mergedForCalculation = { ...(current || {}), ...patientData };
     const customVariables = this.withAutomaticNutritionCalculations(
       patientData.customVariables ?? current?.customVariables,

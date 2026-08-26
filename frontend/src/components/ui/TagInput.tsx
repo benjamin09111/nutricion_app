@@ -2,7 +2,7 @@
 
 import { useState, KeyboardEvent, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { X, Globe, User as UserIcon, Trash2, Plus } from "lucide-react";
+import { X, Globe, User as UserIcon, Trash2, Plus, Loader2 } from "lucide-react";
 import { Input } from "./Input";
 import { toast } from "sonner";
 import { DEFAULT_CONSTRAINTS } from "@/lib/constants";
@@ -23,6 +23,9 @@ interface TagInputProps {
   singleSelect?: boolean;
   tagsAbsolute?: boolean;
   helperText?: string;
+  minSearchLength?: number;
+  itemTypeName?: string;
+  loadingText?: string;
 }
 
 export function TagInput({
@@ -35,27 +38,44 @@ export function TagInput({
   hideTags = false,
   disableDelete = false,
   includeSystemSuggestions = true,
-  openDirection = "down",
+  openDirection,
   singleSelect = false,
   tagsAbsolute = false,
   helperText,
+  minSearchLength = 0,
+  itemTypeName = "etiqueta",
+  loadingText,
 }: TagInputProps) {
   const { isDarkMode } = useTheme();
   const [inputValue, setInputValue] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [fetchedSuggestions, setFetchedSuggestions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [autoOpenDirection, setAutoOpenDirection] = useState<"up" | "down">("down");
   const containerRef = useRef<HTMLDivElement>(null);
 
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [tagToDelete, setTagToDelete] = useState<string | null>(null);
 
   useEffect(() => {
+    if (showSuggestions && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      if (spaceBelow < 280 && spaceAbove > spaceBelow) {
+        setAutoOpenDirection("up");
+      } else {
+        setAutoOpenDirection("down");
+      }
+    }
+  }, [showSuggestions]);
+
+  useEffect(() => {
     let isMounted = true;
     const controller = new AbortController();
 
     const fetchTags = async () => {
-      if (!fetchSuggestionsUrl) {
+      if (!fetchSuggestionsUrl || inputValue.trim().length < minSearchLength) {
         setFetchedSuggestions([]);
         return;
       }
@@ -199,11 +219,13 @@ export function TagInput({
       !value.includes(s) && s.toLowerCase().includes(inputValue.toLowerCase()),
   );
 
-  // When search is empty, show only first 6. When searching, show all matches.
+  // When search length is below minimum, return empty. Otherwise show matches.
   const allSuggestions =
-    inputValue.trim() === ""
-      ? allMatchingSuggestions.slice(0, 6)
-      : allMatchingSuggestions;
+    inputValue.trim().length < minSearchLength
+      ? []
+      : inputValue.trim() === ""
+        ? allMatchingSuggestions.slice(0, 6)
+        : allMatchingSuggestions;
 
   // Click outside to close suggestions
   useEffect(() => {
@@ -254,8 +276,11 @@ export function TagInput({
               )}
             />
             {isLoading && (
-              <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                <div className="h-4 w-4 border-2 border-emerald-100 border-t-emerald-500 rounded-full animate-spin" />
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 bg-white/90 px-2 py-0.5 rounded-full border border-emerald-100 shadow-2xs">
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-600" />
+                <span className="text-[10px] font-bold text-emerald-700">
+                  {itemTypeName === "alimento" ? "Buscando..." : "Cargando..."}
+                </span>
               </div>
             )}
           </div>
@@ -268,14 +293,33 @@ export function TagInput({
         )}
 
         {/* Suggestions Dropdown */}
-        {showSuggestions && (allSuggestions.length > 0 || showCreateOption) && (
+        {showSuggestions && (allSuggestions.length > 0 || showCreateOption || isLoading) && (
           <div className={cn(
             "fixed inset-x-4 sm:inset-x-auto sm:absolute z-[100] border rounded-2xl max-h-72 overflow-auto animate-in fade-in duration-200 sm:w-full",
-            openDirection === "up" ? "bottom-full mb-2 slide-in-from-bottom-2" : "top-full mt-2 slide-in-from-top-2",
+            (openDirection ?? autoOpenDirection) === "up"
+              ? "bottom-full mb-2 slide-in-from-bottom-2"
+              : "top-full mt-2 slide-in-from-top-2",
             isDarkMode
               ? "bg-slate-950 border-emerald-400/12 shadow-black/40"
               : "bg-white border-slate-200/80 shadow-2xl shadow-slate-200/50",
           )}>
+            {isLoading && (
+              <div className={cn(
+                "flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold border-b",
+                isDarkMode
+                  ? "bg-slate-900/80 border-emerald-400/10 text-emerald-300"
+                  : "bg-emerald-50/80 border-emerald-100 text-emerald-800",
+              )}>
+                <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0 text-emerald-600" />
+                <span>
+                  {loadingText ||
+                    (itemTypeName === "alimento"
+                      ? "Buscando alimentos en la base de datos..."
+                      : "Cargando sugerencias...")}
+                </span>
+              </div>
+            )}
+
             {showCreateOption && (
               <button
                 type="button"
@@ -292,10 +336,14 @@ export function TagInput({
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="truncate font-bold text-xs">
-                    Crear etiqueta &quot;{inputValue.trim()}&quot;
+                    {itemTypeName === "alimento"
+                      ? `Agregar "${inputValue.trim()}"`
+                      : `Crear etiqueta "${inputValue.trim()}"`}
                   </div>
                   <div className="text-[10px] text-emerald-600 font-semibold">
-                    Presiona Enter o haz clic para agregar esta nueva etiqueta
+                    {itemTypeName === "alimento"
+                      ? "Presiona Enter o haz clic para agregar este alimento"
+                      : "Presiona Enter o haz clic para agregar esta nueva etiqueta"}
                   </div>
                 </div>
               </button>
