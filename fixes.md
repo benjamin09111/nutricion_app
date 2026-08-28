@@ -5,8 +5,6 @@ y nuestrsa dietas? recetas?
 -- re utilizar e IMPORTAR testing
 -- testing COMPLETO de todo
 
-arreglar el uso recomendado: tutorial de como usar cada modulo...
-
 pagar IA en caso de fallback si no funciona gemini en nutri
 
 [12:04, 27/8/2026] Benjamin: Consideraciones de arquitectura con Eve Framework  

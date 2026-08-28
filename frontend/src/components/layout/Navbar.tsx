@@ -201,7 +201,7 @@ export function Navbar({
 
         <div className="flex min-w-0 flex-1 items-center gap-x-1 sm:gap-x-4 lg:gap-x-6">
           <div className="flex min-w-0 flex-1 items-center justify-end gap-x-1.5 sm:gap-x-4 lg:gap-x-8">
-            {userEmail === "benjaminmoralespizarro763@gmail.com" && (
+            {process.env.NODE_ENV === "development" && false && userEmail === "benjaminmoralespizarro763@gmail.com" && (
               <>
                 <button
                   type="button"

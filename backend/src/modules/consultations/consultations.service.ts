@@ -117,15 +117,20 @@ export class ConsultationsService {
     const shouldSyncPatientProfile =
       createConsultationDto.title === INDEPENDENT_METRICS_TITLE;
 
-    const consultationsTotal = await this.prisma.consultation.count({
-      where: { nutritionistId },
-    });
+    if (!shouldSyncPatientProfile) {
+      const consultationsTotal = await this.prisma.consultation.count({
+        where: {
+          nutritionistId,
+          title: { not: INDEPENDENT_METRICS_TITLE },
+        },
+      });
 
-    await this.permissionsService.ensureWithinLimit(
-      accountId,
-      PLAN_ENTITLEMENT_KEYS.CONSULTATIONS_SAVED_LIMIT,
-      consultationsTotal,
-    );
+      await this.permissionsService.ensureWithinLimit(
+        accountId,
+        PLAN_ENTITLEMENT_KEYS.CONSULTATIONS_SAVED_LIMIT,
+        consultationsTotal,
+      );
+    }
 
     await this.assertPatientOwnership(
       nutritionistId,

@@ -7,6 +7,7 @@ import { AdminSidebar } from "@/components/layout/AdminSidebar";
 import { Navbar } from "@/components/layout/Navbar";
 import { MobileSidebar } from "@/components/layout/MobileSidebar";
 import { NutriaChatWidget } from "@/components/layout/NutriaChatWidget";
+import { ReturnToConsultationWidget } from "@/components/layout/ReturnToConsultationWidget";
 import { NotesAgendaWidget } from "@/components/layout/NotesAgendaWidget";
 import { NatyWelcomeDrawer } from "@/components/copilot/NatyWelcomeDrawer";
 import { WelcomeOverlay } from "@/components/welcome/WelcomeOverlay";
@@ -126,6 +127,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
       {!isAdminView && (
         <>
           <NutriaChatWidget />
+          <ReturnToConsultationWidget />
           <NotesAgendaWidget />
           <WelcomeOverlay />
           <MobileBottomNav />

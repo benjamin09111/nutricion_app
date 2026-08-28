@@ -27,7 +27,15 @@ import {
     RotateCcw,
     ChevronDown,
     Lock,
+    Zap,
+    BookOpen,
+    NotebookText,
+    Utensils,
+    ChefHat,
+    ArrowUpRight,
 } from "lucide-react";
+import Link from "next/link";
+import { FoodReferenceBook } from "@/components/foods/FoodReferenceBook";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { SearchableSelect } from "@/components/ui/SearchableSelect";
@@ -169,16 +177,36 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
     const [lastDraftSaved, setLastDraftSaved] = useState<string | null>(null);
     const isInitialLoad = useRef(true);
     const [clinicalNotesTab, setClinicalNotesTab] = useState<"notes" | "apuntes">("notes");
+    const [isFoodBookOpen, setIsFoodBookOpen] = useState(false);
 
-    // Load draft on patient selection
+    // Load draft on mount / patient selection
     useEffect(() => {
-        if (!draftKey || id) return;
+        if (id) return;
         try {
-            const stored = localStorage.getItem(draftKey);
-            if (stored) {
-                const draft = JSON.parse(stored);
-                setFormData(prev => ({ ...prev, ...draft }));
-                isInitialLoad.current = false;
+            const activeStored = localStorage.getItem("active_consultation_draft");
+            if (activeStored) {
+                const draft = JSON.parse(activeStored);
+                if (draft && draft.active) {
+                    setFormData(prev => ({
+                        ...prev,
+                        patientId: draft.patientId || prev.patientId,
+                        title: draft.title || prev.title,
+                        description: draft.description || prev.description,
+                        metrics: draft.metrics || prev.metrics,
+                        date: draft.date || prev.date,
+                        plansDelivered: draft.plansDelivered ?? prev.plansDelivered,
+                    }));
+                    isInitialLoad.current = false;
+                    return;
+                }
+            }
+            if (draftKey) {
+                const stored = localStorage.getItem(draftKey);
+                if (stored) {
+                    const draft = JSON.parse(stored);
+                    setFormData(prev => ({ ...prev, ...draft }));
+                    isInitialLoad.current = false;
+                }
             }
         } catch { /* ignore */ }
     }, [draftKey, id]);
@@ -187,31 +215,38 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
     const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     useEffect(() => {
-        if (!draftKey || isInitialLoad.current) return;
+        if (id || isInitialLoad.current) return;
         if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
 
         saveTimerRef.current = setTimeout(() => {
             try {
                 const draft = {
+                    patientId: formData.patientId,
                     title: formData.title,
                     description: formData.description,
                     metrics: formData.metrics,
                     date: formData.date,
                     plansDelivered: formData.plansDelivered,
+                    active: true,
+                    updatedAt: new Date().toISOString(),
                 };
-                localStorage.setItem(draftKey, JSON.stringify(draft));
+                localStorage.setItem("active_consultation_draft", JSON.stringify(draft));
+                if (draftKey) {
+                    localStorage.setItem(draftKey, JSON.stringify(draft));
+                }
                 setIsDraftSaving(true);
                 setLastDraftSaved(new Date().toLocaleTimeString());
                 setTimeout(() => setIsDraftSaving(false), 800);
             } catch { /* ignore */ }
-        }, 1500);
+        }, 1200);
 
         return () => {
             if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
         };
-    }, [formData.title, formData.description, formData.date, formData.plansDelivered, JSON.stringify(formData.metrics), draftKey]);
+    }, [formData.patientId, formData.title, formData.description, formData.date, formData.plansDelivered, JSON.stringify(formData.metrics), draftKey, id]);
 
     const clearDraft = useCallback(() => {
+        localStorage.removeItem("active_consultation_draft");
         if (draftKey) {
             localStorage.removeItem(draftKey);
         }
@@ -750,6 +785,101 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                 </>
                             )}
                         </button>
+                    </div>
+                </div>
+
+                {/* Panel de Acciones Rápidas */}
+                <div id="consulta-acciones-rapidas" className="mb-6 bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-2xl border border-indigo-500/30 p-5 lg:p-6 text-white shadow-xl">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5 pb-4 border-b border-white/10">
+                        <div className="flex items-start sm:items-center gap-3">
+                            <div className="p-2.5 rounded-xl bg-indigo-500/20 text-indigo-300 border border-indigo-400/30 shrink-0">
+                                <Zap className="w-5 h-5" />
+                            </div>
+                            <div>
+                                <h3 className="text-base sm:text-lg font-extrabold tracking-tight text-white flex items-center gap-2">
+                                    Acciones Rápidas & Creación de Planes
+                                </h3>
+                                <p className="text-xs text-slate-300 font-medium">
+                                    Crea planes para este paciente sin perder tus datos de consulta. Tu borrador se guardará automáticamente.
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <button
+                            type="button"
+                            onClick={() => setIsFoodBookOpen(true)}
+                            className="inline-flex items-center justify-center gap-2 h-11 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs shadow-lg shadow-emerald-950/40 transition-all active:scale-95 cursor-pointer shrink-0"
+                        >
+                            <BookOpen className="w-4 h-4" />
+                            <span>Libro de Alimentos</span>
+                        </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        {/* Link 1: Entregable Rápido */}
+                        <Link
+                            href={formData.patientId ? `/dashboard/rapido?patientId=${formData.patientId}&fromConsultation=true` : `/dashboard/rapido?fromConsultation=true`}
+                            className="group flex flex-col p-4 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 transition-all hover:border-indigo-400/50 cursor-pointer"
+                        >
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="p-2 rounded-lg bg-indigo-500/30 text-indigo-200">
+                                    <NotebookText className="w-4 h-4" />
+                                </span>
+                                <ArrowUpRight className="w-4 h-4 text-slate-400 group-hover:text-white group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                            </div>
+                            <span className="font-bold text-sm text-white">Entregable Rápido</span>
+                            <span className="text-[11px] text-slate-300 mt-0.5">Arma una pauta express o minuta rápida</span>
+                        </Link>
+
+                        {/* Link 2: Dietas */}
+                        <Link
+                            href={formData.patientId ? `/dashboard/dietas?patientId=${formData.patientId}&fromConsultation=true` : `/dashboard/dietas?fromConsultation=true`}
+                            className="group flex flex-col p-4 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 transition-all hover:border-indigo-400/50 cursor-pointer"
+                        >
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="p-2 rounded-lg bg-emerald-500/30 text-emerald-200">
+                                    <Utensils className="w-4 h-4" />
+                                </span>
+                                <ArrowUpRight className="w-4 h-4 text-slate-400 group-hover:text-white group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                            </div>
+                            <span className="font-bold text-sm text-white">Dietas & Pautas</span>
+                            <span className="text-[11px] text-slate-300 mt-0.5">Gestión de pautas y planes guardados</span>
+                        </Link>
+
+                        {/* Link 3: Recetas */}
+                        <Link
+                            href={formData.patientId ? `/dashboard/rapido/recetas?patientId=${formData.patientId}&fromConsultation=true` : `/dashboard/rapido/recetas?fromConsultation=true`}
+                            className="group flex flex-col p-4 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 transition-all hover:border-indigo-400/50 cursor-pointer"
+                        >
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="p-2 rounded-lg bg-amber-500/30 text-amber-200">
+                                    <ChefHat className="w-4 h-4" />
+                                </span>
+                                <ArrowUpRight className="w-4 h-4 text-slate-400 group-hover:text-white group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                            </div>
+                            <span className="font-bold text-sm text-white">Recetas & Preparaciones</span>
+                            <span className="text-[11px] text-slate-300 mt-0.5">Crea preparaciones y recetarios</span>
+                        </Link>
+                    </div>
+
+                    <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                            <input
+                                type="checkbox"
+                                id="plansDeliveredQuick"
+                                checked={formData.plansDelivered}
+                                onChange={(e) => setFormData({ ...formData, plansDelivered: e.target.checked })}
+                                disabled={!hasSelectedPatient}
+                                className="h-4 w-4 rounded border-slate-300 text-emerald-500 focus:ring-emerald-400 cursor-pointer disabled:cursor-not-allowed"
+                            />
+                            <label htmlFor="plansDeliveredQuick" className="text-xs font-bold text-slate-200 cursor-pointer">
+                                ¿Marcar que sí entregaste planes en esta consulta?
+                            </label>
+                        </div>
+
+                        <span className="text-[10px] text-indigo-300 font-semibold uppercase tracking-wider hidden sm:inline">
+                            {formData.plansDelivered ? "✓ Planes entregados" : "Pendiente de entregar"}
+                        </span>
                     </div>
                 </div>
 
@@ -1310,6 +1440,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                     )}
                 </div>
                 )}
+                <FoodReferenceBook isOpen={isFoodBookOpen} onClose={() => setIsFoodBookOpen(false)} />
             </form>
         </div>
     );

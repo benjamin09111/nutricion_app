@@ -19,6 +19,7 @@ import { PermissionsService } from '../permissions/permissions.service';
 import { CalculationsService } from '../calculations/calculations.service';
 import { PLAN_ENTITLEMENT_KEYS } from '../memberships/plan-entitlements';
 
+const INDEPENDENT_METRICS_TITLE = 'Registro de Métricas Independiente';
 const AUTOMATIC_NUTRITION_KEY = 'automaticNutritionCalculations';
 
 type NutritionCalculationInput = {
@@ -131,12 +132,47 @@ export class PatientsService {
         },
       });
 
+      if (createdPatient.weight || createdPatient.height) {
+        const initialMetrics: any[] = [];
+        if (createdPatient.weight) {
+          initialMetrics.push({
+            key: 'weight',
+            label: 'Peso',
+            value: String(createdPatient.weight),
+            unit: 'kg',
+          });
+        }
+        if (createdPatient.height) {
+          initialMetrics.push({
+            key: 'height',
+            label: 'Estatura',
+            value: String(createdPatient.height),
+            unit: 'cm',
+          });
+        }
+        await tx.consultation.create({
+          data: {
+            patientId: createdPatient.id,
+            nutritionistId,
+            title: INDEPENDENT_METRICS_TITLE,
+            description: 'Registro inicial de métricas al crear la ficha del paciente.',
+            date: createdPatient.createdAt || new Date(),
+            metrics: initialMetrics,
+            plansDelivered: false,
+          },
+        });
+      }
+
       return createdPatient;
     });
 
     await this.cacheService.invalidateNutritionistPrefix(
       nutritionistId,
       'patients',
+    );
+    await this.cacheService.invalidateNutritionistPrefix(
+      nutritionistId,
+      'consultations',
     );
     await this.cacheService.invalidateNutritionistPrefix(
       nutritionistId,

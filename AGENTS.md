@@ -38,8 +38,13 @@
     - **Private Route Protection**: All internal, auth, token, or flow-specific routes (`/dashboard`, `/portal`, `/login`, `/formulario-paciente`, `/verify-email`, `/onboarding`, `/plan`, etc.) MUST explicitly export metadata with `robots: { index: false, follow: false }`.
     - **Dynamic Sitemap**: `sitemap.ts` MUST dynamically aggregate all active public entities (`/nutricionistas/${slug}`) and include all primary public landing pages (`/`, `/nutricionistas`, `/sobre-nutrinet`, `/privacy-policy`, `/terms`).
     - **Dynamic Site URL**: Always resolve site domains via `process.env.NEXT_PUBLIC_APP_URL || "https://nutrinet.cl"`.
-    - **Custom 404 Maintenance**: Maintain `src/app/not-found.tsx` with proper 404 UI, clean CTAs, and `noindex` metadata.
 20. **Unified Module Typography & Layout Hierarchy (Immutable)**: Every dashboard module page MUST be wrapped in `ModuleLayout` (`src/components/shared/ModuleLayout.tsx`) to guarantee 100% unified typography and header scaling across the application. Page titles (`<h1>`) must scale at `text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight`, descriptions at `text-xs sm:text-sm text-slate-500 font-medium`, section headers (`<h2>`) at `text-base sm:text-lg font-extrabold`, and cards/containers with standard `rounded-2xl` radii and `rounded-xl` buttons. Never introduce arbitrary font sizes or non-standard header styles.
+21. **Patient Metrics & Biometric Progression Invariants (Immutable)**:
+    - **Historical Timeline Integrity**: All biometric progress (charts, deltas, summaries, history) is 100% derived from timestamped consultations (`consultation.metrics`) ordered chronologically (`sortDate asc`).
+    - **No Retroactive Overwrites**: Current profile scalars (`patient.weight`, `patient.height`) represent the active snapshot for formulas (BMI, GET/TDEE) and MUST NEVER mutate or overwrite previous historical dates.
+    - **Initial Registration Invariance**: Creating a patient with initial weight/height automatically inserts an initial baseline consultation record at `patient.createdAt`, permanently securing the initial baseline point.
+    - **Same-Day Metric Aggregation**: Multiple metrics logged on the same calendar date merge cleanly into that date's data point without duplicating or splitting dates.
+    - **Independent Modals & Floating Popovers**: All date pickers and modal selectors must render with fixed high z-index (`z-[200]`) to ensure they remain floating, unobstructed, and unclipped by parent scroll containers.
 
 ## Linguistic Conventions
 - **UI text**: Professional, warm Spanish (español de Chile).

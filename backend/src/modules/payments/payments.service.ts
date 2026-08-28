@@ -21,6 +21,8 @@ import { WhatsAppService } from '../notifications/whatsapp.service';
 import { MailService } from '../mail/mail.service';
 import * as ExcelJS from 'exceljs';
 
+const INDEPENDENT_METRICS_TITLE = 'Registro de Métricas Independiente';
+
 @Injectable()
 export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
@@ -320,7 +322,10 @@ export class PaymentsService {
         where: { nutritionist: { accountId } },
       }),
       this.prisma.consultation.count({
-        where: { nutritionist: { accountId } },
+        where: {
+          nutritionist: { accountId },
+          title: { not: INDEPENDENT_METRICS_TITLE },
+        },
       }),
       this.prisma.patientPortalInvitation.count({
         where: {

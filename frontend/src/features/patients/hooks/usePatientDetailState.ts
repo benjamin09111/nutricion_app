@@ -25,6 +25,7 @@ import {
   toDateOnly,
   formatDateOnlyForLocale,
   getTodayDateInputValue,
+  toSafeIsoDate,
 } from "../utils/patient-helpers";
 import { buildClinicalRecordPdfData } from "../utils/clinical-record-export";
 import { Ruler, Weight, Activity, Dumbbell, Zap, Target, Heart } from "lucide-react";
@@ -177,38 +178,17 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
   };
 
   const prepareChartData = () => {
-    const dataPoints: any[] = [];
-
-    if (patient) {
-      const baseline: any = {
-        date: formatDateOnlyForLocale(patient.createdAt || new Date(), {
-          day: "2-digit",
-          month: "short",
-        }),
-        fullDate: formatDateOnlyForLocale(patient.createdAt || new Date(), {
-          day: "2-digit",
-          month: "2-digit",
-          year: "numeric",
-        }),
-        isBaseline: true,
-      };
-
-      // Baseline is the current profile snapshot, not a consultation entry.
-      let hasBaselineData = false;
-      if (patient.weight) {
-        baseline["weight"] = patient.weight;
-        hasBaselineData = true;
-      }
-
-      if (hasBaselineData) dataPoints.push(baseline);
-    }
+    const dataByDate: Record<string, any> = {};
 
     if (Array.isArray(consultations)) {
-      const consultationPoints = [...consultations]
-        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-        .map((c) => {
-          const dateOnly = toDateOnly(c.date);
-          const data: any = {
+      const sortedConsultations = [...consultations].sort(
+        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+      );
+
+      for (const c of sortedConsultations) {
+        const dateOnly = toDateOnly(c.date);
+        if (!dataByDate[dateOnly]) {
+          dataByDate[dateOnly] = {
             date: formatDateOnlyForLocale(dateOnly, {
               day: "2-digit",
               month: "short",
@@ -220,42 +200,82 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
             }),
             sortDate: dateOnly,
           };
-          if (Array.isArray(c.metrics)) {
-            c.metrics.forEach((m) => {
-              const mKey = normalizeMetricKey(m.label, m.key);
-              if (!mKey) return;
+        }
 
-              const rawValue =
-                typeof m.value === "string"
-                  ? m.value.replace(",", ".")
-                  : m.value;
-              const val = parseFloat(rawValue as string);
+        if (Array.isArray(c.metrics)) {
+          c.metrics.forEach((m) => {
+            const mKey = normalizeMetricKey(m.label, m.key);
+            if (!mKey) return;
 
-              if (!isNaN(val)) {
-                data[mKey] = val;
-              }
-            });
-          }
-          return data;
-        });
-      dataPoints.push(...consultationPoints);
+            const rawValue =
+              typeof m.value === "string"
+                ? m.value.replace(",", ".")
+                : m.value;
+            const val = parseFloat(rawValue as string);
+
+            if (!isNaN(val)) {
+              dataByDate[dateOnly][mKey] = val;
+            }
+          });
+        }
+      }
     }
 
-    return dataPoints.sort((a, b) => {
+    // Only if consultations have NO records for weight/height, fallback to profile:
+    const hasWeightInConsultations = Object.values(dataByDate).some(
+      (d) => d.weight !== undefined,
+    );
+    if (!hasWeightInConsultations && patient?.weight) {
+      const patientCreatedDate = toDateOnly(patient.createdAt || new Date());
+      if (!dataByDate[patientCreatedDate]) {
+        dataByDate[patientCreatedDate] = {
+          date: formatDateOnlyForLocale(patientCreatedDate, {
+            day: "2-digit",
+            month: "short",
+          }),
+          fullDate: formatDateOnlyForLocale(patientCreatedDate, {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+          }),
+          sortDate: patientCreatedDate,
+          isBaseline: true,
+        };
+      }
+      dataByDate[patientCreatedDate].weight = patient.weight;
+    }
+
+    const hasHeightInConsultations = Object.values(dataByDate).some(
+      (d) => d.height !== undefined,
+    );
+    if (!hasHeightInConsultations && patient?.height) {
+      const patientCreatedDate = toDateOnly(patient.createdAt || new Date());
+      if (!dataByDate[patientCreatedDate]) {
+        dataByDate[patientCreatedDate] = {
+          date: formatDateOnlyForLocale(patientCreatedDate, {
+            day: "2-digit",
+            month: "short",
+          }),
+          fullDate: formatDateOnlyForLocale(patientCreatedDate, {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+          }),
+          sortDate: patientCreatedDate,
+          isBaseline: true,
+        };
+      }
+      dataByDate[patientCreatedDate].height = patient.height;
+    }
+
+    return Object.values(dataByDate).sort((a, b) => {
       const toTimestamp = (dateOnly: string) => {
-        const [year, month, day] = dateOnly.split("-").map(Number);
+        const [year, month, day] = (dateOnly || "").split("-").map(Number);
         if (!year || !month || !day) return 0;
         return Date.UTC(year, month - 1, day, 12, 0, 0);
       };
 
-      const dateA = a.isBaseline
-        ? toDateOnly(patient?.createdAt || "")
-        : (a.sortDate as string);
-      const dateB = b.isBaseline
-        ? toDateOnly(patient?.createdAt || "")
-        : (b.sortDate as string);
-
-      return toTimestamp(dateA) - toTimestamp(dateB);
+      return toTimestamp(a.sortDate) - toTimestamp(b.sortDate);
     });
   };
 
@@ -271,6 +291,7 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
     });
     if (patient) {
       if (patient.weight) keys.add("weight");
+      if (patient.height) keys.add("height");
     }
     return Array.from(keys);
   }, [consultations, patient]);
@@ -860,16 +881,24 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
       allKeysRegistered.has(normalizeMetricKey(m.label, m.key)),
     );
 
-    if (duplicateMetric) {
-      toast.error(
-        `La métrica "${duplicateMetric.label}" ya fue registrada para esta fecha.`,
-      );
-      return;
-    }
-
     const existingSameDayConsultation = sameDayConsultations.find((c) =>
       isIndependentMetricsConsultation(c),
     );
+
+    if (duplicateMetric) {
+      const targetConsultation = sameDayConsultations.find((c) =>
+        (c.metrics || []).some(
+          (m) =>
+            normalizeMetricKey(m.label, m.key) ===
+            normalizeMetricKey(duplicateMetric.label, duplicateMetric.key),
+        ),
+      );
+      setConflictingConsultationId(
+        targetConsultation?.id || existingSameDayConsultation?.id || null,
+      );
+      setIsOverwriteConfirmOpen(true);
+      return;
+    }
 
     if (existingSameDayConsultation) {
       executeSaveMetrics(existingSameDayConsultation.id);
@@ -935,9 +964,31 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
           setConflictingConsultationId(null);
           await Promise.all([fetchConsultations(), fetchPatient()]);
         } else {
-          toast.error("Error al actualizar métricas");
+          const errBody = await response.json().catch(() => ({}));
+          console.error("[executeSaveMetrics PATCH] Error:", response.status, errBody);
+          const errorMsg = Array.isArray(errBody?.message)
+            ? errBody.message.join(", ")
+            : errBody?.message || "Error al actualizar métricas";
+          toast.error(errorMsg);
         }
       } else {
+        const payloadDate = toSafeIsoDate(metricForm.date);
+
+        const cleanMetrics = metricForm.metrics
+          .filter(
+            (m) =>
+              m.label.trim() !== "" &&
+              m.value !== undefined &&
+              m.value !== null &&
+              m.value.toString().trim() !== "",
+          )
+          .map((m) => ({
+            key: normalizeMetricKey(m.label, m.key),
+            label: m.label.trim(),
+            value: m.value.toString().trim(),
+            unit: (m.unit || "").trim() || undefined,
+          }));
+
         const response = await fetchApi(`/consultations`, {
           method: "POST",
           headers: {
@@ -945,21 +996,10 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
           },
           body: JSON.stringify({
             patientId: id,
-            date: metricForm.date,
+            date: payloadDate,
             title: "Registro de Métricas Independiente",
             description: "Entrada manual de datos de seguimiento.",
-            metrics: metricForm.metrics
-              .filter(
-                (m) =>
-                  m.label.trim() !== "" &&
-                  m.value !== undefined &&
-                  m.value !== null &&
-                  m.value.toString().trim() !== "",
-              )
-              .map((m) => ({
-                ...m,
-                key: normalizeMetricKey(m.label, m.key),
-              })),
+            metrics: cleanMetrics,
           }),
         });
 
@@ -971,10 +1011,16 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
           setConsultations((prev) => [newConsultation, ...prev]);
           await Promise.all([fetchConsultations(), fetchPatient()]);
         } else {
-          toast.error("Error al guardar métricas");
+          const errBody = await response.json().catch(() => ({}));
+          console.error("[executeSaveMetrics POST] Error:", response.status, errBody);
+          const errorMsg = Array.isArray(errBody?.message)
+            ? errBody.message.join(", ")
+            : errBody?.message || "Error al guardar métricas";
+          toast.error(errorMsg);
         }
       }
     } catch (error) {
+      console.error("[executeSaveMetrics] Connection error:", error);
       toast.error("Error de conexión");
     } finally {
       setIsSavingMetrics(false);
@@ -1035,11 +1081,20 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
 
     const history: any[] = [];
 
+    const hasConsultationForMetric = consultations.some(
+      (c) =>
+        Array.isArray(c.metrics) &&
+        c.metrics.some(
+          (m) => normalizeMetricKey(m.label, m.key) === editingMetricKey,
+        ),
+    );
+
     if (
+      !hasConsultationForMetric &&
       editingMetricKey === "weight" &&
       patient?.weight
     ) {
-      // Keep the profile weight as the initial reference point in the history modal.
+      // Keep the profile weight as the initial reference point only if no consultations exist.
       history.push({
         id: "baseline-weight",
         date: patient.createdAt || new Date().toISOString(),
@@ -1133,11 +1188,18 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
             prev.map((c) => (c.id === record.id ? updated : c)),
           );
         }
+        void fetchPatient();
         toast.success("Registro eliminado del historial");
       } else {
-        toast.error("Error al eliminar el registro");
+        const errBody = await res.json().catch(() => ({}));
+        console.error("[onDeleteMetricRecord] Error:", res.status, errBody);
+        const errorMsg = Array.isArray(errBody?.message)
+          ? errBody.message.join(", ")
+          : errBody?.message || "Error al eliminar el registro";
+        toast.error(errorMsg);
       }
     } catch (e) {
+      console.error("[onDeleteMetricRecord] Connection error:", e);
       toast.error("Error de conexión");
     }
   };
@@ -1200,7 +1262,12 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
         });
 
         if (!profileRes.ok) {
-          toast.error("Error al actualizar el perfil");
+          const errBody = await profileRes.json().catch(() => ({}));
+          console.error("[onSaveMetricEdit Baseline] Error:", profileRes.status, errBody);
+          const errorMsg = Array.isArray(errBody?.message)
+            ? errBody.message.join(", ")
+            : errBody?.message || "Error al actualizar el perfil";
+          toast.error(errorMsg);
           return;
         }
 
@@ -1212,7 +1279,7 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
             },
             body: JSON.stringify({
               patientId: id,
-              date: newDate,
+              date: toSafeIsoDate(newDate),
               title: "Registro de Métricas Independiente",
               description: "Entrada manual de datos de seguimiento.",
               metrics: [
@@ -1227,7 +1294,12 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
           });
 
           if (!consultationRes.ok) {
-            toast.error("Error al guardar el nuevo registro histórico");
+            const errBody = await consultationRes.json().catch(() => ({}));
+            console.error("[onSaveMetricEdit Baseline Converted] Error:", consultationRes.status, errBody);
+            const errorMsg = Array.isArray(errBody?.message)
+              ? errBody.message.join(", ")
+              : errBody?.message || "Error al guardar el nuevo registro histórico";
+            toast.error(errorMsg);
             return;
           }
         }
@@ -1269,7 +1341,10 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ metrics: newMetrics, date: newDate }),
+          body: JSON.stringify({
+            metrics: newMetrics,
+            date: toSafeIsoDate(newDate),
+          }),
         });
 
         if (res.ok) {
@@ -1277,12 +1352,19 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
           setConsultations((prev) =>
             prev.map((c) => (c.id === record.id ? updated : c)),
           );
+          void fetchPatient();
           toast.success("Registro histórico actualizado");
         } else {
-          toast.error("Error al actualizar la consulta");
+          const errBody = await res.json().catch(() => ({}));
+          console.error("[onSaveMetricEdit Consultation] Error:", res.status, errBody);
+          const errorMsg = Array.isArray(errBody?.message)
+            ? errBody.message.join(", ")
+            : errBody?.message || "Error al actualizar la consulta";
+          toast.error(errorMsg);
         }
       }
     } catch (e) {
+      console.error("[onSaveMetricEdit] Connection error:", e);
       toast.error("Error al guardar cambios históricos");
     }
   };

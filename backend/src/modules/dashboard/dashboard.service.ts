@@ -7,6 +7,8 @@ import {
 
 const LIFETIME_PERIOD_KEY = 'lifetime';
 
+const INDEPENDENT_METRICS_TITLE = 'Registro de Métricas Independiente';
+
 @Injectable()
 export class DashboardService {
   constructor(private prisma: PrismaService) {}
@@ -37,7 +39,9 @@ export class DashboardService {
       this.prisma.patient.count({
         where: { nutritionistId, status: { not: 'Active' } },
       }),
-      this.prisma.consultation.count({ where: { nutritionistId } }),
+      this.prisma.consultation.count({
+        where: { nutritionistId, title: { not: INDEPENDENT_METRICS_TITLE } },
+      }),
       this.prisma.creation.count({
         where: { nutritionistId, type: 'FAST_DELIVERABLE' },
       }),

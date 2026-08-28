@@ -32,7 +32,7 @@ import { MetricTagInput } from "@/components/ui/metric-tag-input";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { Patient } from "@/features/patients";
 import { Consultation, Metric } from "@/features/consultations";
-import { cn, normalizeMetricKey, toDateOnly } from "../utils/patient-helpers";
+import { cn, normalizeMetricKey, toDateOnly, toSafeIsoDate } from "../utils/patient-helpers";
 
 interface PatientProgressTabProps {
   patient: Patient;
@@ -922,10 +922,7 @@ function MetricRecordRow({
 
   const handleSave = async () => {
     setIsSaving(true);
-    let newDateStr = new Date().toISOString();
-    if (date) {
-      newDateStr = new Date(`${date}T12:00:00Z`).toISOString();
-    }
+    const newDateStr = toSafeIsoDate(date);
     await onSave(record, val, newDateStr);
     setIsSaving(false);
   };

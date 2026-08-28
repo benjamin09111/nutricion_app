@@ -67,47 +67,57 @@ const S = StyleSheet.create({
   coverHeader: {
     backgroundColor: colors.primary,
     paddingHorizontal: 32,
-    paddingVertical: 24,
+    paddingTop: 18,
+    paddingBottom: 18,
     marginHorizontal: -32,
     marginTop: -30,
-    marginBottom: 20,
+    marginBottom: 16,
+  },
+  coverHeaderTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
   },
   coverBrand: {
-    fontSize: 28,
+    fontSize: 22,
     fontFamily: "Helvetica-Bold",
     color: colors.white,
-    marginBottom: 2,
+    lineHeight: 1.2,
   },
   coverSubtitle: {
-    fontSize: 12,
-    color: "rgba(255,255,255,0.75)",
-    fontFamily: "Helvetica",
-  },
-  coverDate: {
-    fontSize: 8,
-    color: "rgba(255,255,255,0.6)",
-    marginTop: 4,
-  },
-  patientBadge: {
-    backgroundColor: colors.primaryLight,
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    alignSelf: "flex-start",
-    marginTop: 12,
-  },
-  patientBadgeText: {
     fontSize: 9,
-    color: colors.primaryDark,
+    color: "rgba(255,255,255,0.85)",
     fontFamily: "Helvetica-Bold",
-    textTransform: "uppercase",
-    letterSpacing: 1,
+    textTransform: "uppercase" as const,
+    letterSpacing: 0.8,
+    lineHeight: 1.2,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    marginBottom: 10,
+  },
+  coverHeaderBottom: {
+    flexDirection: "column",
   },
   patientName: {
-    fontSize: 24,
+    fontSize: 18,
     fontFamily: "Helvetica-Bold",
     color: colors.white,
-    marginTop: 8,
+    lineHeight: 1.25,
+    marginBottom: 4,
+  },
+  metaRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  metaText: {
+    fontSize: 8,
+    color: "rgba(255,255,255,0.75)",
+    fontFamily: "Helvetica",
+    lineHeight: 1.2,
   },
   section: {
     marginBottom: 16,
@@ -303,13 +313,20 @@ export function ClinicalRecordPdfDocument({ data }: { data: ClinicalRecordPdfDat
       <Page size="A4" style={S.page}>
         {/* Header */}
         <View style={S.coverHeader}>
-          <Text style={S.coverBrand}>NutriNet</Text>
-          <Text style={S.coverSubtitle}>Ficha Clínica Nutricional</Text>
-          <Text style={S.coverDate}>Generado el {date}</Text>
-          <View style={S.patientBadge}>
-            <Text style={S.patientBadgeText}>Expediente del Paciente</Text>
+          <View style={S.coverHeaderTop}>
+            <Text style={S.coverBrand}>NutriNet</Text>
+            <Text style={S.coverSubtitle}>Ficha Clínica Nutricional</Text>
           </View>
-          <Text style={S.patientName}>{data.patientName}</Text>
+
+          <View style={S.divider} />
+
+          <View style={S.coverHeaderBottom}>
+            <Text style={S.patientName}>{data.patientName}</Text>
+            <View style={S.metaRow}>
+              <Text style={S.metaText}>Expediente del Paciente</Text>
+              <Text style={S.metaText}>Generado el {date}</Text>
+            </View>
+          </View>
         </View>
 
         {/* Key Metrics */}
