@@ -6,7 +6,6 @@ import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { toast } from "sonner";
-import Cookies from "js-cookie";
 import { Plus, Trash2, Search, ChefHat, Info, Flame, Image as ImageIcon, Camera, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { fetchApi } from "@/lib/api-base";
@@ -91,9 +90,7 @@ export function CreateRecipeModal({
 
       setIsSearching(true);
       try {
-        const token = Cookies.get("auth_token");
         const response = await fetchApi(`/foods?search=${encodeURIComponent(searchTerm)}`, {
-          headers: { Authorization: `Bearer ${token}` },
         });
         if (response.ok) {
           const data = await response.json();
@@ -148,7 +145,6 @@ export function CreateRecipeModal({
 
   const onSubmit = async (data: CreateRecipeForm) => {
     try {
-      const token = Cookies.get("auth_token");
       const payload = {
         ...data,
         portions: Number(data.portions),
@@ -164,7 +160,6 @@ export function CreateRecipeModal({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(payload),
       });

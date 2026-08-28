@@ -23,15 +23,34 @@ export interface DietFood {
     status?: "base" | "favorite" | "added";
 }
 
+export interface DietCartPdfItem {
+    name: string;
+    category: string;
+}
+
+export interface DietMealPdfItem {
+    section: string;
+    mealText: string;
+    time?: string;
+    portion?: string;
+}
+
 export interface DietPdfData {
     dietName: string;
     dietTags?: string[];
     activeConstraints?: string[];
     planObjective?: string;
     showPlanObjectiveInPdf?: boolean;
+    includeFoodTableSection?: boolean;
+    includeMealsSection?: boolean;
+    meals?: DietMealPdfItem[];
     patientName?: string;
     foods: DietFood[];
     generatedAt?: string;
+    includeCartSection?: boolean;
+    cartItems?: DietCartPdfItem[];
+    includeResourcesSection?: boolean;
+    selectedResourceIds?: string[];
 }
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
@@ -265,18 +284,6 @@ const S = StyleSheet.create({
     },
     tableCellBold: {
         ...shared.tableCellBold,
-    },
-    // Macro pill
-    macroPill: {
-        backgroundColor: colors.primaryLight,
-        borderRadius: 3,
-        paddingHorizontal: 5,
-        paddingVertical: 1,
-    },
-    macroPillText: {
-        fontSize: 7.5,
-        color: colors.primaryDark,
-        fontFamily: "Helvetica-Bold",
     },
     // Page footer
     pageFooter: {
@@ -594,11 +601,11 @@ function FoodTablePage({
     );
 }
 
-
 // ─── Main Document ────────────────────────────────────────────────────────────
 
 export function DietPdfDocument({ data }: { data: DietPdfData }) {
     const grouped = groupFoods(data.foods);
+    const showFoodTable = data.includeFoodTableSection !== false;
 
     return (
         <Document
@@ -608,11 +615,13 @@ export function DietPdfDocument({ data }: { data: DietPdfData }) {
             creator="NutriNet v1.0"
         >
             <CoverPage data={data} />
-            <FoodTablePage
-                grouped={grouped}
-                patientName={data.patientName}
-                dietName={data.dietName}
-            />
+            {showFoodTable && (
+                <FoodTablePage
+                    grouped={grouped}
+                    patientName={data.patientName}
+                    dietName={data.dietName}
+                />
+            )}
         </Document>
     );
 }

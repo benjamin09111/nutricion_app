@@ -58,6 +58,7 @@ export interface MembershipState {
     calculatorUsed: number;
     foodGroupsUsed?: number;
     creationsUsed?: number;
+    dietCreationsUsed?: number;
   };
   billing?: {
     nextPaymentAt: string | null;
@@ -251,6 +252,17 @@ export function SubscriptionProvider({
       void refreshSubscription({ silent: false });
     }
   }, [applyStoredUserSnapshot, refreshSubscription]);
+
+  useEffect(() => {
+    const handleUsageUpdated = () => {
+      void refreshSubscription({ silent: true });
+    };
+
+    window.addEventListener("membership-usage-updated", handleUsageUpdated);
+    return () => {
+      window.removeEventListener("membership-usage-updated", handleUsageUpdated);
+    };
+  }, [refreshSubscription]);
 
   const forceUpdatePlan = useCallback((newPlan: SubscriptionPlan) => {
     setPlan(newPlan);

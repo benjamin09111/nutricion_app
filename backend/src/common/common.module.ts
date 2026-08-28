@@ -1,6 +1,7 @@
 import { Global, Module } from '@nestjs/common';
 import { CacheService } from './services/cache.service';
 import { AiService } from './services/ai.service';
+import { StorageService } from './services/storage.service';
 import { HttpCacheInterceptor } from './interceptors/http-cache.interceptor';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuditService } from './audit/audit.service';
@@ -14,6 +15,7 @@ import { AuditController } from './audit/audit.controller';
   providers: [
     CacheService,
     AiService,
+    StorageService,
     HttpCacheInterceptor,
     AuditService,
     AuditInterceptor,
@@ -21,6 +23,7 @@ import { AuditController } from './audit/audit.controller';
   exports: [
     CacheService,
     AiService,
+    StorageService,
     HttpCacheInterceptor,
     AuditService,
     AuditInterceptor,

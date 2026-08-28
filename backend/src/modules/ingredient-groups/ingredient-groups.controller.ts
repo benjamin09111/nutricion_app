@@ -20,9 +20,10 @@ import { CacheTTL } from '@nestjs/cache-manager';
 import { PermissionsGuard } from '../permissions/permissions.guard';
 import { RequireFeatures } from '../permissions/permissions.decorator';
 import { PLAN_ENTITLEMENT_KEYS } from '../memberships/plan-entitlements';
+import { NutritionistScopeGuard } from '../../common/guards/nutritionist-scope.guard';
 
 @Controller('ingredient-groups')
-@UseGuards(AuthGuard, PermissionsGuard)
+@UseGuards(AuthGuard, NutritionistScopeGuard, PermissionsGuard)
 @RequireFeatures(PLAN_ENTITLEMENT_KEYS.FOOD_GROUPS_ACCESS)
 @UseInterceptors(HttpCacheInterceptor)
 @CacheTTL(300000) // 5 minutes

@@ -2,11 +2,12 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   getMembershipPlanEntitlements,
-  getMembershipPlanKey,
   normalizeMembershipPlanKey,
 } from '../memberships/plan-entitlements';
 
 const LIFETIME_PERIOD_KEY = 'lifetime';
+
+const INDEPENDENT_METRICS_TITLE = 'Registro de Métricas Independiente';
 
 @Injectable()
 export class DashboardService {
@@ -38,7 +39,9 @@ export class DashboardService {
       this.prisma.patient.count({
         where: { nutritionistId, status: { not: 'Active' } },
       }),
-      this.prisma.consultation.count({ where: { nutritionistId } }),
+      this.prisma.consultation.count({
+        where: { nutritionistId, title: { not: INDEPENDENT_METRICS_TITLE } },
+      }),
       this.prisma.creation.count({
         where: { nutritionistId, type: 'FAST_DELIVERABLE' },
       }),
@@ -116,13 +119,21 @@ export class DashboardService {
       usageMap[usageKey] = (usageMap[usageKey] || 0) + counter.usageCount;
     }
 
-    const patientLimit = Number(
-      entitlements['patients.total.limit'] ?? entitlements['patients.active.limit'],
-    ) || 0;
+    const patientLimit =
+      Number(
+        entitlements['patients.total.limit'] ??
+          entitlements['patients.active.limit'],
+      ) || 0;
     const consultationLimit =
-      Number(entitlements['consultations.saved.limit'] ?? entitlements['consultations.monthly.limit']) || 0;
+      Number(
+        entitlements['consultations.saved.limit'] ??
+          entitlements['consultations.monthly.limit'],
+      ) || 0;
     const pdfLimit =
-      Number(entitlements['pdf.exports.total.limit'] ?? entitlements['pdf.monthly.limit']) || 0;
+      Number(
+        entitlements['pdf.exports.total.limit'] ??
+          entitlements['pdf.monthly.limit'],
+      ) || 0;
 
     const isFree =
       planKey === 'free' &&
@@ -141,16 +152,25 @@ export class DashboardService {
           limit: consultationLimit > 0 ? consultationLimit : Infinity,
         },
         {
-           used: usageMap['pdf.exports.total.limit'] || usageMap['pdf.monthly.limit'] || 0,
+          used:
+            usageMap['pdf.exports.total.limit'] ||
+            usageMap['pdf.monthly.limit'] ||
+            0,
           limit: pdfLimit > 0 ? pdfLimit : Infinity,
         },
       ];
-      const percentages = limits.map((l) =>
-        l.limit > 0 && l.limit !== Infinity
-          ? Math.min(100, Math.round((l.used / l.limit) * 100))
-          : 0,
+
+      const activeLimits = limits.filter(
+        (l) => l.limit > 0 && l.limit !== Infinity,
       );
-      planUsagePercent = Math.max(...percentages);
+
+      if (activeLimits.length > 0) {
+        const sumPercent = activeLimits.reduce(
+          (acc, l) => acc + Math.min(100, (l.used / l.limit) * 100),
+          0,
+        );
+        planUsagePercent = Math.round(sumPercent / activeLimits.length);
+      }
     }
 
     return {
@@ -180,7 +200,10 @@ export class DashboardService {
         usage: {
           patients: totalPatients,
           consultations: totalConsultations,
-          pdfs: usageMap['pdf.exports.total.limit'] || usageMap['pdf.monthly.limit'] || 0,
+          pdfs:
+            usageMap['pdf.exports.total.limit'] ||
+            usageMap['pdf.monthly.limit'] ||
+            0,
         },
       },
       recentPatients,

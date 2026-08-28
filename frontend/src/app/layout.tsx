@@ -16,7 +16,14 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://nutrinet.cl"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://nutrinet.cl"),
+  icons: {
+    icon: [
+      { url: "/circle_logo.webp", type: "image/webp" },
+    ],
+    shortcut: "/circle_logo.webp",
+    apple: "/circle_logo.webp",
+  },
   title: {
     template: "%s | NutriNet",
     default: "NutriNet | Software para Nutricionistas en Chile",
@@ -107,7 +114,7 @@ export default function RootLayout({
       <body className="antialiased">
         <Providers>
           {children}
-          <Toaster position="top-right" richColors />
+          <Toaster position="top-right" richColors closeButton />
         </Providers>
       </body>
     </html>

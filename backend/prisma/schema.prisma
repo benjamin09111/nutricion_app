@@ -29,6 +29,10 @@ model Account {
   emailVerificationToken    String?                    @unique @map("email_verification_token")
   emailVerificationSentAt   DateTime?                  @map("email_verification_sent_at") @db.Timestamptz(6)
   emailVerifiedAt           DateTime?                  @map("email_verified_at") @db.Timestamptz(6)
+  tokenVersion              Int                        @default(0) @map("token_version")
+  totpSecret                String?                    @map("totp_secret")
+  totpEnabled               Boolean                    @default(false) @map("totp_enabled")
+  totpRecoveryCodes         String[]                   @default([]) @map("totp_recovery_codes")
   nutritionist              Nutritionist?
   payments                  Payment[]
   subscription              Subscription?
@@ -40,6 +44,8 @@ model Account {
   archivedDiscountCodes     DiscountCode[]             @relation("DiscountCodeArchiver")
   deletionRequests          AccountDeletionRequest[]
   personalNoteTabs          PersonalNoteTab[]
+  aiUsageLogs               AiUsageLog[]
+  appRating                 AppRating?
 
   @@index([role, createdAt])
   @@map("accounts")
@@ -163,7 +169,7 @@ model Project {
   activeDeliverableCreationId String?      @map("active_deliverable_creation_id")
   metadata                    Json?        @default("{}")
   createdAt                   DateTime     @default(now()) @map("created_at")
-  updatedAt                   DateTime     @updatedAt @map("updated_at")
+  updatedAt                   DateTime     @default(now()) @updatedAt @map("updated_at")
   activeCartCreation          Creation?    @relation("ProjectCartCreation", fields: [activeCartCreationId], references: [id])
   activeDeliverableCreation   Creation?    @relation("ProjectDeliverableCreation", fields: [activeDeliverableCreationId], references: [id])
   activeDietCreation          Creation?    @relation("ProjectDietCreation", fields: [activeDietCreationId], references: [id])
@@ -961,6 +967,8 @@ enum SubscriptionStatus {
 enum DiscountCodeType {
   NUTRI
   BETA
+  PROMO_30
+  PROMO_15
 }
 
 enum DiscountCodeStatus {
@@ -1102,3 +1110,63 @@ enum AvailabilityRuleType {
   SPECIFIC_DATE
   BLOCK
 }
+
+model AiUsageLog {
+  id                 String   @id @default(uuid())
+  accountId          String?  @map("account_id")
+  feature            String   @default("general")
+  model              String   @default("unknown")
+  promptTokens       Int      @default(0) @map("prompt_tokens")
+  completionTokens   Int      @default(0) @map("completion_tokens")
+  totalTokens        Int      @default(0) @map("total_tokens")
+  estimatedCostCents Float    @default(0) @map("estimated_cost_cents")
+  metadata           Json?    @default("{}")
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  account Account? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+
+  @@index([accountId, createdAt])
+  @@index([feature, createdAt])
+  @@index([model, createdAt])
+  @@map("ai_usage_logs")
+}
+
+model Testimonial {
+  id               String   @id @default(uuid())
+  name             String
+  role             String?
+  clinic           String?
+  city             String?
+  timeSaved        String?  @map("time_saved")
+  quote            String   @db.Text
+  highlight        String?
+  avatarText       String?  @map("avatar_text")
+  avatarBg         String?  @default("from-purple-500 to-indigo-600") @map("avatar_bg")
+  rating           Int      @default(5)
+  isPublished      Boolean  @default(false) @map("is_published")
+  isReviewed       Boolean  @default(false) @map("is_reviewed")
+  displayOrder     Int      @default(0) @map("display_order")
+  authorAccountId  String?  @map("author_account_id")
+  supportRequestId String?  @map("support_request_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@index([isPublished, displayOrder])
+  @@index([isReviewed])
+  @@map("testimonials")
+}
+
+model AppRating {
+  id        String   @id @default(uuid())
+  accountId String   @unique @map("account_id")
+  stars     Int      @db.SmallInt
+  comment   String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+  @@map("app_ratings")
+}
+

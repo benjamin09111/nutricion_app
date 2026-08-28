@@ -53,7 +53,12 @@ export class ResourcesController {
   findOne(@Param('id') id: string, @Request() req: any) {
     const nutritionistId = req.user.nutritionistId;
     const isAdmin = isAdminRole(req.user.role);
-    return this.resourcesService.findOne(id, nutritionistId, isAdmin, req.user.id);
+    return this.resourcesService.findOne(
+      id,
+      nutritionistId,
+      isAdmin,
+      req.user.id,
+    );
   }
 
   @Post()

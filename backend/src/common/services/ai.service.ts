@@ -1,8 +1,14 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  Optional,
+} from '@nestjs/common';
 import { generateObject, type LanguageModel } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOpenAI } from '@ai-sdk/openai';
 import type { ZodTypeAny } from 'zod';
+import { PrismaService } from '../../prisma/prisma.service';
 
 export type AiProvider = 'gemini' | 'deepseek' | 'openai';
 
@@ -21,9 +27,40 @@ interface AiModelConfig {
   modelId: string;
 }
 
+function calculateCostInCents(
+  model: string,
+  promptTokens: number,
+  completionTokens: number,
+): number {
+  const modelLower = (model || '').toLowerCase();
+  let promptRatePerM = 0.15;
+  let completionRatePerM = 0.6;
+
+  if (modelLower.includes('gpt-4o') && !modelLower.includes('mini')) {
+    promptRatePerM = 2.5;
+    completionRatePerM = 10.0;
+  } else if (modelLower.includes('gpt-4o-mini')) {
+    promptRatePerM = 0.15;
+    completionRatePerM = 0.6;
+  } else if (modelLower.includes('gemini')) {
+    promptRatePerM = 0.075;
+    completionRatePerM = 0.3;
+  } else if (modelLower.includes('deepseek')) {
+    promptRatePerM = 0.14;
+    completionRatePerM = 0.28;
+  }
+
+  const totalCostUSD =
+    (promptTokens / 1_000_000) * promptRatePerM +
+    (completionTokens / 1_000_000) * completionRatePerM;
+  return Number((totalCostUSD * 100).toFixed(6));
+}
+
 @Injectable()
 export class AiService {
   private readonly logger = new Logger(AiService.name);
+
+  constructor(@Optional() private readonly prisma?: PrismaService) {}
 
   resolveModelConfig(provider: AiProvider): AiModelConfig | null {
     if (provider === 'gemini') {
@@ -110,6 +147,8 @@ export class AiService {
     options?: {
       temperature?: number;
       providers?: AiProvider[];
+      accountId?: string;
+      feature?: string;
     },
   ): Promise<{
     provider: AiProvider;
@@ -122,7 +161,7 @@ export class AiService {
     return this.runWithFallback(
       taskName,
       async (config) => {
-        const { object } = await generateObject({
+        const { object, usage } = await generateObject({
           model: config.model,
           schema,
           system: [STRICT_CLINICAL_SYSTEM_PROMPT, systemInstruction]
@@ -136,6 +175,45 @@ export class AiService {
               : undefined,
         });
 
+        if (this.prisma) {
+          const uAny = (usage || {}) as any;
+          const promptTokens =
+            uAny?.promptTokens ?? uAny?.inputTokens ?? uAny?.prompt_tokens ?? 0;
+          const completionTokens =
+            uAny?.completionTokens ??
+            uAny?.outputTokens ??
+            uAny?.completion_tokens ??
+            0;
+          const totalTokens =
+            uAny?.totalTokens ??
+            uAny?.total_tokens ??
+            promptTokens + completionTokens;
+          const costCents = calculateCostInCents(
+            config.modelId,
+            promptTokens,
+            completionTokens,
+          );
+
+          this.prisma.aiUsageLog
+            .create({
+              data: {
+                accountId: options?.accountId || null,
+                feature: options?.feature || taskName || 'general',
+                model: config.modelId,
+                promptTokens,
+                completionTokens,
+                totalTokens,
+                estimatedCostCents: costCents,
+                metadata: { taskName, provider: config.provider },
+              },
+            })
+            .catch((err: any) =>
+              this.logger.warn(
+                `Could not log AI usage: ${err?.message || err}`,
+              ),
+            );
+        }
+
         return object;
       },
       providers,
@@ -148,43 +226,34 @@ export class AiService {
 
   formatPatientContext(patient?: any): string | null {
     if (!patient) return null;
-    const parts: string[] = [];
 
-    const demo: string[] = [];
-    if (patient.ageYears) demo.push(`${patient.ageYears}a`);
-    if (patient.gender) {
-      const g = patient.gender.toLowerCase();
-      demo.push(
-        g.startsWith('m') ? 'M' : g.startsWith('f') ? 'F' : patient.gender,
-      );
+    const details: string[] = [];
+    if (patient.ageYears || patient.age)
+      details.push(`Edad: ${patient.ageYears || patient.age} años`);
+    if (patient.gender) details.push(`Género: ${patient.gender}`);
+    if (patient.weightKg || patient.weight)
+      details.push(`Peso: ${patient.weightKg || patient.weight} kg`);
+    if (patient.heightCm || patient.height)
+      details.push(`Estatura: ${patient.heightCm || patient.height} cm`);
+    if (patient.nutritionalFocus)
+      details.push(`Enfoque Nutricional: ${patient.nutritionalFocus}`);
+    if (patient.fitnessGoals)
+      details.push(`Objetivo Físico: ${patient.fitnessGoals}`);
+    if (patient.activityLevel)
+      details.push(`Nivel de Actividad: ${patient.activityLevel}`);
+    if (
+      patient.dietRestrictions &&
+      Array.isArray(patient.dietRestrictions) &&
+      patient.dietRestrictions.length > 0
+    ) {
+      details.push(`Restricciones: ${patient.dietRestrictions.join(', ')}`);
     }
-    const weight = patient.weight ?? patient.weightKg;
-    if (weight != null) demo.push(`${weight}kg`);
-    const height = patient.height ?? patient.heightCm;
-    if (height != null) demo.push(`${height}cm`);
-    if (demo.length > 0) parts.push(`Pte: ${demo.join(', ')}`);
+    if (patient.likes) details.push(`Gustos: ${patient.likes}`);
+    if (patient.clinicalSummary)
+      details.push(`Resumen Clínico: ${patient.clinicalSummary}`);
 
-    if (patient.nutritionalFocus || patient.fitnessGoals) {
-      const goals = [patient.nutritionalFocus, patient.fitnessGoals]
-        .filter(Boolean)
-        .join('/');
-      parts.push(`Obj: ${goals}`);
-    }
-
-    if (patient.likes) parts.push(`Gustos: ${patient.likes}`);
-
-    const restr = patient.restrictions || patient.dietRestrictions;
-    if (restr && restr.length > 0) {
-      const cleanRestr = Array.isArray(restr)
-        ? restr.filter((r: any) => typeof r === 'string' && r.trim().length > 0)
-        : [];
-      if (cleanRestr.length > 0) {
-        parts.push(`Restr: ${cleanRestr.join(', ')}`);
-      }
-    }
-
-    if (patient.clinicalSummary) parts.push(`Obs: ${patient.clinicalSummary}`);
-
-    return parts.join(' | ');
+    return details.length > 0
+      ? `[Perfil del Paciente: ${details.join(' | ')}]`
+      : null;
   }
 }

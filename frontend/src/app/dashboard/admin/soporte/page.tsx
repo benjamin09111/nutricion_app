@@ -9,7 +9,6 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
-import Cookies from "js-cookie";
 import { fetchApi } from "@/lib/api-base";
 import { formatDateOnlyForLocale } from "@/features/patients/utils/patient-helpers";
 
@@ -32,10 +31,7 @@ export default function AdminSupportPage() {
   const fetchRequests = async () => {
     setIsLoading(true);
     try {
-      const token =
-        Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const response = await fetchApi(`/support`, {
-        headers: { Authorization: `Bearer ${token}` },
       });
       if (!response.ok) throw new Error("Error al cargar solicitudes");
       const data = await response.json();
@@ -50,11 +46,8 @@ export default function AdminSupportPage() {
 
   const handleResolve = async (id: string) => {
     try {
-      const token =
-        Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const response = await fetchApi(`/support/${id}/resolve`, {
         method: "PATCH",
-        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!response.ok) throw new Error("Error al resolver");

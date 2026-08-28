@@ -376,12 +376,6 @@ export function QuickRecipesPdfDocument({ data }: { data: QuickRecipesPdfData })
               </View>
 
               <View style={styles.dishBody}>
-                <Image src={dish.imageUrl || DEFAULT_DISH_IMAGE} style={styles.dishImage} />
-
-                {dish.description?.trim() ? (
-                  <Text style={styles.description}>{dish.description}</Text>
-                ) : null}
-
                 <View style={styles.macroRow}>
                   <View style={styles.macroBox}>
                     <Text style={styles.macroValue}>{formatMacro(dish.calories)} kcal</Text>
@@ -390,10 +384,6 @@ export function QuickRecipesPdfDocument({ data }: { data: QuickRecipesPdfData })
                   <View style={styles.macroBox}>
                     <Text style={styles.macroValue}>{formatMacro(dish.protein)} g</Text>
                     <Text style={styles.macroLabel}>Proteínas</Text>
-                  </View>
-                  <View style={styles.macroBox}>
-                    <Text style={styles.macroValue}>{formatMacro(dish.carbs)} g</Text>
-                    <Text style={styles.macroLabel}>HC</Text>
                   </View>
                   <View style={styles.macroBox}>
                     <Text style={styles.macroValue}>{formatMacro(dish.fats)} g</Text>
@@ -406,6 +396,24 @@ export function QuickRecipesPdfDocument({ data }: { data: QuickRecipesPdfData })
                     <Text style={styles.portionLabel}>Porción recomendada:</Text>
                     <Text style={styles.portionValue}>{dish.recommendedPortion}</Text>
                   </View>
+                ) : null}
+
+                {dish.preparation?.trim() ? (
+                  <>
+                    <Text style={styles.sectionLabel}>Preparación</Text>
+                    <Text style={styles.preparationText}>
+                      {dish.preparation.split(/(\*\*.*?\*\*)/g).map((part, pIdx) => {
+                        if (part.startsWith("**") && part.endsWith("**")) {
+                          return (
+                            <Text key={pIdx} style={{ fontFamily: "Helvetica-Bold", color: "#0f172a" }}>
+                              {part.slice(2, -2)}
+                            </Text>
+                          );
+                        }
+                        return <Text key={pIdx}>{part}</Text>;
+                      })}
+                    </Text>
+                  </>
                 ) : null}
 
                 {dish.ingredients && dish.ingredients.length > 0 ? (
@@ -431,13 +439,6 @@ export function QuickRecipesPdfDocument({ data }: { data: QuickRecipesPdfData })
                           );
                         })}
                     </View>
-                  </>
-                ) : null}
-
-                {dish.preparation?.trim() ? (
-                  <>
-                    <Text style={styles.sectionLabel}>Preparación</Text>
-                    <Text style={styles.preparationText}>{dish.preparation}</Text>
                   </>
                 ) : null}
               </View>

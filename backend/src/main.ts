@@ -114,7 +114,15 @@ async function bootstrap() {
       origin: string | undefined,
       callback: (error: Error | null, allow?: boolean) => void,
     ) => {
-      if (!origin || frontendOrigins.has(origin.replace(/\/$/, ''))) {
+      // Outside production every origin is allowed, which already covers
+      // localhost during development. In production only the configured
+      // frontend origins may send credentialed requests -- previously any
+      // http://localhost:<port> page was accepted here too.
+      if (
+        !origin ||
+        process.env.NODE_ENV !== 'production' ||
+        frontendOrigins.has(origin.replace(/\/$/, ''))
+      ) {
         return callback(null, true);
       }
 

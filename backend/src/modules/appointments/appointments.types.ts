@@ -1,17 +1,15 @@
 import { AppointmentStatus, Prisma } from '@prisma/client';
 import { Request } from 'express';
-import * as jwt from 'jsonwebtoken';
 
+// La identidad la resuelve `JwtStrategy` y viaja en `request.user`. Las
+// cabeceras `x-nutritionist-id` / `x-api-key` se eliminaron a propósito: eran
+// una vía de suplantación entre nutricionistas.
 export type AppointmentRequest = Request & {
-  headers: Request['headers'] & {
-    'x-nutritionist-id'?: string;
-    authorization?: string;
-    'x-api-key'?: string;
+  user?: {
+    id: string;
+    role?: string;
+    nutritionistId?: string;
   };
-};
-
-export type NutritionistJwtPayload = jwt.JwtPayload & {
-  nutritionistId?: string;
 };
 
 export type AppointmentCalendarWithNutritionist =

@@ -31,7 +31,7 @@ import { calculateBMI, calculateGET, calculateAge, getIdealWeightRange } from "@
 import { calculateGestationalData } from "@/lib/gestational-calculations";
 import { cn, toDateOnly, formatDateOnlyForLocale } from "../utils/patient-helpers";
 import { DEFAULT_CONSTRAINTS } from "@/lib/constants";
-import { WEEKLY_EXERCISE_OPTIONS } from "@/lib/validations/patient-form";
+import { WEEKLY_EXERCISE_OPTIONS } from "@/lib/schemas/patient-form";
 import { fetchApi } from "@/lib/api-base";
 
 const ACTIVITY_LEVELS: { key: ActivityLevel; label: string; icon: any }[] = [
@@ -245,7 +245,13 @@ export function PatientFichaClinicaTab({
   const clinicalSummary = isEditing ? (editForm.clinicalSummary ?? patient.clinicalSummary) : patient.clinicalSummary;
   const nutritionalFocus = isEditing ? (editForm.nutritionalFocus ?? patient.nutritionalFocus) : patient.nutritionalFocus;
   const fitnessGoals = isEditing ? (editForm.fitnessGoals ?? patient.fitnessGoals) : patient.fitnessGoals;
-  const rejectedFoods = getCV("rejectedFoods", isEditing ? editForm.customVariables : patient.customVariables);
+  const dislikedFoodsArr = isEditing ? editForm.dislikedFoods : patient.dislikedFoods;
+  const dislikedFoodsStr = Array.isArray(dislikedFoodsArr) && dislikedFoodsArr.length > 0
+    ? dislikedFoodsArr.join(", ")
+    : typeof dislikedFoodsArr === "string"
+    ? dislikedFoodsArr
+    : "";
+  const rejectedFoods = dislikedFoodsStr || getCV("rejectedFoods", isEditing ? editForm.customVariables : patient.customVariables);
   const motivoConsulta = getCV("motivoConsulta", isEditing ? editForm.customVariables : patient.customVariables);
   const diagnosticoNutricional = getCV("diagnosticoNutricional", isEditing ? editForm.customVariables : patient.customVariables);
   const pesoHabitual = getCV("pesoHabitual", isEditing ? editForm.customVariables : patient.customVariables);

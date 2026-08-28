@@ -3,7 +3,6 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import Cookies from "js-cookie";
 import {
   ArrowLeft,
   ChefHat,
@@ -34,7 +33,6 @@ const MEAL_SECTIONS = [
 
 export default function EditarPlatoClient({ id }: { id: string }) {
   const router = useRouter();
-  const token = Cookies.get("auth_token") || "";
 
   const [isLoading, setIsLoading] = useState(true);
   const [form, setForm] = useState({
@@ -70,9 +68,7 @@ export default function EditarPlatoClient({ id }: { id: string }) {
     const fetchDish = async () => {
       setIsLoading(true);
       try {
-        const res = await fetchApi(`/recipes/${id}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const res = await fetchApi(`/recipes/${id}`);
         if (res.ok) {
           const data = await res.json();
           setForm({
@@ -118,8 +114,8 @@ export default function EditarPlatoClient({ id }: { id: string }) {
       }
     };
 
-    if (id && token) fetchDish();
-  }, [id, token, router]);
+    if (id) fetchDish();
+  }, [id, router]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -151,9 +147,7 @@ export default function EditarPlatoClient({ id }: { id: string }) {
     const timer = setTimeout(async () => {
       setIsSearchingFoods(true);
       try {
-        const res = await fetchApi(`/foods?search=${encodeURIComponent(foodSearch)}&limit=5`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await fetchApi(`/foods?search=${encodeURIComponent(foodSearch)}&limit=5`);
         if (res.ok) {
           const data = await res.json();
           setFoodSuggestions(Array.isArray(data) ? data : data.items || []);
@@ -166,7 +160,7 @@ export default function EditarPlatoClient({ id }: { id: string }) {
     }, 400);
 
     return () => clearTimeout(timer);
-  }, [foodSearch, token]);
+  }, [foodSearch]);
 
   const addMainIngredient = (food: any) => {
     if (mainIngredients.find(i => i.id === food.id)) {
@@ -195,7 +189,6 @@ export default function EditarPlatoClient({ id }: { id: string }) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ ingredientNames: validIngredients }),
       });
@@ -266,7 +259,6 @@ export default function EditarPlatoClient({ id }: { id: string }) {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(payload),
       });

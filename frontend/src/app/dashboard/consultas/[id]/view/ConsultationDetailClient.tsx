@@ -30,7 +30,6 @@ import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { toast } from "sonner";
 import { fetchApi } from "@/lib/api-base";
-import Cookies from "js-cookie";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -100,20 +99,11 @@ export default function ConsultationDetailClient({ id }: Props) {
   const [isPatientPanelOpen, setIsPatientPanelOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  /** Lee el token en el momento de la petición, no al montar */
-  const getAuthHeaders = () => {
-    const token =
-      Cookies.get("auth_token") ||
-      (typeof window !== "undefined" ? localStorage.getItem("auth_token") : "");
-    return { Authorization: `Bearer ${token}` };
-  };
-
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const headers = getAuthHeaders();
-        const cResponse = await fetchApi(`/consultations/${id}`, { headers });
+        const cResponse = await fetchApi(`/consultations/${id}`);
 
         if (!cResponse.ok) {
           toast.error("Consulta no encontrada");
@@ -125,7 +115,7 @@ export default function ConsultationDetailClient({ id }: Props) {
         setConsultation(cData);
 
         // Fetch del paciente en paralelo — ya tenemos el patientId
-        const pResponse = await fetchApi(`/patients/${cData.patientId}`, { headers });
+        const pResponse = await fetchApi(`/patients/${cData.patientId}`);
         if (pResponse.ok) {
           const pData: Patient = await pResponse.json();
           setPatientData(pData);

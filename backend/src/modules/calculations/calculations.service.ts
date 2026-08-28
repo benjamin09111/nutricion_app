@@ -15,13 +15,13 @@ export type ActivityLevel =
 export type TmbFormula = 'mifflin-st-jeor' | 'harris-benedict' | 'oms-fao';
 
 export interface CalculationInputs {
-  gender?: Gender | string | null;
+  gender?: Gender | (string & {}) | null;
   weight?: number | null;
   height?: number | null;
   birthDate?: string | Date | null;
   ageYears?: number | null;
-  activityLevel?: ActivityLevel | string | null;
-  tmbFormula?: TmbFormula | string | null;
+  activityLevel?: ActivityLevel | (string & {}) | null;
+  tmbFormula?: TmbFormula | (string & {}) | null;
   kneeHeight?: number | null;
   calfCircumference?: number | null;
   armCircumference?: number | null;
@@ -43,7 +43,7 @@ export interface CalculationInputs {
   pregnancyWeek?: number | null;
   isPregnant?: boolean | null;
   isLactating?: boolean | null;
-  lactationType?: 'exclusive' | 'partial' | string | null;
+  lactationType?: 'exclusive' | 'partial' | (string & {}) | null;
 }
 
 export interface BmiResult {
@@ -195,11 +195,14 @@ export class CalculationsService {
     return age >= 0 ? age : null;
   }
 
-  private calculateAgeFraction(birthDate?: string | Date | null): number | null {
+  private calculateAgeFraction(
+    birthDate?: string | Date | null,
+  ): number | null {
     if (!birthDate) return null;
     const date = new Date(birthDate);
     if (Number.isNaN(date.getTime())) return null;
-    const age = (Date.now() - date.getTime()) / (365.2425 * 24 * 60 * 60 * 1000);
+    const age =
+      (Date.now() - date.getTime()) / (365.2425 * 24 * 60 * 60 * 1000);
     return age >= 0 ? age : null;
   }
 
@@ -701,13 +704,32 @@ export class CalculationsService {
     profileKey: string = 'adulto_sano',
     getKcal: number = 0,
   ) {
-    const profiles: Record<string, { label: string; min: number; max: number }> = {
+    const profiles: Record<
+      string,
+      { label: string; min: number; max: number }
+    > = {
       adulto_sano: { label: 'Adulto sano, mantención', min: 0.8, max: 1.0 },
-      adulto_mayor: { label: 'Adulto mayor (prevención sarcopenia)', min: 1.2, max: 1.5 },
+      adulto_mayor: {
+        label: 'Adulto mayor (prevención sarcopenia)',
+        min: 1.2,
+        max: 1.5,
+      },
       deportista: { label: 'Deportista / hipertrofia', min: 1.6, max: 2.2 },
-      renal_sin_dialisis: { label: 'Enfermedad renal crónica sin diálisis', min: 0.6, max: 0.8 },
-      renal_dialisis: { label: 'Enfermedad renal en diálisis', min: 1.0, max: 1.2 },
-      oncologico: { label: 'Paciente oncológico / desnutrido', min: 1.2, max: 1.5 },
+      renal_sin_dialisis: {
+        label: 'Enfermedad renal crónica sin diálisis',
+        min: 0.6,
+        max: 0.8,
+      },
+      renal_dialisis: {
+        label: 'Enfermedad renal en diálisis',
+        min: 1.0,
+        max: 1.2,
+      },
+      oncologico: {
+        label: 'Paciente oncológico / desnutrido',
+        min: 1.2,
+        max: 1.5,
+      },
     };
 
     const sel = profiles[profileKey] || profiles['adulto_sano'];
@@ -715,8 +737,10 @@ export class CalculationsService {
     const maxGrams = this.round(weightKg * sel.max, 1);
     const minKcal = this.round(minGrams * 4, 0);
     const maxKcal = this.round(maxGrams * 4, 0);
-    const minPercentGet = getKcal > 0 ? this.round((minKcal / getKcal) * 100, 1) : 0;
-    const maxPercentGet = getKcal > 0 ? this.round((maxKcal / getKcal) * 100, 1) : 0;
+    const minPercentGet =
+      getKcal > 0 ? this.round((minKcal / getKcal) * 100, 1) : 0;
+    const maxPercentGet =
+      getKcal > 0 ? this.round((maxKcal / getKcal) * 100, 1) : 0;
 
     return {
       profileKey,
@@ -831,13 +855,17 @@ export class CalculationsService {
       vegetablePortions * EXCHANGE_PROFILES.verduras_bajas.cho +
       dairyPortions * EXCHANGE_PROFILES.lacteos_descremados.cho +
       legumePortions * EXCHANGE_PROFILES.legumbres_secas.cho;
-    const cerealPortions = roundToSingle((carbs - fixedCarbs) / EXCHANGE_PROFILES.cereales_tuberculos.cho);
+    const cerealPortions = roundToSingle(
+      (carbs - fixedCarbs) / EXCHANGE_PROFILES.cereales_tuberculos.cho,
+    );
     const fixedProtein =
       cerealPortions * EXCHANGE_PROFILES.cereales_tuberculos.protein +
       vegetablePortions * EXCHANGE_PROFILES.verduras_bajas.protein +
       dairyPortions * EXCHANGE_PROFILES.lacteos_descremados.protein +
       legumePortions * EXCHANGE_PROFILES.legumbres_secas.protein;
-    const leanProteinPortions = roundToSingle((protein - fixedProtein) / EXCHANGE_PROFILES.proteina_magra.protein);
+    const leanProteinPortions = roundToSingle(
+      (protein - fixedProtein) / EXCHANGE_PROFILES.proteina_magra.protein,
+    );
     const fixedFat =
       cerealPortions * EXCHANGE_PROFILES.cereales_tuberculos.fat +
       legumePortions * EXCHANGE_PROFILES.legumbres_secas.fat +
@@ -870,7 +898,9 @@ export class CalculationsService {
       },
       {
         profileId: 'grasas_saludables',
-        portions: roundToSingle((fats - fixedFat) / EXCHANGE_PROFILES.grasas_saludables.fat),
+        portions: roundToSingle(
+          (fats - fixedFat) / EXCHANGE_PROFILES.grasas_saludables.fat,
+        ),
       },
     ];
 
@@ -905,7 +935,9 @@ export class CalculationsService {
       typeof inputs.ageYears === 'number'
         ? inputs.ageYears
         : this.calculateAge(birthDate);
-    const growthAge = birthDate ? this.calculateAgeFraction(birthDate) : resolvedAge;
+    const growthAge = birthDate
+      ? this.calculateAgeFraction(birthDate)
+      : resolvedAge;
 
     // Folds
     const tricipital = this.validateInput(inputs.tricipitalFold, 2, 60);
@@ -945,9 +977,10 @@ export class CalculationsService {
 
     // Edema / Dry weight calculation
     const edemaPercent = this.validateInput(inputs.edemaPercent, 0, 50) || 0;
-    const dryWeight = rawWeight && edemaPercent > 0
-      ? this.round(rawWeight * (1 - edemaPercent / 100), 1)
-      : null;
+    const dryWeight =
+      rawWeight && edemaPercent > 0
+        ? this.round(rawWeight * (1 - edemaPercent / 100), 1)
+        : null;
     const weight = dryWeight || rawWeight;
 
     // BMI/IMC
@@ -957,14 +990,17 @@ export class CalculationsService {
 
     if (weight && height) {
       bmi = this.calculateBMI(weight, height, gender, growthAge);
-      idealWeight = this.getIdealWeightRange(height, gender, growthAge, inputs.targetBmi);
+      idealWeight = this.getIdealWeightRange(
+        height,
+        gender,
+        growthAge,
+        inputs.targetBmi,
+      );
 
       if (idealWeight.supported) {
-        const targetBmi = inputs.targetBmi || (
-          resolvedAge !== null && resolvedAge >= 65
-            ? 25.5
-            : 22.0
-        );
+        const targetBmi =
+          inputs.targetBmi ||
+          (resolvedAge !== null && resolvedAge >= 65 ? 25.5 : 22.0);
         const targetIdealWeight = targetBmi * Math.pow(height / 100, 2);
 
         adjustedWeight = this.round(
@@ -1002,14 +1038,16 @@ export class CalculationsService {
     }
 
     // If Blackburn is grave AND useUsualWeightForRequirements is not explicitly set to false, auto-override to true!
-    const shouldForceUsual = weightLoss && weightLoss.severity === 'grave' && inputs.useUsualWeightForRequirements !== false;
-    const isUsingUsual = inputs.useUsualWeightForRequirements === true || shouldForceUsual;
+    const shouldForceUsual =
+      weightLoss &&
+      weightLoss.severity === 'grave' &&
+      inputs.useUsualWeightForRequirements !== false;
+    const isUsingUsual =
+      inputs.useUsualWeightForRequirements === true || shouldForceUsual;
 
     // TMB & GET & Macros calculated over current weight OR habitual weight (to avoid underfeeding on acute loss)
     const rawUsualWeight = this.validateInput(inputs.usualWeight, 1, 300);
-    const reqWeight = isUsingUsual && rawUsualWeight
-      ? rawUsualWeight
-      : weight;
+    const reqWeight = isUsingUsual && rawUsualWeight ? rawUsualWeight : weight;
 
     let energy: GetResult | null = null;
     let exchangePortions: any[] = [];
@@ -1036,10 +1074,13 @@ export class CalculationsService {
         let physiologicalAdjustmentKcal = 0;
         if (inputs.isPregnant) {
           const pregnancyWeek = inputs.pregnancyWeek ?? 0;
-          if (pregnancyWeek >= 14 && pregnancyWeek <= 27) physiologicalAdjustmentKcal = 340;
-          if (pregnancyWeek >= 28 && pregnancyWeek <= 42) physiologicalAdjustmentKcal = 450;
+          if (pregnancyWeek >= 14 && pregnancyWeek <= 27)
+            physiologicalAdjustmentKcal = 340;
+          if (pregnancyWeek >= 28 && pregnancyWeek <= 42)
+            physiologicalAdjustmentKcal = 450;
         } else if (inputs.isLactating) {
-          physiologicalAdjustmentKcal = inputs.lactationType === 'partial' ? 300 : 500;
+          physiologicalAdjustmentKcal =
+            inputs.lactationType === 'partial' ? 300 : 500;
         }
         const getVal = Math.round(tmb * factor + physiologicalAdjustmentKcal);
 
@@ -1093,7 +1134,9 @@ export class CalculationsService {
       : null;
 
     // Hydration Requirement using reqWeight
-    const hydration = reqWeight ? this.calculateHydration(reqWeight, resolvedAge) : null;
+    const hydration = reqWeight
+      ? this.calculateHydration(reqWeight, resolvedAge)
+      : null;
 
     return {
       version: '2026-07-21-v3',

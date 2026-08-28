@@ -1,6 +1,7 @@
 import React from "react";
 import { Document, Image, Page, Path, StyleSheet, Svg, Text, View } from "@react-pdf/renderer";
 import { buildExchangeGuideForPatient } from "@/lib/exchange-portions";
+import { cleanFoodName } from "@/features/diet/utils/cartIngredients";
 
 interface StandardTemplateProps {
   data: Record<string, unknown>;
@@ -1182,41 +1183,32 @@ export const StandardTemplate = ({ data, config }: StandardTemplateProps) => {
 
       <Page size="A4" style={S.chapterPage} wrap>
         <View style={[S.chapterHero, { backgroundColor: "#0f766e" }]}>
-          <Text style={S.chapterHeroOverline}>Capitulo I</Text>
+          <Text style={S.chapterHeroOverline}>Capítulo I</Text>
           <Text style={S.chapterHeroTitle}>Tu carrito de compras</Text>
           <Text style={S.chapterHeroDesc}>
-            Cantidades referenciales semanales y mensuales para organizar compras con mayor comodidad.
+            Lista de alimentos e ingredientes del plan alimentario para organizar tus compras.
           </Text>
         </View>
         <View style={S.chapterPageBody}>
           {cartItems.length === 0 ? (
-            <Text style={S.muted}>No hay items de carrito cargados.</Text>
+            <Text style={S.muted}>No hay ítems de carrito cargados.</Text>
           ) : (
             cartChunks.map((chunk, chunkIndex) => (
               <View key={`cart-chunk-${chunkIndex}`} style={S.tableChunk} wrap={false}>
                 <View style={S.tableHeader}>
-                  <View style={S.c1}><Text style={S.tableHeadText}>Alimento</Text></View>
-                  <View style={S.c2}><Text style={S.tableHeadText}>Cantidad semanal</Text></View>
-                  <View style={S.c3}><Text style={S.tableHeadText}>Cantidad mensual</Text></View>
+                  <View style={{ flex: 1 }}><Text style={S.tableHeadText}>Alimento / Ingrediente</Text></View>
+                  <View style={{ width: 160 }}><Text style={S.tableHeadText}>Categoría</Text></View>
                 </View>
                 {chunk.map((item, rowIndex) => (
                   <View key={`cart-${chunkIndex}-${rowIndex}`} style={S.tableRow} wrap={false}>
-                    <View style={S.c1}>
+                    <View style={{ flex: 1 }}>
                       <Text style={S.tableCellPrimary}>
-                        {safeString(item.producto) || safeString(item.name) || "Alimento"}
-                      </Text>
-                      <Text style={S.tableCellSecondary}>
-                        {safeString(item.grupo) || safeString(item.group) || ""}
+                        {cleanFoodName(safeString(item.producto) || safeString(item.name) || "Alimento")}
                       </Text>
                     </View>
-                    <View style={S.c2}>
+                    <View style={{ width: 160 }}>
                       <Text style={S.tableCellSecondary}>
-                        {buildQuantityText(item, 1)}
-                      </Text>
-                    </View>
-                    <View style={S.c3}>
-                      <Text style={S.tableCellSecondary}>
-                        {buildQuantityText(item, 4)}
+                        {safeString(item.grupo) || safeString(item.group) || safeString(item.category) || "Varios"}
                       </Text>
                     </View>
                   </View>

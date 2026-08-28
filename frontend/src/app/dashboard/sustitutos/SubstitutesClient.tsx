@@ -16,7 +16,6 @@ import { Input } from "@/components/ui/Input";
 import { toast } from "sonner";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { ModuleFooter } from "@/components/shared/ModuleFooter";
-import Cookies from "js-cookie";
 import { useRouter } from "next/navigation";
 import { fetchApi } from "@/lib/api-base";
 
@@ -39,10 +38,7 @@ export function SubstitutesClient() {
 
   const fetchSubstitutes = async (retries = 3) => {
     try {
-      const token =
-        Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const response = await fetchApi(`/substitutes`, {
-        headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
         const data = await response.json();
@@ -89,13 +85,10 @@ export function SubstitutesClient() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const token =
-        Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const response = await fetchApi(`/substitutes`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ content: substitutes }),
       });

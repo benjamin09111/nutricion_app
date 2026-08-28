@@ -16,7 +16,6 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import Cookies from "js-cookie";
 import { toast } from "sonner";
 import { Modal } from "@/components/ui/Modal";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
@@ -85,8 +84,7 @@ export default function AdminPaymentsPage() {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
-      const headers = { Authorization: `Bearer ${token}` };
+      const headers = {};
       const [pRes, sRes] = await Promise.all([
         fetchApi("/payments", { headers }),
         fetchApi("/payments/stats", { headers }),
@@ -125,10 +123,8 @@ export default function AdminPaymentsPage() {
 
     setIsDeletingPayment(true);
     try {
-      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const response = await fetchApi(`/payments/${paymentToDelete.id}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!response.ok) {
@@ -152,10 +148,8 @@ export default function AdminPaymentsPage() {
 
     setIsApprovingPayment(true);
     try {
-      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const response = await fetchApi(`/payments/${paymentToApprove.id}/approve`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!response.ok) {
@@ -179,10 +173,8 @@ export default function AdminPaymentsPage() {
 
     setIsRejectingPayment(true);
     try {
-      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const response = await fetchApi(`/payments/${paymentToReject.id}/reject`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!response.ok) {
@@ -203,9 +195,7 @@ export default function AdminPaymentsPage() {
 
   const exportAccounting = async () => {
     try {
-      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const response = await fetchApi("/payments/export-accounting", {
-        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!response.ok) {

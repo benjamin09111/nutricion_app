@@ -1,18 +1,23 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import type { Prisma, MembershipPlan } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 
 const normalizeMembershipFeature = (value: unknown): string => {
   const feature = typeof value === 'string' ? value.trim() : '';
   if (!feature) return '';
 
-  if (/^([✓✔Xx])\s*(.*)$/.test(feature)) {
+  if (/^([✓✔Xx★✨🔥])\s*(.*)$/u.test(feature)) {
     return feature;
   }
 
   const excludedMatch = feature.match(/^sin\s+(.*)$/i);
   if (excludedMatch) {
     return `X ${excludedMatch[1].trim()}`;
+  }
+
+  const newMatch = feature.match(/^(?:novedad|nuevo|new)\s+(.*)$/i);
+  if (newMatch) {
+    return `★ ${newMatch[1].trim()}`;
   }
 
   return `✓ ${feature}`;
@@ -23,8 +28,6 @@ const asStringArray = (value: Prisma.JsonValue): string[] => {
     return value.map((v) => (typeof v === 'string' ? v : ''));
   return [];
 };
-
-type PlanRow = MembershipPlan;
 
 const normalizeMembershipPlan = (plan: any) => ({
   ...plan,
@@ -47,12 +50,7 @@ export class MembershipsService {
   async findActive() {
     const plans = await this.prisma.membershipPlan.findMany({
       where: {
-        isActive: true,
-        NOT: [
-          { slug: { mode: 'insensitive', equals: 'pro' } },
-          { name: { mode: 'insensitive', equals: 'pro' } },
-          { price: 39990 },
-        ],
+        OR: [{ isActive: true }, { isComingSoon: true }],
       },
       orderBy: { displayOrder: 'asc' },
     });

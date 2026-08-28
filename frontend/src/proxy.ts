@@ -148,10 +148,10 @@ export default async function proxy(request: NextRequest) {
   const session = sessionToken ? await fetchSession(request, sessionToken) : null;
 
   if (!session) {
-    // Sin verificación del backend no se otorga acceso privilegiado.
-    if (isAdminRoute) {
-      return NextResponse.redirect(new URL("/dashboard", request.url));
-    }
+    // Si el middleware en el servidor no pudo consultar el rol al backend
+    // (por ejemplo, si la cookie httpOnly está en un dominio cruzado en producción),
+    // se permite el paso para que AdminContext y AdminLayout en el cliente verifiquen
+    // el rol autoritativamente con /auth/me usando credenciales CORS.
     return NextResponse.next();
   }
 

@@ -1,4 +1,14 @@
+import type { Metadata } from "next";
 import VerifyEmailClient from "./VerifyEmailClient";
+
+export const metadata: Metadata = {
+  title: "Verificación de Correo | NutriNet",
+  description: "Verifica tu dirección de correo electrónico en NutriNet.",
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 export const dynamic = "force-dynamic";
 

@@ -7,7 +7,7 @@ import { useSubscription } from "@/context/SubscriptionContext";
 import { useDashboardShell } from "@/context/DashboardShellContext";
 import mealSectionsData from "@/content/meal-sections.json";
 import { fetchApi } from "@/lib/api-base";
-import { getAuthToken } from "@/lib/auth-token";
+import { getAuthToken, hasActiveSession } from "@/lib/auth-token";
 import { buildExchangeGuideForAi } from "@/lib/exchange-portions";
 import { downloadQuickRecipesPdf } from "@/features/pdf/quickRecipesPdfExport";
 import { getCurrentUser } from "@/lib/current-user";
@@ -78,13 +78,23 @@ export function useRecipesState({ id }: UseRecipesStateProps = {}) {
   const { role } = useAdmin();
   const { can, limit, usage, isDeveloper } = useSubscription();
 
-  const pdfLimit = limit("pdf.monthly.limit");
+  const pdfTotalLimit = limit("pdf.exports.total.limit");
+  const pdfMonthlyLimit = limit("pdf.monthly.limit");
+  const pdfLimit = Math.max(
+    Number.isFinite(pdfTotalLimit) ? pdfTotalLimit : 0,
+    Number.isFinite(pdfMonthlyLimit) ? pdfMonthlyLimit : 0,
+  );
   const pdfUsed = usage?.pdfUsed ?? 0;
-  const isPdfLimitReached = !isDeveloper && Number.isFinite(pdfLimit) && pdfUsed >= pdfLimit;
+  const isPdfLimitReached = !isDeveloper && Number.isFinite(pdfLimit) && pdfLimit > 0 && pdfUsed >= pdfLimit;
 
-  const creationsLimit = limit("creations.monthly.limit");
+  const creationsSaveLimit = limit("creations.save.limit");
+  const creationsMonthlyLimit = limit("creations.monthly.limit");
+  const creationsLimit = Math.max(
+    Number.isFinite(creationsSaveLimit) ? creationsSaveLimit : 0,
+    Number.isFinite(creationsMonthlyLimit) ? creationsMonthlyLimit : 0,
+  );
   const creationsUsed = usage?.creationsUsed ?? 0;
-  const isCreationsLimitReached = !isDeveloper && Number.isFinite(creationsLimit) && creationsUsed >= creationsLimit;
+  const isCreationsLimitReached = !isDeveloper && Number.isFinite(creationsLimit) && creationsLimit > 0 && creationsUsed >= creationsLimit;
   const { setSidebarCollapsed, flashSidebarToggle, isSidebarCollapsed } =
     useDashboardShell();
   const hasCollapsedSidebarForRecipesRef = useRef(false);
@@ -1047,9 +1057,10 @@ export function useRecipesState({ id }: UseRecipesStateProps = {}) {
       return acc;
     }, []);
 
-    const token = getAuthToken();
-    if (!token) {
-      toast.error("No se encontró una sesión activa.");
+    if (!hasActiveSession()) {
+      if (typeof window !== "undefined") {
+        window.location.href = "/login";
+      }
       return;
     }
 
@@ -1091,11 +1102,12 @@ export function useRecipesState({ id }: UseRecipesStateProps = {}) {
         },
       };
 
+      const token = getAuthToken();
       const response = await fetchApi("/recipes/quick-ai-fill", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify(payload),
       });
@@ -2250,12 +2262,24 @@ export function useRecipesState({ id }: UseRecipesStateProps = {}) {
           });
           return;
         }
-        draft.recipes = content;
+        const sanitizedRecipesContent = typeof content === "object" && content ? { ...content } : content;
+        if (sanitizedRecipesContent && typeof sanitizedRecipesContent === "object") {
+          delete sanitizedRecipesContent.activeConstraints;
+          delete sanitizedRecipesContent.dietTags;
+          delete sanitizedRecipesContent.tags;
+        }
+        draft.recipes = sanitizedRecipesContent;
         localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
-        applyRecipesContent(content);
+        applyRecipesContent(sanitizedRecipesContent);
         toast.success(`Plan de recetas "${creation.name}" importado.`);
       } else if (type === "DIET") {
-        draft.diet = content;
+        const sanitizedDietContent = typeof content === "object" && content ? { ...content } : content;
+        if (sanitizedDietContent && typeof sanitizedDietContent === "object") {
+          delete sanitizedDietContent.activeConstraints;
+          delete sanitizedDietContent.dietTags;
+          delete sanitizedDietContent.tags;
+        }
+        draft.diet = sanitizedDietContent;
         localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
         syncSourceFoods(draft);
         applyDietMacroTargets(draft);

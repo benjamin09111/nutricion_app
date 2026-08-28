@@ -1,3 +1,3 @@
-export function goToDashboard() {
-  window.location.href = "/dashboard";
+export function goToDashboard(targetUrl: string = "/dashboard/uso-recomendado") {
+  window.location.href = targetUrl;
 }

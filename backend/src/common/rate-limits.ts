@@ -27,7 +27,19 @@ export const publicInterestLimiter = createLimiter(
   10,
   'Demasiadas solicitudes. Intenta nuevamente más tarde.',
 );
-export const supportRequestLimiter = createLimiter(
-  20,
-  'Demasiadas solicitudes de soporte. Intenta nuevamente más tarde.',
-);
+export const supportRequestLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    statusCode: 429,
+    message: 'Demasiadas solicitudes de soporte. Intenta nuevamente más tarde.',
+  },
+  skip: (req) => {
+    // Only rate-limit unauthenticated POST requests (public landing contact form)
+    if (req.method !== 'POST') return true;
+    if (req.headers.authorization || req.headers['authorization']) return true;
+    return false;
+  },
+});

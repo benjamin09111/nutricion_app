@@ -138,9 +138,13 @@ export class RecipesService {
   }
 
   private ingredientAmountInGrams(amount: number, unit: string): number | null {
-    const normalized = String(unit || '').trim().toLowerCase();
+    const normalized = String(unit || '')
+      .trim()
+      .toLowerCase();
     if (['g', 'gr', 'gramo', 'gramos'].includes(normalized)) return amount;
-    if (['kg', 'kilo', 'kilos', 'kilogramo', 'kilogramos'].includes(normalized)) {
+    if (
+      ['kg', 'kilo', 'kilos', 'kilogramo', 'kilogramos'].includes(normalized)
+    ) {
       return amount * 1000;
     }
     return null;
@@ -150,7 +154,9 @@ export class RecipesService {
     ingredients: Array<{ ingredientId: string; amount: number; unit: string }>,
     portions: number,
   ) {
-    const ingredientIds = ingredients.map((ingredient) => ingredient.ingredientId);
+    const ingredientIds = ingredients.map(
+      (ingredient) => ingredient.ingredientId,
+    );
     const dbIngredients = await this.prisma.ingredient.findMany({
       where: { id: { in: ingredientIds } },
     });
@@ -165,14 +171,19 @@ export class RecipesService {
     };
 
     for (const ingredient of ingredients) {
-      const grams = this.ingredientAmountInGrams(ingredient.amount, ingredient.unit);
+      const grams = this.ingredientAmountInGrams(
+        ingredient.amount,
+        ingredient.unit,
+      );
       if (grams === null) {
         throw new BadRequestException(
           `No se pueden calcular macros automáticamente para la unidad "${ingredient.unit}". Usa gramos/kg o ingresa macros manuales por porción.`,
         );
       }
 
-      const dbIngredient = dbIngredients.find((item) => item.id === ingredient.ingredientId);
+      const dbIngredient = dbIngredients.find(
+        (item) => item.id === ingredient.ingredientId,
+      );
       if (!dbIngredient) continue;
       const factor = grams / 100;
       totals.calories += dbIngredient.calories * factor;
@@ -184,7 +195,10 @@ export class RecipesService {
     }
 
     return Object.fromEntries(
-      Object.entries(totals).map(([key, value]) => [key, Number((value / portions).toFixed(2))]),
+      Object.entries(totals).map(([key, value]) => [
+        key,
+        Number((value / portions).toFixed(2)),
+      ]),
     ) as typeof totals;
   }
 
@@ -428,6 +442,7 @@ export class RecipesService {
         systemInstruction,
         userPrompt,
         schema,
+        { accountId, feature: taskName || 'recipes' },
       );
       this.logger.log(
         `[AI] Response ok provider=${result.provider} model=${result.modelId}`,
@@ -825,7 +840,9 @@ export class RecipesService {
 
     const title = typeof dish?.title === 'string' ? dish.title.trim() : '';
     const slotId = typeof dish?.slotId === 'string' ? dish.slotId.trim() : '';
-    const optionIndex = Number.isInteger(dish?.optionIndex) ? Number(dish.optionIndex) : undefined;
+    const optionIndex = Number.isInteger(dish?.optionIndex)
+      ? Number(dish.optionIndex)
+      : undefined;
     const mealSection =
       typeof dish?.mealSection === 'string' ? dish.mealSection.trim() : '';
     const recommendedPortion =
@@ -866,7 +883,12 @@ export class RecipesService {
     };
   }
   private buildQuickAiPrompt(payload: QuickAiFillPayload): string {
-    type MealSectionTarget = { mealSection: string; count: number; slotId?: string; optionIndexes?: number[] };
+    type MealSectionTarget = {
+      mealSection: string;
+      count: number;
+      slotId?: string;
+      optionIndexes?: number[];
+    };
 
     const mealSectionTargets: MealSectionTarget[] = Array.isArray(
       (payload as any).mealSectionTargets,
@@ -877,13 +899,21 @@ export class RecipesService {
           )
           .map((target: any) => ({
             mealSection: String(target.mealSection).trim(),
-              count: Number.isFinite(Number(target.count))
-                ? Math.max(1, Math.min(14, Number(target.count)))
-                : 1,
-              slotId: typeof target.slotId === 'string' ? target.slotId.trim() : undefined,
-              optionIndexes: Array.isArray(target.optionIndexes)
-                ? target.optionIndexes.filter((index: unknown) => Number.isInteger(index) && Number(index) >= 0 && Number(index) <= 2)
+            count: Number.isFinite(Number(target.count))
+              ? Math.max(1, Math.min(14, Number(target.count)))
+              : 1,
+            slotId:
+              typeof target.slotId === 'string'
+                ? target.slotId.trim()
                 : undefined,
+            optionIndexes: Array.isArray(target.optionIndexes)
+              ? target.optionIndexes.filter(
+                  (index: unknown) =>
+                    Number.isInteger(index) &&
+                    Number(index) >= 0 &&
+                    Number(index) <= 2,
+                )
+              : undefined,
           }))
           .filter(
             (target: { mealSection: string; count: number }) =>
@@ -928,7 +958,7 @@ export class RecipesService {
       patient: payload.patientContext || payload.patient || null,
       nutritionalTargets: payload.nutritionalTargets || null,
       existingDishes: this.sanitizeQuickExistingDishes(payload.existingDishes),
-      allowExternalFoods: Boolean((payload as any).allowExternalFoods),
+      allowExternalFoods: true,
       desiredDishCount,
       generationMode: (payload as any).generationMode || 'single',
       mealSectionTargets,
@@ -941,29 +971,28 @@ export class RecipesService {
         safePayload.notes ||
         'Crear recetas prácticas alineadas con el objetivo nutricional.',
       instruction: [
-        'Genera platos realistas de cocina chilena/latinoamericana.',
-        `Devuelve exactamente ${safePayload.desiredDishCount} platos y respeta mealSectionTargets.`,
-        'Ajusta porciones y macros según nutritionalTargets cuando exista.',
-        'Estas comidas se repetirán como una guía general durante la semana, no como recetas exactas para un día específico.',
-        safePayload.generationMode === 'options'
-          ? 'Para cada target de opciones, devuelve una sugerencia independiente por optionIndex solicitado. Conserva exactamente el slotId y optionIndex del target; no combines alternativas usando "/".'
-          : 'Entrega nombres amplios y prácticos con alternativas usando "/" entre opciones equivalentes, por ejemplo: "Salmón/Pollo cocido con Ensalada/Arroz".',
-        'Incluye sustitutos razonables para la proteína, el acompañamiento y los vegetales cuando corresponda; evita nombres demasiado específicos o preparaciones únicas.',
-        'Interpreta availableFoods como una guía de alimentos y categorías que el nutricionista desea utilizar, no como coincidencias literales. Por ejemplo, interpreta "ensaladas verdes" como ingredientes concretos apropiados, como lechuga, apio u otras hojas verdes.',
-        'Prioriza y representa esas categorías en los platos con ingredientes concretos adecuados; si una indicación es amplia, decide tú la composición más razonable.',
-        safePayload.allowExternalFoods
-          ? 'Si los alimentos principales son insuficientes, puedes complementar con ingredientes simples y generales disponibles para una familia promedio en Chile o en supermercados comunes.'
-          : 'No reemplaces, ignores ni complementes los alimentos principales entregados con alimentos fuera de esa lista.',
+        'Genera platos realistas, sabrosos y de cocina cotidiana.',
+        `Devuelve exactamente ${safePayload.desiredDishCount} platos respetando estrictamente mealSectionTargets.`,
+        'REGLAS DE CLASIFICACIÓN GASTRONÓMICA POR SECCIÓN (OBLIGATORIO):',
+        '1) Desayuno / Colación / Once: Usa lácteos (yogurt, leche, queso), frutas, cereales (avena, pan, galletas), frutos secos, huevos o mermelada.',
+        '2) Almuerzo / Cena: Usa proteínas (pollo, carne, pescado, pavo, huevos, legumbres), carbohidratos (papas, arroz, fideos, quinoa) y verduras/ensaladas.',
+        '3) PROHIBICIÓN ABSOLUTA: Queda estrictamente PROHIBIDO mezclar yogurt o lácteos dulces en almuerzos o cenas saladas (EJEMPLOS PROHIBIDOS: "Papa con Yogurt", "Arroz con Yogurt", "Pollo con Yogurt"). El yogurt NUNCA debe ir en un almuerzo o cena.',
+        '4) Si en alimentosDisponibles no hay alimentos adecuados para la sección (ejemplo: solo hay yogurt y papas, pero se solicita un Almuerzo o Cena), USA LAS PAPAS JUNTO A INGREDIENTES COTIDIANOS DE HOGAR (ejemplo: "Papas al horno con pechuga de pollo y ensalada" o "Papas cocidas con huevo duro y tomate") Y DEJA EL YOGURT EXCLUSIVAMENTE PARA EL DESAYUNO O COLACIÓN.',
+        '5) SIEMPRE agrega libremente ingredientes básicos que cualquier persona tiene en su casa (huevos, aceite, sal, cebolla, ajo, tomates, pollo, pan, verduras) cuando la lista inicial de alimentos sea pequeña.',
+        'PROHIBIDO usar opciones alternativas con barra "/" en el nombre del plato.',
+        'PROHIBIDO USAR FORMATO MARKDOWN, NEGRITAS O ASTERISCOS (**) EN LA PREPARACIÓN O INGREDIENTES.',
         `No repitas platos existentes: ${JSON.stringify(safePayload.existingDishes)}.`,
         safePayload.specialConsiderations,
       ]
         .filter(Boolean)
         .join(' '),
-       allowExternalFoods: safePayload.allowExternalFoods,
+      allowExternalFoods: true,
       rules: [
-        'Usa 3 a 6 ingredientes principales por plato.',
-        'ingredients debe incluir name, quantity, amount, unit y optional.',
-        'Los ingredientes externos deben ir en extraIngredients; si están prohibidos, no los uses.',
+        'El título debe ser único, claro y sin barras "/".',
+        'PROHIBIDO USAR YOGURT EN ALMUERZO O CENA. El yogurt solo va en desayuno, colación o una preparación dulce.',
+        'NUNCA generes combinaciones incoherentes como "Papa con Yogurt".',
+        'PROHIBIDO incluir asteriscos (**) ni formato Markdown en ninguna parte del texto. Todo debe ser texto plano.',
+        'Genera entre 3 a 6 elementos en el arreglo de ingredients por plato con su name (ej: "Huevos") y quantity (ej: "2 u" o "150g").',
       ],
       tools: {
         mealSectionTargets: safePayload.mealSectionTargets,
@@ -973,7 +1002,8 @@ export class RecipesService {
       outputSchema: {
         dishes: [
           {
-            slotId: 'string opcional; obligatorio cuando generationMode sea options',
+            slotId:
+              'string opcional; obligatorio cuando generationMode sea options',
             optionIndex: 0,
             title: 'string',
             mealSection: 'string',
@@ -1037,11 +1067,20 @@ export class RecipesService {
       const targets = new Map(
         (payload.mealSectionTargets || [])
           .filter((target) => target.slotId)
-          .map((target) => [target.slotId as string, new Set(target.optionIndexes || [])]),
+          .map((target) => [
+            target.slotId as string,
+            new Set(target.optionIndexes || []),
+          ]),
       );
       normalizedDishes.forEach((dish: QuickAiDishOutput) => {
-        if (!dish.slotId || dish.optionIndex === undefined || !targets.get(dish.slotId)?.has(dish.optionIndex)) {
-          throw new BadRequestException('La IA devolvió una opción fuera de la celda solicitada. Intenta nuevamente.');
+        if (
+          !dish.slotId ||
+          dish.optionIndex === undefined ||
+          !targets.get(dish.slotId)?.has(dish.optionIndex)
+        ) {
+          throw new BadRequestException(
+            'La IA devolvió una opción fuera de la celda solicitada. Intenta nuevamente.',
+          );
         }
       });
     }
@@ -1111,20 +1150,19 @@ export class RecipesService {
           data.fiber == null ||
           data.sodium == null)
       ) {
-        const ingredientMacros = await this.calculateIngredientMacros(ingredients, portions);
+        const ingredientMacros = await this.calculateIngredientMacros(
+          ingredients,
+          portions,
+        );
 
         if (data.calories == null)
           calcMacros.calories = ingredientMacros.calories;
         if (data.proteins == null)
           calcMacros.proteins = ingredientMacros.proteins;
-        if (data.carbs == null)
-          calcMacros.carbs = ingredientMacros.carbs;
-        if (data.lipids == null)
-          calcMacros.lipids = ingredientMacros.lipids;
-        if (data.fiber == null)
-          calcMacros.fiber = ingredientMacros.fiber;
-        if (data.sodium == null)
-          calcMacros.sodium = ingredientMacros.sodium;
+        if (data.carbs == null) calcMacros.carbs = ingredientMacros.carbs;
+        if (data.lipids == null) calcMacros.lipids = ingredientMacros.lipids;
+        if (data.fiber == null) calcMacros.fiber = ingredientMacros.fiber;
+        if (data.sodium == null) calcMacros.sodium = ingredientMacros.sodium;
       }
 
       const recipe = await this.prisma.recipe.create({
@@ -1417,10 +1455,16 @@ export class RecipesService {
 
     if (ingredients) {
       const canCalculateIngredientMacros = ingredients.every(
-        (ingredient) => this.ingredientAmountInGrams(ingredient.amount, ingredient.unit) !== null,
+        (ingredient) =>
+          this.ingredientAmountInGrams(ingredient.amount, ingredient.unit) !==
+          null,
       );
-      const hasManualMacros = [data.calories, data.proteins, data.carbs, data.lipids]
-        .every((value) => value != null);
+      const hasManualMacros = [
+        data.calories,
+        data.proteins,
+        data.carbs,
+        data.lipids,
+      ].every((value) => value != null);
       const ingredientMacros = canCalculateIngredientMacros
         ? await this.calculateIngredientMacros(ingredients, data.portions ?? 1)
         : null;
@@ -1499,6 +1543,7 @@ export class RecipesService {
             lipids: z.number().finite(),
           })
           .strict(),
+        { accountId: userId, feature: 'recipes.estimate-macros' },
       );
 
       const parsed = structured.object as {

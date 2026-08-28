@@ -137,6 +137,7 @@ export class ProjectsService {
       activeCartCreationId: dto.activeCartCreationId,
       activeDeliverableCreationId: dto.activeDeliverableCreationId,
       metadata: (dto.metadata ?? {}) as Prisma.InputJsonValue,
+      updatedAt: new Date(),
     };
 
     const project = await this.prisma.project.create({

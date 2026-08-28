@@ -13,15 +13,26 @@ import {
   ValidatorConstraintInterface,
 } from 'class-validator';
 import type { ValidationArguments } from 'class-validator';
-import type { CalculationInputs, Gender, ActivityLevel, TmbFormula } from '../calculations.service';
+import type {
+  CalculationInputs,
+  Gender,
+  ActivityLevel,
+  TmbFormula,
+} from '../calculations.service';
 
 @ValidatorConstraint({ name: 'macroPercentages', async: false })
 class MacroPercentagesConstraint implements ValidatorConstraintInterface {
   validate(_: unknown, args: ValidationArguments) {
     const input = args.object as CalculateDto;
     const values = [input.carbPct, input.proteinPct, input.fatPct];
-    const provided = values.filter((value) => value !== undefined && value !== null);
-    return provided.length === 0 || (provided.length === 3 && Math.abs(provided.reduce((sum, value) => sum + value!, 0) - 100) < 0.001);
+    const provided = values.filter(
+      (value) => value !== undefined && value !== null,
+    );
+    return (
+      provided.length === 0 ||
+      (provided.length === 3 &&
+        Math.abs(provided.reduce((sum, value) => sum + value, 0) - 100) < 0.001)
+    );
   }
 
   defaultMessage() {

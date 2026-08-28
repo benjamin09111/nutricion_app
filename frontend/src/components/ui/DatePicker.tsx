@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useId } from "react";
+import React, { useState, useRef, useEffect, useLayoutEffect, useId } from "react";
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, X, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -72,6 +72,7 @@ export function DatePicker({
   mode = "date",
 }: DatePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [openUpward, setOpenUpward] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const componentId = useId();
 
@@ -86,6 +87,47 @@ export function DatePicker({
       setViewDate(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1));
     }
   }, [value]);
+
+  const [coords, setCoords] = useState<{ top: number; left: number }>({ top: -9999, left: -9999 });
+
+  const updateCoords = () => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    const upward = spaceBelow < 350 && spaceAbove > spaceBelow;
+    setOpenUpward(upward);
+
+    const popoverWidth = 288;
+    const popoverHeight = 340;
+
+    let left = rect.left;
+    if (left + popoverWidth > window.innerWidth - 12) {
+      left = Math.max(12, window.innerWidth - popoverWidth - 12);
+    }
+    if (left < 12) left = 12;
+
+    let top = upward ? rect.top - popoverHeight - 6 : rect.bottom + 6;
+    if (top < 12) top = 12;
+
+    setCoords({ top, left });
+  };
+
+  useLayoutEffect(() => {
+    if (!isOpen) return;
+    updateCoords();
+
+    const handleScroll = () => {
+      updateCoords();
+    };
+
+    window.addEventListener("scroll", handleScroll, true);
+    window.addEventListener("resize", handleScroll);
+    return () => {
+      window.removeEventListener("scroll", handleScroll, true);
+      window.removeEventListener("resize", handleScroll);
+    };
+  }, [isOpen]);
 
   // Close on click outside
   useEffect(() => {
@@ -200,7 +242,12 @@ export function DatePicker({
         id={componentId}
         type="button"
         disabled={disabled}
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => {
+          if (!isOpen) {
+            updateCoords();
+          }
+          setIsOpen(!isOpen);
+        }}
         className={cn(
           "flex h-10 w-full items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3.5 text-xs font-medium text-slate-700 transition-all outline-none",
           triggerClassName,
@@ -236,11 +283,10 @@ export function DatePicker({
       {/* Popover Dropdown */}
       {isOpen && (
         <div
+          style={isBirthDate && typeof window !== "undefined" && window.innerWidth < 640 ? undefined : { top: `${coords.top}px`, left: `${coords.left}px` }}
           className={cn(
-            "z-50 bg-white animate-in fade-in-50 zoom-in-95 duration-150",
-            isBirthDate
-              ? "fixed inset-0 overflow-y-auto p-4 sm:absolute sm:inset-auto sm:left-0 sm:mt-1.5 sm:w-72 sm:rounded-2xl sm:border sm:border-slate-200 sm:p-3.5 sm:shadow-xl"
-              : "absolute left-0 mt-1.5 w-72 rounded-2xl border border-slate-200 p-3.5 shadow-xl",
+            "fixed z-[200] bg-white animate-in fade-in-50 zoom-in-95 duration-150 shadow-2xl border border-slate-200 rounded-2xl p-3.5 w-72",
+            isBirthDate && "max-sm:inset-0 max-sm:w-full max-sm:overflow-y-auto max-sm:p-4 max-sm:top-0 max-sm:left-0",
           )}
         >
           {isBirthDate && (

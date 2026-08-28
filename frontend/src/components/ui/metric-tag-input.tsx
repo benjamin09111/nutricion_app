@@ -3,7 +3,6 @@ import { cn } from "@/lib/utils";
 import { X, Search, Globe, User as UserIcon, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "./Input";
-import Cookies from "js-cookie";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { DEFAULT_METRICS } from "@/lib/constants";
 import { fetchApi } from "@/lib/api-base";
@@ -38,20 +37,23 @@ export function MetricTagInput({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [fetchedMetrics, setFetchedMetrics] = useState<Metric[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [openUpward, setOpenUpward] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [metricToDelete, setMetricToDelete] = useState<Metric | null>(null);
 
-  const token = typeof window !== "undefined" ? (Cookies.get("auth_token") || localStorage.getItem("auth_token")) : "";
+  useEffect(() => {
+    if (showSuggestions && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      setOpenUpward(spaceBelow < 280 && spaceAbove > spaceBelow);
+    }
+  }, [showSuggestions]);
 
   useEffect(() => {
     const fetchMetrics = async () => {
-      if (!token) {
-        setFetchedMetrics([]);
-        return;
-      }
-
       setIsLoading(true);
       try {
         const url =
@@ -59,9 +61,7 @@ export function MetricTagInput({
             ? `/metrics?limit=10`
             : `/metrics?search=${encodeURIComponent(inputValue)}`;
 
-        const response = await fetchApi(url, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const response = await fetchApi(url);
 
         if (response.ok) {
           const data = await response.json();
@@ -76,7 +76,7 @@ export function MetricTagInput({
 
     const timer = setTimeout(fetchMetrics, 300);
     return () => clearTimeout(timer);
-  }, [inputValue, token]);
+  }, [inputValue]);
 
   const addMetric = (metric: Metric) => {
     const isDuplicate = value.some((m) => m.key === metric.key);
@@ -102,7 +102,6 @@ export function MetricTagInput({
     try {
       const response = await fetchApi(`/metrics/${metric.id}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (response.ok) {
@@ -167,7 +166,10 @@ export function MetricTagInput({
         </div>
 
         {showSuggestions && suggestions.length > 0 && (
-          <div className="absolute z-50 w-full mt-2 bg-white border border-slate-200/80 rounded-2xl shadow-2xl shadow-slate-200/50 max-h-72 overflow-auto animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className={cn(
+            "absolute z-50 w-full bg-white border border-slate-200/80 rounded-2xl shadow-2xl shadow-slate-200/50 max-h-72 overflow-auto animate-in fade-in duration-200",
+            openUpward ? "bottom-full mb-2 slide-in-from-bottom-2" : "top-full mt-2 slide-in-from-top-2"
+          )}>
             <div className="px-3 py-2 border-b border-slate-100 bg-slate-50/80">
               <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">
                 Métricas Disponibles

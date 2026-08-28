@@ -7,9 +7,20 @@ import { useEffect } from "react";
  */
 export function useScrollLock(lock: boolean) {
   useEffect(() => {
-    if (!lock) return;
-
     const body = document.body;
+
+    if (!lock) {
+      const currentLocks = parseInt(
+        body.getAttribute("data-scroll-locks") || "0",
+        10,
+      );
+      if (currentLocks === 0) {
+        body.style.overflow = "";
+        body.style.paddingRight = "";
+      }
+      return;
+    }
+
     const currentLocks = parseInt(
       body.getAttribute("data-scroll-locks") || "0",
       10,
@@ -34,12 +45,12 @@ export function useScrollLock(lock: boolean) {
       );
       const remainingLocks = Math.max(0, latestLocks - 1);
 
-      body.setAttribute("data-scroll-locks", remainingLocks.toString());
-
       if (remainingLocks === 0) {
         body.removeAttribute("data-scroll-locks");
         body.style.overflow = "";
         body.style.paddingRight = "";
+      } else {
+        body.setAttribute("data-scroll-locks", remainingLocks.toString());
       }
     };
   }, [lock]);

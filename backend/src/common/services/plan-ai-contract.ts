@@ -142,7 +142,7 @@ export function buildPlanAiRequest(input: {
   const rules = [
     allowExternalFoods || !input.availableFoods?.length
       ? 'Puede agregar alimentos externos compatibles cuando sean necesarios.'
-      : 'Usa exclusivamente los alimentos de alimentosDisponibles.',
+      : 'Usa preferentemente los alimentos de alimentosDisponibles asignándolos de forma gastronómicamente lógica. Si faltan alimentos para un plato realista, agrega alimentos básicos cotidianos.',
     'Los condimentos básicos pueden agregarse solo como ingredientes opcionales con optional=true.',
     'Respeta todas las restricciones clínicas y alimentarias.',
     'No uses alimentos listados en paciente.alimentosNoConsume.',

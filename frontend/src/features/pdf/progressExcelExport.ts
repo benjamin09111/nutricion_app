@@ -118,8 +118,10 @@ export async function downloadProgressExcel(
   getMetricInfo: (key: string) => { label: string; unit: string; color: string },
   consultations: Consultation[],
 ): Promise<void> {
-  const XLSX = await import("xlsx");
-  const wb = XLSX.utils.book_new();
+  const { createWorkbook, addSheet, downloadWorkbook } = await import(
+    "./excel-workbook"
+  );
+  const wb = createWorkbook();
 
   const date = new Date().toLocaleDateString("es-ES", {
     day: "2-digit",
@@ -181,14 +183,14 @@ export async function downloadProgressExcel(
     }
   }
 
-  const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows);
-  wsSummary["!cols"] = [{ wch: 22 }, { wch: 10 }, { wch: 14 }, { wch: 14 }, { wch: 14 }];
-  wsSummary["!merges"] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 4 } },
-    { s: { r: 1, c: 0 }, e: { r: 1, c: 4 } },
-    { s: { r: 2, c: 0 }, e: { r: 2, c: 4 } },
-  ];
-  XLSX.utils.book_append_sheet(wb, wsSummary, "Resumen");
+  addSheet(wb, "Resumen", summaryRows, {
+    cols: [{ wch: 22 }, { wch: 10 }, { wch: 14 }, { wch: 14 }, { wch: 14 }],
+    merges: [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 4 } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 4 } },
+      { s: { r: 2, c: 0 }, e: { r: 2, c: 4 } },
+    ],
+  });
 
   const tableRows: Array<Array<unknown>> = [
     [
@@ -212,23 +214,9 @@ export async function downloadProgressExcel(
     tableRows.push(cells);
   }
 
-  const wsTable = XLSX.utils.aoa_to_sheet(tableRows);
   const colWidths = [{ wch: 18 }, ...metricKeys.map(() => ({ wch: 14 })), { wch: 24 }];
-  wsTable["!cols"] = colWidths;
-  XLSX.utils.book_append_sheet(wb, wsTable, "Datos por fecha");
+  addSheet(wb, "Datos por fecha", tableRows, { cols: colWidths });
 
   const safeName = patientName.replace(/\s+/g, "_").replace(/[^\w-]/g, "");
-  const filename = `Progreso_${safeName}_NutriNet.xlsx`;
-  const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-  const blob = new Blob([wbout], {
-    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  await downloadWorkbook(wb, `Progreso_${safeName}_NutriNet.xlsx`);
 }

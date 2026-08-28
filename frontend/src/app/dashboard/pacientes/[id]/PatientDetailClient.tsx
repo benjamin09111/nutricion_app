@@ -37,7 +37,6 @@ import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { toast } from "sonner";
-import Cookies from "js-cookie";
 import { fetchApi } from "@/lib/api-base";
 import {
   calculateBMI,
@@ -909,10 +908,8 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         onConfirm={async () => {
           if (!state.consultationToDelete) return;
           try {
-            const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
             const response = await fetchApi(`/consultations/${state.consultationToDelete}`, {
               method: "DELETE",
-              headers: { Authorization: `Bearer ${token}` },
             });
             if (response.ok) {
               toast.success("Consulta eliminada");

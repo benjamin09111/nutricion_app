@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreatePatientDto } from './dto/create-patient.dto';
@@ -18,6 +19,7 @@ import { PermissionsService } from '../permissions/permissions.service';
 import { CalculationsService } from '../calculations/calculations.service';
 import { PLAN_ENTITLEMENT_KEYS } from '../memberships/plan-entitlements';
 
+const INDEPENDENT_METRICS_TITLE = 'Registro de Métricas Independiente';
 const AUTOMATIC_NUTRITION_KEY = 'automaticNutritionCalculations';
 
 type NutritionCalculationInput = {
@@ -62,6 +64,35 @@ export class PatientsService {
       totalPatients,
     );
 
+    if (patientData.documentId?.trim()) {
+      const cleanRut = patientData.documentId
+        .replace(/[^0-9kK]/g, '')
+        .toUpperCase();
+      if (cleanRut) {
+        const existingActivePatients = await this.prisma.patient.findMany({
+          where: {
+            nutritionistId,
+            NOT: { status: 'Inactive' },
+            documentId: { not: null },
+          },
+          select: { id: true, documentId: true },
+        });
+
+        const duplicate = existingActivePatients.find((p) => {
+          if (!p.documentId) return false;
+          return (
+            p.documentId.replace(/[^0-9kK]/g, '').toUpperCase() === cleanRut
+          );
+        });
+
+        if (duplicate) {
+          throw new BadRequestException(
+            'Ya existe un paciente activo con el mismo RUT para este nutricionista.',
+          );
+        }
+      }
+    }
+
     const customVariables = this.withAutomaticNutritionCalculations(
       patientData.customVariables,
       patientForCalculations,
@@ -77,16 +108,60 @@ export class PatientsService {
         },
       });
 
+      const dislikedFoodsStr = Array.isArray(patientData.dislikedFoods)
+        ? patientData.dislikedFoods.join(', ')
+        : typeof patientData.dislikedFoods === 'string'
+        ? patientData.dislikedFoods
+        : '';
+
+      const nutritionalAnamnesis = {
+        ...(clinicalRecordData?.nutritionalAnamnesis || {}),
+        ...(dislikedFoodsStr && !(clinicalRecordData?.nutritionalAnamnesis?.rejectedFoods)
+          ? { rejectedFoods: dislikedFoodsStr }
+          : {}),
+      };
+
       await tx.clinicalRecord.create({
         data: {
           patientId: createdPatient.id,
           vitalHistory: clinicalRecordData?.vitalHistory || {},
           gynecoObstetric: clinicalRecordData?.gynecoObstetric || {},
-          nutritionalAnamnesis: clinicalRecordData?.nutritionalAnamnesis || {},
+          nutritionalAnamnesis,
           anthropometry: clinicalRecordData?.anthropometry || {},
           dataSources: clinicalRecordData?.dataSources || {},
         },
       });
+
+      if (createdPatient.weight || createdPatient.height) {
+        const initialMetrics: any[] = [];
+        if (createdPatient.weight) {
+          initialMetrics.push({
+            key: 'weight',
+            label: 'Peso',
+            value: String(createdPatient.weight),
+            unit: 'kg',
+          });
+        }
+        if (createdPatient.height) {
+          initialMetrics.push({
+            key: 'height',
+            label: 'Estatura',
+            value: String(createdPatient.height),
+            unit: 'cm',
+          });
+        }
+        await tx.consultation.create({
+          data: {
+            patientId: createdPatient.id,
+            nutritionistId,
+            title: INDEPENDENT_METRICS_TITLE,
+            description: 'Registro inicial de métricas al crear la ficha del paciente.',
+            date: createdPatient.createdAt || new Date(),
+            metrics: initialMetrics,
+            plansDelivered: false,
+          },
+        });
+      }
 
       return createdPatient;
     });
@@ -94,6 +169,10 @@ export class PatientsService {
     await this.cacheService.invalidateNutritionistPrefix(
       nutritionistId,
       'patients',
+    );
+    await this.cacheService.invalidateNutritionistPrefix(
+      nutritionistId,
+      'consultations',
     );
     await this.cacheService.invalidateNutritionistPrefix(
       nutritionistId,
@@ -297,6 +376,42 @@ export class PatientsService {
     });
     const { recalculateNutrition, clinicalRecord, ...patientData } =
       updatePatientDto as any;
+
+    const targetDocumentId = patientData.documentId ?? current?.documentId;
+    const targetStatus = patientData.status ?? current?.status;
+    const isTargetActive = targetStatus !== 'Inactive';
+
+    if (
+      targetDocumentId?.trim() &&
+      isTargetActive &&
+      (patientData.documentId !== undefined || patientData.status !== undefined)
+    ) {
+      const cleanRut = targetDocumentId.replace(/[^0-9kK]/g, '').toUpperCase();
+      if (cleanRut) {
+        const existingActivePatients = await this.prisma.patient.findMany({
+          where: {
+            nutritionistId,
+            id: { not: id },
+            NOT: { status: 'Inactive' },
+            documentId: { not: null },
+          },
+          select: { id: true, documentId: true },
+        });
+
+        const duplicate = existingActivePatients.find((p) => {
+          if (!p.documentId) return false;
+          return (
+            p.documentId.replace(/[^0-9kK]/g, '').toUpperCase() === cleanRut
+          );
+        });
+
+        if (duplicate) {
+          throw new BadRequestException(
+            'Ya existe un paciente activo con el mismo RUT para este nutricionista.',
+          );
+        }
+      }
+    }
     const mergedForCalculation = { ...(current || {}), ...patientData };
     const customVariables = this.withAutomaticNutritionCalculations(
       patientData.customVariables ?? current?.customVariables,
@@ -598,16 +713,19 @@ export class PatientsService {
       resolveValue('pliegueSuprailiaco', ['skinfolds', 'suprailiac']),
     );
 
-    const resolvedAge = this.calculateAge(patient.birthDate);
     const gender = this.normalizeGender(patient.gender);
     const activity = this.normalizeActivityLevel(patient.activityLevel);
-    const gynecoObstetric = (clinical.gynecoObstetric || {}) as Record<string, unknown>;
+    const gynecoObstetric = (clinical.gynecoObstetric || {}) as Record<
+      string,
+      unknown
+    >;
     const pregnancyWeek = this.toPositiveNumber(
       gynecoObstetric.pregnancyWeeks ?? gynecoObstetric.gestationalWeek,
     );
     const isPregnant = gynecoObstetric.isPregnant === true;
     const isLactating = gynecoObstetric.isLactating === true;
-    const lactationType = gynecoObstetric.lactationType === 'partial' ? 'partial' : 'exclusive';
+    const lactationType =
+      gynecoObstetric.lactationType === 'partial' ? 'partial' : 'exclusive';
 
     const calcResult = this.calculationsService.calculateAll({
       gender,

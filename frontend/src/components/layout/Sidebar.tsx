@@ -12,6 +12,8 @@ import {
   NotebookText,
   MessageCircle,
   Calculator,
+  ClipboardCheck,
+  Utensils,
   BookOpen,
   MessageSquare,
   Lock,
@@ -28,6 +30,8 @@ import {
   ChevronDown,
   ChevronRight,
   Megaphone,
+  Sparkles,
+  Star,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -72,9 +76,10 @@ const groups: SidebarGroup[] = [
       title: "Nutrición y Dietética",
       items: [
         { name: "Principal", isSubHeader: true },
+        { name: "Dietas", href: "/dashboard/dietas", icon: Utensils, tutorialPath: "/dashboard/dietas" },
         { name: "Entregable Rápido", href: "/dashboard/rapido", icon: NotebookText },
         { name: "Recetas", href: "/dashboard/rapido/recetas", icon: ChefHat },
-        { name: "Entregable Personalizado", href: "/dashboard/dieta", icon: Apple, tutorialPath: "/dashboard/dieta" },
+        { name: "Entregables personalizados", href: "/dashboard/dieta", icon: Apple, tutorialPath: "/dashboard/dieta" },
         { name: "Fitness", href: "/dashboard/fitness", icon: Dumbbell, locked: true },
         { name: "Evaluación antropométrica", href: "/dashboard/evaluacion-antropometrica", icon: Calculator, locked: true },
       { name: "Alimentos", isSubHeader: true },
@@ -89,6 +94,7 @@ const groups: SidebarGroup[] = [
       { name: "Creaciones", href: "/dashboard/creaciones", icon: Folder, tutorialPath: "/dashboard/creaciones" },
       { name: "Recursos", href: "/dashboard/recursos", icon: FileText, tutorialPath: "/dashboard/recursos" },
       { name: "Calculadora", href: "/dashboard/herramientas/calculos", icon: Calculator, tutorialPath: "/dashboard/herramientas/calculos" },
+      { name: "Tests", href: "/dashboard/herramientas/tests", icon: ClipboardCheck, tutorialPath: "/dashboard/herramientas/tests" },
       { name: "Configuración Clínica", href: "/dashboard/detalles", icon: Settings, tutorialPath: "/dashboard/detalles" },
     ],
   },
@@ -116,6 +122,8 @@ const groups: SidebarGroup[] = [
   {
     title: "Ayuda",
     items: [
+      { name: "Guía de uso", href: "/dashboard/uso-recomendado", icon: BookOpen },
+      { name: "Futuras funciones", href: "/dashboard/actualizaciones", icon: Sparkles },
       { name: "Información de Cálculos", href: "/dashboard/herramientas/porciones-intercambio", icon: BookOpen },
       { name: "Preguntas frecuentes", href: "/dashboard/preguntas-frecuentes", icon: HelpCircle },
     ],
@@ -213,7 +221,8 @@ export function Sidebar({ onItemClick, isMobile = false }: SidebarProps = {}) {
             width={shouldCollapse ? 72 : 180}
             height={shouldCollapse ? 23 : 57}
             className={cn("h-auto w-auto object-contain", shouldCollapse ? "max-w-[72px]" : "max-w-[180px]")}
-            style={{ width: "auto", height: "auto" }}
+            style={{ height: "auto" }}
+            priority
           />
         </Link>
 

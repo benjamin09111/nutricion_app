@@ -1,11 +1,11 @@
 import { useState, useMemo, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Cookies from "js-cookie";
 import { toast } from "sonner";
 import { DEFAULT_CONSTRAINTS } from "@/lib/constants";
 import { MarketPrice } from "@/features/foods";
 import { useDashboardShell } from "@/context/DashboardShellContext";
 import { fetchApi } from "@/lib/api-base";
+import { hasActiveSession } from "@/lib/auth-token";
 import {
   buildProjectAwarePath,
   createProject,
@@ -27,9 +27,18 @@ import {
 } from "../utils/diet-helpers";
 import { getMacroPctFromGrams } from "@/lib/nutrition-formulas";
 import { getGoalsFromPatient } from "@/features/recipes/utils/recipe-helpers";
+import { buildExchangeGuideForAi, buildExchangeGuideForPatient } from "@/lib/exchange-portions";
+import { buildAutoCartItems } from "../utils/cartIngredients";
+import { getCurrentUser } from "@/lib/current-user";
+import {
+  DEFAULT_INTRO_TEMPLATE,
+  DEFAULT_CLOSING_TEMPLATE,
+  resolveDeliverableCopyTemplate,
+} from "../constants/defaultDeliverableCopy";
 
 interface UseDietStateProps {
   initialFoods: MarketPrice[];
+  startEmpty?: boolean;
 }
 
 export type DietFlowMode = "quick" | "full";
@@ -112,7 +121,7 @@ const buildMacroTargets = (settings: MacroSettings): MacroTargetsSummary => {
   };
 };
 
-export function useDietState({ initialFoods }: UseDietStateProps) {
+export function useDietState({ initialFoods, startEmpty = false }: UseDietStateProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const projectIdFromUrl = searchParams.get("project");
@@ -141,6 +150,8 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
   >([]);
   const [newConstraintLabel, setNewConstraintLabel] = useState("");
   const [customGroups, setCustomGroups] = useState<string[]>([]);
+  const [deletedBaseGroups, setDeletedBaseGroups] = useState<string[]>([]);
+  const [dbCatalogFoods, setDbCatalogFoods] = useState<MarketPrice[]>([]);
   const [isDeleteGroupConfirmOpen, setIsDeleteGroupConfirmOpen] =
     useState(false);
   const [groupToDelete, setGroupToDelete] = useState<string | null>(null);
@@ -158,6 +169,7 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
   const [isExportConfirmOpen, setIsExportConfirmOpen] = useState(false);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [isSaveCreationModalOpen, setIsSaveCreationModalOpen] = useState(false);
   const [creationDescription, setCreationDescription] = useState("");
   const [isDraftFoodEditorOpen, setIsDraftFoodEditorOpen] = useState(false);
@@ -176,6 +188,130 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
     sodio: 0,
   });
   const [isSavingDraftFood, setIsSavingDraftFood] = useState(false);
+
+  // Flow & Step 3/4 State
+  const [currentStep, setCurrentStep] = useState(0);
+  const [meals, setMeals] = useState<any[]>([]);
+  const [includeMealsSection, setIncludeMealsSection] = useState(true);
+  const [includeExchangeGuideInPdf, setIncludeExchangeGuideInPdf] = useState(true);
+  const [includeCartSection, setIncludeCartSection] = useState(true);
+  const [includeFoodTableSection, setIncludeFoodTableSection] = useState(true);
+  const [includeResourcesSection, setIncludeResourcesSection] = useState(true);
+  const [selectedResourceIds, setSelectedResourceIds] = useState<string[]>([
+    "labels",
+    "hydration",
+    "substitutes",
+  ]);
+  const [cartItemOverrides, setCartItemOverrides] = useState<Record<string, string>>({});
+  const [removedCartItemIds, setRemovedCartItemIds] = useState<string[]>([]);
+
+  const setCartItemOverride = (id: string, newName: string) => {
+    setCartItemOverrides((prev) => ({
+      ...prev,
+      [id]: newName.trim(),
+    }));
+  };
+
+  const removeCartItem = (id: string) => {
+    setRemovedCartItemIds((prev) => [...prev, id]);
+  };
+  const [dietMealsTableData, setDietMealsTableData] = useState<any[]>([
+    { id: "meal-1", section: "Desayuno", mealText: "", time: "08:30", portion: "1 porción" },
+    { id: "meal-2", section: "Colación AM", mealText: "", time: "11:00", portion: "1 porción" },
+    { id: "meal-3", section: "Almuerzo", mealText: "", time: "13:30", portion: "1 porción" },
+    { id: "meal-4", section: "Colación PM", mealText: "", time: "17:00", portion: "1 porción" },
+    { id: "meal-5", section: "Cena", mealText: "", time: "20:30", portion: "1 porción" },
+  ]);
+
+  // Alimentos a evitar (paso "Comidas")
+  const [avoidFoods, setAvoidFoods] = useState<string[]>([]);
+  const [includeAvoidFoodsInPdf, setIncludeAvoidFoodsInPdf] = useState(true);
+
+  const addAvoidFood = (food: string) => {
+    const cleaned = food.trim();
+    if (!cleaned) return;
+    setAvoidFoods((prev) =>
+      prev.some((f) => f.toLowerCase() === cleaned.toLowerCase()) ? prev : [...prev, cleaned],
+    );
+  };
+  const removeAvoidFood = (food: string) => {
+    setAvoidFoods((prev) => prev.filter((f) => f !== food));
+  };
+
+  // Introducción y despedida del entregable
+  const [introMessage, setIntroMessage] = useState("");
+  const [includeIntroInPdf, setIncludeIntroInPdf] = useState(true);
+  const [closingMessage, setClosingMessage] = useState("");
+  const [includeClosingInPdf, setIncludeClosingInPdf] = useState(true);
+  const [hasCustomIntroMessage, setHasCustomIntroMessage] = useState(false);
+  const [hasCustomClosingMessage, setHasCustomClosingMessage] = useState(false);
+
+  // Regenera el texto por defecto de intro/despedida cuando cambia el paciente,
+  // salvo que el nutricionista ya lo haya editado manualmente.
+  useEffect(() => {
+    const name = selectedPatient?.fullName || null;
+    if (!hasCustomIntroMessage) {
+      setIntroMessage(resolveDeliverableCopyTemplate(DEFAULT_INTRO_TEMPLATE, name));
+    }
+    if (!hasCustomClosingMessage) {
+      setClosingMessage(resolveDeliverableCopyTemplate(DEFAULT_CLOSING_TEMPLATE, name));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedPatient?.fullName]);
+
+  const updateIntroMessage = (value: string) => {
+    setIntroMessage(value);
+    setHasCustomIntroMessage(true);
+  };
+  const updateClosingMessage = (value: string) => {
+    setClosingMessage(value);
+    setHasCustomClosingMessage(true);
+  };
+
+  // Fetch full database catalog of ingredients (/foods?limit=1000)
+  useEffect(() => {
+    const fetchCatalog = async () => {
+      try {
+        const res = await fetchApi("/foods?limit=1000");
+        if (res.ok) {
+          const raw = await res.json();
+          const items = Array.isArray(raw) ? raw : raw.data || [];
+          const mapped: MarketPrice[] = items.map((ing: any) => ({
+            producto: ing.name,
+            grupo: ing.category?.name || "Varios",
+            unidad: ing.unit || "g",
+            precioPromedio: ing.price || 0,
+            calorias: ing.calories || 0,
+            proteinas: ing.proteins || 0,
+            carbohidratos: ing.carbs || 0,
+            lipidos: ing.lipids || 0,
+            azucares: ing.sugars || ing.azucares || 0,
+            fibra: ing.fiber || ing.fibra || 0,
+            sodio: ing.sodium || ing.sodio || 0,
+            tags: ing.tags?.map((t: any) => (typeof t === "string" ? t : t.name)) || [],
+            id: ing.id,
+          }));
+          if (mapped.length > 0) {
+            setDbCatalogFoods(mapped);
+          }
+        }
+      } catch (e) {
+        console.error("Error loading DB food catalog", e);
+      }
+    };
+    fetchCatalog();
+  }, []);
+
+  const fullCatalogFoods = useMemo(() => {
+    const combinedMap = new Map<string, MarketPrice>();
+    initialFoods.forEach((f) => combinedMap.set(f.producto.toLowerCase(), f));
+    dbCatalogFoods.forEach((f) => {
+      if (!combinedMap.has(f.producto.toLowerCase())) {
+        combinedMap.set(f.producto.toLowerCase(), f);
+      }
+    });
+    return Array.from(combinedMap.values());
+  }, [initialFoods, dbCatalogFoods]);
   const [isContinueDraftWarningOpen, setIsContinueDraftWarningOpen] =
     useState(false);
 
@@ -198,6 +334,11 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
   const [isFoodInfoModalOpen, setIsFoodInfoModalOpen] = useState(false);
   const [selectedFoodForInfo, setSelectedFoodForInfo] =
     useState<MarketPrice | null>(null);
+
+  // -- Naty IA Dish Generation State --
+  const [isGeneratingAiDishes, setIsGeneratingAiDishes] = useState(false);
+  const [pendingAiDishes, setPendingAiDishes] = useState<any[]>([]);
+  const [isAiValidationModalOpen, setIsAiValidationModalOpen] = useState(false);
 
   // -- Import Creation Modal State --
   const [isImportCreationModalOpen, setIsImportCreationModalOpen] = useState(false);
@@ -234,12 +375,78 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
   const [editingCreationId, setEditingCreationId] = useState<string | null>(null);
   const [isHydrating, setIsHydrating] = useState(true);
 
+  // Synchronize Step 4 meal table with Step 3 dishes
+  useEffect(() => {
+    if (isHydrating) return;
+
+    setDietMealsTableData((prevRows) => {
+      if (meals.length === 0) {
+        if (prevRows.length === 0) {
+          return [
+            { id: "meal-1", section: "Desayuno", mealText: "", time: "08:30", portion: "1 porción" },
+            { id: "meal-2", section: "Almuerzo", mealText: "", time: "13:30", portion: "1 porción" },
+            { id: "meal-3", section: "Cena", mealText: "", time: "20:30", portion: "1 porción" },
+          ];
+        }
+        return prevRows;
+      }
+
+      // Extract unique categories from Step 3 dishes in exact order
+      const step3Sections: string[] = [];
+      meals.forEach((m) => {
+        if (m.section && !step3Sections.some((s) => s.toLowerCase() === m.section.toLowerCase())) {
+          step3Sections.push(m.section);
+        }
+      });
+
+      if (step3Sections.length === 0) return prevRows;
+
+      // Build Step 4 rows using ONLY the Step 3 categories
+      const syncRows = step3Sections.map((sec) => {
+        const matchingDish = meals.find(
+          (m) => m.section.toLowerCase() === sec.toLowerCase()
+        );
+
+        const existingRow = prevRows.find(
+          (r) => r.section.toLowerCase() === sec.toLowerCase()
+        );
+
+        return {
+          id: existingRow?.id || `meal-${sec.toLowerCase().replace(/\s+/g, "-")}-${Date.now()}`,
+          section: sec,
+          mealText: matchingDish?.name || existingRow?.mealText || "",
+          portion: matchingDish?.portion || existingRow?.portion || "1 porción",
+          time: matchingDish?.time || existingRow?.time || (sec.toLowerCase() === "desayuno" ? "08:30" : sec.toLowerCase() === "almuerzo" ? "13:30" : sec.toLowerCase() === "cena" ? "20:30" : "12:00"),
+          dishId: matchingDish?.id || existingRow?.dishId,
+        };
+      });
+
+      const isIdentical =
+        syncRows.length === prevRows.length &&
+        syncRows.every((row, idx) => {
+          const prev = prevRows[idx];
+          return (
+            prev &&
+            prev.id === row.id &&
+            prev.section === row.section &&
+            prev.mealText === row.mealText &&
+            prev.portion === row.portion &&
+            prev.time === row.time &&
+            prev.dishId === row.dishId
+          );
+        });
+
+      if (isIdentical) {
+        return prevRows;
+      }
+
+      return syncRows;
+    });
+  }, [meals, isHydrating]);
+
   const { isSidebarCollapsed } = useDashboardShell();
 
   const favoritesEnabled = true;
-
-  const getAuthToken = () =>
-    Cookies.get("auth_token") || localStorage.getItem("auth_token") || "";
 
   const availableClassificationTags = useMemo(
     () => availableTags.filter((tag) => tag.startsWith("#")),
@@ -289,10 +496,7 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
 
   const fetchAvailableTags = async (retries = 3) => {
     try {
-      const token = getAuthToken();
-      const response = await fetchApi(`/tags`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await fetchApi(`/tags`,);
       if (response.ok) {
         const tagsData = await response.json();
         const tags = tagsData.map((t: any) => t.name);
@@ -309,13 +513,9 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
 
   const createGlobalTag = async (tagName: string) => {
     try {
-      const token = getAuthToken();
       const response = await fetchApi(`/tags`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: tagName }),
       });
       if (response.ok) {
@@ -353,6 +553,23 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
         timestamp: Date.now(),
         foods: finalizedFoods,
         includedFoods: finalizedFoods,
+        meals,
+        dietMealsTableData,
+        includeMealsSection,
+        includeExchangeGuideInPdf,
+        avoidFoods,
+        includeAvoidFoodsInPdf,
+        includeCartSection,
+        cartItemOverrides,
+        removedCartItemIds,
+        includeResourcesSection,
+        selectedResourceIds,
+        introMessage,
+        includeIntroInPdf,
+        hasCustomIntroMessage,
+        closingMessage,
+        includeClosingInPdf,
+        hasCustomClosingMessage,
       },
       metadata: {
         flowMode,
@@ -367,7 +584,9 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
               patientName: selectedPatient.fullName,
               patientId: selectedPatient.id,
             }
-          : {}),
+          : {
+              patientName: "tú persona",
+            }),
       },
       tags: dietTags,
     };
@@ -476,44 +695,62 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
       ? normalizedPatient.dietRestrictions
       : [];
     const validRestrictions = normalizeConstraintList(restrictions);
-    const newConstraints = Array.from(
-      new Set([...activeConstraints, ...validRestrictions]),
-    );
 
-    setActiveConstraints(newConstraints);
+    let finalConstraints: string[] = [];
+    setActiveConstraints((prevConstraints) => {
+      const mergedSet = new Set([...prevConstraints, ...validRestrictions]);
+      if (
+        mergedSet.size === prevConstraints.length &&
+        prevConstraints.every((c) => mergedSet.has(c))
+      ) {
+        finalConstraints = prevConstraints;
+        return prevConstraints;
+      }
+      finalConstraints = Array.from(mergedSet);
+      return finalConstraints;
+    });
+
+    try {
+      const storedDraft = localStorage.getItem("nutri_active_draft");
+      let draft = storedDraft ? JSON.parse(storedDraft) : {};
+
+      draft.patientMeta = {
+        id: normalizedPatient.id,
+        fullName: normalizedPatient.fullName,
+        restrictions: validRestrictions,
+        nutritionalFocus: normalizedPatient.nutritionalFocus,
+        fitnessGoals: normalizedPatient.fitnessGoals,
+        birthDate: normalizedPatient.birthDate,
+        weight: normalizedPatient.weight,
+        height: normalizedPatient.height,
+        gender: normalizedPatient.gender,
+        patientData: normalizedPatient,
+        updatedAt: new Date().toISOString(),
+      };
+
+      draft.activeConstraints = finalConstraints;
+      if (!draft.diet) draft.diet = {};
+      draft.diet.activeConstraints = finalConstraints;
+      draft.diet.macroSettings = {
+        ...macroSettings,
+        referenceWeightKg:
+          normalizedPatient.weight || macroSettings.referenceWeightKg,
+      };
+
+      const serialized = JSON.stringify(draft);
+      localStorage.setItem("nutri_active_draft", serialized);
+      sessionStorage.setItem(getUserDraftKey(), serialized);
+      localStorage.setItem(getUserDraftKey(), serialized);
+    } catch (e) {
+      console.error("Error updating draft in applySelectedPatient", e);
+    }
+
     if (patient.weight) {
       setMacroSettings((prev) => ({
         ...prev,
         referenceWeightKg: patient.weight || prev.referenceWeightKg,
       }));
     }
-
-    const storedDraft = localStorage.getItem("nutri_active_draft");
-    let draft = storedDraft ? JSON.parse(storedDraft) : {};
-
-    draft.patientMeta = {
-      id: normalizedPatient.id,
-      fullName: normalizedPatient.fullName,
-      restrictions: validRestrictions,
-      nutritionalFocus: normalizedPatient.nutritionalFocus,
-      fitnessGoals: normalizedPatient.fitnessGoals,
-      birthDate: normalizedPatient.birthDate,
-      weight: normalizedPatient.weight,
-      height: normalizedPatient.height,
-      gender: normalizedPatient.gender,
-      patientData: normalizedPatient,
-      updatedAt: new Date().toISOString(),
-    };
-
-    if (!draft.diet) draft.diet = {};
-    draft.diet.activeConstraints = newConstraints;
-    draft.diet.macroSettings = {
-      ...macroSettings,
-      referenceWeightKg:
-        normalizedPatient.weight || macroSettings.referenceWeightKg,
-    };
-
-    localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
 
     if (shouldShowToast) {
       if (validRestrictions.length > 0) {
@@ -583,37 +820,54 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
       ? patient.dietRestrictions
       : [];
     const validRestrictions = normalizeConstraintList(restrictions);
-    const newConstraints = Array.from(
-      new Set([...activeConstraints, ...validRestrictions]),
-    );
 
-    setActiveConstraints(newConstraints);
+    let finalConstraints: string[] = [];
+    setActiveConstraints((prevConstraints) => {
+      const mergedSet = new Set([...prevConstraints, ...validRestrictions]);
+      if (
+        mergedSet.size === prevConstraints.length &&
+        prevConstraints.every((c) => mergedSet.has(c))
+      ) {
+        finalConstraints = prevConstraints;
+        return prevConstraints;
+      }
+      finalConstraints = Array.from(mergedSet);
+      return finalConstraints;
+    });
 
-    const storedDraft = localStorage.getItem("nutri_active_draft");
-    let draft = storedDraft ? JSON.parse(storedDraft) : {};
+    try {
+      const storedDraft = localStorage.getItem("nutri_active_draft");
+      let draft = storedDraft ? JSON.parse(storedDraft) : {};
 
-    draft.patientMeta = {
-      id: patient.id,
-      fullName: patient.fullName,
-      restrictions: validRestrictions,
-      nutritionalFocus: patient.nutritionalFocus,
-      fitnessGoals: patient.fitnessGoals,
-      birthDate: patient.birthDate,
-      weight: patient.weight,
-      height: patient.height,
-      gender: patient.gender,
-      patientData: patient,
-      updatedAt: new Date().toISOString(),
-    };
+      draft.patientMeta = {
+        id: patient.id,
+        fullName: patient.fullName,
+        restrictions: validRestrictions,
+        nutritionalFocus: patient.nutritionalFocus,
+        fitnessGoals: patient.fitnessGoals,
+        birthDate: patient.birthDate,
+        weight: patient.weight,
+        height: patient.height,
+        gender: patient.gender,
+        patientData: patient,
+        updatedAt: new Date().toISOString(),
+      };
 
-    if (!draft.diet) draft.diet = {};
-    draft.diet.activeConstraints = newConstraints;
-    draft.diet.macroSettings = {
-      ...macroSettings,
-      referenceWeightKg: patient.weight || macroSettings.referenceWeightKg,
-    };
+      draft.activeConstraints = finalConstraints;
+      if (!draft.diet) draft.diet = {};
+      draft.diet.activeConstraints = finalConstraints;
+      draft.diet.macroSettings = {
+        ...macroSettings,
+        referenceWeightKg: patient.weight || macroSettings.referenceWeightKg,
+      };
 
-    localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
+      const serialized = JSON.stringify(draft);
+      localStorage.setItem("nutri_active_draft", serialized);
+      sessionStorage.setItem(getUserDraftKey(), serialized);
+      localStorage.setItem(getUserDraftKey(), serialized);
+    } catch (e) {
+      console.error("Error updating draft in handleSelectPatientLegacy", e);
+    }
 
     if (validRestrictions.length > 0) {
       toast.success(`Paciente vinculado: ${patient.fullName}`, {
@@ -676,46 +930,79 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
         return;
       }
 
-      if (type === "DIET") {
+      if (
+        type === "DIET" ||
+        type === "FAST_DELIVERABLE" ||
+        type === "PAUTAS" ||
+        type === "RECETARIO" ||
+        type === "RECIPE"
+      ) {
         setEditingCreationId(creation.id);
-        setDietName(creation.name || "");
-        setDietTags(creation.tags || []);
-        setPlanObjective(typeof content.planObjective === "string" ? content.planObjective : "");
+        if (creation.name) setDietName(creation.name);
+        // Hashtags (tags) and restrictions (activeConstraints) are intentionally ignored on import
+        // to preserve the active session/patient's constraints and avoid dirtying the current workspace.
+        if (typeof content.planObjective === "string") setPlanObjective(content.planObjective);
         setShowPlanObjectiveInPdf(content.showPlanObjectiveInPdf === true);
-        setActiveConstraints(content.activeConstraints || []);
-        setMacroSettings(content.macroSettings || createDefaultMacroSettings());
-        setManualAdditions(content.manualAdditions || content.foods || []);
-        setCustomGroups(content.customGroups || []);
-        setCustomConstraints(content.customConstraints || []);
+        if (content.macroSettings) setMacroSettings(content.macroSettings);
 
-        if (content.foodStatus) {
-          setFoodStatus((prev) => ({ ...prev, ...content.foodStatus }));
-        }
+        const recoveredManual: any[] = [];
+        const recoveredGroupsSet = new Set<string>();
+        const recoveredStatus: Record<string, "added"> = {};
 
-        if (!content.foodStatus && content.categories) {
-          const recoveredManual: any[] = [];
-          const recoveredGroups: string[] = [];
-          const recoveredStatus: Record<string, any> = {};
-
-          Object.entries(content.categories).forEach(([groupName, foods]: [string, any]) => {
-            recoveredGroups.push(groupName);
+        // 1. Recover from content.groups or content.categories
+        const groupsData = content.groups || content.categories;
+        if (groupsData && typeof groupsData === "object" && Object.keys(groupsData).length > 0) {
+          Object.entries(groupsData).forEach(([groupName, foods]: [string, any]) => {
             if (Array.isArray(foods)) {
-              foods.forEach((f) => {
-                recoveredManual.push({ ...f, grupo: groupName });
-                recoveredStatus[f.producto] = "added";
+              recoveredGroupsSet.add(groupName);
+              foods.forEach((f: any) => {
+                const foodItem = { ...f, grupo: f.grupo || groupName, isManual: true };
+                recoveredManual.push(foodItem);
+                if (foodItem.producto) {
+                  recoveredStatus[foodItem.producto] = "added";
+                }
               });
             }
           });
+        }
 
-          if (recoveredManual.length > 0) setManualAdditions(recoveredManual);
-          if (recoveredGroups.length > 0) setCustomGroups(recoveredGroups);
+        // 2. Recover from content.manualAdditions or content.foods or content.items
+        const rawFoods = content.manualAdditions || content.foods || content.items || [];
+        if (Array.isArray(rawFoods) && rawFoods.length > 0) {
+          rawFoods.forEach((f: any) => {
+            const groupName = f.grupo || "Varios";
+            recoveredGroupsSet.add(groupName);
+            const foodItem = { ...f, grupo: groupName, isManual: true };
+            if (!recoveredManual.some((existing) => existing.producto === foodItem.producto && existing.grupo === groupName)) {
+              recoveredManual.push(foodItem);
+            }
+            if (foodItem.producto) {
+              recoveredStatus[foodItem.producto] = "added";
+            }
+          });
+        }
+
+        // 3. Recover customGroups from creation
+        if (Array.isArray(content.customGroups)) {
+          content.customGroups.forEach((g: string) => recoveredGroupsSet.add(g));
+        }
+
+        // 4. Set state
+        if (recoveredManual.length > 0) {
+          setManualAdditions(recoveredManual);
+        }
+        if (recoveredGroupsSet.size > 0) {
+          setCustomGroups(Array.from(recoveredGroupsSet));
+        }
+        if (Object.keys(recoveredStatus).length > 0) {
           setFoodStatus((prev) => ({ ...prev, ...recoveredStatus }));
         }
-        toast.success(`Dieta "${creation.name}" importada.`);
+
+        toast.success(`Dieta "${creation.name}" importada correctamente.`);
       } else if (type === "SHOPPING_LIST") {
         if (content.items && Array.isArray(content.items)) {
           const newAdditions = content.items.map((item: any) => ({
-            id: item.id,
+            id: item.id || Math.random().toString(),
             producto: item.producto,
             grupo: item.grupo || "Varios",
             unidad: item.unidad || "kg",
@@ -731,6 +1018,12 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
 
           const uniqueGroups = Array.from(new Set(newAdditions.map((a: any) => a.grupo))) as string[];
           setCustomGroups((prev) => Array.from(new Set([...prev, ...uniqueGroups])));
+
+          const newStatus: Record<string, "added"> = {};
+          newAdditions.forEach((a: any) => {
+            if (a.producto) newStatus[a.producto] = "added";
+          });
+          setFoodStatus((prev) => ({ ...prev, ...newStatus }));
 
           toast.success(`Alimentos importados desde el Carrito: "${creation.name}"`);
         }
@@ -771,7 +1064,7 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
     const statuses: Record<string, "base" | "favorite" | "removed" | "added"> =
       {};
     initialFoods.forEach((f) => {
-      statuses[f.producto] = "base";
+      statuses[f.producto] = startEmpty ? "removed" : "base";
     });
 
     if (projectIdFromUrl) {
@@ -787,11 +1080,7 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
       }
 
       try {
-        const token =
-          Cookies.get("auth_token") || localStorage.getItem("auth_token");
-        const response = await fetchApi(`/creations/${id}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const response = await fetchApi(`/creations/${id}`,);
 
         if (response.ok) {
           const text = await response.text();
@@ -808,6 +1097,29 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
             try {
               const data = JSON.parse(text);
               handleImportCreation(data);
+              // Restaurar los pasos 3-6 (Platos/Comidas/Carrito/Recursos + intro/despedida)
+              // al reabrir una dieta propia guardada previamente, ya que
+              // handleImportCreation solo restaura los alimentos base.
+              if (data?.type === "DIET" && data?.content) {
+                const c = data.content;
+                if (Array.isArray(c.meals)) setMeals(c.meals);
+                if (Array.isArray(c.dietMealsTableData)) setDietMealsTableData(c.dietMealsTableData);
+                if (typeof c.includeMealsSection === "boolean") setIncludeMealsSection(c.includeMealsSection);
+                if (typeof c.includeExchangeGuideInPdf === "boolean") setIncludeExchangeGuideInPdf(c.includeExchangeGuideInPdf);
+                if (Array.isArray(c.avoidFoods)) setAvoidFoods(c.avoidFoods);
+                if (typeof c.includeAvoidFoodsInPdf === "boolean") setIncludeAvoidFoodsInPdf(c.includeAvoidFoodsInPdf);
+                if (typeof c.includeCartSection === "boolean") setIncludeCartSection(c.includeCartSection);
+                if (c.cartItemOverrides && typeof c.cartItemOverrides === "object") setCartItemOverrides(c.cartItemOverrides);
+                if (Array.isArray(c.removedCartItemIds)) setRemovedCartItemIds(c.removedCartItemIds);
+                if (typeof c.includeResourcesSection === "boolean") setIncludeResourcesSection(c.includeResourcesSection);
+                if (Array.isArray(c.selectedResourceIds)) setSelectedResourceIds(c.selectedResourceIds);
+                if (typeof c.hasCustomIntroMessage === "boolean") setHasCustomIntroMessage(c.hasCustomIntroMessage);
+                if (typeof c.introMessage === "string") setIntroMessage(c.introMessage);
+                if (typeof c.includeIntroInPdf === "boolean") setIncludeIntroInPdf(c.includeIntroInPdf);
+                if (typeof c.hasCustomClosingMessage === "boolean") setHasCustomClosingMessage(c.hasCustomClosingMessage);
+                if (typeof c.closingMessage === "string") setClosingMessage(c.closingMessage);
+                if (typeof c.includeClosingInPdf === "boolean") setIncludeClosingInPdf(c.includeClosingInPdf);
+              }
               setIsHydrating(false);
             } catch (parseError) {
               console.error("Error parseando JSON de la creación:", parseError);
@@ -839,20 +1151,49 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
       return;
     }
 
-    const savedDraft = sessionStorage.getItem(getUserDraftKey());
+    const savedDraft =
+      sessionStorage.getItem(getUserDraftKey()) ||
+      localStorage.getItem(getUserDraftKey()) ||
+      localStorage.getItem("nutri_active_draft");
     if (savedDraft) {
       try {
         const draft = JSON.parse(savedDraft);
-        setDietName(draft.dietName || "");
-        setDietTags(draft.dietTags || []);
-        setPlanObjective(typeof draft.planObjective === "string" ? draft.planObjective : "");
+        if (draft.dietName) setDietName(draft.dietName);
+        if (draft.dietTags) setDietTags(draft.dietTags);
+        if (typeof draft.creationDescription === "string")
+          setCreationDescription(draft.creationDescription);
+        if (typeof draft.planObjective === "string")
+          setPlanObjective(draft.planObjective);
         setShowPlanObjectiveInPdf(draft.showPlanObjectiveInPdf === true);
-        setActiveConstraints(draft.activeConstraints || []);
-        setMacroSettings(draft.macroSettings || createDefaultMacroSettings());
-        setManualAdditions(draft.manualAdditions || []);
-        setCustomGroups(draft.customGroups || []);
-        setCustomConstraints(draft.customConstraints || []);
-        setFoodStatus({ ...statuses, ...draft.foodStatus });
+        if (Array.isArray(draft.activeConstraints))
+          setActiveConstraints(draft.activeConstraints);
+        if (draft.macroSettings)
+          setMacroSettings(draft.macroSettings || createDefaultMacroSettings());
+        if (draft.manualAdditions) setManualAdditions(draft.manualAdditions);
+        if (draft.customGroups) setCustomGroups(draft.customGroups);
+        if (draft.customConstraints)
+          setCustomConstraints(draft.customConstraints);
+        if (draft.selectedPatient) setSelectedPatient(draft.selectedPatient);
+        if (draft.foodStatus) setFoodStatus({ ...statuses, ...draft.foodStatus });
+        if (typeof draft.currentStep === "number") setCurrentStep(draft.currentStep);
+        if (Array.isArray(draft.meals)) setMeals(draft.meals);
+        if (Array.isArray(draft.dietMealsTableData)) setDietMealsTableData(draft.dietMealsTableData);
+        if (typeof draft.includeMealsSection === "boolean") setIncludeMealsSection(draft.includeMealsSection);
+        if (typeof draft.includeExchangeGuideInPdf === "boolean") setIncludeExchangeGuideInPdf(draft.includeExchangeGuideInPdf);
+        if (typeof draft.includeCartSection === "boolean") setIncludeCartSection(draft.includeCartSection);
+        if (typeof draft.includeFoodTableSection === "boolean") setIncludeFoodTableSection(draft.includeFoodTableSection);
+        if (typeof draft.includeResourcesSection === "boolean") setIncludeResourcesSection(draft.includeResourcesSection);
+        if (Array.isArray(draft.selectedResourceIds)) setSelectedResourceIds(draft.selectedResourceIds);
+        if (draft.cartItemOverrides && typeof draft.cartItemOverrides === "object") setCartItemOverrides(draft.cartItemOverrides);
+        if (Array.isArray(draft.removedCartItemIds)) setRemovedCartItemIds(draft.removedCartItemIds);
+        if (Array.isArray(draft.avoidFoods)) setAvoidFoods(draft.avoidFoods);
+        if (typeof draft.includeAvoidFoodsInPdf === "boolean") setIncludeAvoidFoodsInPdf(draft.includeAvoidFoodsInPdf);
+        if (typeof draft.hasCustomIntroMessage === "boolean") setHasCustomIntroMessage(draft.hasCustomIntroMessage);
+        if (typeof draft.introMessage === "string") setIntroMessage(draft.introMessage);
+        if (typeof draft.includeIntroInPdf === "boolean") setIncludeIntroInPdf(draft.includeIntroInPdf);
+        if (typeof draft.hasCustomClosingMessage === "boolean") setHasCustomClosingMessage(draft.hasCustomClosingMessage);
+        if (typeof draft.closingMessage === "string") setClosingMessage(draft.closingMessage);
+        if (typeof draft.includeClosingInPdf === "boolean") setIncludeClosingInPdf(draft.includeClosingInPdf);
         setIsHydrating(false);
         return;
       } catch (e) {
@@ -929,9 +1270,13 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
         return true;
       }
 
-      if (!status || status === "base" || status === "favorite" || status === "added") {
-        if (!status || status === "base") {
-          const normalizedConstraints = activeConstraints.map((c) =>
+      if (status === "added" || status === "favorite") {
+        return true;
+      }
+
+      if (!status || status === "base") {
+        if (startEmpty) return false;
+        const normalizedConstraints = activeConstraints.map((c) =>
             c.toLowerCase(),
           );
 
@@ -990,12 +1335,21 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
             )
               return false;
           }
+          return true;
         }
-        return true;
-      }
-      return false;
-    });
+        return false;
+      });
   }, [initialFoods, manualAdditions, foodStatus, activeConstraints]);
+
+  const autoCartItems = useMemo(() => {
+    const base = buildAutoCartItems(includedFoods, meals);
+    return base
+      .filter((item) => !removedCartItemIds.includes(item.id))
+      .map((item) => ({
+        ...item,
+        name: cartItemOverrides[item.id] || item.name,
+      }));
+  }, [includedFoods, meals, cartItemOverrides, removedCartItemIds]);
 
   const saveDraft = (overrides: any = {}) => {
     try {
@@ -1005,8 +1359,14 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
           overrides.dietName !== undefined ? overrides.dietName : dietName,
         dietTags:
           overrides.dietTags !== undefined ? overrides.dietTags : dietTags,
+        creationDescription:
+          overrides.creationDescription !== undefined
+            ? overrides.creationDescription
+            : creationDescription,
         planObjective:
-          overrides.planObjective !== undefined ? overrides.planObjective : planObjective,
+          overrides.planObjective !== undefined
+            ? overrides.planObjective
+            : planObjective,
         showPlanObjectiveInPdf:
           overrides.showPlanObjectiveInPdf !== undefined
             ? overrides.showPlanObjectiveInPdf
@@ -1015,6 +1375,10 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
           overrides.activeConstraints !== undefined
             ? overrides.activeConstraints
             : activeConstraints,
+        selectedPatient:
+          overrides.selectedPatient !== undefined
+            ? overrides.selectedPatient
+            : selectedPatient,
         foodStatus:
           overrides.foodStatus !== undefined
             ? overrides.foodStatus
@@ -1035,10 +1399,51 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
           overrides.macroSettings !== undefined
             ? overrides.macroSettings
             : macroSettings,
+        currentStep:
+          overrides.currentStep !== undefined ? overrides.currentStep : currentStep,
+        meals:
+          overrides.meals !== undefined ? overrides.meals : meals,
+        dietMealsTableData:
+          overrides.dietMealsTableData !== undefined ? overrides.dietMealsTableData : dietMealsTableData,
+        includeMealsSection:
+          overrides.includeMealsSection !== undefined ? overrides.includeMealsSection : includeMealsSection,
+        includeExchangeGuideInPdf:
+          overrides.includeExchangeGuideInPdf !== undefined ? overrides.includeExchangeGuideInPdf : includeExchangeGuideInPdf,
+        includeCartSection:
+          overrides.includeCartSection !== undefined ? overrides.includeCartSection : includeCartSection,
+        includeFoodTableSection:
+          overrides.includeFoodTableSection !== undefined ? overrides.includeFoodTableSection : includeFoodTableSection,
+        includeResourcesSection:
+          overrides.includeResourcesSection !== undefined ? overrides.includeResourcesSection : includeResourcesSection,
+        selectedResourceIds:
+          overrides.selectedResourceIds !== undefined ? overrides.selectedResourceIds : selectedResourceIds,
+        cartItemOverrides:
+          overrides.cartItemOverrides !== undefined ? overrides.cartItemOverrides : cartItemOverrides,
+        removedCartItemIds:
+          overrides.removedCartItemIds !== undefined ? overrides.removedCartItemIds : removedCartItemIds,
+        avoidFoods:
+          overrides.avoidFoods !== undefined ? overrides.avoidFoods : avoidFoods,
+        includeAvoidFoodsInPdf:
+          overrides.includeAvoidFoodsInPdf !== undefined ? overrides.includeAvoidFoodsInPdf : includeAvoidFoodsInPdf,
+        introMessage:
+          overrides.introMessage !== undefined ? overrides.introMessage : introMessage,
+        includeIntroInPdf:
+          overrides.includeIntroInPdf !== undefined ? overrides.includeIntroInPdf : includeIntroInPdf,
+        hasCustomIntroMessage:
+          overrides.hasCustomIntroMessage !== undefined ? overrides.hasCustomIntroMessage : hasCustomIntroMessage,
+        closingMessage:
+          overrides.closingMessage !== undefined ? overrides.closingMessage : closingMessage,
+        includeClosingInPdf:
+          overrides.includeClosingInPdf !== undefined ? overrides.includeClosingInPdf : includeClosingInPdf,
+        hasCustomClosingMessage:
+          overrides.hasCustomClosingMessage !== undefined ? overrides.hasCustomClosingMessage : hasCustomClosingMessage,
         favoritesEnabled,
         timestamp: Date.now(),
       };
-      sessionStorage.setItem(currentDraftKey, JSON.stringify(draft));
+      const serialized = JSON.stringify(draft);
+      sessionStorage.setItem(currentDraftKey, serialized);
+      localStorage.setItem(currentDraftKey, serialized);
+      localStorage.setItem("nutri_active_draft", serialized);
     } catch (e) {
       console.error("Error saving draft", e);
     }
@@ -1062,6 +1467,25 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
     macroSettings,
     manualAdditions,
     foodStatus,
+    currentStep,
+    meals,
+    dietMealsTableData,
+    includeMealsSection,
+    includeExchangeGuideInPdf,
+    includeCartSection,
+    includeFoodTableSection,
+    includeResourcesSection,
+    selectedResourceIds,
+    cartItemOverrides,
+    removedCartItemIds,
+    avoidFoods,
+    includeAvoidFoodsInPdf,
+    introMessage,
+    includeIntroInPdf,
+    hasCustomIntroMessage,
+    closingMessage,
+    includeClosingInPdf,
+    hasCustomClosingMessage,
     isHydrating,
   ]);
 
@@ -1113,45 +1537,36 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
     setFoodStatus(nextStatus);
     saveDraft({ foodStatus: nextStatus });
 
-    const token = getAuthToken();
-    if (token) {
-      try {
-        let targetId = food.id;
+    try {
+      let targetId = food.id;
 
-        if (food.id && food.id.startsWith("base-")) {
-          const res = await fetchApi(
-            `/foods?search=${encodeURIComponent(productName)}&limit=1`,
-            {
-              headers: { Authorization: `Bearer ${token}` },
-            },
+      if (food.id && food.id.startsWith("base-")) {
+        const res = await fetchApi(
+          `/foods?search=${encodeURIComponent(productName)}&limit=1`,
+        );
+        if (res.ok) {
+          const results = await res.json();
+          const matching = results.find(
+            (r: any) => r.name.toLowerCase() === productName.toLowerCase(),
           );
-          if (res.ok) {
-            const results = await res.json();
-            const matching = results.find(
-              (r: any) => r.name.toLowerCase() === productName.toLowerCase(),
-            );
-            if (matching) targetId = matching.id;
-          }
+          if (matching) targetId = matching.id;
         }
-
-        if (
-          targetId &&
-          !targetId.startsWith("base-") &&
-          !targetId.startsWith("search-") &&
-          !targetId.startsWith("manual-")
-        ) {
-          await fetchApi(`/foods/${targetId}/preferences`, {
-            method: "PATCH",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ isFavorite: !isCurrentlyFavorite }),
-          });
-        }
-      } catch (e) {
-        console.error("Error toggling favorite", e);
       }
+
+      if (
+        targetId &&
+        !targetId.startsWith("base-") &&
+        !targetId.startsWith("search-") &&
+        !targetId.startsWith("manual-")
+      ) {
+        await fetchApi(`/foods/${targetId}/preferences`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ isFavorite: !isCurrentlyFavorite }),
+        });
+      }
+    } catch (e) {
+      console.error("Error toggling favorite", e);
     }
   };
 
@@ -1176,18 +1591,36 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
         });
       }
 
-      toast.success(
-        `Dieta "${dietName}" guardada correctamente en Mis Creaciones.`,
-        {
-          description:
-            "Las restricciones seleccionadas generarán contenido educativo automáticamente.",
+      if (savedCreation?.wasUpdated) {
+        toast.success(`Dieta "${dietName}" actualizada correctamente en Mis Creaciones.`, {
           action: {
             label: "Ir a Creaciones",
             onClick: () => router.push("/dashboard/creaciones"),
           },
           duration: 5000,
-        },
-      );
+        });
+      } else if (savedCreation?.wasCreated === false) {
+        toast.info(`La dieta "${dietName}" ya se encuentra guardada en Mis Creaciones sin cambios pendientes.`, {
+          action: {
+            label: "Ir a Creaciones",
+            onClick: () => router.push("/dashboard/creaciones"),
+          },
+          duration: 5000,
+        });
+      } else {
+        toast.success(
+          `Dieta "${dietName}" guardada correctamente en Mis Creaciones.`,
+          {
+            description:
+              "Las restricciones seleccionadas generarán contenido educativo automáticamente.",
+            action: {
+              label: "Ir a Creaciones",
+              onClick: () => router.push("/dashboard/creaciones"),
+            },
+            duration: 5000,
+          },
+        );
+      }
       fetchAvailableTags();
     } catch (error: any) {
       console.error("Error saving creation:", error);
@@ -1215,18 +1648,24 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
         });
       }
 
-      toast.success(
-        `Dieta "${dietName}" guardada correctamente en Mis Creaciones.`,
-        {
-          description:
-            "Las restricciones seleccionadas generarán contenido educativo automáticamente.",
-          action: {
-            label: "Ir a Creaciones",
-            onClick: () => router.push("/dashboard/creaciones"),
+      if (savedCreation?.wasUpdated) {
+        toast.success(`Dieta "${dietName}" actualizada correctamente en Mis Creaciones.`);
+      } else if (savedCreation?.wasCreated === false) {
+        toast.info(`La dieta "${dietName}" ya se encuentra guardada en Mis Creaciones sin cambios pendientes.`);
+      } else {
+        toast.success(
+          `Dieta "${dietName}" guardada correctamente en Mis Creaciones.`,
+          {
+            description:
+              "Las restricciones seleccionadas generarán contenido educativo automáticamente.",
+            action: {
+              label: "Ir a Creaciones",
+              onClick: () => router.push("/dashboard/creaciones"),
+            },
+            duration: 5000,
           },
-          duration: 5000,
-        },
-      );
+        );
+      }
       fetchAvailableTags();
       setIsSaveCreationModalOpen(false);
       setCreationDescription("");
@@ -1247,42 +1686,206 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
 
   const performExportPdf = async () => {
     if (isHydrating) return;
-    if (!includedFoods.length) {
-      toast.error("No hay alimentos en la dieta para exportar.");
+    if (!includedFoods.length && !meals.length && !dietMealsTableData?.length) {
+      toast.error("No hay datos en la dieta para exportar.");
       return;
     }
     if (!dietName.trim()) {
       toast.error("Asigna un nombre a la dieta antes de exportar.");
       return;
     }
+    if (!selectedPatient) {
+      toast.error(
+        "Debes importar un paciente antes de generar el entregable personalizado.",
+      );
+      return;
+    }
     setIsExportingPdf(true);
     const toastId = toast.loading("Generando PDF...");
     try {
-      const { downloadDietPdf } = await import("@/features/pdf/pdfExport");
-      await downloadDietPdf({
-        dietName,
-        dietTags,
+      const { downloadFastDeliverablePdf } = await import(
+        "@/features/pdf/fastDeliverablePdfExport"
+      );
+      const { DIET_RESOURCES_CATALOG } = await import(
+        "@/features/diet/components/DietResourcesSection"
+      );
+
+      const patientDetails = selectedPatient
+        ? {
+            name: selectedPatient.fullName || null,
+            ageYears: selectedPatient.age ? Number(selectedPatient.age) : null,
+            weight: selectedPatient.weight ? Number(selectedPatient.weight) : null,
+            height: selectedPatient.height ? Number(selectedPatient.height) : null,
+            bmi:
+              selectedPatient.weight && selectedPatient.height
+                ? Number(
+                    (
+                      selectedPatient.weight /
+                      Math.pow(selectedPatient.height / 100, 2)
+                    ).toFixed(1)
+                  )
+                : null,
+          }
+        : null;
+
+      const allRestrictionsList = Array.from(
+        new Set([
+          ...activeConstraints,
+          ...(selectedPatient?.dietRestrictions || []),
+          ...(selectedPatient?.tags || []),
+        ].filter(Boolean))
+      );
+      const clinicalRestrictionStr =
+        allRestrictionsList.length > 0 ? allRestrictionsList.join(", ") : null;
+
+      const formattedMeals = (dietMealsTableData || [])
+        .filter((m: any) => m.mealText || m.section)
+        .map((m: any, idx: number) => ({
+          id: m.id || `meal-${idx}`,
+          section: m.section || `Comida ${idx + 1}`,
+          time: m.time || "12:00",
+          mealText: m.mealText || "Sin plato asignado",
+          portion: m.portion || "1 porción",
+        }));
+
+      const resolvedResources = includeResourcesSection
+        ? ((selectedResourceIds || [])
+            .map((id) => {
+              const item = DIET_RESOURCES_CATALOG.find((r) => r.id === id);
+              if (!item) return null;
+              return {
+                resourceId: item.id,
+                title: item.title,
+                content: `
+              <h2>${item.title}</h2>
+              <p><strong>Categoría:</strong> ${item.category}</p>
+              <p>${item.description}</p>
+              ${
+                item.recommendationReason
+                  ? `<p><em>${item.recommendationReason}</em></p>`
+                  : ""
+              }
+            `.trim(),
+              };
+            })
+            .filter(Boolean) as any[])
+        : [];
+
+      const recipesForPdf = (meals || [])
+        .filter((m: any) => m?.name?.trim())
+        .map((m: any, idx: number) => {
+          const ingredients =
+            Array.isArray(m.ingredientDetails) && m.ingredientDetails.length > 0
+              ? m.ingredientDetails
+                  .map((ing: any) => (typeof ing?.name === "string" ? ing.name.trim() : ""))
+                  .filter(Boolean)
+              : typeof m.ingredients === "string" && m.ingredients.trim()
+                ? m.ingredients
+                    .split(/[\n,;]+/)
+                    .map((i: string) => i.trim())
+                    .filter(Boolean)
+                : [];
+          return {
+            id: m.id || `recipe-${idx}`,
+            name: m.name,
+            section: m.section,
+            time: m.time,
+            portion: m.portion,
+            ingredients,
+            instructions: m.instructions,
+            calories: m.calories,
+            protein: m.protein,
+            carbs: m.carbs,
+            fats: m.fats,
+          };
+        });
+
+      const cartForPdf = includeCartSection
+        ? autoCartItems.map((item) => ({
+            name: item.name,
+            category: item.category,
+            sources: item.sources,
+          }))
+        : [];
+
+      const currentUser = getCurrentUser();
+      const nutritionistName =
+        currentUser?.nutritionist?.fullName || currentUser?.name || null;
+      const nutritionistEmail = currentUser?.email || null;
+
+      // Guía de porciones de intercambio real (clínica), no un listado repetido
+      // de los alimentos de la dieta. Respeta el toggle "Incluir en el PDF final"
+      // de la sección "Guía de Porciones de Intercambio" del paso Comidas.
+      const portionGuideRows = includeExchangeGuideInPdf
+        ? buildExchangeGuideForPatient().map((row) => ({
+            category: row.category,
+            portion: row.portion,
+          }))
+        : [];
+
+      await downloadFastDeliverablePdf({
+        name: dietName,
+        patientName: selectedPatient?.fullName || null,
+        patient: patientDetails,
+        clinicalRestriction: clinicalRestrictionStr,
+        contentMode: "table",
+        tableMode: "simple",
         planObjective: planObjective.trim() || undefined,
         showPlanObjectiveInPdf,
-        activeConstraints,
-        patientName: selectedPatient?.fullName,
-        foods: includedFoods.map((f) => ({
-          producto: f.producto,
-          grupo: f.grupo,
-          unidad: f.unidad,
-          calorias: f.calorias,
-          proteinas: f.proteinas,
-          lipidos: f.lipidos,
-          carbohidratos: f.carbohidratos,
-          precioPromedio: f.precioPromedio,
-          status: (foodStatus[f.producto] as any) ?? "base",
-        })),
+        nutritionistName,
+        nutritionistEmail,
+        intro:
+          includeIntroInPdf && introMessage.trim()
+            ? { greetingName: selectedPatient?.fullName || null, message: introMessage.trim() }
+            : null,
+        meals:
+          formattedMeals.length > 0
+            ? formattedMeals
+            : [
+                {
+                  id: "1",
+                  section: "Plan Alimentario",
+                  time: "08:00",
+                  mealText: dietName,
+                  portion: "Ver guía de porciones",
+                },
+              ],
+        avoidFoods: includeAvoidFoodsInPdf ? avoidFoods : [],
+        recipes: recipesForPdf,
+        cart: cartForPdf,
+        resources: resolvedResources,
+        portionGuide: portionGuideRows,
+        closing:
+          includeClosingInPdf && closingMessage.trim()
+            ? { message: closingMessage.trim() }
+            : null,
+        generatedAt: new Date().toLocaleDateString("es-CL"),
       });
+
       toast.success("PDF exportado correctamente.", { id: toastId });
-      setIsSaveCreationModalOpen(true);
-    } catch (e) {
+    } catch (e: any) {
       console.error("Error generando PDF:", e);
-      toast.error("Error al generar el PDF. Intenta de nuevo.", { id: toastId });
+      const msg = (e?.message || "").toLowerCase();
+      if (
+        e?.status === 403 ||
+        msg.includes("límite") ||
+        msg.includes("cuota") ||
+        msg.includes("plan") ||
+        msg.includes("free")
+      ) {
+        toast.error(e?.message || "Has alcanzado el límite de exportaciones en PDF de tu plan.", { id: toastId });
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent("show-freemium-upgrade", {
+              detail: {
+                description: e?.message || "Has alcanzado el límite de exportaciones en PDF de tu plan.",
+              },
+            })
+          );
+        }
+      } else {
+        toast.error(e?.message || "Error al generar el PDF. Intenta de nuevo.", { id: toastId });
+      }
     } finally {
       setIsExportingPdf(false);
     }
@@ -1370,6 +1973,243 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
     await continueToRecipes();
   };
 
+  const handleQuickGenerateAiDishes = async (
+    options?: {
+      categoryTargets?: Record<string, number>;
+      instructions?: string;
+      useBaseDiet?: boolean;
+    },
+    setMeals?: React.Dispatch<React.SetStateAction<any[]>>
+  ) => {
+    if (!hasActiveSession()) {
+      if (typeof window !== "undefined") {
+        window.location.href = "/login";
+      }
+      return;
+    }
+
+    const defaultTargets: Record<string, number> = {
+      desayuno: 1,
+      "colación am": 1,
+      almuerzo: 1,
+      "colación pm": 1,
+      cena: 1,
+    };
+
+    const activeTargets = options?.categoryTargets || defaultTargets;
+
+    const targetSections = Object.entries(activeTargets)
+      .filter(([_, count]) => count > 0)
+      .map(([section, count]) => ({
+        mealSection: section.toLowerCase(),
+        count: count,
+      }));
+
+    if (targetSections.length === 0) {
+      toast.info("Selecciona al menos 1 plato en alguna categoría para generar con Naty.");
+      return;
+    }
+
+    const useBaseDiet = options?.useBaseDiet !== false;
+    const sourceFoodsList = useBaseDiet
+      ? [
+          ...includedFoods.map((f: any) => String(f.producto || f.name || "")),
+          ...manualAdditions.map((f: any) => String(f.producto || f.name || "")),
+        ].filter((name): name is string => typeof name === "string" && Boolean(name.trim()))
+      : [];
+
+    setIsGeneratingAiDishes(true);
+
+    const totalCalories = includedFoods.reduce((acc, f: any) => acc + Number(f.energiaKcal || f.calorias || 0), 0);
+    const totalProtein = includedFoods.reduce((acc, f: any) => acc + Number(f.proteinas || f.protein || 0), 0);
+    const totalCarbs = includedFoods.reduce((acc, f: any) => acc + Number(f.carbohidratos || f.carbs || 0), 0);
+    const totalFats = includedFoods.reduce((acc, f: any) => acc + Number(f.lipidos || f.fats || 0), 0);
+
+    try {
+      const patient = selectedPatient;
+      const patientRestrictions = Array.isArray(patient?.dietRestrictions)
+        ? patient.dietRestrictions
+        : typeof patient?.dietRestrictions === "string"
+        ? [patient.dietRestrictions]
+        : [];
+
+      const patientDislikes = Array.isArray(patient?.dislikedFoods)
+        ? patient.dislikedFoods
+        : typeof patient?.dislikedFoods === "string"
+        ? [patient.dislikedFoods]
+        : [];
+
+      const activeConstraintsList = Array.isArray(activeConstraints)
+        ? activeConstraints
+        : typeof activeConstraints === "string"
+        ? [activeConstraints]
+        : [];
+
+      const combinedRestrictions = Array.from(
+        new Set([
+          ...activeConstraintsList,
+          ...patientRestrictions,
+          ...patientDislikes,
+        ])
+      ).filter((r): r is string => typeof r === "string" && Boolean(r.trim()));
+
+      const baseNotes = useBaseDiet
+        ? "Distribuye de forma gastronómicamente lógica los alimentos de la dieta base. El yogurt/lácteos dulces va únicamente en desayuno/colación/once, NUNCA en almuerzo o cena. NUNCA combines 'Papa con Yogurt' ni yogurt en platos salados de almuerzo o cena. Si faltan alimentos para platos realistas, agrega libremente alimentos cotidianos de cocina (huevos, aceite, sal, cebolla, pollo, pan, tomate). Respetar todas las restricciones e intolerancias del paciente. Sin negritas ni asteriscos en los textos."
+        : "Crea preparaciones variadas y deliciosas para el paciente respetando sus requerimientos nutricionales. Sin negritas ni asteriscos en los textos.";
+
+      const customNotes = options?.instructions?.trim();
+      const finalNotes = customNotes ? `${customNotes}\n\n${baseNotes}` : baseNotes;
+
+      const payload = {
+        payload: {
+          notes: finalNotes,
+          specialConsiderations: `RESTRICCIONES OBLIGATORIAS DEL PACIENTE: ${
+            combinedRestrictions.length > 0 ? combinedRestrictions.join(", ") : "Sin restricciones declaradas"
+          }. No incluyas bajo ninguna circunstancia ingredientes que violen estas restricciones.`,
+          allowedFoodsMain: sourceFoodsList,
+          allowExternalFoods: true,
+          exchangeGuide: buildExchangeGuideForAi(),
+          nutritionalTargets: {
+            dailyCalories: totalCalories > 0 ? totalCalories : 2000,
+            dailyProtein: totalProtein > 0 ? totalProtein : 100,
+            dailyCarbs: totalCarbs > 0 ? totalCarbs : 250,
+            dailyFats: totalFats > 0 ? totalFats : 60,
+          },
+          mealSectionTargets: targetSections,
+          generationMode: "single" as const,
+          patient: {
+            fullName: patient?.fullName ?? "",
+            gender: patient?.gender ?? "",
+            ageYears: patient?.ageYears ?? undefined,
+            restrictions: combinedRestrictions,
+            fitnessGoals: patient?.fitnessGoals ?? "",
+            clinicalSummary: patient?.nutritionalFocus ?? "",
+          },
+          patientId: patient?.id || undefined,
+        },
+      };
+
+      const response = await fetchApi("/recipes/quick-ai-fill", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData?.message || "No se pudo generar platos con IA.");
+      }
+
+      const result = await response.json();
+      const sanitizeText = (txt: any) =>
+        typeof txt === "string" ? txt.replace(/\*\*/g, "").replace(/\*/g, "").trim() : txt;
+
+      const dishes = (result?.dishes || []).map((d: any) => ({
+        id: crypto.randomUUID(),
+        title: sanitizeText(d.title) || "Preparación sugerida",
+        mealSection: d.mealSection || "Almuerzo",
+        description: sanitizeText(d.description) || "",
+        preparation: sanitizeText(d.preparation || d.instructions) || "",
+        recommendedPortion: sanitizeText(d.recommendedPortion) || "1 porción estándar",
+        portions: d.portions != null ? Number(d.portions) : 1,
+        protein: Number(d.protein) || 0,
+        calories: Number(d.calories) || 0,
+        carbs: Number(d.carbs) || 0,
+        fats: Number(d.fats) || 0,
+        ingredients: Array.isArray(d.ingredients)
+          ? d.ingredients.map((ing: any) =>
+              sanitizeText(typeof ing === "string" ? ing : `${ing.quantity || ""} ${ing.name || ""}`.trim())
+            )
+          : [],
+        ingredientDetails: Array.isArray(d.ingredients)
+          ? d.ingredients.map((ing: any) =>
+              typeof ing === "object" && ing !== null
+                ? {
+                    ...ing,
+                    name: sanitizeText(ing.name),
+                    quantity: sanitizeText(ing.quantity),
+                  }
+                : ing
+            )
+          : [],
+      }));
+
+      if (dishes.length === 0) {
+        toast.info("Naty no pudo generar platos con los ingredientes actuales. Agrega más alimentos a la dieta base.");
+        return;
+      }
+
+      handleConfirmAiDishes(dishes, setMeals);
+    } catch (err: any) {
+      const errMsg = (err?.message || "").toLowerCase();
+      const isQuotaLimit =
+        err?.status === 403 ||
+        errMsg.includes("límite") ||
+        errMsg.includes("limite") ||
+        errMsg.includes("cuota") ||
+        errMsg.includes("plan") ||
+        errMsg.includes("ai.calls.limit");
+
+      if (isQuotaLimit) {
+        setIsUpgradeModalOpen(true);
+      } else {
+        console.error("Error al generar platos con Naty IA:", err);
+        toast.error(err?.message || "Error al conectar con Naty IA.");
+      }
+    } finally {
+      setIsGeneratingAiDishes(false);
+    }
+  };
+
+  const handleConfirmAiDishes = (validatedDishes: any[], setMeals?: React.Dispatch<React.SetStateAction<any[]>>) => {
+    const newMealBlocks: any[] = validatedDishes.map((d: any) => {
+      const sectionName = d.mealSection
+        ? d.mealSection.charAt(0).toUpperCase() + d.mealSection.slice(1)
+        : "Almuerzo";
+      const sectionTimes: Record<string, string> = {
+        Desayuno: "08:00",
+        "Colación AM": "11:00",
+        "Colacion am": "11:00",
+        Almuerzo: "13:30",
+        "Colación PM": "17:00",
+        "Colacion pm": "17:00",
+        Cena: "20:30",
+      };
+      const time = sectionTimes[sectionName] || "13:30";
+
+      const ingText = Array.isArray(d.ingredients)
+        ? d.ingredients.join("\n")
+        : typeof d.ingredients === "string"
+        ? d.ingredients
+        : "";
+
+      return {
+        id: d.id || `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        section: sectionName,
+        time: time,
+        name: d.title || "Plato sugerido por Naty",
+        ingredients: ingText,
+        ingredientDetails: Array.isArray(d.ingredientDetails) ? d.ingredientDetails : [],
+        instructions: d.preparation || d.description || "",
+        portion: d.recommendedPortion || "1 porción estándar",
+        calories: String(d.calories || 350),
+        protein: String(d.protein || 25),
+        carbs: String(d.carbs || 40),
+        fats: String(d.fats || 10),
+      };
+    });
+
+    if (setMeals) {
+      setMeals((prev: any[]) => [...prev, ...newMealBlocks]);
+    }
+    setIsAiValidationModalOpen(false);
+    setPendingAiDishes([]);
+    toast.success(`Se agregaron ${newMealBlocks.length} plato(s) generados por Naty IA a la pauta.`);
+    return newMealBlocks;
+  };
+
   const confirmDeleteGroup = () => {
     if (groupToDelete) {
       const updates: Record<string, "removed"> = {};
@@ -1384,28 +2224,60 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
           updates[f.producto] = "removed";
         });
       setFoodStatus((prev) => ({ ...prev, ...updates }));
-      toast.success(`Grupo ${groupToDelete} eliminado.`);
+      setCustomGroups((prev) => prev.filter((g) => g !== groupToDelete));
+      setDeletedBaseGroups((prev) => Array.from(new Set([...prev, groupToDelete])));
+      toast.success(`Categoría ${groupToDelete} eliminada.`);
       setIsDeleteGroupConfirmOpen(false);
       setGroupToDelete(null);
     }
   };
 
+  const defaultBaseGroups = useMemo(() => {
+    if (startEmpty) return [];
+    const groupsSet = new Set<string>();
+    initialFoods.forEach((food) => {
+      if (food.grupo) groupsSet.add(food.grupo);
+    });
+    const standardCategories = [
+      "Lácteos",
+      "Huevos",
+      "Carnes y Vísceras",
+      "Pescados y Mariscos",
+      "Cereales y Derivados",
+      "Legumbres",
+      "Verduras",
+      "Frutas",
+      "Aceites y Grasas",
+      "Azúcares y Dulces",
+      "Bebidas",
+      "Varios",
+    ];
+    standardCategories.forEach((g) => groupsSet.add(g));
+    return Array.from(groupsSet);
+  }, [initialFoods]);
+
   const allGroupsToRender = useMemo(() => {
     const renderedGroups: Record<string, MarketPrice[]> = {};
-    includedFoods.forEach((f) => {
-      if (!renderedGroups[f.grupo]) renderedGroups[f.grupo] = [];
-      renderedGroups[f.grupo].push(f);
+
+    defaultBaseGroups.forEach((g) => {
+      if (!deletedBaseGroups.includes(g)) {
+        renderedGroups[g] = [];
+      }
     });
+
+    includedFoods.forEach((f) => {
+      if (!deletedBaseGroups.includes(f.grupo)) {
+        if (!renderedGroups[f.grupo]) renderedGroups[f.grupo] = [];
+        renderedGroups[f.grupo].push(f);
+      }
+    });
+
     customGroups.forEach((g) => {
       if (!renderedGroups[g]) renderedGroups[g] = [];
     });
-    const finalGroups: Record<string, MarketPrice[]> = {};
-    Object.entries(renderedGroups).forEach(([name, foods]) => {
-      if (foods.length > 0 || customGroups.includes(name))
-        finalGroups[name] = foods;
-    });
-    return finalGroups;
-  }, [includedFoods, customGroups]);
+
+    return renderedGroups;
+  }, [defaultBaseGroups, deletedBaseGroups, includedFoods, customGroups]);
 
   useEffect(() => {
     if (!isAddFoodModalOpen || !foodSearchQuery.trim()) {
@@ -1416,14 +2288,9 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
 
     const fetchFoods = async () => {
       setIsSearchingFoods(true);
-      const token = Cookies.get("auth_token");
       try {
         const res = await fetchApi(
-          `/foods?search=${foodSearchQuery}&limit=20`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          },
-        );
+          `/foods?search=${foodSearchQuery}&limit=20`,);
         if (res.ok) {
           const data = await res.json();
           const normalizedTargetGroup = normalizeGroupName(
@@ -1483,14 +2350,9 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
 
     const fetchFoods = async () => {
       setIsSearchingInSmart(true);
-      const token = Cookies.get("auth_token");
       try {
         const res = await fetchApi(
-          `/foods?search=${smartSearchQuery}&limit=20`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          },
-        );
+          `/foods?search=${smartSearchQuery}&limit=20`,);
         if (res.ok) {
           const data = await res.json();
           setSmartSearchResults(data);
@@ -1507,33 +2369,28 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
   }, [smartAddTab, smartSearchQuery]);
 
   const createBaseFoodStatus = () => {
-    const nextStatus: Record<string, "base"> = {};
+    const nextStatus: Record<string, "base" | "removed"> = {};
     initialFoods.forEach((food) => {
-      nextStatus[food.producto] = "base";
+      nextStatus[food.producto] = startEmpty ? "removed" : "base";
     });
     return nextStatus;
   };
 
+  const applyBaseFoods = () => {
+    const nextStatus: Record<string, "base"> = {};
+    initialFoods.forEach((food) => {
+      nextStatus[food.producto] = "base";
+    });
+    setFoodStatus(nextStatus);
+    saveDraft({ foodStatus: nextStatus });
+    toast.success("Ingredientes base aplicados a la dieta.");
+  };
+
   const clearDietDraftStorage = () => {
-    sessionStorage.removeItem(getUserDraftKey());
+    const key = getUserDraftKey();
+    sessionStorage.removeItem(key);
+    localStorage.removeItem(key);
     localStorage.removeItem("nutri_patient");
-
-    const storedDraft = localStorage.getItem("nutri_active_draft");
-    if (storedDraft) {
-      try {
-        const draft = JSON.parse(storedDraft);
-        delete draft.diet;
-        delete draft.patientMeta;
-
-        if (Object.keys(draft).length === 0) {
-          localStorage.removeItem("nutri_active_draft");
-        } else {
-          localStorage.setItem("nutri_active_draft", JSON.stringify(draft));
-        }
-      } catch {
-        localStorage.removeItem("nutri_active_draft");
-      }
-    }
 
     sessionStorage.removeItem("nutri_diet_draft_decided");
     sessionStorage.removeItem("nutri_cart_draft_decided");
@@ -1549,6 +2406,18 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
     setFoodStatus(createBaseFoodStatus() as any);
     setManualAdditions([]);
     setCustomGroups([]);
+    setCurrentStep(0);
+    setMeals([]);
+    setIncludeMealsSection(true);
+    setIncludeExchangeGuideInPdf(true);
+    setDietMealsTableData([
+      { id: "meal-1", section: "Desayuno", mealText: "", time: "08:30", portion: "1 porción" },
+      { id: "meal-2", section: "Colación AM", mealText: "", time: "11:00", portion: "1 porción" },
+      { id: "meal-3", section: "Almuerzo", mealText: "", time: "13:30", portion: "1 porción" },
+      { id: "meal-4", section: "Colación PM", mealText: "", time: "17:00", portion: "1 porción" },
+      { id: "meal-5", section: "Cena", mealText: "", time: "20:30", portion: "1 porción" },
+    ]);
+    setDeletedBaseGroups([]);
     setCustomConstraints([]);
     setSelectedPatient(null);
     setVerificationResult(null);
@@ -1616,35 +2485,48 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
 
   const handleAddFromSearch = (food: MarketPrice) => {
     if (!activeGroupForAddition) return;
+    addFoodToGroup(food, activeGroupForAddition);
+    setIsAddFoodModalOpen(false);
+  };
+
+  const addFoodToGroup = (
+    food: MarketPrice,
+    groupName: string,
+    options?: { silent?: boolean },
+  ) => {
     const nextStatus = { ...foodStatus, [food.producto]: "added" as const };
     setFoodStatus(nextStatus);
     saveDraft({ foodStatus: nextStatus });
-    const isInInitial = initialFoods.some((f) => f.producto === food.producto);
     const alreadyInManual = manualAdditions.some(
-      (ma) =>
-        ma.producto === food.producto && ma.grupo === activeGroupForAddition,
+      (ma) => ma.producto === food.producto && ma.grupo === groupName,
     );
 
-    if (!isInInitial && !alreadyInManual) {
+    if (!alreadyInManual) {
       setManualAdditions((prev) => [
         ...prev,
-        { ...food, grupo: activeGroupForAddition!, id: `search-${Date.now()}` },
+        {
+          ...food,
+          grupo: groupName,
+          id: `add-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        },
       ]);
-    } else if (isInInitial) {
-      const baseFood = initialFoods.find((f) => f.producto === food.producto);
-      if (baseFood && baseFood.grupo !== activeGroupForAddition) {
-        setManualAdditions((prev) => [
-          ...prev,
-          {
-            ...food,
-            grupo: activeGroupForAddition!,
-            id: `override-${Date.now()}`,
-          },
-        ]);
-      }
     }
-    toast.success(`${food.producto} añadido.`);
-    setIsAddFoodModalOpen(false);
+    if (!options?.silent) {
+      toast.success(`${food.producto} añadido a ${groupName}`);
+    }
+  };
+
+  const handleCreateGroupByName = (groupName: string) => {
+    const name = groupName.trim();
+    if (!name) return;
+    const existing = Object.keys(allGroupsToRender).map((g) => g.toLowerCase());
+    if (existing.includes(name.toLowerCase())) {
+      toast.error(`La categoría "${name}" ya existe en el plan.`);
+      return;
+    }
+    setCustomGroups((prev) => [...prev, name]);
+    setDeletedBaseGroups((prev) => prev.filter((g) => g !== name));
+    toast.success(`Categoría "${name}" agregada.`);
   };
 
   const handleCreateManualFood = async () => {
@@ -1812,12 +2694,9 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
 
   const applyNutritionistPreferences = async () => {
     setIsApplyingPreferences(true);
-    const token = getAuthToken();
     try {
       const normalizeName = (value: string) => value.toLowerCase().trim();
-      const response = await fetchApi(`/foods?limit=1000`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await fetchApi(`/foods?limit=1000`,);
 
       if (!response.ok) {
         toast.error("Error al cargar preferencias.");
@@ -1971,13 +2850,11 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
 
   const fetchSmartAddData = async () => {
     setIsLoadingSmart(true);
-    const token = getAuthToken();
     try {
-      const headers = { Authorization: `Bearer ${token}` };
       const [favoritesRes, myProductsRes, groupsRes] = await Promise.all([
-        fetchApi(`/foods?tab=favorites&limit=1000`, { headers }),
-        fetchApi(`/foods?tab=mine&limit=1000`, { headers }),
-        fetchApi(`/ingredient-groups`, { headers }),
+        fetchApi(`/foods?tab=favorites&limit=1000`),
+        fetchApi(`/foods?tab=mine&limit=1000`),
+        fetchApi(`/ingredient-groups`),
       ]);
 
       if (favoritesRes.ok) {
@@ -2221,6 +3098,60 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
     smartInfoFood,
     setSmartInfoFood,
 
+    // Naty IA Dish Generation State
+    isGeneratingAiDishes,
+    setIsGeneratingAiDishes,
+    pendingAiDishes,
+    setPendingAiDishes,
+    isAiValidationModalOpen,
+    setIsAiValidationModalOpen,
+    isUpgradeModalOpen,
+    setIsUpgradeModalOpen,
+
+    // Step 3 / Step 4 & Draft State
+    currentStep,
+    setCurrentStep,
+    meals,
+    setMeals,
+    dietMealsTableData,
+    setDietMealsTableData,
+    includeMealsSection,
+    setIncludeMealsSection,
+    includeExchangeGuideInPdf,
+    setIncludeExchangeGuideInPdf,
+    includeCartSection,
+    setIncludeCartSection,
+    includeFoodTableSection,
+    setIncludeFoodTableSection,
+    includeResourcesSection,
+    setIncludeResourcesSection,
+    selectedResourceIds,
+    setSelectedResourceIds,
+    autoCartItems,
+    cartItemOverrides,
+    setCartItemOverride,
+    removeCartItem,
+
+    // Alimentos a evitar
+    avoidFoods,
+    addAvoidFood,
+    removeAvoidFood,
+    includeAvoidFoodsInPdf,
+    setIncludeAvoidFoodsInPdf,
+
+    // Introducción y despedida
+    introMessage,
+    updateIntroMessage,
+    includeIntroInPdf,
+    setIncludeIntroInPdf,
+    closingMessage,
+    updateClosingMessage,
+    includeClosingInPdf,
+    setIncludeClosingInPdf,
+
+    handleQuickGenerateAiDishes,
+    handleConfirmAiDishes,
+
     // Food Info Modal State
     isFoodInfoModalOpen,
     setIsFoodInfoModalOpen,
@@ -2303,8 +3234,12 @@ export function useDietState({ initialFoods }: UseDietStateProps) {
     handleContinue,
     confirmDeleteGroup,
     resetDiet,
+    applyBaseFoods,
     applyNutritionistPreferences,
     handlePatientLoad,
+    initialFoods: fullCatalogFoods,
+    addFoodToGroup,
+    handleCreateGroupByName,
     openAddModal,
     handleAddFromSearch,
     handleCreateManualFood,

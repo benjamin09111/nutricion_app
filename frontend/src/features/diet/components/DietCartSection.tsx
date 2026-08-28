@@ -1,78 +1,51 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import {
-  ShoppingCart,
-  Plus,
-  Trash2,
-  Package,
-  ArrowRight,
-  Calculator,
-  Calendar,
-} from "lucide-react";
+import { ShoppingCart, Package, Pencil, Check, X, AlertCircle, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
-
-export interface DietCartItem {
-  id: string;
-  name: string;
-  category: string;
-  monthlyQuantity: number;
-  unit: string;
-  weeklyFrequency: number;
-}
+import type { AutoCartItem } from "@/features/diet/utils/cartIngredients";
+import { cleanFoodName } from "@/features/diet/utils/cartIngredients";
 
 interface DietCartSectionProps {
-  cartItems: DietCartItem[];
-  setCartItems: React.Dispatch<React.SetStateAction<DietCartItem[]>>;
+  autoCartItems: AutoCartItem[];
+  includeCartSection: boolean;
+  setIncludeCartSection: (value: boolean) => void;
   patientName?: string | null;
-  onOpenAdvancedCart: () => void;
+  setCartItemOverride?: (id: string, newName: string) => void;
+  removeCartItem?: (id: string) => void;
 }
 
 export function DietCartSection({
-  cartItems,
-  setCartItems,
+  autoCartItems,
+  includeCartSection,
+  setIncludeCartSection,
   patientName,
-  onOpenAdvancedCart,
+  setCartItemOverride,
+  removeCartItem,
 }: DietCartSectionProps) {
-  const [newItemName, setNewItemName] = useState("");
-  const [newItemCategory, setNewItemCategory] = useState("Abarrotes");
-  const [newItemQuantity, setNewItemQuantity] = useState(1);
-  const [newItemUnit, setNewItemUnit] = useState("kg");
-
-  const itemsToRender = cartItems;
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingText, setEditingText] = useState<string>("");
 
   const categories = useMemo(() => {
-    const set = new Set(itemsToRender.map((i) => i.category));
+    const set = new Set(autoCartItems.map((i) => i.category));
     return Array.from(set);
-  }, [itemsToRender]);
+  }, [autoCartItems]);
 
-  const handleAddItem = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newItemName.trim()) return;
-
-    const item: DietCartItem = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      name: newItemName.trim(),
-      category: newItemCategory,
-      monthlyQuantity: Math.max(0.1, Number(newItemQuantity) || 1),
-      unit: newItemUnit,
-      weeklyFrequency: 5,
-    };
-
-    setCartItems((prev) => [...prev, item]);
-    setNewItemName("");
-    setNewItemQuantity(1);
+  const startEditing = (id: string, currentName: string) => {
+    setEditingId(id);
+    setEditingText(currentName);
   };
 
-  const removeItem = (id: string) => {
-    setCartItems((prev) => prev.filter((item) => item.id !== id));
+  const saveEditing = (id: string) => {
+    const trimmed = editingText.trim();
+    if (trimmed && setCartItemOverride) {
+      setCartItemOverride(id, trimmed);
+    }
+    setEditingId(null);
   };
 
-  const updateQuantity = (id: string, qty: number) => {
-    setCartItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, monthlyQuantity: Math.max(0.1, qty) } : item)),
-    );
+  const cancelEditing = () => {
+    setEditingId(null);
   };
 
   return (
@@ -85,168 +58,175 @@ export function DietCartSection({
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600">Paso 4 de 5</span>
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600">Paso 5 de 6</span>
               <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-800">Carrito de Compras</span>
+              <button
+                type="button"
+                onClick={() => setIncludeCartSection(!includeCartSection)}
+                className={
+                  "inline-flex items-center justify-center gap-2 rounded-full border px-3.5 py-1.5 text-[11px] font-black uppercase tracking-widest transition-colors w-fit cursor-pointer " +
+                  (includeCartSection
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                    : "border-slate-200 bg-white text-slate-500")
+                }
+              >
+                <span
+                  className={
+                    "h-2.5 w-2.5 rounded-full " + (includeCartSection ? "bg-emerald-500" : "bg-slate-300")
+                  }
+                />
+                {includeCartSection ? "Sección visible" : "Ocultar sección"}
+              </button>
             </div>
-            <h2 className="mt-1 text-xl font-black text-slate-900">Lista y Despensa de Alimentos</h2>
+            <h2 className="mt-1 text-xl font-black text-slate-900">Lista Automática de Alimentos</h2>
             <p className="mt-0.5 text-sm text-slate-600">
-              Calcula los víveres requeridos para el plan mensual de {patientName || "el paciente"}.
+              Todos los alimentos e ingredientes usados en el plan de {patientName || "el paciente"}, listados automáticamente.
             </p>
           </div>
         </div>
-
-        <Button
-          type="button"
-          onClick={onOpenAdvancedCart}
-          variant="outline"
-          className="h-11 shrink-0 rounded-xl border-emerald-200 bg-white font-bold text-emerald-700 hover:bg-emerald-50"
-        >
-          <Calculator className="mr-2 h-4 w-4" />
-          Carrito Avanzado
-          <ArrowRight className="ml-2 h-4 w-4" />
-        </Button>
       </div>
 
-      {/* Metric Cards */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-5">
-          <p className="text-[10px] font-black uppercase tracking-wider text-emerald-600">Total de Víveres en Lista</p>
-          <p className="mt-2 text-2xl font-black text-slate-900">{itemsToRender.length} alimentos</p>
-          <p className="mt-1 text-xs font-semibold text-emerald-700">Calculados para el consumo mensual</p>
-        </div>
-
-        <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-5">
-          <p className="text-[10px] font-black uppercase tracking-wider text-indigo-600">Categorías de Despensa</p>
-          <p className="mt-2 text-2xl font-black text-slate-900">{categories.length} grupos</p>
-          <p className="mt-1 text-xs font-semibold text-indigo-700">Cereales, carnes, lácteos, frutas y verduras</p>
-        </div>
-
-        <div className="rounded-2xl border border-amber-100 bg-amber-50/50 p-5">
-          <p className="text-[10px] font-black uppercase tracking-wider text-amber-600">Frecuencia de Compra</p>
-          <p className="mt-2 text-2xl font-black text-slate-900">Semanal / Quincenal</p>
-          <p className="mt-1 text-xs font-semibold text-amber-700">Optimizado para mantener víveres frescos</p>
-        </div>
-      </div>
-
-      {/* Formulario Agregar Alimento al Carrito */}
-      <form onSubmit={handleAddItem} className="space-y-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h3 className="text-base font-black text-slate-900">Agregar Producto a la Lista de Compras</h3>
-
-        <div className="grid gap-3 sm:grid-cols-4">
-          <div className="sm:col-span-2">
-            <label className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-slate-500">Nombre del Alimento</label>
-            <Input
-              value={newItemName}
-              onChange={(e) => setNewItemName(e.target.value)}
-              placeholder="Ej: Harina de almendras, Huevos..."
-              className="h-10 rounded-xl text-xs font-semibold text-slate-900"
-            />
-          </div>
-
-          <div>
-            <label className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-slate-500">Categoría</label>
-            <select
-              value={newItemCategory}
-              onChange={(e) => setNewItemCategory(e.target.value)}
-              className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            >
-              <option value="Cereales y Pan">Cereales y Pan</option>
-              <option value="Carnes y Huevos">Carnes y Huevos</option>
-              <option value="Lácteos">Lácteos</option>
-              <option value="Frutas">Frutas</option>
-              <option value="Verduras">Verduras</option>
-              <option value="Aceites y Semillas">Aceites y Semillas</option>
-              <option value="Abarrotes">Abarrotes</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-slate-500">Cant. Mensual</label>
-            <div className="flex items-center gap-1">
-              <Input
-                type="number"
-                step="0.5"
-                value={newItemQuantity}
-                onChange={(e) => setNewItemQuantity(Number(e.target.value))}
-                className="h-10 rounded-xl text-xs font-bold text-slate-900"
-              />
-              <select
-                value={newItemUnit}
-                onChange={(e) => setNewItemUnit(e.target.value)}
-                className="h-10 rounded-xl border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-800"
-              >
-                <option value="kg">kg</option>
-                <option value="L">L</option>
-                <option value="unid">unid</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex justify-end">
+      {!includeCartSection ? (
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 py-14 text-center">
+          <ShoppingCart className="h-8 w-8 text-slate-300 mb-2" />
+          <p className="text-sm font-bold text-slate-500">La sección de Carrito está oculta en el entregable.</p>
           <Button
-            type="submit"
-            className="h-10 rounded-xl bg-emerald-600 px-6 font-bold text-white hover:bg-emerald-700"
+            type="button"
+            variant="outline"
+            onClick={() => setIncludeCartSection(true)}
+            className="mt-4 rounded-xl border-emerald-200 bg-white font-bold text-emerald-700 hover:bg-emerald-50"
           >
-            <Plus className="mr-1.5 h-4 w-4" />
-            Agregar a la lista
+            Volver a mostrarla
           </Button>
         </div>
-      </form>
+      ) : (
+        <>
+          {/* Disclaimer Banner */}
+          <div className="flex items-center gap-3 rounded-2xl border border-amber-200/80 bg-amber-50/80 p-4 text-xs text-amber-900 shadow-sm">
+            <AlertCircle className="h-5 w-5 shrink-0 text-amber-600" />
+            <p className="font-medium leading-relaxed">
+              <strong>Nota sobre la lista:</strong> Esta recopilación se genera automáticamente a partir de la dieta y los platos, por lo que <strong>puede contener ligeras imprecisiones</strong>. Puedes editar manualmente cualquier ingrediente haciendo clic en su botón de edición.
+            </p>
+          </div>
 
-      {/* Lista de Compras Agrupada */}
-      <div className="space-y-6">
-        {categories.map((cat) => {
-          const itemsInCat = itemsToRender.filter((i) => i.category === cat);
+          {/* Metric Cards */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-5">
+              <p className="text-[10px] font-black uppercase tracking-wider text-emerald-600">Total de Ingredientes</p>
+              <p className="mt-2 text-2xl font-black text-slate-900">{autoCartItems.length} alimentos</p>
+              <p className="mt-1 text-xs font-semibold text-emerald-700">Recopilados automáticamente de la dieta y los platos</p>
+            </div>
 
-          return (
-            <div key={cat} className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-              <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50/70 px-6 py-4">
-                <div className="flex items-center gap-2.5">
-                  <Package className="h-4 w-4 text-emerald-600" />
-                  <h4 className="text-sm font-black text-slate-900">{cat}</h4>
-                  <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-700">
-                    {itemsInCat.length} ítems
-                  </span>
-                </div>
-              </div>
+            <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-5">
+              <p className="text-[10px] font-black uppercase tracking-wider text-indigo-600">Categorías</p>
+              <p className="mt-2 text-2xl font-black text-slate-900">{categories.length} grupos</p>
+              <p className="mt-1 text-xs font-semibold text-indigo-700">Organizados por grupo alimenticio</p>
+            </div>
+          </div>
 
-              <div className="divide-y divide-slate-100">
-                {itemsInCat.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between px-6 py-3 transition-colors hover:bg-slate-50/50">
-                    <div className="flex items-center gap-3">
-                      <p className="text-xs font-bold text-slate-900">{item.name}</p>
+          {/* Lista Agrupada de Ingredientes */}
+          {autoCartItems.length === 0 ? (
+            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 py-14 text-center">
+              <Package className="h-8 w-8 text-slate-300 mb-2" />
+              <p className="text-sm font-bold text-slate-500">Aún no hay alimentos ni ingredientes en la dieta o los platos.</p>
+              <p className="mt-1 text-xs text-slate-400">Vuelve a los pasos "Dieta" o "Platos" para agregarlos.</p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {categories.map((cat) => {
+                const itemsInCat = autoCartItems.filter((i) => i.category === cat);
+
+                return (
+                  <div key={cat} className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+                    <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50/70 px-6 py-4">
+                      <div className="flex items-center gap-2.5">
+                        <Package className="h-4 w-4 text-emerald-600" />
+                        <h4 className="text-sm font-black text-slate-900">{cat}</h4>
+                        <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-700">
+                          {itemsInCat.length} ítems
+                        </span>
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center gap-1.5 text-xs text-slate-600">
-                        <span className="font-medium">Cantidad estimada mes:</span>
-                        <Input
-                          type="number"
-                          step="0.5"
-                          value={item.monthlyQuantity}
-                          onChange={(e) => updateQuantity(item.id, Number(e.target.value))}
-                          className="h-7 w-20 rounded-lg text-center text-xs font-bold text-slate-900"
-                        />
-                        <span className="font-semibold text-slate-500">{item.unit}</span>
-                      </div>
+                    <div className="divide-y divide-slate-100">
+                      {itemsInCat.map((item) => {
+                        const isEditing = editingId === item.id;
+                        const displayName = cleanFoodName(item.name);
 
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        onClick={() => removeItem(item.id)}
-                        className="h-7 w-7 rounded-lg p-0 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                        return (
+                          <div
+                            key={item.id}
+                            className="flex items-center justify-between gap-3 px-6 py-3 transition-colors hover:bg-slate-50/50"
+                          >
+                            {isEditing ? (
+                              <div className="flex flex-1 items-center gap-2">
+                                <input
+                                  type="text"
+                                  value={editingText}
+                                  onChange={(e) => setEditingText(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") saveEditing(item.id);
+                                    if (e.key === "Escape") cancelEditing();
+                                  }}
+                                  autoFocus
+                                  className="w-full rounded-xl border border-emerald-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => saveEditing(item.id)}
+                                  title="Guardar nombre"
+                                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 transition-colors cursor-pointer"
+                                >
+                                  <Check className="h-4 w-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={cancelEditing}
+                                  title="Cancelar"
+                                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 transition-colors cursor-pointer"
+                                >
+                                  <X className="h-4 w-4" />
+                                </button>
+                              </div>
+                            ) : (
+                              <>
+                                <p className="text-xs font-bold text-slate-900">{displayName}</p>
+                                <div className="flex items-center gap-1.5">
+                                  {setCartItemOverride && (
+                                    <button
+                                      type="button"
+                                      onClick={() => startEditing(item.id, displayName)}
+                                      title="Editar nombre"
+                                      className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600 opacity-75 transition-all hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 hover:opacity-100 cursor-pointer"
+                                    >
+                                      <Pencil className="h-3 w-3" />
+                                      <span>Editar</span>
+                                    </button>
+                                  )}
+                                  {removeCartItem && (
+                                    <button
+                                      type="button"
+                                      onClick={() => removeCartItem(item.id)}
+                                      title="Eliminar ingrediente"
+                                      className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-rose-500 opacity-75 transition-all hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 hover:opacity-100 cursor-pointer"
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </button>
+                                  )}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
-                ))}
-              </div>
+                );
+              })}
             </div>
-          );
-        })}
-      </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

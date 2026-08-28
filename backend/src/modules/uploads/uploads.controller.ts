@@ -4,63 +4,88 @@ import {
   UseInterceptors,
   UploadedFile,
   UseGuards,
-  Request,
+  BadRequestException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
+import { memoryStorage } from 'multer';
 import { extname } from 'path';
+import { randomUUID } from 'crypto';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { PermissionsGuard } from '../permissions/permissions.guard';
 import { RequireFeatures } from '../permissions/permissions.decorator';
 import { SPECIAL_FEATURES } from '../permissions/permissions.constants';
+import { verifyFileSignature } from '../../common/utils/magic-bytes.util';
+import { StorageService } from '../../common/services/storage.service';
 
 @Controller('uploads')
 @UseGuards(AuthGuard, PermissionsGuard)
 @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
 export class UploadsController {
+  constructor(private readonly storageService: StorageService) {}
+
   @Post()
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: './uploads',
-        filename: (req: any, file: any, callback: any) => {
-          const uniqueSuffix =
-            Date.now() + '-' + Math.round(Math.random() * 1e9);
-          callback(null, `${uniqueSuffix}${extname(file.originalname)}`);
-        },
-      }),
+      storage: memoryStorage(),
       fileFilter: (req: any, file: any, callback: any) => {
-        if (!file.originalname.match(/\.(jpg|jpeg|png|gif|webp|pdf)$/)) {
+        const allowedMimeTypes = [
+          'image/jpeg',
+          'image/png',
+          'image/webp',
+          'image/gif',
+          'application/pdf',
+        ];
+        const hasValidExt = Boolean(
+          file.originalname?.match(/\.(jpg|jpeg|png|gif|webp|pdf)$/i),
+        );
+        if (!allowedMimeTypes.includes(file.mimetype) || !hasValidExt) {
           return callback(
-            new Error('Only image and PDF files are allowed!'),
+            new BadRequestException(
+              'Solo se permiten imágenes (JPG, PNG, WEBP, GIF) y documentos PDF',
+            ),
             false,
           );
         }
         callback(null, true);
       },
       limits: {
-        fileSize: 10 * 1024 * 1024, // 10MB for PDFs
+        fileSize: 10 * 1024 * 1024, // 10MB limit
       },
     }),
   )
-  uploadFile(@UploadedFile() file: any, @Request() req: any) {
-    console.log(
-      '[UploadsController] File received:',
-      file?.filename || 'No file',
-    );
-    const forwardedProto = req.headers['x-forwarded-proto'];
-    const protocol = process.env.API_URL
-      ? null
-      : Array.isArray(forwardedProto)
-        ? forwardedProto[0]
-        : forwardedProto || req.protocol || 'http';
-    const host = req.get?.('host') || req.headers.host;
-    const baseUrl = process.env.API_URL || `${protocol}://${host}`;
-    const url = `${baseUrl}/uploads/${file.filename}`;
-    console.log('[UploadsController] Returning URL:', url);
+  async uploadFile(@UploadedFile() file: any) {
+    if (!file || !file.buffer) {
+      throw new BadRequestException('No se recibió ningún archivo');
+    }
+
+    if (!this.storageService.isConfigured()) {
+      throw new ServiceUnavailableException(
+        'El almacenamiento de archivos no está configurado en el servidor.',
+      );
+    }
+
+    // Strict Magic Bytes Verification (Binary Header Check)
+    const signatureCheck = verifyFileSignature(file.buffer);
+    if (!signatureCheck.valid) {
+      throw new BadRequestException(
+        'El archivo subido ha sido rechazado: el contenido binario no coincide con un formato de imagen o PDF válido',
+      );
+    }
+
+    // Secure UUID filename to prevent path traversal or unguessable enumerations
+    const fileExtension = extname(file.originalname).toLowerCase() || '.bin';
+    const secureFilename = `${randomUUID()}${fileExtension}`;
+
+    const url = await this.storageService.upload({
+      path: secureFilename,
+      body: file.buffer,
+      contentType: signatureCheck.detectedType || file.mimetype,
+    });
+
     return {
       url,
-      filename: file.filename,
+      filename: secureFilename,
     };
   }
 }

@@ -6,7 +6,15 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['eslint.config.mjs'],
+    // Kept in sync with tsconfig.json's `exclude`: the lint glob reaches
+    // files the TypeScript project service does not own, which fails to parse.
+    ignores: [
+      'eslint.config.mjs',
+      'dist/**',
+      'test/**',
+      'src/seed-ingredients.ts',
+      'src/seed-metrics.ts',
+    ],
   },
   eslint.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
@@ -22,6 +30,14 @@ export default tseslint.config(
         projectService: true,
         tsconfigRootDir: import.meta.dirname,
       },
+    },
+  },
+  {
+    files: ['**/*.spec.ts'],
+    rules: {
+      // Mocks mirror async APIs without ever awaiting anything.
+      '@typescript-eslint/require-await': 'off',
+      '@typescript-eslint/no-base-to-string': 'off',
     },
   },
   {

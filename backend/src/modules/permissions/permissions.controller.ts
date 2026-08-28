@@ -1,4 +1,11 @@
-import { BadRequestException, Body, Controller, Post, Request, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Post,
+  Request,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { PlanUsageService } from './plan-usage.service';
 import { PLAN_ENTITLEMENT_KEYS } from '../memberships/plan-entitlements';
@@ -15,7 +22,7 @@ export class PermissionsController {
   ) {
     if (
       body.featureKey !== PLAN_ENTITLEMENT_KEYS.PDF_EXPORTS_TOTAL_LIMIT ||
-      body.amount !== undefined && body.amount !== 1
+      (body.amount !== undefined && body.amount !== 1)
     ) {
       throw new BadRequestException('Operación de cuota no permitida');
     }

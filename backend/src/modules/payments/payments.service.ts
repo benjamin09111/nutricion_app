@@ -19,7 +19,9 @@ import { DiscountCodesService } from '../discount-codes/discount-codes.service';
 import { resolveAccountPlanFromMembershipPlan } from '../memberships/account-plan';
 import { WhatsAppService } from '../notifications/whatsapp.service';
 import { MailService } from '../mail/mail.service';
-import * as XLSX from 'xlsx';
+import * as ExcelJS from 'exceljs';
+
+const INDEPENDENT_METRICS_TITLE = 'Registro de Métricas Independiente';
 
 @Injectable()
 export class PaymentsService {
@@ -248,9 +250,10 @@ export class PaymentsService {
       .filter((row) => row.method === 'MANUAL')
       .reduce((sum, row) => sum + Number(row.amount_clp || 0), 0);
 
-    const workbook = XLSX.utils.book_new();
+    const workbook = new ExcelJS.Workbook();
 
-    const summarySheet = XLSX.utils.aoa_to_sheet([
+    const summarySheet = workbook.addWorksheet('Resumen');
+    summarySheet.addRows([
       ['NutriNet - Resumen Contable'],
       ['Generado el', toClDateTime(new Date())],
       [],
@@ -262,47 +265,32 @@ export class PaymentsService {
       ['Ingresos por Flow (CLP)', flowRevenue],
       ['Ingresos manuales (CLP)', manualRevenue],
     ]);
+    summarySheet.columns = [{ width: 32 }, { width: 28 }];
 
-    const salesSheet = XLSX.utils.json_to_sheet(paymentRows);
-    const transfersSheet = XLSX.utils.json_to_sheet(transferRows);
-
-    XLSX.utils.book_append_sheet(workbook, summarySheet, 'Resumen');
-    XLSX.utils.book_append_sheet(workbook, salesSheet, 'Ventas completadas');
-    XLSX.utils.book_append_sheet(
-      workbook,
-      transfersSheet,
-      'Transferencias aceptadas',
-    );
-
-    summarySheet['!cols'] = [{ wch: 32 }, { wch: 28 }];
-    salesSheet['!cols'] = [
-      { wch: 36 },
-      { wch: 36 },
-      { wch: 30 },
-      { wch: 28 },
-      { wch: 24 },
-      { wch: 18 },
-      { wch: 18 },
-      { wch: 14 },
-      { wch: 14 },
-      { wch: 16 },
-      { wch: 16 },
-      { wch: 18 },
-      { wch: 16 },
-      { wch: 16 },
-      { wch: 16 },
-      { wch: 18 },
-      { wch: 12 },
-      { wch: 20 },
-      { wch: 18 },
-      { wch: 18 },
-      { wch: 18 },
-      { wch: 18 },
-      { wch: 20 },
+    // Column widths for the two record sheets, keyed by position.
+    const recordColumnWidths = [
+      36, 36, 30, 28, 24, 18, 18, 14, 14, 16, 16, 18, 16, 16, 16, 18, 12, 20,
+      18, 18, 18, 18, 20,
     ];
-    transfersSheet['!cols'] = salesSheet['!cols'];
 
-    const buffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'buffer' });
+    const addRecordSheet = (name: string, records: Record<string, any>[]) => {
+      const sheet = workbook.addWorksheet(name);
+      const headers = records.length > 0 ? Object.keys(records[0]) : [];
+
+      sheet.columns = headers.map((header, index) => ({
+        header,
+        key: header,
+        width: recordColumnWidths[index] ?? 18,
+      }));
+      sheet.addRows(records);
+
+      return sheet;
+    };
+
+    addRecordSheet('Ventas completadas', paymentRows);
+    addRecordSheet('Transferencias aceptadas', transferRows);
+
+    const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
 
     return {
       buffer,
@@ -319,21 +307,25 @@ export class PaymentsService {
 
     const subscription = snapshot.subscription;
     const [
-       totalPatients,
+      totalPatients,
       totalConsultations,
       activeFollowUps,
-       pdfUsage,
+      pdfUsage,
       aiUsage,
       calculatorUsage,
       totalFoodGroups,
       totalCreations,
+      totalDietCreations,
       pendingTransferCount,
     ] = await Promise.all([
-       this.prisma.patient.count({
-         where: { nutritionist: { accountId } },
+      this.prisma.patient.count({
+        where: { nutritionist: { accountId } },
       }),
       this.prisma.consultation.count({
-         where: { nutritionist: { accountId } },
+        where: {
+          nutritionist: { accountId },
+          title: { not: INDEPENDENT_METRICS_TITLE },
+        },
       }),
       this.prisma.patientPortalInvitation.count({
         where: {
@@ -344,18 +336,24 @@ export class PaymentsService {
           expiresAt: { gte: new Date() },
         },
       }),
-       this.planUsageService.getUsage(accountId, 'pdf.exports.total.limit'),
+      this.planUsageService.getUsage(accountId, 'pdf.exports.total.limit'),
       this.planUsageService.getUsage(accountId, 'ai.calls.limit'),
       this.planUsageService.getUsage(accountId, 'clinical_calculator.limit'),
       this.prisma.ingredientGroup.count({
         where: { nutritionist: { accountId } },
       }),
-       this.prisma.creation.count({
-         where: {
-           nutritionist: { accountId },
-           type: { not: 'SCREENING_TEST' },
-         },
-       }),
+      this.prisma.creation.count({
+        where: {
+          nutritionist: { accountId },
+          type: { not: 'SCREENING_TEST' },
+        },
+      }),
+      this.prisma.creation.count({
+        where: {
+          nutritionist: { accountId },
+          type: 'DIET',
+        },
+      }),
       this.prisma.payment.count({
         where: {
           accountId,
@@ -401,7 +399,7 @@ export class PaymentsService {
         : null,
       entitlements: snapshot.entitlements,
       usage: {
-         patientsActive: totalPatients,
+        patientsActive: totalPatients,
         consultationsUsed: totalConsultations,
         followupsPrivateActive: activeFollowUps,
         pdfUsed: pdfUsage,
@@ -409,6 +407,7 @@ export class PaymentsService {
         calculatorUsed: calculatorUsage,
         foodGroupsUsed: totalFoodGroups,
         creationsUsed: totalCreations,
+        dietCreationsUsed: totalDietCreations,
       },
       billing: {
         nextPaymentAt,
@@ -979,7 +978,10 @@ export class PaymentsService {
           source: 'payments.manual-transfer',
         })
         .catch((err) => {
-          this.logger.error('[Payments] Error enviando notificación email:', err);
+          this.logger.error(
+            '[Payments] Error enviando notificación email:',
+            err,
+          );
         });
     });
 
@@ -1222,7 +1224,9 @@ export class PaymentsService {
     startDate: Date,
     endDate: Date | null,
   ) {
-    const isFree = Number(plan?.price || 0) === 0 || (plan?.slug || '').toLowerCase().includes('free');
+    const isFree =
+      Number(plan?.price || 0) === 0 ||
+      (plan?.slug || '').toLowerCase().includes('free');
     const finalEndDate = isFree ? null : endDate;
 
     return tx.subscription.upsert({
@@ -1255,7 +1259,9 @@ export class PaymentsService {
     const accountPlan = resolveAccountPlanFromMembershipPlan(
       plan.slug || plan.name,
     );
-    const isFree = Number(plan?.price || 0) === 0 || (plan?.slug || '').toLowerCase().includes('free');
+    const isFree =
+      Number(plan?.price || 0) === 0 ||
+      (plan?.slug || '').toLowerCase().includes('free');
     const finalEndDate = isFree ? null : endDate;
 
     return tx.account.update({

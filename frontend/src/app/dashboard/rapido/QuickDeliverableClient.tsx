@@ -27,6 +27,8 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { PatientSelectionModal } from "@/components/patients/PatientSelectionModal";
+import { QuickPatientEmptyState } from "@/components/patients/QuickPatientEmptyState";
+import { QuickPatientSummary } from "@/components/patients/QuickPatientSummary";
 import { SaveCreationModal } from "@/components/ui/SaveCreationModal";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { Textarea } from "@/components/ui/Textarea";
@@ -564,7 +566,7 @@ export default function QuickDeliverableClient() {
   const [allowExternalFoods, setAllowExternalFoods] = useState(false);
 
   const [title, setTitle] = useState("");
-  const [deliveryDate, setDeliveryDate] = useState(getTodayDateInputValue());
+  const deliveryDate = getTodayDateInputValue();
   const [quickHashtags, setQuickHashtags] = useState("");
   const [quickDescription, setQuickDescription] = useState("");
   const [planObjective, setPlanObjective] = useState("");
@@ -667,7 +669,6 @@ export default function QuickDeliverableClient() {
     try {
       const parsed = JSON.parse(draft);
       setTitle(parsed.title ?? "");
-       setDeliveryDate(parsed.deliveryDate || getTodayDateInputValue());
       setQuickHashtags(parsed.quickHashtags || "");
       setQuickDescription(parsed.quickDescription || "");
       setPlanObjective(parsed.planObjective || "");
@@ -822,7 +823,6 @@ export default function QuickDeliverableClient() {
         const creation = await fetchCreation(creationId);
         const content = creation.content || {};
         setTitle(content.title ?? creation.name ?? "");
-         setDeliveryDate(content.deliveryDate || getTodayDateInputValue());
         setQuickHashtags(content.quickHashtags || "");
         setQuickDescription(content.quickDescription || "");
         setPlanObjective(content.planObjective || "");
@@ -1253,7 +1253,7 @@ export default function QuickDeliverableClient() {
         );
 
         setParagraphs(formattedParagraphs);
-        toast.success("Pauta generada con Naty AI");
+        toast.success("Pauta generada con Naty");
         setIsAiModalOpen(false);
       } else {
         toast.error(
@@ -1435,11 +1435,6 @@ export default function QuickDeliverableClient() {
       typeof content.title === "string" && content.title.trim()
         ? content.title
         : creation.name || "",
-    );
-    setDeliveryDate(
-      typeof content.deliveryDate === "string" && content.deliveryDate.trim()
-        ? content.deliveryDate
-         : getTodayDateInputValue(),
     );
     setQuickHashtags(typeof content.quickHashtags === "string" ? content.quickHashtags : "");
     setQuickDescription(typeof content.quickDescription === "string" ? content.quickDescription : "");
@@ -2408,7 +2403,6 @@ export default function QuickDeliverableClient() {
   const resetQuickDeliverable = () => {
     if (isHydrating) return;
     setTitle("");
-    setDeliveryDate(getTodayDateInputValue());
     setQuickHashtags("");
     setQuickDescription("");
     setPlanObjective("");
@@ -2525,12 +2519,10 @@ export default function QuickDeliverableClient() {
                 </div>
                 <div className="w-36 space-y-1">
                   <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Fecha</p>
-                  <Input
-                    type="date"
-                    value={deliveryDate}
-                    onChange={(e) => setDeliveryDate(e.target.value)}
-                    className="h-11 appearance-none rounded-xl border-slate-200 bg-slate-50 text-sm [&::-webkit-calendar-picker-indicator]:hidden"
-                  />
+                  <div aria-disabled="true" className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-slate-100 px-3 text-sm font-medium text-slate-500 cursor-not-allowed">
+                    <Lock className="h-3.5 w-3.5 text-slate-400" />
+                    <span>{deliveryDate.split("-").reverse().join("-")}</span>
+                  </div>
                 </div>
                 <div className="flex-1 space-y-1">
                   <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Hashtags</p>
@@ -2578,59 +2570,21 @@ export default function QuickDeliverableClient() {
                   e.preventDefault();
                 }}
               >
-                <div
-                  className="flex w-full flex-col items-center gap-5 text-center pointer-events-auto"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                  }}
-                >
-                  <div className="max-w-2xl">
-                    <p className="text-sm font-bold leading-6 text-amber-900">Puedes generar platos sin paciente o importar uno para personalizar mejor la IA.</p>
-                    <p className="mt-2 text-xs leading-5 text-slate-500">Si importas un paciente, Naty considerará sus restricciones, objetivos y contexto clínico. El PDF sigue requiriendo un paciente vinculado.</p>
-                  </div>
-                  <div className="flex w-full flex-col justify-center gap-3 sm:w-auto sm:flex-row flex-wrap">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => void openPatientImportModal()}
-                      disabled={isLoadingPatients}
-                      className="h-10 min-w-44 justify-center rounded-xl border-emerald-200 bg-white px-4 text-sm text-emerald-700 font-semibold hover:bg-emerald-50 hover:border-emerald-300 transition-all"
-                    >
-                      {isLoadingPatients ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin text-emerald-600" />
-                      ) : (
-                        <User className="mr-2 h-4 w-4" />
-                      )}
-                      {isLoadingPatients ? "Cargando..." : "Importar paciente"}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={startManualPatientEntry}
-                      disabled={isLoadingPatients}
-                      className="h-10 min-w-44 justify-center rounded-xl border-slate-200 bg-white px-4 text-sm text-slate-700 font-semibold hover:bg-slate-50 hover:border-slate-300 transition-all"
-                    >
-                      <FileText className="mr-2 h-4 w-4" />
-                      Rellenar manualmente
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        setSelectedPatient({
-                          ...createEmptyQuickPatient(),
-                           fullName: "tú persona",
-                          nutritionalFocus: "General / Entregable Express",
-                        });
-                        setIsManualPatientExpanded(false);
-                        toast.info("Modo pauta general activado. Puedes generar y configurar la IA sin vincular un paciente específico.");
-                      }}
-                      className="h-10 min-w-44 justify-center rounded-xl border-indigo-200 bg-indigo-50 px-4 text-sm text-indigo-700 font-semibold hover:bg-indigo-100 hover:border-indigo-300 transition-all"
-                    >
-                      <Sparkles className="mr-2 h-4 w-4 text-indigo-600" />
-                      Continuar sin paciente
-                    </Button>
-                  </div>
+                <div className="pointer-events-auto" onClick={(e) => e.stopPropagation()}>
+                  <QuickPatientEmptyState
+                    isLoading={isLoadingPatients}
+                    onImportPatient={() => void openPatientImportModal()}
+                    onManualPatient={startManualPatientEntry}
+                    onContinueWithoutPatient={() => {
+                      setSelectedPatient({
+                        ...createEmptyQuickPatient(),
+                        fullName: "tú persona",
+                        nutritionalFocus: "General / Entregable Express",
+                      });
+                      setIsManualPatientExpanded(false);
+                      toast.info("Modo pauta general activado. Puedes generar y configurar la IA sin vincular un paciente específico.");
+                    }}
+                  />
                 </div>
               </summary>
             ) : (
@@ -2677,75 +2631,20 @@ export default function QuickDeliverableClient() {
 
             <div className="px-6 mt-4 space-y-4">
               {selectedPatient.fullName?.trim() && (
-                <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4">
-                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                    <div className="rounded-lg border border-slate-100 bg-white px-3 py-2">
-                      <p className="text-[10px] font-black uppercase text-slate-400">Nombre</p>
-                      <p className="text-sm font-semibold text-slate-800">{selectedPatient.fullName}</p>
-                    </div>
-                    <div className="rounded-lg border border-slate-100 bg-white px-3 py-2">
-                      <p className="text-[10px] font-black uppercase text-slate-400">Edad</p>
-                      <p className="text-sm font-semibold text-slate-800">
-                        {quickPatientMetrics.ageYears ? `${quickPatientMetrics.ageYears} años` : "—"}
-                      </p>
-                    </div>
-                    <div className="rounded-lg border border-slate-100 bg-white px-3 py-2">
-                      <p className="text-[10px] font-black uppercase text-slate-400">Sexo</p>
-                      <p className="text-sm font-semibold text-slate-800">{selectedPatient.gender || "—"}</p>
-                    </div>
-                    <div className="rounded-lg border border-slate-100 bg-white px-3 py-2">
-                      <p className="text-[10px] font-black uppercase text-slate-400">Peso</p>
-                      <p className="text-sm font-semibold text-slate-800">
-                        {quickPatientMetrics.weight ? `${quickPatientMetrics.weight} kg` : "—"}
-                      </p>
-                    </div>
-                    <div className="rounded-lg border border-slate-100 bg-white px-3 py-2">
-                      <p className="text-[10px] font-black uppercase text-slate-400">Altura</p>
-                      <p className="text-sm font-semibold text-slate-800">
-                        {quickPatientMetrics.height ? `${quickPatientMetrics.height} cm` : "—"}
-                      </p>
-                    </div>
-                    <div className="rounded-lg border border-slate-100 bg-white px-3 py-2">
-                      <p className="text-[10px] font-black uppercase text-slate-400">Actividad</p>
-                      <p className="text-sm font-semibold text-slate-800">{quickPatientMetrics.activityLevel}</p>
-                    </div>
-                  </div>
-
-                  <div className="mt-3 grid gap-3 md:grid-cols-2">
-                    <div className="rounded-lg border border-slate-100 bg-white px-3 py-2">
-                      <p className="text-[10px] font-black uppercase text-slate-400">Restricciones dietéticas o de salud</p>
-                      <p className="text-sm font-semibold text-slate-800">
-                        {(selectedPatient.restrictions || []).length > 0
-                          ? selectedPatient.restrictions?.join(", ")
-                          : "Sin registro"}
-                      </p>
-                    </div>
-                    <div className="rounded-lg border border-slate-100 bg-white px-3 py-2">
-                      <p className="text-[10px] font-black uppercase text-slate-400">Gustos</p>
-                      <p className="text-sm font-semibold text-slate-800">{selectedPatient.likes || "Sin registro"}</p>
-                    </div>
-                    <div className="rounded-lg border border-slate-100 bg-white px-3 py-2 md:col-span-2">
-                      <p className="text-[10px] font-black uppercase text-slate-400">Objetivo</p>
-                      <p className="text-sm font-semibold text-slate-800">
-                        {selectedPatient.nutritionalFocus || selectedPatient.fitnessGoals || "Sin registro"}
-                      </p>
-                    </div>
-                    {selectedPatient.clinicalSummary && (
-                      <div className="rounded-lg border border-slate-100 bg-white px-3 py-2 md:col-span-2">
-                        <p className="text-[10px] font-black uppercase text-slate-400">Resumen clínico</p>
-                        <p className="text-sm font-semibold text-slate-800">{selectedPatient.clinicalSummary}</p>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="mt-4">
-                    <CalculatedMetricsPanel
-                      imc={quickPatientMetrics.bmi}
-                      get={quickPatientMetrics.get}
-                      idealWeight={quickPatientMetrics.idealWeight}
-                    />
-                  </div>
-                </div>
+                <QuickPatientSummary
+                  fullName={selectedPatient.fullName}
+                  ageYears={quickPatientMetrics.ageYears}
+                  gender={selectedPatient.gender}
+                  weight={quickPatientMetrics.weight}
+                  height={quickPatientMetrics.height}
+                  activityLevel={quickPatientMetrics.activityLevel}
+                  restrictions={selectedPatient.restrictions}
+                  likes={selectedPatient.likes}
+                  nutritionalFocus={selectedPatient.nutritionalFocus}
+                  fitnessGoals={selectedPatient.fitnessGoals}
+                  clinicalSummary={selectedPatient.clinicalSummary}
+                  metrics={<CalculatedMetricsPanel imc={quickPatientMetrics.bmi} get={quickPatientMetrics.get} idealWeight={quickPatientMetrics.idealWeight} />}
+                />
               )}
 
               {isManualPatientExpanded && (
@@ -2812,6 +2711,7 @@ export default function QuickDeliverableClient() {
                 (includeMeals && !hasMealsContent)
               )
             }
+            lockFutureSteps
             onReset={resetQuickDeliverable}
           >
             {currentStep === 0 && (
@@ -2957,7 +2857,7 @@ export default function QuickDeliverableClient() {
                           className="h-10 rounded-2xl border-indigo-200 bg-indigo-50 px-4 text-indigo-700 hover:bg-indigo-100 font-semibold text-xs transition-all"
                         >
                           <Sparkles className="mr-2 h-4 w-4 text-indigo-600" />
-                          Generar con Naty AI
+                          Generar con Naty
                         </Button>
                         <Button
                           type="button"
@@ -4063,7 +3963,7 @@ export default function QuickDeliverableClient() {
                     title={missingRequirements.length > 0 ? "Completa los pendientes para descargar el PDF" : undefined}
                     className="h-11 rounded-2xl bg-emerald-600 px-6 text-white font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {isExportingPdf ? "Generando..." : "Descargar PDF"}
+                    {isExportingPdf ? "Guardando y generando..." : "Descargar y guardar PDF"}
                   </Button>
                 </div>
               </section>
@@ -4453,7 +4353,7 @@ export default function QuickDeliverableClient() {
       <Modal
         isOpen={isAiModalOpen}
         onClose={() => setIsAiModalOpen(false)}
-        title="Generar párrafos de pauta con Naty AI"
+        title="Generar párrafos de pauta con Naty"
         className="max-w-xl"
       >
         <div className="space-y-4 p-4">

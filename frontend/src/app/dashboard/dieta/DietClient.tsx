@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { GraduationCap, ChevronDown, ChevronUp, Calculator, User, Filter, Sparkles, Download, Loader2, RotateCcw } from "lucide-react";
+import { GraduationCap, ChevronDown, ChevronUp, Calculator, User, Filter, Download, Loader2, RotateCcw, Lock, Save, Apple, MessageCircleHeart } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { Textarea } from "@/components/ui/Textarea";
 import { ActionDockItem } from "@/components/ui/ActionDock";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { ModuleUsageBadges } from "@/components/shared/ModuleUsageBadges";
@@ -12,13 +13,18 @@ import { MarketPrice } from "@/features/foods";
 
 import { useDietState } from "@/features/diet/hooks/useDietState";
 import { DietPatientSection } from "@/features/diet/components/DietPatientSection";
+import { DietTemplateImportSection } from "@/features/diet/components/DietTemplateImportSection";
 import { DietConstraintSection } from "@/features/diet/components/DietConstraintSection";
 import { DietMacroSection } from "@/features/diet/components/DietMacroSection";
 import { DietPlannerSection } from "@/features/diet/components/DietPlannerSection";
 import { DietRecipesSection, DietMealBlock } from "@/features/diet/components/DietRecipesSection";
-import { DietCartSection, DietCartItem } from "@/features/diet/components/DietCartSection";
+import { DietCartSection } from "@/features/diet/components/DietCartSection";
+import { DietResourcesSection } from "@/features/diet/components/DietResourcesSection";
 import { DietFinalPlanSection } from "@/features/diet/components/DietFinalPlanSection";
 import { DietModals } from "@/features/diet/components/DietModals";
+import { FreemiumUpgradeModal } from "@/components/memberships/FreemiumUpgradeModal";
+import { FoodReferenceBook } from "@/components/foods/FoodReferenceBook";
+import { ImportCreationModal } from "@/components/shared/ImportCreationModal";
 import {
   findNewlyAddedTag,
   hasTagInList,
@@ -26,6 +32,10 @@ import {
   buildFoodInfoPreview,
 } from "@/features/diet/utils/diet-helpers";
 import { useRouter } from "next/navigation";
+import { getTodayDateInputValue } from "@/features/patients/utils/patient-helpers";
+import { toast } from "sonner";
+
+import { DietMealsSection, DietMealTableRow } from "@/features/diet/components/DietMealsSection";
 
 interface DietClientProps {
   initialFoods: MarketPrice[];
@@ -34,8 +44,10 @@ interface DietClientProps {
 const WIZARD_STEPS = [
   "Info general",
   "Dieta",
-  "Recetas y porciones",
+  "Platos",
+  "Comidas",
   "Carrito",
+  "Recursos",
   "Plan final",
 ];
 
@@ -43,44 +55,100 @@ const QUICK_WIZARD_STEPS = ["Info general", "Dieta", "Plan final"];
 
 export default function DietClient({ initialFoods }: DietClientProps) {
   const router = useRouter();
-  const state = useDietState({ initialFoods });
+  const state = useDietState({ initialFoods, startEmpty: true });
   const wizardSteps = state.flowMode === "quick" ? QUICK_WIZARD_STEPS : WIZARD_STEPS;
   const finalStepIndex = wizardSteps.length - 1;
-  const [currentStep, setCurrentStep] = useState(0);
-  const [deliveryDate, setDeliveryDate] = useState(
-    new Date().toISOString().slice(0, 10),
-  );
+  const currentStep = state.currentStep;
+  const setCurrentStep = state.setCurrentStep;
+  const deliveryDate = getTodayDateInputValue();
   const [showMacroCalculator, setShowMacroCalculator] = useState(false);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [isFoodReferenceBookOpen, setIsFoodReferenceBookOpen] = useState(false);
 
-  // Local state for Step 3 (Recetas y porciones) & Step 4 (Carrito)
-  const [meals, setMeals] = useState<DietMealBlock[]>([]);
-  const [cartItems, setCartItems] = useState<DietCartItem[]>([]);
+  const [isImportRecipeModalOpen, setIsImportRecipeModalOpen] = useState(false);
 
-  const buildMainPromptPayload = () => ({
-    context: {
-      patient: state.selectedPatient || null,
-      dietName: state.dietName,
-      restrictions: state.activeConstraints,
-      tags: state.dietTags,
-      macroTargets: state.macroTargets,
-      foodGroups: state.allGroupsToRender,
-      mealsCount: meals.length,
-      cartItemsCount: cartItems.length,
-    },
-    instruction:
-      "Construir la estrategia nutricional unificada respetando el contexto clínico del paciente, las recetas y el carrito de compras.",
-    expectedOutput:
-      "JSON con pauta consolidada, restricciones aplicadas, recetas por horario y lista de víveres del carrito.",
-  });
+  const handleImportRecipe = (creation: any) => {
+    const { content } = creation;
+    if (!content) {
+      toast.error("Esta receta no contiene datos válidos.");
+      return;
+    }
 
-  const goBack = () => setCurrentStep((step) => Math.max(0, step - 1));
-  const goNext = () =>
-    setCurrentStep((step) => Math.min(finalStepIndex, step + 1));
-  const handleStepClick = (step: number) => {
-    setCurrentStep(step);
+    const newMeals: DietMealBlock[] = [];
+    const rawDishes = content.dishes || content.recipes || content.meals || [];
+    if (Array.isArray(rawDishes) && rawDishes.length > 0) {
+      rawDishes.forEach((dish: any, idx: number) => {
+        const ingredientsList = Array.isArray(dish.ingredients)
+          ? dish.ingredients
+              .map((ing: any) =>
+                typeof ing === "string"
+                  ? ing
+                  : `${ing.amount || ""} ${ing.unit || ""} ${
+                      ing.producto || ing.name || ""
+                    }`,
+              )
+              .join(", ")
+          : typeof dish.ingredients === "string"
+          ? dish.ingredients
+          : "";
+
+        newMeals.push({
+          id: `${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 6)}`,
+          section:
+            dish.category || dish.section || dish.mealSection || `Preparación ${idx + 1}`,
+          time: dish.time || "12:00",
+          name: dish.name || dish.title || creation.name,
+          ingredients: ingredientsList,
+          instructions: dish.instructions || dish.preparation || "",
+          portion: dish.portion || dish.portionSize || "1 porción",
+        });
+      });
+    } else {
+      const ingredientsList = Array.isArray(content.ingredients)
+        ? content.ingredients
+            .map((ing: any) =>
+              typeof ing === "string"
+                ? ing
+                : `${ing.amount || ""} ${ing.unit || ""} ${
+                    ing.producto || ing.name || ""
+                  }`,
+            )
+            .join(", ")
+        : typeof content.ingredients === "string"
+        ? content.ingredients
+        : "";
+
+      newMeals.push({
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        section: content.section || "Plato Principal",
+        time: "12:00",
+        name: creation.name || "Receta Importada",
+        ingredients: ingredientsList,
+        instructions:
+          content.instructions ||
+          content.preparation ||
+          content.quickDescription ||
+          "",
+        portion: content.portion || "1 porción",
+      });
+    }
+
+    if (newMeals.length > 0) {
+      state.setMeals((prev) => [...prev, ...newMeals]);
+      toast.success(`Receta "${creation.name}" importada correctamente.`);
+    } else {
+      toast.info(`No se encontraron platos en la creación "${creation.name}".`);
+    }
   };
 
-  // Helper counts
+  const goBack = () => setCurrentStep((step) => Math.max(0, step - 1));
+  const goNext = () => setCurrentStep((step) => Math.min(finalStepIndex, step + 1));
+  const handleStepClick = (step: number) => setCurrentStep(step);
+
+  const handleResetDiet = () => {
+    state.resetDiet();
+  };
+
   const totalFoodGroups = Object.keys(state.allGroupsToRender).length;
   const totalSelectedFoods = Object.values(state.allGroupsToRender).reduce(
     (total, foods) => total + foods.length,
@@ -90,9 +158,12 @@ export default function DietClient({ initialFoods }: DietClientProps) {
   const completedSteps = useMemo(() => {
     const fullStepCompletion = [
       Boolean(state.dietName.trim()),
-      totalSelectedFoods > 0 || state.dietTags.length > 0,
-      meals.length > 0,
-      cartItems.length > 0,
+      totalSelectedFoods > 0,
+      state.meals.length > 0,
+      state.dietMealsTableData.length > 0 || state.meals.length > 0,
+      state.autoCartItems.length > 0 || currentStep > 4,
+      state.selectedResourceIds.length > 0 || currentStep > 5,
+      currentStep === finalStepIndex,
     ];
     const completion = state.flowMode === "quick"
       ? fullStepCompletion.slice(0, 2)
@@ -102,36 +173,44 @@ export default function DietClient({ initialFoods }: DietClientProps) {
       if (isComplete) completed.push(index);
       return completed;
     }, []);
-  }, [state.dietName, totalSelectedFoods, state.dietTags.length, state.flowMode, meals.length, cartItems.length]);
+  }, [
+    state.dietName,
+    totalSelectedFoods,
+    state.meals.length,
+    state.dietMealsTableData.length,
+    state.autoCartItems.length,
+    state.selectedResourceIds.length,
+    currentStep,
+    finalStepIndex,
+    state.flowMode,
+  ]);
 
+  // Action Dock buttons: Reiniciar, Importar otra DIETA creada, Guardar, Descargar
   const actionItems: ActionDockItem[] = useMemo(
     () => [
       {
-        id: "patient",
-        icon: state.isLoadingPatients ? Loader2 : User,
-        label: state.isLoadingPatients
-          ? "Cargando..."
-          : state.selectedPatient?.fullName?.trim()
-            ? state.selectedPatient.fullName
-            : "Importar paciente",
-        description: state.selectedPatient?.fullName?.trim() ? "Cambiar paciente" : "Importar paciente",
-        variant: state.selectedPatient?.fullName?.trim() ? "emerald" : "slate",
-        disabled: state.isLoadingPatients,
-        onClick: () => state.setIsImportPatientModalOpen(true),
+        id: "reset",
+        icon: RotateCcw,
+        label: "Reiniciar",
+        description: "Reiniciar plan",
+        variant: "rose",
+        onClick: () => state.setIsResetConfirmOpen(true),
       },
       {
         id: "import",
         icon: Filter,
-        label: "Importar pauta",
+        label: "Importar dieta creada",
+        description: "Cargar una dieta previamente guardada",
         variant: "indigo",
         onClick: () => state.setIsImportCreationModalOpen(true),
       },
       {
-        id: "ai-nutri",
-        icon: Sparkles,
-        label: "IA Nutri",
-        variant: "emerald",
-        onClick: () => state.setIsSmartModalOpen(true),
+        id: "food-reference-book",
+        icon: Apple,
+        label: "Manual de alimentos",
+        description: "Tabla oficial de porciones e información nutricional",
+        variant: "amber",
+        onClick: () => setIsFoodReferenceBookOpen(true),
       },
       {
         id: "pdf",
@@ -141,35 +220,30 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         variant: "indigo",
         onClick: () => void state.performExportPdf(),
       },
-      {
-        id: "reset",
-        icon: RotateCcw,
-        label: "Reiniciar",
-        description: "Reiniciar plan",
-        variant: "rose",
-        onClick: () => state.setIsResetConfirmOpen(true),
-      },
     ],
-    [state],
+    [state, setIsFoodReferenceBookOpen],
   );
 
   return (
     <>
       <ModuleLayout
         title={state.flowMode === "quick" ? "Entregable Rápido" : "Estrategia: Pauta Nutricional Unificada"}
-        description={state.flowMode === "quick"
-          ? "Crea una pauta rápida con la misma base nutricional, sin pasar por recetas ni carrito. Puedes ampliarla después."
-          : "Diseña la pauta nutricional completa de tu paciente paso a paso: Información General, Dieta, Recetas & Porciones, Carrito de Compras y Plan Final."}
+        description={
+          state.flowMode === "quick"
+            ? "Crea una pauta rápida con la misma base nutricional, sin pasar por recetas ni carrito. Puedes ampliarla después."
+            : "Diseña la pauta nutricional completa de tu paciente paso a paso: Información General, Dieta, Recetas & Porciones, Carrito de Compras y Plan Final."
+        }
         step={{
           number: currentStep + 1,
           label: wizardSteps[currentStep],
           icon: GraduationCap,
           color: "text-emerald-600",
         }}
-         rightContent={<ModuleUsageBadges />}
-         rightNavItems={state.isHydrating ? [] : actionItems}
-         rightNavDesktopBreakpoint="lg"
-       >
+        rightContent={<ModuleUsageBadges />}
+        rightNavItems={state.isHydrating ? [] : actionItems}
+        rightNavDesktopBreakpoint="lg"
+        className="max-w-[68rem]"
+      >
         {state.isHydrating ? (
           <div className="flex min-h-[24rem] items-center justify-center rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
             <div className="flex items-center gap-3 text-sm font-semibold text-slate-500">
@@ -177,241 +251,423 @@ export default function DietClient({ initialFoods }: DietClientProps) {
               Preparando la dieta...
             </div>
           </div>
-        ) : <>
-        <WorkflowContextBanner
-          projectName={state.currentProjectName}
-          patientName={state.selectedPatient?.fullName || null}
-          mode={state.currentProjectMode}
-          moduleLabel="Dieta"
-        />
+        ) : (
+          <>
+            <WorkflowContextBanner
+              projectName={state.currentProjectName}
+              patientName={state.selectedPatient?.fullName || null}
+              patient={state.selectedPatient}
+              mode={state.currentProjectMode}
+              moduleLabel="Dieta"
+              activeConstraints={state.activeConstraints}
+              patientRestrictions={state.selectedPatient?.dietRestrictions || state.selectedPatient?.tags || []}
+            />
 
-        <PlanWizardShell
-          steps={wizardSteps}
-          currentStep={currentStep}
-           completedSteps={completedSteps}
-          onStepClick={handleStepClick}
-          onBack={goBack}
-          onNext={goNext}
-          isLastStep={currentStep === finalStepIndex}
-          nextDisabled={
-            (currentStep === 0 && !state.dietName.trim()) ||
-            (currentStep === 1 && !(Object.values(state.allGroupsToRender).some((foods) => foods.length > 0) || state.dietTags.length > 0))
-          }
-        >
-          {/* PASO 1: INFO GENERAL */}
-          {currentStep === 0 && (
-            <div className="space-y-6">
-              <DietPatientSection
-                selectedPatient={state.selectedPatient}
-                handleUnlinkPatient={state.handleUnlinkPatient}
-                onImportPatient={() => state.setIsImportPatientModalOpen(true)}
-                isLoadingPatients={state.isLoadingPatients}
-              />
-              <DietConstraintSection
-                dietName={state.dietName}
-                setDietName={state.setDietName}
-                dietTags={state.dietTags}
-                setDietTags={state.setDietTags}
-                activeConstraints={state.activeConstraints}
-                setActiveConstraints={state.setActiveConstraints}
-                availableClassificationTags={state.availableClassificationTags}
-                availableConstraintTags={state.availableConstraintTags}
-                selectedDefaultConstraintIds={state.selectedDefaultConstraintIds}
-                toggleConstraint={state.toggleConstraint}
-                findNewlyAddedTag={findNewlyAddedTag}
-                hasTagInList={hasTagInList}
-                normalizeConstraintList={normalizeConstraintList}
-                setPendingTagCreation={state.setPendingTagCreation}
-                saveDraft={state.saveDraft}
-                deliveryDate={deliveryDate}
-                setDeliveryDate={setDeliveryDate}
-                description={state.creationDescription}
-                setDescription={state.setCreationDescription}
-                planObjective={state.planObjective}
-                setPlanObjective={state.setPlanObjective}
-                showGeneralInfo
-                showClinicalRestriction
-              />
-            </div>
-          )}
+            <PlanWizardShell
+              steps={wizardSteps}
+              currentStep={currentStep}
+              completedSteps={completedSteps}
+              onStepClick={handleStepClick}
+              onBack={goBack}
+              onNext={goNext}
+              isLastStep={currentStep === finalStepIndex}
+              lockFutureSteps
+              hideNextOnLastStep
+              onReset={handleResetDiet}
+              nextDisabled={
+                (currentStep === 0 && !state.dietName.trim()) ||
+                (currentStep === 0 && !state.selectedPatient) ||
+                (currentStep === 1 && !Object.values(state.allGroupsToRender).some((foods) => foods.length > 0))
+              }
+            >
+              {/* PASO 1: INFO GENERAL */}
+              {currentStep === 0 && (
+                <div className="space-y-6">
+                  <DietPatientSection
+                    selectedPatient={state.selectedPatient}
+                    handleUnlinkPatient={state.handleUnlinkPatient}
+                    onImportPatient={() => state.setIsImportPatientModalOpen(true)}
+                    isLoadingPatients={state.isLoadingPatients}
+                  />
+                  <DietConstraintSection
+                    dietName={state.dietName}
+                    setDietName={state.setDietName}
+                    dietTags={state.dietTags}
+                    setDietTags={state.setDietTags}
+                    activeConstraints={state.activeConstraints}
+                    setActiveConstraints={state.setActiveConstraints}
+                    availableClassificationTags={state.availableClassificationTags}
+                    availableConstraintTags={state.availableConstraintTags}
+                    selectedDefaultConstraintIds={state.selectedDefaultConstraintIds}
+                    toggleConstraint={state.toggleConstraint}
+                    findNewlyAddedTag={findNewlyAddedTag}
+                    hasTagInList={hasTagInList}
+                    normalizeConstraintList={normalizeConstraintList}
+                    setPendingTagCreation={state.setPendingTagCreation}
+                    saveDraft={state.saveDraft}
+                    deliveryDate={deliveryDate.split("-").reverse().join("-")}
+                    dateIcon={<Lock className="h-3.5 w-3.5 text-slate-400" />}
+                    description={state.creationDescription}
+                    setDescription={state.setCreationDescription}
+                    planObjective={state.planObjective}
+                    setPlanObjective={state.setPlanObjective}
+                    showGeneralInfo
+                    showClinicalRestriction
+                  />
 
-          {/* PASO 2: DIETA */}
-          {currentStep === 1 && (
-            <div className="space-y-6">
-              <DietPlannerSection
-                allGroupsToRender={state.allGroupsToRender}
-                openAddModal={state.openAddModal}
-                setGroupToDelete={state.setGroupToDelete}
-                setIsDeleteGroupConfirmOpen={state.setIsDeleteGroupConfirmOpen}
-                openDraftFoodEditor={state.openDraftFoodEditor}
-                setSelectedFoodForInfo={state.setSelectedFoodForInfo}
-                setIsFoodInfoModalOpen={state.setIsFoodInfoModalOpen}
-                removeFood={state.removeFood}
-                setIsAddGroupModalOpen={state.setIsAddGroupModalOpen}
-              />
-
-              {/* Collapsible Macro Target Calculator */}
-              <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                <div
-                  onClick={() => setShowMacroCalculator(!showMacroCalculator)}
-                  className="flex cursor-pointer items-center justify-between"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-                      <Calculator className="h-5 w-5" />
+                  {/* Introducción y Despedida del PDF */}
+                  <div className="space-y-5 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-violet-50 text-violet-700">
+                        <MessageCircleHeart className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-base font-black text-slate-900">Introducción y despedida</h3>
+                        <p className="text-xs text-slate-500">
+                          Se generan automáticamente con el nombre de {state.selectedPatient?.fullName || "tu paciente"}; puedes editarlas libremente.
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="text-sm font-black text-slate-900">Calculadora de Metas Calóricas y Macronutrientes</h3>
-                      <p className="text-xs text-slate-500">Configura el GET, déficit calórico y distribución de macros (opcional)</p>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-black uppercase tracking-wider text-slate-500">Introducción</label>
+                        <label className="flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50/70 px-3 py-1 text-[11px] font-bold text-violet-900 cursor-pointer hover:bg-violet-100/70 transition-colors">
+                          <input
+                            type="checkbox"
+                            checked={state.includeIntroInPdf}
+                            onChange={(e) => state.setIncludeIntroInPdf(e.target.checked)}
+                            className="h-3.5 w-3.5 rounded border-violet-300 text-violet-600 focus:ring-violet-500 cursor-pointer"
+                          />
+                          Incluir en el PDF
+                        </label>
+                      </div>
+                      <Textarea
+                        value={state.introMessage}
+                        onChange={(e) => state.updateIntroMessage(e.target.value)}
+                        placeholder="Mensaje de bienvenida para el paciente..."
+                        className="min-h-[90px] rounded-xl text-sm"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-black uppercase tracking-wider text-slate-500">Despedida</label>
+                        <label className="flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50/70 px-3 py-1 text-[11px] font-bold text-violet-900 cursor-pointer hover:bg-violet-100/70 transition-colors">
+                          <input
+                            type="checkbox"
+                            checked={state.includeClosingInPdf}
+                            onChange={(e) => state.setIncludeClosingInPdf(e.target.checked)}
+                            className="h-3.5 w-3.5 rounded border-violet-300 text-violet-600 focus:ring-violet-500 cursor-pointer"
+                          />
+                          Incluir en el PDF
+                        </label>
+                      </div>
+                      <Textarea
+                        value={state.closingMessage}
+                        onChange={(e) => state.updateClosingMessage(e.target.value)}
+                        placeholder="Mensaje de cierre / despedida para el paciente..."
+                        className="min-h-[90px] rounded-xl text-sm"
+                      />
                     </div>
                   </div>
-
-                  <Button type="button" variant="ghost" className="h-8 w-8 rounded-xl p-0 text-slate-500">
-                    {showMacroCalculator ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
-                  </Button>
                 </div>
+              )}
 
-                {showMacroCalculator && (
-                  <div className="mt-6 border-t border-slate-100 pt-6">
-                    <DietMacroSection
-                      macroSettings={state.macroSettings}
-                      macroTargets={state.macroTargets}
-                      setMacroSettings={state.setMacroSettings}
-                      saveDraft={state.saveDraft}
-                    />
+              {/* PASO 2: DIETA */}
+              {currentStep === 1 && (
+                <div className="space-y-6">
+                  <DietTemplateImportSection
+                    dietName={state.dietName}
+                    dietTags={state.dietTags}
+                    totalFoodsCount={
+                      Object.values(state.allGroupsToRender).reduce(
+                        (acc, foods) => acc + foods.length,
+                        0,
+                      )
+                    }
+                    totalGroupsCount={Object.keys(state.allGroupsToRender).length}
+                    onImportDiet={() => state.setIsImportCreationModalOpen(true)}
+                    onCreateDiet={() => {
+                      state.saveDraft();
+                      router.push("/dashboard/dietas");
+                    }}
+                  />
+
+                  {Object.values(state.allGroupsToRender).some((foods) => foods.length > 0) && (
+                    <>
+                      <DietPlannerSection
+                        allGroupsToRender={state.allGroupsToRender}
+                        openAddModal={state.openAddModal}
+                    setGroupToDelete={state.setGroupToDelete}
+                    setIsDeleteGroupConfirmOpen={state.setIsDeleteGroupConfirmOpen}
+                    openDraftFoodEditor={state.openDraftFoodEditor}
+                    setSelectedFoodForInfo={state.setSelectedFoodForInfo}
+                    setIsFoodInfoModalOpen={state.setIsFoodInfoModalOpen}
+                    removeFood={state.removeFood}
+                    setIsAddGroupModalOpen={state.setIsAddGroupModalOpen}
+                    initialFoods={state.initialFoods || initialFoods}
+                    addFoodToGroup={state.addFoodToGroup}
+                    handleCreateGroupByName={state.handleCreateGroupByName}
+                  />
+
+                  {/* Collapsible Macro Target Calculator */}
+                  <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <div
+                      onClick={() => setShowMacroCalculator(!showMacroCalculator)}
+                      className="flex cursor-pointer items-center justify-between"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                          <Calculator className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-black text-slate-900">Calculadora de Metas Calóricas y Macronutrientes</h3>
+                          <p className="text-xs text-slate-500">Configura el GET, déficit calórico y distribución de macros (opcional)</p>
+                        </div>
+                      </div>
+
+                      <Button type="button" variant="ghost" className="h-8 w-8 rounded-xl p-0 text-slate-500">
+                        {showMacroCalculator ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+                      </Button>
+                    </div>
+
+                    {showMacroCalculator && (
+                      <div className="mt-6 border-t border-slate-100 pt-6">
+                        <DietMacroSection
+                          macroSettings={state.macroSettings}
+                          macroTargets={state.macroTargets}
+                          setMacroSettings={state.setMacroSettings}
+                          saveDraft={state.saveDraft}
+                        />
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            </div>
-          )}
+                </>
+              )}
+                </div>
+              )}
 
-          {/* PASO 3: RECETAS Y PORCIONES */}
-          {state.flowMode === "full" && currentStep === 2 && (
-            <DietRecipesSection
-              meals={meals}
-              setMeals={setMeals}
-              patientName={state.selectedPatient?.fullName}
-              onOpenAdvancedRecipes={() => void state.continueToRecipes()}
+              {/* PASO 3: PLATOS */}
+              {state.flowMode === "full" && currentStep === 2 && (
+                <DietRecipesSection
+                  meals={state.meals}
+                  setMeals={state.setMeals}
+                  patientName={state.selectedPatient?.fullName}
+                  onOpenAdvancedRecipes={() => void state.continueToRecipes()}
+                  onImportRecipe={() => setIsImportRecipeModalOpen(true)}
+                  isGeneratingAiDishes={state.isGeneratingAiDishes}
+                  onQuickGenerateAiDishes={(options, setMealsFn) =>
+                    state.handleQuickGenerateAiDishes(options, setMealsFn || state.setMeals)
+                  }
+                  isAiValidationModalOpen={state.isAiValidationModalOpen}
+                  setIsAiValidationModalOpen={state.setIsAiValidationModalOpen}
+                  pendingAiDishes={state.pendingAiDishes}
+                  onConfirmAiDishes={(dishes) => state.handleConfirmAiDishes(dishes, state.setMeals)}
+                  patient={state.selectedPatient}
+                  baseDietFoodsCount={
+                    Object.values(state.allGroupsToRender).reduce(
+                      (acc, foods) => acc + foods.length,
+                      0,
+                    )
+                  }
+                />
+              )}
+
+              {/* PASO 4: COMIDAS & HORARIOS */}
+              {state.flowMode === "full" && currentStep === 3 && (
+                <DietMealsSection
+                  includeMealsSection={state.includeMealsSection}
+                  setIncludeMealsSection={state.setIncludeMealsSection}
+                  dietMealsTableData={state.dietMealsTableData}
+                  setDietMealsTableData={state.setDietMealsTableData}
+                  dishes={state.meals}
+                  patientName={state.selectedPatient?.fullName}
+                  includeExchangeGuideInPdf={state.includeExchangeGuideInPdf}
+                  setIncludeExchangeGuideInPdf={state.setIncludeExchangeGuideInPdf}
+                  avoidFoods={state.avoidFoods}
+                  addAvoidFood={state.addAvoidFood}
+                  removeAvoidFood={state.removeAvoidFood}
+                  includeAvoidFoodsInPdf={state.includeAvoidFoodsInPdf}
+                  setIncludeAvoidFoodsInPdf={state.setIncludeAvoidFoodsInPdf}
+                />
+              )}
+
+              {/* PASO 5: CARRITO */}
+              {state.flowMode === "full" && currentStep === 4 && (
+                <DietCartSection
+                  autoCartItems={state.autoCartItems}
+                  includeCartSection={state.includeCartSection}
+                  setIncludeCartSection={state.setIncludeCartSection}
+                  patientName={state.selectedPatient?.fullName}
+                  setCartItemOverride={state.setCartItemOverride}
+                  removeCartItem={state.removeCartItem}
+                />
+              )}
+
+              {/* PASO 6: RECURSOS */}
+              {state.flowMode === "full" && currentStep === 5 && (
+                <DietResourcesSection
+                  selectedResourceIds={state.selectedResourceIds}
+                  setSelectedResourceIds={state.setSelectedResourceIds}
+                  includeResourcesSection={state.includeResourcesSection}
+                  setIncludeResourcesSection={state.setIncludeResourcesSection}
+                  patientName={state.selectedPatient?.fullName}
+                  activeConstraints={state.activeConstraints}
+                  patientRestrictions={
+                    state.selectedPatient?.dietRestrictions ||
+                    state.selectedPatient?.tags ||
+                    []
+                  }
+                />
+              )}
+
+              {/* PASO 7: PLAN FINAL */}
+              {currentStep === finalStepIndex && (
+                <DietFinalPlanSection
+                  patientName={state.selectedPatient?.fullName}
+                  patientAge={typeof state.selectedPatient?.age === "number" ? state.selectedPatient.age : null}
+                  patientGender={state.selectedPatient?.gender}
+                  patientFocus={state.selectedPatient?.nutritionalFocus}
+                  dietName={state.dietName}
+                  totalFoodGroups={totalFoodGroups}
+                  totalSelectedFoods={totalSelectedFoods}
+                  totalMeals={state.meals.length}
+                  totalCartItems={state.includeCartSection ? state.autoCartItems.length : 0}
+                  totalResources={state.includeResourcesSection ? state.selectedResourceIds.length : 0}
+                  totalAvoidFoods={state.avoidFoods.length}
+                  calorieTarget={state.macroTargets.calories}
+                  onExportPdf={() => void state.performExportPdf()}
+                  onSaveCreation={() => state.setIsSaveCreationModalOpen(true)}
+                  includeFoodTableSection={state.includeFoodTableSection}
+                  setIncludeFoodTableSection={state.setIncludeFoodTableSection}
+                  includeMealsSection={state.includeMealsSection}
+                  setIncludeMealsSection={state.setIncludeMealsSection}
+                  includeCartSection={state.includeCartSection}
+                  setIncludeCartSection={state.setIncludeCartSection}
+                  includeResourcesSection={state.includeResourcesSection}
+                  setIncludeResourcesSection={state.setIncludeResourcesSection}
+                  includeAvoidFoodsInPdf={state.includeAvoidFoodsInPdf}
+                  setIncludeAvoidFoodsInPdf={state.setIncludeAvoidFoodsInPdf}
+                  includeIntroInPdf={state.includeIntroInPdf}
+                  setIncludeIntroInPdf={state.setIncludeIntroInPdf}
+                  includeClosingInPdf={state.includeClosingInPdf}
+                  setIncludeClosingInPdf={state.setIncludeClosingInPdf}
+                />
+              )}
+            </PlanWizardShell>
+
+            <DietModals
+              isResetConfirmOpen={state.isResetConfirmOpen}
+              setIsResetConfirmOpen={state.setIsResetConfirmOpen}
+              resetDiet={handleResetDiet}
+              isExportConfirmOpen={state.isExportConfirmOpen}
+              setIsExportConfirmOpen={state.setIsExportConfirmOpen}
+              performExportPdf={state.performExportPdf}
+              isContinueDraftWarningOpen={state.isContinueDraftWarningOpen}
+              setIsContinueDraftWarningOpen={state.setIsContinueDraftWarningOpen}
+              continueToRecipes={state.continueToRecipes}
+              pendingTagCreation={state.pendingTagCreation}
+              setPendingTagCreation={state.setPendingTagCreation}
+              createGlobalTag={state.createGlobalTag}
+              isDeleteGroupConfirmOpen={state.isDeleteGroupConfirmOpen}
+              setIsDeleteGroupConfirmOpen={state.setIsDeleteGroupConfirmOpen}
+              confirmDeleteGroup={state.confirmDeleteGroup}
+              groupToDelete={state.groupToDelete}
+              isAddFoodModalOpen={state.isAddFoodModalOpen}
+              setIsAddFoodModalOpen={state.setIsAddFoodModalOpen}
+              activeGroupForAddition={state.activeGroupForAddition}
+              foodSearchQuery={state.foodSearchQuery}
+              setFoodSearchQuery={state.setFoodSearchQuery}
+              isSearchingFoods={state.isSearchingFoods}
+              searchResultFoods={state.searchResultFoods}
+              setSelectedFoodForInfo={state.setSelectedFoodForInfo}
+              setIsFoodInfoModalOpen={state.setIsFoodInfoModalOpen}
+              handleAddFromSearch={state.handleAddFromSearch}
+              isCreatingManualFood={state.isCreatingManualFood}
+              handleCreateManualFood={state.handleCreateManualFood}
+              isSmartModalOpen={state.isSmartModalOpen}
+              setIsSmartModalOpen={state.setIsSmartModalOpen}
+              smartAddTab={state.smartAddTab}
+              setSmartAddTab={state.setSmartAddTab}
+              smartSearchQuery={state.smartSearchQuery}
+              setSmartSearchQuery={state.setSmartSearchQuery}
+              isLoadingSmart={state.isLoadingSmart}
+              smartFavorites={state.smartFavorites}
+              smartGroups={state.smartGroups}
+              smartMyProducts={state.smartMyProducts}
+              smartSearchResults={state.smartSearchResults}
+              isSearchingInSmart={state.isSearchingInSmart}
+              selectedFoods={state.selectedFoods}
+              toggleSmartSelection={state.toggleSmartSelection}
+              toggleGroupSelection={state.toggleGroupSelection}
+              smartInfoFood={state.smartInfoFood}
+              setSmartInfoFood={state.setSmartInfoFood}
+              handleSmartAddAll={state.handleSmartAddAll}
+              buildFoodInfoPreview={buildFoodInfoPreview}
+              isFoodInfoModalOpen={state.isFoodInfoModalOpen}
+              selectedFoodForInfo={state.selectedFoodForInfo}
+              isVerificationModalOpen={state.isVerificationModalOpen}
+              setIsVerificationModalOpen={state.setIsVerificationModalOpen}
+              verificationResult={state.verificationResult}
+              isImportPatientModalOpen={state.isImportPatientModalOpen}
+              setIsImportPatientModalOpen={state.setIsImportPatientModalOpen}
+              patientSearchQuery={state.patientSearchQuery}
+              setPatientSearchQuery={state.setPatientSearchQuery}
+              isLoadingPatients={state.isLoadingPatients}
+              filteredPatients={state.filteredPatients}
+              patientsError={state.patientsError}
+              setPatientsError={state.setPatientsError}
+              handleSelectPatient={state.handleSelectPatient}
+              patients={state.patients}
+              isImportCreationModalOpen={state.isImportCreationModalOpen}
+              setIsImportCreationModalOpen={state.setIsImportCreationModalOpen}
+              handleImportCreation={state.handleImportCreation}
+              isAddGroupModalOpen={state.isAddGroupModalOpen}
+              setIsAddGroupModalOpen={state.setIsAddGroupModalOpen}
+              newGroupNameInput={state.newGroupNameInput}
+              setNewGroupNameInput={state.setNewGroupNameInput}
+              handleCreateGroup={state.handleCreateGroup}
+              allGroupsToRender={state.allGroupsToRender}
+              isDraftFoodEditorOpen={state.isDraftFoodEditorOpen}
+              setIsDraftFoodEditorOpen={state.setIsDraftFoodEditorOpen}
+              draftFoodToEdit={state.draftFoodToEdit}
+              draftFoodValues={state.draftFoodValues}
+              setDraftFoodValues={state.setDraftFoodValues}
+              handleSaveDraftFood={state.handleSaveDraftFood}
+              isSavingDraftFood={state.isSavingDraftFood}
+              isSaveCreationModalOpen={state.isSaveCreationModalOpen}
+              setIsSaveCreationModalOpen={state.setIsSaveCreationModalOpen}
+              creationDescription={state.creationDescription}
+              setCreationDescription={state.setCreationDescription}
+              handleSaveWithDescription={state.handleSaveWithDescription}
             />
-          )}
+          </>
+        )}
+      </ModuleLayout>
 
-          {/* PASO 4: CARRITO */}
-          {state.flowMode === "full" && currentStep === 3 && (
-            <DietCartSection
-              cartItems={cartItems}
-              setCartItems={setCartItems}
-              patientName={state.selectedPatient?.fullName}
-              onOpenAdvancedCart={() => router.push("/dashboard/carrito")}
-            />
-          )}
+      <FreemiumUpgradeModal
+        isOpen={isUpgradeModalOpen || state.isUpgradeModalOpen}
+        onClose={() => {
+          setIsUpgradeModalOpen(false);
+          state.setIsUpgradeModalOpen(false);
+        }}
+        description="Has alcanzado el límite de operaciones o generaciones con Naty IA de tu plan actual. ¡Actualiza a un plan Pro o Premium para disfrutar de acceso ilimitado y agilizar tus consultas!"
+      />
 
-          {/* PASO 5: PLAN FINAL */}
-          {currentStep === finalStepIndex && (
-            <DietFinalPlanSection
-              patientName={state.selectedPatient?.fullName}
-              patientAge={typeof state.selectedPatient?.age === "number" ? state.selectedPatient.age : null}
-              patientGender={state.selectedPatient?.gender}
-              patientFocus={state.selectedPatient?.nutritionalFocus}
-              dietName={state.dietName}
-              totalFoodGroups={totalFoodGroups}
-              totalSelectedFoods={totalSelectedFoods}
-              totalMeals={meals.length}
-              totalCartItems={cartItems.length}
-              calorieTarget={state.macroTargets.calories}
-              onExportPdf={() => void state.performExportPdf()}
-              onSaveCreation={() => state.setIsSaveCreationModalOpen(true)}
-              onContinueToDeliverable={() => void state.continueToRecipes()}
-            />
-          )}
-        </PlanWizardShell>
+      <FoodReferenceBook
+        isOpen={isFoodReferenceBookOpen}
+        onClose={() => setIsFoodReferenceBookOpen(false)}
+      />
 
-        <DietModals
-          isResetConfirmOpen={state.isResetConfirmOpen}
-          setIsResetConfirmOpen={state.setIsResetConfirmOpen}
-          resetDiet={state.resetDiet}
-          isExportConfirmOpen={state.isExportConfirmOpen}
-          setIsExportConfirmOpen={state.setIsExportConfirmOpen}
-          performExportPdf={state.performExportPdf}
-          isContinueDraftWarningOpen={state.isContinueDraftWarningOpen}
-          setIsContinueDraftWarningOpen={state.setIsContinueDraftWarningOpen}
-          continueToRecipes={state.continueToRecipes}
-          pendingTagCreation={state.pendingTagCreation}
-          setPendingTagCreation={state.setPendingTagCreation}
-          createGlobalTag={state.createGlobalTag}
-          isDeleteGroupConfirmOpen={state.isDeleteGroupConfirmOpen}
-          setIsDeleteGroupConfirmOpen={state.setIsDeleteGroupConfirmOpen}
-          confirmDeleteGroup={state.confirmDeleteGroup}
-          groupToDelete={state.groupToDelete}
-          isAddFoodModalOpen={state.isAddFoodModalOpen}
-          setIsAddFoodModalOpen={state.setIsAddFoodModalOpen}
-          activeGroupForAddition={state.activeGroupForAddition}
-          foodSearchQuery={state.foodSearchQuery}
-          setFoodSearchQuery={state.setFoodSearchQuery}
-          isSearchingFoods={state.isSearchingFoods}
-          searchResultFoods={state.searchResultFoods}
-          setSelectedFoodForInfo={state.setSelectedFoodForInfo}
-          setIsFoodInfoModalOpen={state.setIsFoodInfoModalOpen}
-          handleAddFromSearch={state.handleAddFromSearch}
-          isCreatingManualFood={state.isCreatingManualFood}
-          handleCreateManualFood={state.handleCreateManualFood}
-          isSmartModalOpen={state.isSmartModalOpen}
-          setIsSmartModalOpen={state.setIsSmartModalOpen}
-          smartAddTab={state.smartAddTab}
-          setSmartAddTab={state.setSmartAddTab}
-          smartSearchQuery={state.smartSearchQuery}
-          setSmartSearchQuery={state.setSmartSearchQuery}
-          isLoadingSmart={state.isLoadingSmart}
-          smartFavorites={state.smartFavorites}
-          smartGroups={state.smartGroups}
-          smartMyProducts={state.smartMyProducts}
-          smartSearchResults={state.smartSearchResults}
-          isSearchingInSmart={state.isSearchingInSmart}
-          selectedFoods={state.selectedFoods}
-          toggleSmartSelection={state.toggleSmartSelection}
-          toggleGroupSelection={state.toggleGroupSelection}
-          smartInfoFood={state.smartInfoFood}
-          setSmartInfoFood={state.setSmartInfoFood}
-          handleSmartAddAll={state.handleSmartAddAll}
-          buildFoodInfoPreview={buildFoodInfoPreview}
-          isFoodInfoModalOpen={state.isFoodInfoModalOpen}
-          selectedFoodForInfo={state.selectedFoodForInfo}
-          isVerificationModalOpen={state.isVerificationModalOpen}
-          setIsVerificationModalOpen={state.setIsVerificationModalOpen}
-          verificationResult={state.verificationResult}
-          isImportPatientModalOpen={state.isImportPatientModalOpen}
-          setIsImportPatientModalOpen={state.setIsImportPatientModalOpen}
-          patientSearchQuery={state.patientSearchQuery}
-          setPatientSearchQuery={state.setPatientSearchQuery}
-          isLoadingPatients={state.isLoadingPatients}
-          filteredPatients={state.filteredPatients}
-          patientsError={state.patientsError}
-          setPatientsError={state.setPatientsError}
-          handleSelectPatient={state.handleSelectPatient}
-          patients={state.patients}
-          isImportCreationModalOpen={state.isImportCreationModalOpen}
-          setIsImportCreationModalOpen={state.setIsImportCreationModalOpen}
-          handleImportCreation={state.handleImportCreation}
-          isAddGroupModalOpen={state.isAddGroupModalOpen}
-          setIsAddGroupModalOpen={state.setIsAddGroupModalOpen}
-          newGroupNameInput={state.newGroupNameInput}
-          setNewGroupNameInput={state.setNewGroupNameInput}
-          handleCreateGroup={state.handleCreateGroup}
-          allGroupsToRender={state.allGroupsToRender}
-          isDraftFoodEditorOpen={state.isDraftFoodEditorOpen}
-          setIsDraftFoodEditorOpen={state.setIsDraftFoodEditorOpen}
-          draftFoodToEdit={state.draftFoodToEdit}
-          draftFoodValues={state.draftFoodValues}
-          setDraftFoodValues={state.setDraftFoodValues}
-          handleSaveDraftFood={state.handleSaveDraftFood}
-          isSavingDraftFood={state.isSavingDraftFood}
-          isSaveCreationModalOpen={state.isSaveCreationModalOpen}
-          setIsSaveCreationModalOpen={state.setIsSaveCreationModalOpen}
-          creationDescription={state.creationDescription}
-          setCreationDescription={state.setCreationDescription}
-          handleSaveWithDescription={state.handleSaveWithDescription}
-         />
-        </>}
-       </ModuleLayout>
+      <ImportCreationModal
+        isOpen={isImportRecipeModalOpen}
+        onClose={() => setIsImportRecipeModalOpen(false)}
+        onImport={handleImportRecipe}
+        defaultType="RECIPE"
+        allowedTypes={["RECIPE", "RECETARIO", "FAST_DELIVERABLE"]}
+        allowFreemium
+      />
     </>
   );
 }

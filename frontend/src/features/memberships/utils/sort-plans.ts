@@ -1,28 +1,39 @@
-import type { MembershipPlan } from "../services/membership.service";
-
 /**
- * Reorders membership plans so that the most recommended plan (`isPopular === true`)
- * is ALWAYS placed in the exact center (or as close to the middle as possible).
+ * Reorders membership plans for the landing page:
+ * 1. Freemium plan (price === 0) ALWAYS on the far left.
+ * 2. Paid / Popular plans in the middle / right.
+ * 3. Coming Soon plans (isComingSoon === true) ALWAYS on the far right.
  */
-export function sortPlansWithPopularInCenter<T extends { isPopular?: boolean; displayOrder?: number }>(
-  plans: T[],
+export function sortPlansForLanding<T extends { price?: number; isPopular?: boolean; isComingSoon?: boolean; displayOrder?: number; slug?: string }>(
+  plans: T[]
 ): T[] {
   if (!plans || plans.length <= 1) return plans;
 
-  // First sort by displayOrder if present
-  const sorted = [...plans].sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0));
+  return [...plans].sort((a, b) => {
+    // 1. Freemium (price === 0 or slug free) always first on the left
+    const aIsFree = Number(a.price || 0) === 0 || (a.slug || "").toLowerCase().includes("free");
+    const bIsFree = Number(b.price || 0) === 0 || (b.slug || "").toLowerCase().includes("free");
+    if (aIsFree && !bIsFree) return -1;
+    if (!aIsFree && bIsFree) return 1;
 
-  const popularIndex = sorted.findIndex((p) => p.isPopular);
-  if (popularIndex === -1) return sorted;
+    // 2. Coming Soon always last on the far right
+    if (a.isComingSoon && !b.isComingSoon) return 1;
+    if (!a.isComingSoon && b.isComingSoon) return -1;
 
-  const popularPlan = sorted[popularIndex];
-  const otherPlans = sorted.filter((_, idx) => idx !== popularIndex);
+    // 3. Popular / Paid plans in the middle
+    if (a.isPopular && !b.isPopular) return -1;
+    if (!a.isPopular && b.isPopular) return 1;
 
-  // Calculate target middle index
-  const middleIndex = Math.floor(otherPlans.length / 2);
+    // 4. Fallback to displayOrder or price
+    return (a.displayOrder ?? 0) - (b.displayOrder ?? 0) || (Number(a.price || 0) - Number(b.price || 0));
+  });
+}
 
-  const result = [...otherPlans];
-  result.splice(middleIndex, 0, popularPlan);
-
-  return result;
+/**
+ * Legacy alias for backwards compatibility
+ */
+export function sortPlansWithPopularInCenter<T extends { price?: number; isPopular?: boolean; isComingSoon?: boolean; displayOrder?: number; slug?: string }>(
+  plans: T[]
+): T[] {
+  return sortPlansForLanding(plans);
 }

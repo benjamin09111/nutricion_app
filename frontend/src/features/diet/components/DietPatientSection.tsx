@@ -22,13 +22,10 @@ export const DietPatientSection: React.FC<DietPatientSectionProps> = ({
         <div className="flex flex-col items-center gap-5 text-center">
           <div className="max-w-2xl">
             <p className="text-sm font-bold leading-6 text-amber-900">
-              Puedes crear tu estrategia sin paciente o importar uno para personalizar mejor la dieta.
+              Importa un paciente para continuar: es obligatorio para generar un entregable personalizado.
             </p>
             <p className="mt-2 text-xs leading-5 text-slate-500">
-              Si importas un paciente, podrás considerar sus restricciones, objetivos y contexto clínico.
-            </p>
-            <p className="mt-2 text-xs font-semibold leading-5 text-slate-500">
-              *Si no seleccionas un paciente, puedes crear planes generales para reutilizarlos después.
+              Con el paciente vinculado, el PDF incorpora sus datos, restricciones, objetivos y contexto clínico automáticamente.
             </p>
           </div>
           <Button
@@ -36,7 +33,7 @@ export const DietPatientSection: React.FC<DietPatientSectionProps> = ({
             variant="outline"
             onClick={onImportPatient}
             disabled={isLoadingPatients}
-            className="h-10 w-full sm:w-auto min-w-0 sm:min-w-48 justify-center rounded-xl border-emerald-200 bg-white px-4 text-sm font-semibold text-emerald-700 hover:border-emerald-300 hover:bg-emerald-50"
+            className="h-10 w-full sm:w-auto min-w-0 sm:min-w-48 justify-center rounded-xl border-emerald-200 bg-white px-4 text-sm font-semibold text-emerald-700 hover:border-emerald-300 hover:bg-emerald-50 shadow-xs"
           >
             {isLoadingPatients ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <User className="mr-2 h-4 w-4" />}
             {isLoadingPatients ? "Cargando..." : "Importar paciente"}

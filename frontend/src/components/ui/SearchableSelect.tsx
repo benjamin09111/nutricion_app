@@ -35,6 +35,7 @@ export function SearchableSelect({
 }: SearchableSelectProps) {
   const { isDarkMode } = useTheme();
   const [open, setOpen] = useState(false);
+  const [openUpward, setOpenUpward] = useState(false);
   const [search, setSearch] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -49,6 +50,15 @@ export function SearchableSelect({
 
   const selectedLabel =
     normalizedOptions.find((opt) => opt.value === value)?.label || value;
+
+  useEffect(() => {
+    if (open && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      setOpenUpward(spaceBelow < 260 && spaceAbove > spaceBelow);
+    }
+  }, [open]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -101,7 +111,8 @@ export function SearchableSelect({
 
       {open && (
         <div className={cn(
-          "absolute z-50 mt-1 w-full overflow-auto overscroll-contain rounded-xl py-1 text-base shadow-lg ring-1 focus:outline-none sm:text-sm animate-in fade-in zoom-in-95 duration-100",
+          "absolute z-50 left-0 w-full overflow-auto overscroll-contain rounded-xl py-1 text-base shadow-lg ring-1 focus:outline-none sm:text-sm animate-in fade-in zoom-in-95 duration-100",
+          openUpward ? "bottom-full mb-1" : "top-full mt-1",
           isDarkMode ? "bg-slate-950 ring-emerald-400/10" : "bg-white ring-black/5",
         )}
         style={{ maxHeight: "min(14rem, calc(100vh - 14rem))" }}>

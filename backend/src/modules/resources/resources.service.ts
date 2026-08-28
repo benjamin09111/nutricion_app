@@ -1,8 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import * as fs from 'fs';
-import { join } from 'path';
 import { PermissionsService } from '../permissions/permissions.service';
+import { StorageService } from '../../common/services/storage.service';
 import { PLAN_ENTITLEMENT_KEYS } from '../memberships/plan-entitlements';
 
 @Injectable()
@@ -10,6 +9,7 @@ export class ResourcesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly permissionsService: PermissionsService,
+    private readonly storageService: StorageService,
   ) {}
 
   private extractVariables(content: string): string[] {
@@ -44,10 +44,12 @@ export class ResourcesService {
   }
 
   async findAll(nutritionistId: string, isAdmin: boolean, accountId: string) {
-    const canUseOwnResources = isAdmin || await this.permissionsService.checkFeatureAccess(
-      accountId,
-      PLAN_ENTITLEMENT_KEYS.RESOURCES_CREATE_ACCESS,
-    );
+    const canUseOwnResources =
+      isAdmin ||
+      (await this.permissionsService.checkFeatureAccess(
+        accountId,
+        PLAN_ENTITLEMENT_KEYS.RESOURCES_CREATE_ACCESS,
+      ));
     const whereClause = {
       OR: canUseOwnResources
         ? [
@@ -71,18 +73,22 @@ export class ResourcesService {
     );
   }
 
-  async findOne(id: string, nutritionistId: string, isAdmin: boolean, accountId: string) {
-    const canUseOwnResources = isAdmin || await this.permissionsService.checkFeatureAccess(
-      accountId,
-      PLAN_ENTITLEMENT_KEYS.RESOURCES_CREATE_ACCESS,
-    );
+  async findOne(
+    id: string,
+    nutritionistId: string,
+    isAdmin: boolean,
+    accountId: string,
+  ) {
+    const canUseOwnResources =
+      isAdmin ||
+      (await this.permissionsService.checkFeatureAccess(
+        accountId,
+        PLAN_ENTITLEMENT_KEYS.RESOURCES_CREATE_ACCESS,
+      ));
     const ownershipFilters = [
       { nutritionistId: null },
       ...(canUseOwnResources
-        ? [
-            { isPublic: true },
-            ...(nutritionistId ? [{ nutritionistId }] : []),
-          ]
+        ? [{ isPublic: true }, ...(nutritionistId ? [{ nutritionistId }] : [])]
         : []),
     ];
 
@@ -254,16 +260,15 @@ export class ResourcesService {
 
   async extractTextFromPdf(fileUrl: string) {
     try {
-      // Find filename from URL
-      const fileName = fileUrl.split('/').pop();
-      if (!fileName) throw new Error('Nombre de archivo inválido');
-
-      const filePath = join(process.cwd(), 'uploads', fileName);
-      if (!fs.existsSync(filePath)) {
-        throw new Error('El archivo no se encuentra en el servidor');
+      // El archivo vive en Supabase Storage. Se resuelve la ruta del objeto a
+      // partir de la URL en lugar de descargar la URL tal cual, de modo que una
+      // URL manipulada nunca convierta esto en una petición saliente arbitraria.
+      const objectPath = this.storageService.resolveObjectPath(fileUrl);
+      if (!objectPath) {
+        throw new Error('Nombre de archivo inválido');
       }
 
-      const dataBuffer = fs.readFileSync(filePath);
+      const dataBuffer = await this.storageService.download(objectPath);
       const { PDFParse } = await import('pdf-parse');
       const parser = new PDFParse({ data: dataBuffer });
       const data = await parser.getText();

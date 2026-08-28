@@ -24,6 +24,35 @@ export interface FastDeliverableResourcePage {
   variables?: Record<string, string>;
 }
 
+export interface FastDeliverableRecipeItem {
+  id: string;
+  name: string;
+  section?: string;
+  time?: string;
+  portion?: string;
+  ingredients?: string[];
+  instructions?: string;
+  calories?: number | string;
+  protein?: number | string;
+  carbs?: number | string;
+  fats?: number | string;
+}
+
+export interface FastDeliverableCartItem {
+  name: string;
+  category: string;
+  sources?: ("dieta" | "plato")[];
+}
+
+export interface FastDeliverableIntroData {
+  greetingName?: string | null;
+  message: string;
+}
+
+export interface FastDeliverableClosingData {
+  message: string;
+}
+
 export interface FastDeliverablePdfData {
   name: string;
   patientName?: string | null;
@@ -42,11 +71,15 @@ export interface FastDeliverablePdfData {
   nutritionistEmail?: string | null;
   planObjective?: string;
   showPlanObjectiveInPdf?: boolean;
+  intro?: FastDeliverableIntroData | null;
   meals: FastMealPlanItem[];
   avoidFoods: string[];
+  recipes?: FastDeliverableRecipeItem[];
+  cart?: FastDeliverableCartItem[];
   resources: FastDeliverableResourcePage[];
   portionGuide: Array<{ category: string; portion: string }>;
   supplementNote?: string;
+  closing?: FastDeliverableClosingData | null;
   generatedAt?: string;
 }
 
@@ -355,6 +388,120 @@ const styles = StyleSheet.create({
     fontFamily: "Helvetica-Bold",
     color: "#7c5cac",
   },
+  introBox: {
+    backgroundColor: "#faf5ff",
+    border: "1px solid #e9d5ff",
+    borderRadius: 8,
+    padding: 12,
+  },
+  introGreeting: {
+    fontSize: 13,
+    fontFamily: "Helvetica-Bold",
+    color: "#5f438f",
+    marginBottom: 6,
+  },
+  introMessage: {
+    fontSize: 10,
+    color: "#334155",
+    lineHeight: 1.6,
+  },
+  avoidFoodsWrap: {
+    marginTop: 10,
+  },
+  avoidFoodsLabel: {
+    fontSize: 10.5,
+    fontFamily: "Helvetica-Bold",
+    color: "#9a3412",
+    marginBottom: 6,
+  },
+  recipeCard: {
+    width: "100%",
+    marginBottom: 10,
+    padding: 10,
+    border: "1px solid #e2e8f0",
+    borderRadius: 8,
+    backgroundColor: "#f8fafc",
+  },
+  recipeName: {
+    fontSize: 12,
+    fontFamily: "Helvetica-Bold",
+    color: "#3f2c5f",
+    marginBottom: 2,
+  },
+  recipeMeta: {
+    fontSize: 9,
+    color: "#64748b",
+    marginBottom: 6,
+  },
+  recipeSubLabel: {
+    fontSize: 9,
+    fontFamily: "Helvetica-Bold",
+    color: "#475569",
+    marginBottom: 2,
+  },
+  recipeText: {
+    fontSize: 9.5,
+    color: "#334155",
+    lineHeight: 1.5,
+    marginBottom: 6,
+  },
+  recipeMacrosRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 2,
+  },
+  recipeMacroChip: {
+    fontSize: 8.5,
+    color: "#5f438f",
+    fontFamily: "Helvetica-Bold",
+  },
+  cartHeader: {
+    flexDirection: "row",
+    backgroundColor: "#0f766e",
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+  },
+  cartRow: {
+    flexDirection: "row",
+    borderLeft: "1px solid #e2e8f0",
+    borderRight: "1px solid #e2e8f0",
+    borderBottom: "1px solid #e2e8f0",
+    paddingVertical: 7,
+    paddingHorizontal: 8,
+    alignItems: "center",
+  },
+  cartCellName: {
+    width: "50%",
+  },
+  cartCellCategory: {
+    width: "30%",
+  },
+  cartCellSource: {
+    width: "20%",
+  },
+  cartSourceChip: {
+    fontSize: 7.5,
+    fontFamily: "Helvetica-Bold",
+    color: "#0f766e",
+  },
+  closingBox: {
+    backgroundColor: "#f5f3ff",
+    border: "1px solid #ddd6fe",
+    borderRadius: 8,
+    padding: 14,
+    marginTop: 4,
+  },
+  closingMessage: {
+    fontSize: 10,
+    color: "#334155",
+    lineHeight: 1.6,
+    marginBottom: 10,
+  },
+  closingSignature: {
+    fontSize: 10,
+    fontFamily: "Helvetica-Bold",
+    color: "#5f438f",
+  },
 });
 
 export function FastDeliverablePdfDocument({
@@ -363,15 +510,9 @@ export function FastDeliverablePdfDocument({
   data: FastDeliverablePdfData;
 }) {
   const patientName = data.patient?.name || data.patientName;
-  const ageDisplay = data.patient?.ageYears
-    ? `${data.patient.ageYears} años`
-    : "No registrada";
-  const weightDisplay = data.patient?.weight
-    ? `${data.patient.weight} kg`
-    : "No registrado";
-  const heightDisplay = data.patient?.height
-    ? `${data.patient.height} cm`
-    : "No registrada";
+  const ageDisplay = data.patient?.ageYears ? `${data.patient.ageYears} años` : null;
+  const weightDisplay = data.patient?.weight ? `${data.patient.weight} kg` : null;
+  const heightDisplay = data.patient?.height ? `${data.patient.height} cm` : null;
   const bmiDisplay = data.patient?.bmi ? `${data.patient.bmi}` : null;
 
   const nutritionistName = data.nutritionistName?.trim() || "Nutricionista";
@@ -406,18 +547,24 @@ export function FastDeliverablePdfDocument({
           </View>
 
           <View style={styles.headerRight}>
-            <Text style={styles.patientMetaRow}>
-              <Text style={styles.patientMetaLabel}>Edad: </Text>
-              {ageDisplay}
-            </Text>
-            <Text style={styles.patientMetaRow}>
-              <Text style={styles.patientMetaLabel}>Peso: </Text>
-              {weightDisplay}
-            </Text>
-            <Text style={styles.patientMetaRow}>
-              <Text style={styles.patientMetaLabel}>Altura: </Text>
-              {heightDisplay}
-            </Text>
+            {ageDisplay && (
+              <Text style={styles.patientMetaRow}>
+                <Text style={styles.patientMetaLabel}>Edad: </Text>
+                {ageDisplay}
+              </Text>
+            )}
+            {weightDisplay && (
+              <Text style={styles.patientMetaRow}>
+                <Text style={styles.patientMetaLabel}>Peso: </Text>
+                {weightDisplay}
+              </Text>
+            )}
+            {heightDisplay && (
+              <Text style={styles.patientMetaRow}>
+                <Text style={styles.patientMetaLabel}>Altura: </Text>
+                {heightDisplay}
+              </Text>
+            )}
             {bmiDisplay && (
               <Text style={styles.patientMetaRow}>
                 <Text style={styles.patientMetaLabel}>IMC: </Text>
@@ -426,6 +573,20 @@ export function FastDeliverablePdfDocument({
             )}
           </View>
         </View>
+
+        {/* Introducción */}
+        {data.intro?.message?.trim() ? (
+          <View style={styles.section} wrap={false}>
+            <View style={styles.introBox}>
+              <Text style={styles.introGreeting}>
+                {data.intro.greetingName
+                  ? `Hola, ${data.intro.greetingName}`
+                  : "Bienvenido/a a tu plan"}
+              </Text>
+              <Text style={styles.introMessage}>{data.intro.message.trim()}</Text>
+            </View>
+          </View>
+        ) : null}
 
         {/* Tabla de comidas (si aplica) */}
         {showTable && (
@@ -494,6 +655,19 @@ export function FastDeliverablePdfDocument({
               </View>
               ))}
             </>}
+
+            {data.avoidFoods && data.avoidFoods.length > 0 ? (
+              <View style={styles.avoidFoodsWrap}>
+                <Text style={styles.avoidFoodsLabel}>Alimentos a evitar</Text>
+                <View style={styles.chipWrap}>
+                  {data.avoidFoods.map((food, index) => (
+                    <View key={`${food}-${index}`} style={styles.chip}>
+                      <Text style={styles.chipText}>{food}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            ) : null}
           </View>
         )}
 
@@ -534,21 +708,75 @@ export function FastDeliverablePdfDocument({
           </View>
         )}
 
-        {/* Alimentos a evitar */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Alimentos a evitar</Text>
-          {data.avoidFoods && data.avoidFoods.length > 0 ? (
-            <View style={styles.chipWrap}>
-              {data.avoidFoods.map((food, index) => (
-                <View key={`${food}-${index}`} style={styles.chip}>
-                  <Text style={styles.chipText}>{food}</Text>
+        {/* Recetas realizadas */}
+        {data.recipes && data.recipes.length > 0 ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Recetas realizadas</Text>
+            {data.recipes.map((recipe, index) => {
+              const macros = [
+                recipe.calories ? `${recipe.calories} kcal` : null,
+                recipe.protein ? `${recipe.protein}g prot` : null,
+                recipe.carbs ? `${recipe.carbs}g carb` : null,
+                recipe.fats ? `${recipe.fats}g grasas` : null,
+              ].filter(Boolean) as string[];
+              return (
+                <View key={recipe.id || index} style={styles.recipeCard} wrap={false}>
+                  <Text style={styles.recipeName}>{recipe.name}</Text>
+                  <Text style={styles.recipeMeta}>
+                    {[recipe.section, recipe.time, recipe.portion].filter(Boolean).join(" • ")}
+                  </Text>
+                  {recipe.ingredients && recipe.ingredients.length > 0 ? (
+                    <>
+                      <Text style={styles.recipeSubLabel}>Ingredientes</Text>
+                      <Text style={styles.recipeText}>
+                        {recipe.ingredients.map((ing) => `• ${ing}`).join("\n")}
+                      </Text>
+                    </>
+                  ) : null}
+                  {recipe.instructions?.trim() ? (
+                    <>
+                      <Text style={styles.recipeSubLabel}>Preparación</Text>
+                      <Text style={styles.recipeText}>{recipe.instructions.trim()}</Text>
+                    </>
+                  ) : null}
+                  {macros.length > 0 ? (
+                    <View style={styles.recipeMacrosRow}>
+                      {macros.map((m, mIdx) => (
+                        <Text key={mIdx} style={styles.recipeMacroChip}>{m}</Text>
+                      ))}
+                    </View>
+                  ) : null}
                 </View>
-              ))}
+              );
+            })}
+          </View>
+        ) : null}
+
+        {/* Lista de carrito */}
+        {data.cart && data.cart.length > 0 ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Lista de carrito</Text>
+            <View style={styles.cartHeader}>
+              <Text style={[styles.cartCellName, styles.cellHeaderText]}>Alimento / Ingrediente</Text>
+              <Text style={[styles.cartCellCategory, styles.cellHeaderText]}>Categoría</Text>
+              <Text style={[styles.cartCellSource, styles.cellHeaderText]}>Origen</Text>
             </View>
-          ) : (
-            <Text style={styles.mutedText}>No tiene</Text>
-          )}
-        </View>
+            {data.cart.map((item, index) => (
+              <View
+                key={`${item.name}-${index}`}
+                style={[styles.cartRow, index % 2 === 1 ? styles.tableRowEven : {}]}
+              >
+                <Text style={styles.cartCellName}>{item.name}</Text>
+                <Text style={styles.cartCellCategory}>{item.category}</Text>
+                <Text style={[styles.cartCellSource, styles.cartSourceChip]}>
+                  {(item.sources || [])
+                    .map((s) => (s === "plato" ? "Plato" : "Dieta"))
+                    .join(", ") || "-"}
+                </Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
 
         {/* Suplemento opcional */}
         {data.supplementNote ? (
@@ -585,6 +813,20 @@ export function FastDeliverablePdfDocument({
                   ))}
               </View>
             ))}
+          </View>
+        ) : null}
+
+        {/* Despedida */}
+        {data.closing?.message?.trim() ? (
+          <View style={styles.section} wrap={false}>
+            <Text style={styles.sectionTitle}>Un mensaje para ti</Text>
+            <View style={styles.closingBox}>
+              <Text style={styles.closingMessage}>{data.closing.message.trim()}</Text>
+              <Text style={styles.closingSignature}>
+                {nutritionistName}
+                {nutritionistEmail ? ` — ${nutritionistEmail}` : ""}
+              </Text>
+            </View>
           </View>
         ) : null}
 

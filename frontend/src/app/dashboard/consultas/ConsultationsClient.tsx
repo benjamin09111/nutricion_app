@@ -19,7 +19,6 @@ import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { UsageLimitBadge } from "@/components/shared/UsageLimitBadge";
 import { DatePicker } from "@/components/ui/DatePicker";
-import Cookies from "js-cookie";
 import { Pagination } from "@/components/ui/Pagination";
 import { fetchApi } from "@/lib/api-base";
 import { useSubscription } from "@/context/SubscriptionContext";
@@ -88,9 +87,7 @@ export default function ConsultationsClient() {
   }, [searchTerm]);
 
   const getAuthHeaders = () => {
-    const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
     return {
-      Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     };
   };

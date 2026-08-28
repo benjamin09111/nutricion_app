@@ -21,6 +21,7 @@ export default function MaintenancePage() {
             alt="NutriNet"
             width={220}
             height={72}
+            style={{ height: "auto" }}
             className="h-auto w-[160px] object-contain sm:w-[220px]"
             priority
           />

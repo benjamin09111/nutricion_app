@@ -52,6 +52,41 @@ export class SupportService {
         );
     }
 
+    if (dbType === SupportRequestType.TESTIMONIO) {
+      const authorAccount = await this.prisma.account.findUnique({
+        where: { email: data.email },
+        include: { nutritionist: true },
+      });
+      const name =
+        authorAccount?.nutritionist?.fullName || data.email.split('@')[0];
+      const role = authorAccount?.nutritionist?.specialty || 'Nutricionista';
+      const parts = name.trim().split(/\s+/);
+      const avatarText =
+        parts.length > 1
+          ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+          : name.substring(0, 2).toUpperCase();
+
+      await this.prisma.testimonial
+        .create({
+          data: {
+            name,
+            role,
+            quote: data.message || '',
+            avatarText,
+            isPublished: false,
+            isReviewed: false,
+            supportRequestId: request.id,
+            authorAccountId: authorAccount?.id,
+          },
+        })
+        .catch((err) =>
+          console.error(
+            'Error auto-creating testimonial from support request:',
+            err,
+          ),
+        );
+    }
+
     return request;
   }
 
@@ -106,9 +141,16 @@ export class SupportService {
   }
 
   async remove(id: string) {
-    return this.prisma.supportRequest.delete({
-      where: { id },
-    });
+    try {
+      return await this.prisma.supportRequest.delete({
+        where: { id },
+      });
+    } catch (error: any) {
+      if (error.code === "P2025") {
+        return { count: 1, message: "Registro ya eliminado" };
+      }
+      throw error;
+    }
   }
 
   async removeResolved() {

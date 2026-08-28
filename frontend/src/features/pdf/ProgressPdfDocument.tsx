@@ -28,42 +28,57 @@ const S = StyleSheet.create({
   coverHeader: {
     backgroundColor: colors.primary,
     paddingHorizontal: 32,
-    paddingVertical: 20,
+    paddingTop: 18,
+    paddingBottom: 18,
     marginHorizontal: -32,
     marginTop: -30,
-    marginBottom: 14,
+    marginBottom: 16,
+  },
+  coverHeaderTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
   },
   coverBrand: {
-    fontSize: 27,
-    fontFamily: "Helvetica-Bold",
-    color: colors.white,
-  },
-  coverSubtitle: {
-    fontSize: 11,
-    color: "rgba(255,255,255,0.75)",
-    fontFamily: "Helvetica",
-    marginTop: 2,
-  },
-  coverDate: {
-    fontSize: 7,
-    color: "rgba(255,255,255,0.5)",
-    marginTop: 2,
-  },
-  patientName: {
     fontSize: 22,
     fontFamily: "Helvetica-Bold",
     color: colors.white,
-    marginTop: 8,
+    lineHeight: 1.2,
   },
-  periodRow: {
+  coverSubtitle: {
+    fontSize: 9,
+    color: "rgba(255,255,255,0.85)",
+    fontFamily: "Helvetica-Bold",
+    textTransform: "uppercase" as const,
+    letterSpacing: 0.8,
+    lineHeight: 1.2,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    marginBottom: 10,
+  },
+  coverHeaderBottom: {
+    flexDirection: "column",
+  },
+  patientName: {
+    fontSize: 18,
+    fontFamily: "Helvetica-Bold",
+    color: colors.white,
+    lineHeight: 1.25,
+    marginBottom: 4,
+  },
+  metaRow: {
     flexDirection: "row",
-    gap: 12,
-    marginTop: 2,
+    justifyContent: "space-between",
+    alignItems: "center",
   },
-  periodText: {
+  metaText: {
     fontSize: 8,
-    color: "rgba(255,255,255,0.7)",
+    color: "rgba(255,255,255,0.75)",
     fontFamily: "Helvetica",
+    lineHeight: 1.2,
   },
 
   // Charts grid — 2 per row
@@ -213,17 +228,24 @@ export function ProgressPdfDocument({ data }: { data: ProgressPdfData }) {
       <Page size="A4" style={S.page}>
         {/* Header */}
         <View style={S.coverHeader}>
-          <Text style={S.coverBrand}>NutriNet</Text>
-          <Text style={S.coverSubtitle}>Informe de Evolución Biométrica</Text>
-          <Text style={S.coverDate}>Generado el {date}</Text>
-          <Text style={S.patientName}>{data.patientName}</Text>
-          {data.dateFrom && data.dateTo && (
-            <View style={S.periodRow}>
-              <Text style={S.periodText}>
-                {data.dateFrom} — {data.dateTo}
-              </Text>
+          <View style={S.coverHeaderTop}>
+            <Text style={S.coverBrand}>NutriNet</Text>
+            <Text style={S.coverSubtitle}>Informe de Evolución Biométrica</Text>
+          </View>
+
+          <View style={S.divider} />
+
+          <View style={S.coverHeaderBottom}>
+            <Text style={S.patientName}>{data.patientName}</Text>
+            <View style={S.metaRow}>
+              <Text style={S.metaText}>Generado el {date}</Text>
+              {data.dateFrom && data.dateTo && (
+                <Text style={S.metaText}>
+                  Período: {data.dateFrom} — {data.dateTo}
+                </Text>
+              )}
             </View>
-          )}
+          </View>
         </View>
 
         {/* Summary Table */}

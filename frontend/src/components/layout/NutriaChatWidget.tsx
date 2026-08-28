@@ -156,9 +156,21 @@ export function NutriaChatWidget() {
           >
             <div className="rounded-[1.4rem] border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900 shadow-sm">
               <div className="mb-1 text-[10px] font-black uppercase tracking-[0.22em] text-amber-700">Primero revisa esto</div>
-              <p className="font-medium">
-                Si tienes una duda, visita{" "}
-                <Link href="/dashboard/preguntas-frecuentes" className="font-black underline decoration-amber-400 underline-offset-2 transition hover:text-amber-950 cursor-pointer">
+              <p className="font-medium text-xs">
+                Revisa la{" "}
+                <Link
+                  href="/dashboard/uso-recomendado"
+                  onClick={() => setIsOpen(false)}
+                  className="font-black underline decoration-amber-400 underline-offset-2 transition hover:text-amber-950 cursor-pointer"
+                >
+                  Guía de uso y documentación
+                </Link>{" "}
+                o{" "}
+                <Link
+                  href="/dashboard/preguntas-frecuentes"
+                  onClick={() => setIsOpen(false)}
+                  className="font-black underline decoration-amber-400 underline-offset-2 transition hover:text-amber-950 cursor-pointer"
+                >
                   Preguntas frecuentes
                 </Link>{" "}
                 antes de seguir conmigo.
@@ -176,12 +188,24 @@ export function NutriaChatWidget() {
                   </p>
                 ))}
 
+                <div className="mt-3 pt-3 border-t border-violet-100">
+                  <Link
+                    href="/dashboard/uso-recomendado"
+                    onClick={() => setIsOpen(false)}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:from-violet-700 hover:to-indigo-700 active:scale-95 cursor-pointer"
+                  >
+                    <span>Ver Documentación y Guía de Uso</span>
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </div>
+
                 {moduleHelp.links?.length ? (
                   <div className="mt-4 flex flex-wrap gap-2">
                     {moduleHelp.links.map((link) => (
                       <Link
                         key={link.href}
                         href={link.href}
+                        onClick={() => setIsOpen(false)}
                         className="inline-flex items-center gap-2 rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 transition hover:bg-violet-100 cursor-pointer"
                       >
                         {link.label}

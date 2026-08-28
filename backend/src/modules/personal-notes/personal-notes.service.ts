@@ -6,7 +6,12 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypto';
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHash,
+  randomBytes,
+} from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PermissionsService } from '../permissions/permissions.service';
 import { PLAN_ENTITLEMENT_KEYS } from '../memberships/plan-entitlements';
@@ -68,7 +73,9 @@ export class PersonalNotesService {
       tabs = [created];
     }
 
-    return tabs.map((tab, index) => this.toResponse(tab, !firstOnlyEditable || index === 0));
+    return tabs.map((tab, index) =>
+      this.toResponse(tab, !firstOnlyEditable || index === 0),
+    );
   }
 
   async create(accountId: string, dto: CreatePersonalNoteTabDto) {
@@ -117,8 +124,13 @@ export class PersonalNotesService {
       return this.toResponse(tab, true);
     } catch (error) {
       if (error instanceof ForbiddenException) throw error;
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034') {
-        throw new ConflictException('No se pudo crear la pestaña. Inténtalo nuevamente.');
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2034'
+      ) {
+        throw new ConflictException(
+          'No se pudo crear la pestaña. Inténtalo nuevamente.',
+        );
       }
       throw error;
     }
@@ -147,13 +159,19 @@ export class PersonalNotesService {
     const updated = await this.prisma.personalNoteTab.updateMany({
       where: { id, accountId, version: dto.expectedVersion },
       data: {
-        ...(dto.title !== undefined ? { title: this.encrypt(dto.title.trim()) } : {}),
-        ...(dto.content !== undefined ? { content: this.encrypt(dto.content) } : {}),
+        ...(dto.title !== undefined
+          ? { title: this.encrypt(dto.title.trim()) }
+          : {}),
+        ...(dto.content !== undefined
+          ? { content: this.encrypt(dto.content) }
+          : {}),
         version: { increment: 1 },
       },
     });
     if (updated.count === 0) {
-      throw new ConflictException('La nota cambió en otro dispositivo. Recarga para continuar.');
+      throw new ConflictException(
+        'La nota cambió en otro dispositivo. Recarga para continuar.',
+      );
     }
 
     let result = await this.prisma.personalNoteTab.findFirstOrThrow({
@@ -165,14 +183,18 @@ export class PersonalNotesService {
       where: { id, accountId },
       select: TAB_SELECT,
     });
-    return this.toResponse(result, limit > 1 || (await this.getFirstTab(accountId)).id === id);
+    return this.toResponse(
+      result,
+      limit > 1 || (await this.getFirstTab(accountId)).id === id,
+    );
   }
 
   async remove(accountId: string, id: string) {
     const deleted = await this.prisma.personalNoteTab.deleteMany({
       where: { id, accountId },
     });
-    if (deleted.count === 0) throw new NotFoundException('Pestaña no encontrada.');
+    if (deleted.count === 0)
+      throw new NotFoundException('Pestaña no encontrada.');
 
     const first = await this.prisma.personalNoteTab.findFirst({
       where: { accountId },
@@ -219,18 +241,20 @@ export class PersonalNotesService {
     tabs: SelectedPersonalNoteTab[],
   ) {
     const updates = tabs.flatMap((tab) => {
-        const title = this.normalizeStoredValue(tab.title);
-        const content = this.normalizeStoredValue(tab.content);
-        if (title === undefined && content === undefined) return [];
+      const title = this.normalizeStoredValue(tab.title);
+      const content = this.normalizeStoredValue(tab.content);
+      if (title === undefined && content === undefined) return [];
 
-        return [this.prisma.personalNoteTab.updateMany({
+      return [
+        this.prisma.personalNoteTab.updateMany({
           where: { id: tab.id, accountId },
           data: {
             ...(title !== undefined ? { title } : {}),
             ...(content !== undefined ? { content } : {}),
           },
-        })];
-      });
+        }),
+      ];
+    });
     await Promise.all(updates);
   }
 
@@ -244,7 +268,9 @@ export class PersonalNotesService {
 
     const decrypted = this.decrypt(value);
     // Earlier versions treated encrypted empty strings as plaintext and encrypted them again.
-    return this.isEncrypted(decrypted) ? this.encrypt(this.decrypt(decrypted)) : undefined;
+    return this.isEncrypted(decrypted)
+      ? this.encrypt(this.decrypt(decrypted))
+      : undefined;
   }
 
   private getEncryptionKey() {
@@ -256,14 +282,22 @@ export class PersonalNotesService {
   private encrypt(value: string) {
     const iv = randomBytes(12);
     const cipher = createCipheriv('aes-256-gcm', this.getEncryptionKey(), iv);
-    const encrypted = Buffer.concat([cipher.update(value, 'utf8'), cipher.final()]);
+    const encrypted = Buffer.concat([
+      cipher.update(value, 'utf8'),
+      cipher.final(),
+    ]);
     return `${iv.toString('base64url')}.${cipher.getAuthTag().toString('base64url')}.${encrypted.toString('base64url')}`;
   }
 
   private decrypt(value: string) {
     const [iv, tag, data] = value.split('.');
-    if (!iv || !tag || data === undefined) throw new Error('Nota cifrada inválida.');
-    const decipher = createDecipheriv('aes-256-gcm', this.getEncryptionKey(), Buffer.from(iv, 'base64url'));
+    if (!iv || !tag || data === undefined)
+      throw new Error('Nota cifrada inválida.');
+    const decipher = createDecipheriv(
+      'aes-256-gcm',
+      this.getEncryptionKey(),
+      Buffer.from(iv, 'base64url'),
+    );
     decipher.setAuthTag(Buffer.from(tag, 'base64url'));
     return Buffer.concat([
       decipher.update(Buffer.from(data, 'base64url')),

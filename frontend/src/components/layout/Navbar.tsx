@@ -14,6 +14,7 @@ import {
   Activity,
   RotateCcw,
   NotebookPen,
+  X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -105,7 +106,14 @@ export function Navbar({
   const notificationRef = useRef<HTMLDivElement>(null);
 
   const { isAdmin, isAdminView, toggleViewMode } = useAdmin();
-  const { planName, currentPlan, hasPendingTransfer } = useSubscription();
+  const { planName, currentPlan, hasPendingTransfer, plan, isDeveloper } = useSubscription();
+  const currentPrice = Number(currentPlan?.price || 0);
+  const isFreemium =
+    !isDeveloper &&
+    (plan === "free" ||
+      currentPrice === 0 ||
+      (currentPlan?.slug || "").toLowerCase().includes("free") ||
+      (currentPlan?.slug || "").toLowerCase().includes("freemium"));
   const { unreadCount, notifications, markAsRead, markAllAsRead } =
     useNotifications();
   const { isDarkMode, toggleTheme } = useTheme();
@@ -193,7 +201,7 @@ export function Navbar({
 
         <div className="flex min-w-0 flex-1 items-center gap-x-1 sm:gap-x-4 lg:gap-x-6">
           <div className="flex min-w-0 flex-1 items-center justify-end gap-x-1.5 sm:gap-x-4 lg:gap-x-8">
-            {userEmail === "benjaminmoralespizarro763@gmail.com" && (
+            {process.env.NODE_ENV === "development" && false && userEmail === "benjaminmoralespizarro763@gmail.com" && (
               <>
                 <button
                   type="button"
@@ -218,7 +226,7 @@ export function Navbar({
               </>
             )}
 
-            {isAdmin && (
+            {false && (
               <button
                 type="button"
                 onClick={toggleViewMode}
@@ -235,24 +243,22 @@ export function Navbar({
             )}
 
             {!isAdminView && (
-              <Link
-                href="/dashboard/actualizaciones"
+              <button
+                type="button"
+                onClick={() => window.dispatchEvent(new CustomEvent("toggle-notes-agenda"))}
                 className={cn(
-                  "inline-flex cursor-pointer items-center gap-1.5 sm:gap-2 rounded-full border px-2.5 py-1.5 sm:px-4 sm:py-2 text-xs font-bold transition-all shrink-0",
+                  "relative rounded-full p-2 transition-all outline-none cursor-pointer",
                   isDarkMode
-                    ? "border-indigo-400/20 bg-indigo-500/10 text-indigo-100 hover:bg-indigo-500/15"
-                    : "border-indigo-100 bg-indigo-50 text-indigo-700 hover:bg-indigo-100",
+                    ? "text-amber-300 hover:bg-amber-500/10"
+                    : "text-amber-600 hover:bg-amber-50 hover:text-amber-700",
                 )}
-                title="Futuras funciones"
+                title="Mis notas"
               >
-                <Sparkles className="h-4 w-4 shrink-0 text-indigo-400" />
-                <span className="hidden sm:inline">Futuras funciones</span>
-              </Link>
+                <NotebookPen className="h-5 w-5" />
+              </button>
             )}
 
-            {/* <FollowUpNotificationsMenu title="Seguimiento de pacientes" /> */}
-
-            {!isAdminView && currentPlan?.key === "free" && (
+            {!isAdminView && isFreemium && (
               <button
                 type="button"
                 onClick={() =>
@@ -263,80 +269,16 @@ export function Navbar({
                       )
                 }
                 className={cn(
-                  "inline-flex items-center gap-1.5 sm:gap-2 rounded-full px-2.5 py-1.5 sm:px-4 sm:py-2 text-xs font-bold transition-all shrink-0",
+                  "relative rounded-full p-2 transition-all outline-none cursor-pointer active:scale-95",
                   hasPendingTransfer
-                    ? "border border-slate-200 bg-slate-50 text-slate-600 cursor-default"
+                    ? "text-slate-400 cursor-default"
                     : isDarkMode
-                      ? "border border-amber-400/30 bg-gradient-to-r from-amber-500/20 to-amber-600/20 text-amber-300 hover:from-amber-500/30 hover:to-amber-600/30"
-                      : "border border-amber-200 bg-gradient-to-r from-amber-50 to-amber-100 text-amber-700 hover:from-amber-100 hover:to-amber-200 shadow-sm",
+                      ? "text-amber-400 hover:bg-amber-500/10"
+                      : "text-amber-500 hover:bg-amber-50 hover:text-amber-600",
                 )}
                 title={hasPendingTransfer ? "Plan pendiente de aprobación" : "Ascender a Pro"}
               >
-                <Crown className="h-4 w-4 shrink-0 text-amber-500" />
-                <span className="hidden sm:inline">
-                  {hasPendingTransfer ? "Plan pendiente" : "Ascender a Pro"}
-                </span>
-              </button>
-            )}
-
-            {!isAdminView && (
-              <button
-                type="button"
-                onClick={() => window.dispatchEvent(new CustomEvent("toggle-notes-agenda"))}
-                className={cn(
-                  "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs font-bold transition-all shrink-0 cursor-pointer shadow-sm active:scale-95",
-                  isDarkMode
-                    ? "border-amber-400/30 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20"
-                    : "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100",
-                )}
-                title="Mis notas"
-              >
-                <NotebookPen className="h-4 w-4 shrink-0" />
-                <span className="hidden sm:inline">Mis notas</span>
-              </button>
-            )}
-
-            {!isAdminView && (
-              <button
-                type="button"
-                onClick={() => setIsPlanLimitsModalOpen(true)}
-                className={cn(
-                  "inline-flex items-center gap-1.5 sm:gap-2 rounded-full px-2.5 py-1.5 sm:px-3.5 sm:py-1.5 text-xs font-bold transition-all shrink-0 cursor-pointer border shadow-xs active:scale-95",
-                  isDarkMode
-                    ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20"
-                    : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100",
-                )}
-                title="Límites de mi plan"
-              >
-                <Activity className="h-3.5 w-3.5 text-emerald-600" />
-                <span className="hidden sm:inline">Límites de mi plan</span>
-              </button>
-            )}
-
-            {!isAdminView && (
-              <button
-                type="button"
-                onClick={() =>
-                  window.dispatchEvent(new CustomEvent("toggle-nutria-chat"))
-                }
-                className={cn(
-                  "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-bold transition-all shrink-0 cursor-pointer border shadow-sm active:scale-95",
-                  isDarkMode
-                    ? "border-violet-400/30 bg-gradient-to-r from-violet-600/30 to-fuchsia-600/30 text-violet-100 hover:from-violet-600/40 hover:to-fuchsia-600/40"
-                    : "border-violet-200 bg-gradient-to-r from-violet-50 to-fuchsia-50 text-violet-800 hover:from-violet-100 hover:to-fuchsia-100",
-                )}
-                title="Tutorial y Asistencia de Nutria"
-              >
-                <div className="relative h-4.5 w-4.5 overflow-hidden rounded-full border border-violet-400/40 shrink-0">
-                  <Image
-                    src="/circle_logo.webp"
-                    alt="Nutria"
-                    fill
-                    sizes="18px"
-                    className="object-cover"
-                  />
-                </div>
-                <span className="hidden text-[11px] font-bold tracking-tight sm:inline">Nutria</span>
+                <Crown className="h-5 w-5 text-amber-500" />
               </button>
             )}
 
@@ -385,14 +327,24 @@ export function Navbar({
                   >
                     Notificaciones
                   </h3>
-                  {unreadCount > 0 && (
+                  <div className="flex items-center gap-2">
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={markAllAsRead}
+                        className="text-xs font-medium text-emerald-600 transition-colors hover:text-emerald-700"
+                      >
+                        Marcar todo como leído
+                      </button>
+                    )}
                     <button
-                      onClick={markAllAsRead}
-                      className="text-xs font-medium text-emerald-600 transition-colors hover:text-emerald-700"
+                      type="button"
+                      onClick={() => setIsNotificationsOpen(false)}
+                      className="rounded-lg p-1 text-slate-400 hover:bg-slate-200/60 hover:text-slate-600 dark:hover:bg-slate-800 transition-colors"
+                      aria-label="Cerrar notificaciones"
                     >
-                      Marcar todo como leído
+                      <X className="h-4 w-4" />
                     </button>
-                  )}
+                  </div>
                 </div>
 
                 <div className="max-h-[70vh] overflow-y-auto">
@@ -635,6 +587,81 @@ export function Navbar({
                   />
                   Configuraciones
                 </Link>
+
+                {!isAdminView && (
+                  <div
+                    className={cn(
+                      "border-t px-4 py-2.5",
+                      isDarkMode ? "border-emerald-400/10" : "border-slate-100",
+                    )}
+                  >
+                    <p
+                      className={cn(
+                        "mb-1.5 text-[10px] font-semibold uppercase tracking-wider",
+                        isDarkMode ? "text-emerald-100/50" : "text-slate-400",
+                      )}
+                    >
+                      Mi Plan actual
+                    </p>
+                    {isFreemium ? (
+                      <div className="space-y-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsProfileOpen(false);
+                            setIsPlanLimitsModalOpen(true);
+                          }}
+                          className={cn(
+                            "flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-bold transition-all border",
+                            isDarkMode
+                              ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20"
+                              : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100",
+                          )}
+                        >
+                          <Activity className="h-3.5 w-3.5 text-emerald-600" />
+                          <span>Límites de mi plan</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsProfileOpen(false);
+                            if (!hasPendingTransfer) {
+                              router.push("/dashboard/configuraciones?tab=membership&openPlanModal=1");
+                            }
+                          }}
+                          className={cn(
+                            "flex w-full cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs font-bold transition-all border",
+                            hasPendingTransfer
+                              ? "border-slate-200 bg-slate-50 text-slate-600 cursor-default"
+                              : isDarkMode
+                                ? "border-amber-400/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20"
+                                : "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100",
+                          )}
+                        >
+                          <Crown className="h-3.5 w-3.5 text-amber-500" />
+                          <span>{hasPendingTransfer ? "Plan pendiente" : "Ascender a Pro"}</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <Link
+                        href="/dashboard/configuraciones?tab=membership"
+                        className={cn(
+                          "flex w-full cursor-pointer items-center justify-between rounded-lg px-2.5 py-1.5 text-xs font-bold transition-all border",
+                          isDarkMode
+                            ? "border-amber-400/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20"
+                            : "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100",
+                        )}
+                        onClick={() => setIsProfileOpen(false)}
+                      >
+                        <span className="flex items-center gap-2">
+                          <Crown className="h-3.5 w-3.5 text-amber-500" />
+                          <span>Plan Activo</span>
+                        </span>
+                        <span className="text-[10px] text-amber-600 font-extrabold uppercase">PRO</span>
+                      </Link>
+                    )}
+                  </div>
+                )}
 
                 <div
                   className={cn(

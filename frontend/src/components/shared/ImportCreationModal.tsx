@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { Loader2, Search, Library, Tag as TagIcon } from "lucide-react";
-import Cookies from "js-cookie";
 import { toast } from "sonner";
 import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
@@ -27,16 +26,14 @@ interface ImportCreationModalProps {
   onImport: (creation: Creation) => void;
   defaultType?: string;
   allowedTypes?: string[];
+  allowFreemium?: boolean;
 }
 
 const CREATION_TYPE_OPTIONS = [
   { value: "ALL", label: "Todos" },
   { value: "DIET", label: "Dietas" },
-  { value: "SHOPPING_LIST", label: "Carrito" },
   { value: "RECIPE", label: "Recetas" },
-  { value: "RECETARIO", label: "Recetarios" },
   { value: "FAST_DELIVERABLE", label: "Entregable rápido" },
-  { value: "PAUTAS", label: "Pauta de alimentación" },
 ] as const;
 
 export function ImportCreationModal({
@@ -45,6 +42,7 @@ export function ImportCreationModal({
   onImport,
   defaultType,
   allowedTypes,
+  allowFreemium = false,
 }: ImportCreationModalProps) {
   const { can } = useSubscription();
   const canImport = can("creations.import.access");
@@ -55,7 +53,7 @@ export function ImportCreationModal({
 
   useEffect(() => {
     if (!isOpen) return;
-    if (!canImport) {
+    if (!canImport && !allowFreemium) {
       window.dispatchEvent(
         new CustomEvent("show-freemium-upgrade", {
           detail: {
@@ -68,7 +66,7 @@ export function ImportCreationModal({
       return;
     }
     void fetchCreations();
-  }, [isOpen, canImport, onClose]);
+  }, [isOpen, canImport, allowFreemium, onClose]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -82,9 +80,7 @@ export function ImportCreationModal({
   const fetchCreations = async () => {
     setLoading(true);
     try {
-      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const response = await fetchApi("/creations", {
-        headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
         const data = await response.json();
@@ -226,7 +222,7 @@ export function ImportCreationModal({
               <div
                 key={creation.id}
                 onClick={() => {
-                  if (!canImport) return;
+                  if (!canImport && !allowFreemium) return;
                   onImport(creation);
                   onClose();
                 }}

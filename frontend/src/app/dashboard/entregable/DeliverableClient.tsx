@@ -52,7 +52,6 @@ import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { SaveCreationModal } from "@/components/ui/SaveCreationModal";
-import Cookies from "js-cookie";
 import { fetchApi } from "@/lib/api-base";
 import { getCurrentUser, setCurrentUser } from "@/lib/current-user";
 import { membershipService } from "@/features/memberships/services/membership.service";
@@ -1493,12 +1492,10 @@ export default function DeliverableClient() {
     const nextTemplates = [templateText, ...existingTemplates];
     setIsSavingWelcomeTemplate(true);
     try {
-      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const response = await fetchApi(`/users/me/settings`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           deliverableWelcomeTemplates: nextTemplates,
@@ -1533,12 +1530,10 @@ export default function DeliverableClient() {
   const handleSaveProfessionalContact = async () => {
     setIsSavingProfessionalContact(true);
     try {
-      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const response = await fetchApi(`/users/me/settings`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           professionalInstagram: safeString(professionalInstagram),
@@ -1584,9 +1579,7 @@ export default function DeliverableClient() {
 
   const fetchResources = async () => {
     try {
-      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const response = await fetchApi(`/resources`, {
-        headers: { Authorization: `Bearer ${token}` },
       });
       if (!response.ok) return;
       const data = await response.json();
@@ -1616,12 +1609,10 @@ export default function DeliverableClient() {
     const resource = resources.find((item) => item.id === selectedResourceId);
     if (!resource) return;
     try {
-      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const response = await fetchApi(`/resources/resolve-variables`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           content: resource.content,
@@ -1670,12 +1661,10 @@ export default function DeliverableClient() {
     }
 
     try {
-      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const response = await fetchApi(`/resources/resolve-variables`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           content: resource.content,
@@ -1748,10 +1737,7 @@ export default function DeliverableClient() {
   const fetchPatients = async () => {
     setIsLoadingPatients(true);
     try {
-      const token =
-        Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const response = await fetchApi(`/patients?status=Activos`, {
-        headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
         const data = await response.json();
@@ -1767,9 +1753,7 @@ export default function DeliverableClient() {
   const handleSelectPatient = async (patient: any) => {
     let patientDetail = patient;
     try {
-      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const response = await fetchApi(`/patients/${patient.id}`, {
-        headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
         patientDetail = await response.json();
@@ -1824,7 +1808,13 @@ export default function DeliverableClient() {
       const draft = storedDraft ? JSON.parse(storedDraft) : {};
 
       if (type === "DIET") {
-        draft.diet = content;
+        const sanitizedContent = typeof content === "object" && content ? { ...content } : content;
+        if (sanitizedContent && typeof sanitizedContent === "object") {
+          delete sanitizedContent.activeConstraints;
+          delete sanitizedContent.dietTags;
+          delete sanitizedContent.tags;
+        }
+        draft.diet = sanitizedContent;
         setHasDraftMemory(true);
         toast.success(`Dieta "${creation.name}" importada al borrador.`);
       } else if (type === "SHOPPING_LIST") {
@@ -1833,7 +1823,13 @@ export default function DeliverableClient() {
         setHasCart(true);
         toast.success(`Carrito "${creation.name}" importado al borrador.`);
       } else if (type === "RECIPE") {
-        draft.recipes = content;
+        const sanitizedContent = typeof content === "object" && content ? { ...content } : content;
+        if (sanitizedContent && typeof sanitizedContent === "object") {
+          delete sanitizedContent.activeConstraints;
+          delete sanitizedContent.dietTags;
+          delete sanitizedContent.tags;
+        }
+        draft.recipes = sanitizedContent;
         setHasDraftMemory(true);
         setHasRecipes(true);
         toast.success(`Plan de recetas "${creation.name}" importado al borrador.`);
@@ -2004,12 +2000,12 @@ export default function DeliverableClient() {
       {
         id: "pdf",
         icon: isExporting ? Loader2 : Download,
-        label: "Descargar PDF",
+        label: "Descargar y guardar PDF",
         description: isPdfLimitReached
           ? "Límite mensual de PDFs alcanzado"
           : isExporting
-            ? "Generando PDF..."
-            : "Descargar PDF y guardar en creaciones",
+            ? "Guardando y generando PDF..."
+            : "Descargar y guardar PDF en Mis Creaciones",
         variant: "indigo",
         disabled: isExporting || isExportDisabled || isPdfLimitReached,
         onClick: async () => {
@@ -2480,6 +2476,7 @@ export default function DeliverableClient() {
         <WorkflowContextBanner
           projectName={currentProjectName}
           patientName={selectedPatient?.fullName || null}
+          patient={selectedPatient}
           moduleLabel="Entregable"
         />
 

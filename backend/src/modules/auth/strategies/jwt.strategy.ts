@@ -68,6 +68,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         role: true,
         email: true,
         rut: true,
+        tokenVersion: true,
         nutritionist: {
           select: { id: true },
         },
@@ -76,6 +77,16 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
     if (!account || account.status !== 'ACTIVE') {
       throw new UnauthorizedException('Sesión inválida');
+    }
+
+    // Instant Session Revocation check (tokenVersion).
+    // El claim es obligatorio: si se tratara como opcional, un token emitido
+    // sin él quedaría permanentemente fuera del mecanismo de revocación.
+    if (
+      typeof payload?.tokenVersion !== 'number' ||
+      payload.tokenVersion !== account.tokenVersion
+    ) {
+      throw new UnauthorizedException('La sesión ha sido revocada');
     }
 
     return {

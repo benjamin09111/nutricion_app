@@ -25,9 +25,10 @@ import { RequireFeatures } from '../permissions/permissions.decorator';
 import { SPECIAL_FEATURES } from '../permissions/permissions.constants';
 import { Audit } from '../../common/audit/audit.decorator';
 import { AuditInterceptor } from '../../common/audit/audit.interceptor';
+import { NutritionistScopeGuard } from '../../common/guards/nutritionist-scope.guard';
 
 @Controller('patients')
-@UseGuards(AuthGuard, PatientDataAccessGuard, PermissionsGuard)
+@UseGuards(AuthGuard, NutritionistScopeGuard, PatientDataAccessGuard, PermissionsGuard)
 @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
 @UseInterceptors(HttpCacheInterceptor, AuditInterceptor)
 @CacheTTL(300000) // 5 minutes

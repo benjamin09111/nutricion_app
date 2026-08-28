@@ -2,7 +2,6 @@
 
 import { useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import Cookies from "js-cookie";
 import { toast } from "sonner";
 import { User, Mail, Phone, Calendar, Activity, AlertCircle, Ruler, Target, Activity as ActivityIcon, HeartPulse, Dumbbell, Calculator, FileText, ChevronRight, Lock, RotateCcw } from "lucide-react";
 import { FormStepCard } from "@/components/patient-form/FormStepCard";
@@ -14,6 +13,7 @@ import { CalculatedMetricsPanel } from "@/components/patient-form/CalculatedMetr
 import { MacroGrid } from "@/components/patient-form/MacroGrid";
 import { Input } from "@/components/ui/Input";
 import { DatePicker } from "@/components/ui/DatePicker";
+import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
 import { TagInput } from "@/components/ui/TagInput";
 import { usePatientDraft } from "@/features/patients/hooks/usePatientDraft";
@@ -132,36 +132,36 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
 
   const bmi = draft.weight && draft.height
     ? calculateBMI(
-        Number(draft.weight),
-        Number(draft.height),
-        { gender: draft.gender as "Masculino" | "Femenino" | null, ageYears: calculatedAge }
-      )
+      Number(draft.weight),
+      Number(draft.height),
+      { gender: draft.gender as "Masculino" | "Femenino" | null, ageYears: calculatedAge }
+    )
     : null;
 
   const idealWeight = draft.height
     ? getIdealWeightRange(Number(draft.height), {
-        gender: draft.gender as "Masculino" | "Femenino" | null,
-        ageYears: calculatedAge ?? undefined,
-      })
+      gender: draft.gender as "Masculino" | "Femenino" | null,
+      ageYears: calculatedAge ?? undefined,
+    })
     : null;
 
   const get = bmi && draft.weight && draft.height && calculatedAge
     ? calculateGET(
-        draft.gender === "Masculino" || draft.gender === "Femenino" ? draft.gender as "Masculino" | "Femenino" : "Femenino",
-        Number(draft.weight),
-        Number(draft.height),
-        calculatedAge,
-        (draft.activityLevel as any) || "sedentario"
-      )
+      draft.gender === "Masculino" || draft.gender === "Femenino" ? draft.gender as "Masculino" | "Femenino" : "Femenino",
+      Number(draft.weight),
+      Number(draft.height),
+      calculatedAge,
+      (draft.activityLevel as any) || "sedentario"
+    )
     : null;
 
   const macros = get
     ? [
-        { label: "Calorías", value: get.get, unit: "kcal/día", color: "bg-indigo-50" },
-        { label: "Proteína", value: Math.round((get.get * 0.2) / 4), unit: "g/día", color: "bg-emerald-50" },
-        { label: "Carbohidratos", value: Math.round((get.get * 0.55) / 4), unit: "g/día", color: "bg-amber-50" },
-        { label: "Grasas", value: Math.round((get.get * 0.25) / 9), unit: "g/día", color: "bg-rose-50" },
-      ]
+      { label: "Calorías", value: get.get, unit: "kcal/día", color: "bg-indigo-50" },
+      { label: "Proteína", value: Math.round((get.get * 0.2) / 4), unit: "g/día", color: "bg-emerald-50" },
+      { label: "Carbohidratos", value: Math.round((get.get * 0.55) / 4), unit: "g/día", color: "bg-amber-50" },
+      { label: "Grasas", value: Math.round((get.get * 0.25) / 9), unit: "g/día", color: "bg-rose-50" },
+    ]
     : [];
 
   const goToStep = useCallback((step: number) => {
@@ -212,7 +212,6 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
 
     setIsSaving(true);
     try {
-      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const payload: Record<string, unknown> = {
         fullName: draft.fullName,
         email: draft.email || undefined,
@@ -224,6 +223,11 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
         height: draft.height ? Number(String(draft.height).replace(",", ".")) : undefined,
         weight: draft.weight ? Number(String(draft.weight).replace(",", ".")) : undefined,
         dietRestrictions: draft.dietRestrictions || [],
+        dislikedFoods: Array.isArray(draft.dislikedFoods)
+          ? draft.dislikedFoods
+          : typeof draft.dislikedFoods === "string"
+            ? (draft.dislikedFoods as string).split(",").map((s: string) => s.trim()).filter(Boolean)
+            : [],
         clinicalSummary: draft.clinicalSummary || undefined,
         nutritionalFocus: draft.nutritionalFocus || undefined,
         fitnessGoals: draft.fitnessGoals || undefined,
@@ -237,7 +241,6 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(payload),
       });
@@ -352,18 +355,19 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
         : "Estamos verificando el uso de tu plan. Intenta nuevamente en unos segundos.");
       return;
     }
-    if (!quickName || quickName.length < 2) { toast.error("Nombre requerido"); return; }
-    if (!quickEmail || !quickEmail.includes("@")) { toast.error("Email válido requerido"); return; }
-    if (quickRut && !validateRut(quickRut)) { toast.error("El RUT ingresado no es válido."); return; }
+    if (!quickName.trim() || !quickEmail.trim()) { toast.error("Nombre y email requeridos"); return; }
+    if (quickRut && !validateRut(quickRut)) { toast.error("RUT no válido"); return; }
     if (!quickGender) { toast.error("Sexo biológico requerido"); return; }
     setIsSaving(true);
     try {
-      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const vars: any[] = [{ key: "evaluationDate", label: "Fecha de evaluación", value: new Date().toISOString().split("T")[0] }];
-      if (quickMotivo) vars.push({ key: "motivoConsulta", label: "Motivo de consulta", value: quickMotivo });
-      const r = await fetchApi("/patients", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ fullName: quickName, email: quickEmail || undefined, phone: quickPhone || undefined, documentId: quickRut || undefined, birthDate: quickBirth ? new Date(quickBirth).toISOString() : undefined, gender: quickGender, weight: quickPeso ? parseFloat(quickPeso) : undefined, height: quickAltura ? parseFloat(quickAltura) : undefined, activityLevel: "sedentario", recalculateNutrition: true, customVariables: vars }) });
+      if (quickMotivo) vars.push({ key: "motivoConsulta", label: "Motivo de consulta", value: quickMotivo, unit: "" });
+      const r = await fetchApi("/patients", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fullName: quickName, email: quickEmail || undefined, phone: quickPhone || undefined, documentId: quickRut || undefined, birthDate: quickBirth ? new Date(quickBirth).toISOString() : undefined, gender: quickGender, weight: quickPeso ? parseFloat(quickPeso) : undefined, height: quickAltura ? parseFloat(quickAltura) : undefined, activityLevel: "sedentario", recalculateNutrition: true, customVariables: vars }) });
       if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.message || "Error"); }
       const p = await r.json();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("membership-usage-updated"));
+      }
       toast.success("Paciente creado");
       router.push(`/dashboard/pacientes/${p.id}`);
     } catch (e: any) { toast.error(e.message); }
@@ -390,7 +394,7 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
                 />
               </div>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div className="space-y-1.5">
+                <div className="space-y-1.5">
                   <label className="text-xs font-medium text-slate-500">Email *</label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -438,15 +442,12 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-slate-500">Sexo biológico</label>
-                  <select
+                  <Select
+                    options={GENDER_OPTIONS}
                     value={draft.gender || ""}
-                    onChange={(e) => updateDraft({ gender: e.target.value })}
-                    className="w-full h-10 rounded-xl bg-slate-50 border-transparent px-3 text-sm font-semibold text-slate-700 cursor-pointer"
-                  >
-                    {GENDER_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                  </select>
+                    onChange={(val) => updateDraft({ gender: val })}
+                    placeholder="Seleccionar..."
+                  />
                 </div>
               </div>
               <div className="space-y-1.5">
@@ -627,28 +628,22 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
             <div className="space-y-4">
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-slate-500">Foco Nutricional</label>
-                <select
+                <Select
+                  options={NUTRITIONAL_FOCUS_OPTIONS}
                   value={draft.nutritionalFocus || ""}
-                  onChange={(e) => updateDraft({ nutritionalFocus: e.target.value || undefined })}
-                  className="w-full h-10 rounded-xl bg-slate-50 border-transparent px-3 text-sm font-semibold text-slate-700 cursor-pointer"
-                >
-                  {NUTRITIONAL_FOCUS_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
+                  onChange={(val) => updateDraft({ nutritionalFocus: val || undefined })}
+                  placeholder="Seleccionar..."
+                />
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-slate-500">Metas Fitness</label>
-                <select
+                <Select
+                  options={FITNESS_GOALS_OPTIONS}
                   value={draft.fitnessGoals || ""}
-                  onChange={(e) => updateDraft({ fitnessGoals: e.target.value || undefined })}
-                  className="w-full h-10 rounded-xl bg-slate-50 border-transparent px-3 text-sm font-semibold text-slate-700 cursor-pointer"
-                >
-                  {FITNESS_GOALS_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
+                  onChange={(val) => updateDraft({ fitnessGoals: val || undefined })}
+                  placeholder="Seleccionar..."
+                />
               </div>
 
               <div className="space-y-2">
@@ -763,11 +758,15 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-slate-500">Alimentos que no consume</label>
                 <TagInput
-                  value={draft.dislikedFoods || []}
+                  value={Array.isArray(draft.dislikedFoods) ? draft.dislikedFoods : typeof draft.dislikedFoods === "string" && Boolean(draft.dislikedFoods) ? (draft.dislikedFoods as string).split(",").map(s => s.trim()).filter(Boolean) : []}
                   onChange={(tags) => updateDraft({ dislikedFoods: tags })}
-                  fetchSuggestionsUrl={`${getApiUrl()}/tags`}
-                  placeholder="Ej: pescado, legumbres..."
+                  fetchSuggestionsUrl={`${getApiUrl()}/foods`}
+                  includeSystemSuggestions={false}
+                  minSearchLength={1}
+                  itemTypeName="alimento"
+                  placeholder="Escribe para buscar alimentos (ej: pescado, legumbres, palta...)"
                   className="rounded-xl bg-slate-50 border-transparent min-h-10 text-sm"
+                  helperText="Escribe para buscar alimentos e ingredientes en la base de datos."
                 />
               </div>
               <div className="space-y-1.5">
@@ -828,7 +827,7 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-4 sm:px-6 sm:py-6 lg:px-0">
+    <div className="w-full max-w-[84rem] mx-auto px-2 sm:px-4 py-4 sm:py-6">
       <div className="flex justify-center mb-6">
         <div className="w-full max-w-md bg-slate-100 p-1 rounded-2xl flex flex-col gap-1 border border-slate-200/60 shadow-sm sm:w-auto sm:max-w-none sm:flex-row">
           <button type="button" onClick={() => setShowQuick(true)} className={cn("w-full px-4 py-2 text-xs font-black rounded-xl transition-all uppercase tracking-wider sm:w-auto sm:px-5", showQuick ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-800")}>Creación rápida</button>
@@ -845,7 +844,7 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
       </div>
 
       {showQuick ? (
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-3xl mx-auto">
           <FormStepCard icon={<User className="w-4 h-4 text-indigo-600" />} title="Datos del Paciente" description="Información básica de identificación">
             <div className="grid gap-4">
               <div className="space-y-1.5">
@@ -883,12 +882,12 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-medium text-slate-500">Sexo biológico</label>
-                  <select value={quickGender} onChange={e => setQuickGender(e.target.value)} className="w-full h-10 rounded-xl bg-slate-50 border-transparent px-3 text-sm font-semibold text-slate-700 cursor-pointer appearance-none">
-                    <option value="">—</option>
-                    <option value="Masculino">Masculino</option>
-                    <option value="Femenino">Femenino</option>
-                    <option value="Otro">Otro</option>
-                  </select>
+                  <Select
+                    options={GENDER_OPTIONS}
+                    value={quickGender}
+                    onChange={setQuickGender}
+                    placeholder="Seleccionar..."
+                  />
                 </div>
               </div>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -912,58 +911,58 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
                   <RotateCcw className="w-4 h-4 mr-1.5" />
                   Reiniciar
                 </Button>
-                 <Button type="button" onClick={handleQuickCreate} disabled={isSaving || patientCreationBlocked || patientLimitReached} className="w-full rounded-xl px-6 bg-indigo-600 text-white font-bold sm:w-auto">{isSaving ? "Guardando..." : patientCreationBlocked ? "Verificando límite..." : patientLimitReached ? "Límite alcanzado" : "Crear Paciente"}</Button>
+                <Button type="button" onClick={handleQuickCreate} disabled={isSaving || patientCreationBlocked || patientLimitReached} className="w-full rounded-xl px-6 bg-indigo-600 text-white font-bold sm:w-auto">{isSaving ? "Guardando..." : patientCreationBlocked ? "Verificando límite..." : patientLimitReached ? "Límite alcanzado" : "Crear Paciente"}</Button>
               </div>
             </div>
           </FormStepCard>
         </div>
       ) : (
-    <div className="flex gap-8 max-w-6xl mx-auto min-w-0">
-      <SidebarQuickNav
-        sections={SECTIONS}
-        activeSection={SECTIONS[currentStep].id}
-        onSelect={(id) => {
-          const index = SECTIONS.findIndex(s => s.id === id);
-          if (index !== -1) goToStep(index);
-        }}
-      />
-      <div className="flex-1 min-w-0">
-        <WizardStepper
-          steps={STEPS}
-          currentStep={currentStep}
-          completedSteps={completedSteps}
-          onStepClick={goToStep}
-        />
-        {validationErrors.length > 0 && (
-          <div className="mb-4 p-4 rounded-xl bg-red-50 border border-red-200 flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-semibold text-red-700">Completa los campos requeridos:</p>
-              <ul className="text-sm text-red-600 mt-1 space-y-0.5">
-                {validationErrors.map((err) => (
-                  <li key={err}>• {err}</li>
-                ))}
-              </ul>
+        <div className="flex flex-col lg:flex-row gap-6 sm:gap-8 w-full min-w-0">
+          <SidebarQuickNav
+            sections={SECTIONS}
+            activeSection={SECTIONS[currentStep].id}
+            onSelect={(id) => {
+              const index = SECTIONS.findIndex(s => s.id === id);
+              if (index !== -1) goToStep(index);
+            }}
+          />
+          <div className="flex-1 min-w-0">
+            <WizardStepper
+              steps={STEPS}
+              currentStep={currentStep}
+              completedSteps={completedSteps}
+              onStepClick={goToStep}
+            />
+            {validationErrors.length > 0 && (
+              <div className="mb-4 p-4 rounded-xl bg-red-50 border border-red-200 flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-red-700">Completa los campos requeridos:</p>
+                  <ul className="text-sm text-red-600 mt-1 space-y-0.5">
+                    {validationErrors.map((err) => (
+                      <li key={err}>• {err}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
+            {renderStepContent()}
+            <div className="flex flex-col-reverse items-stretch gap-3 w-full mt-6 sm:flex-row sm:items-center sm:justify-between">
+              <FormNavigationFooter
+                onBack={goBack}
+                onNext={goNext}
+                isFirstStep={currentStep === 0}
+                nextDisabled={isSaving || patientCreationBlocked || patientLimitReached}
+                nextLabel={currentStep === STEPS.length - 1 ? (isSaving ? "Guardando..." : patientCreationBlocked ? "Verificando límite..." : patientLimitReached ? "Límite alcanzado" : "Guardar") : "Continuar"}
+                className="mt-0 flex-1 max-w-none"
+              />
+              <Button type="button" onClick={() => setShowResetConfirm(true)} variant="ghost" className="w-full rounded-xl px-4 text-rose-500 font-bold hover:bg-rose-50 sm:w-auto sm:ml-3">
+                <RotateCcw className="w-4 h-4 mr-1.5" />
+                Reiniciar
+              </Button>
             </div>
           </div>
-        )}
-        {renderStepContent()}
-        <div className="flex flex-col-reverse items-stretch gap-3 max-w-2xl mt-4 sm:flex-row sm:items-center sm:justify-between">
-          <FormNavigationFooter
-            onBack={goBack}
-            onNext={goNext}
-            isFirstStep={currentStep === 0}
-             nextDisabled={isSaving || patientCreationBlocked || patientLimitReached}
-             nextLabel={currentStep === STEPS.length - 1 ? (isSaving ? "Guardando..." : patientCreationBlocked ? "Verificando límite..." : patientLimitReached ? "Límite alcanzado" : "Guardar") : "Continuar"}
-            className="mt-0 flex-1 max-w-none"
-          />
-          <Button type="button" onClick={() => setShowResetConfirm(true)} variant="ghost" className="w-full rounded-xl px-4 text-rose-500 font-bold hover:bg-rose-50 sm:w-auto sm:ml-3">
-            <RotateCcw className="w-4 h-4 mr-1.5" />
-            Reiniciar
-          </Button>
         </div>
-      </div>
-    </div>
       )}
       <ConfirmationModal
         isOpen={showResetConfirm}

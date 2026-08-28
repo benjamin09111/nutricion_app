@@ -166,3 +166,24 @@ export const getTodayDateInputValue = () => {
   const day = String(now.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 };
+
+export const toSafeIsoDate = (value?: string | Date | null): string => {
+  if (!value) return new Date().toISOString();
+  if (value instanceof Date) {
+    return isNaN(value.getTime()) ? new Date().toISOString() : value.toISOString();
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return new Date().toISOString();
+    if (trimmed.includes("T")) {
+      const parsed = new Date(trimmed);
+      if (!isNaN(parsed.getTime())) return parsed.toISOString();
+    }
+    const dateOnly = toDateOnly(trimmed);
+    if (dateOnly) {
+      const parsed = new Date(`${dateOnly}T12:00:00Z`);
+      if (!isNaN(parsed.getTime())) return parsed.toISOString();
+    }
+  }
+  return new Date().toISOString();
+};

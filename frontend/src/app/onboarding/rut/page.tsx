@@ -4,6 +4,10 @@ import { Suspense } from "react";
 export const metadata = {
   title: "Completa tu RUT | NutriNet",
   description: "Asocia tu RUT a tu cuenta antes de entrar a la plataforma.",
+  robots: {
+    index: false,
+    follow: false,
+  },
 };
 
 export default function RutOnboardingPage() {

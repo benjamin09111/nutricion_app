@@ -24,7 +24,6 @@ import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { Filtros_B } from "@/components/ui/Filtros_B";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import Cookies from "js-cookie";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { UsageLimitBadge } from "@/components/shared/UsageLimitBadge";
 import { useSubscription } from "@/context/SubscriptionContext";
@@ -118,9 +117,7 @@ export default function CreationsClient({
   // -- Fetch full creation data (shared by view and export) --
   const fetchFullData = async (id: string): Promise<any | null> => {
     try {
-      const token = Cookies.get("auth_token");
       const response = await fetchApi(`/creations/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) return await response.json();
     } catch (e) {
@@ -284,11 +281,9 @@ export default function CreationsClient({
 
     setIsSharing(item.id);
     try {
-      const token = Cookies.get("auth_token");
       const response = await fetchApi(`/creations/${item.id}/share`, {
         method: "POST",
         headers: { 
-          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json"
         },
         body: JSON.stringify({ patientId }),
@@ -320,9 +315,7 @@ export default function CreationsClient({
     setViewModalOpen(true);
     setIsLoadingDetails(true);
     try {
-      const token = Cookies.get("auth_token");
       const response = await fetchApi(`/creations/${item.id}`, {
-        headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
         const data = await response.json();

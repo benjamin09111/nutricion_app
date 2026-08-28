@@ -320,9 +320,9 @@ export const RecipePlannerSection: React.FC<RecipePlannerSectionProps> = ({
                         </div>
                       ) : null}
                       {!slot.recipe ? (
-                        <div className="flex items-center justify-between h-20">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 min-h-[5rem] py-2">
                           <div className="flex items-center gap-4">
-                            <div className="h-12 w-12 rounded-2xl bg-slate-200/50 flex items-center justify-center">
+                            <div className="h-12 w-12 rounded-2xl bg-slate-200/50 flex items-center justify-center shrink-0">
                               {slot.type === "desayuno" ? (
                                 <Coffee className="h-6 w-6 text-slate-300" />
                               ) : (
@@ -338,11 +338,11 @@ export const RecipePlannerSection: React.FC<RecipePlannerSectionProps> = ({
                               </p>
                               <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
                                 <GripVertical className="h-3 w-3" />
-                                Arr樂trar
+                                Arrastrar
                               </div>
                             </div>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <Button
                               variant="ghost"
                               className="text-slate-600 hover:bg-slate-100 rounded-xl font-black text-xs uppercase"

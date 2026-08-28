@@ -15,6 +15,10 @@ import {
   MessageSquare,
   Globe2,
   Inbox,
+  Cpu,
+  Sparkles,
+  Star,
+  Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDashboardShell } from "@/context/DashboardShellContext";
@@ -29,7 +33,7 @@ interface SidebarItem {
   icon: React.ElementType;
   disabled?: boolean;
   locked?: boolean;
-  badge?: "inboxPending" | "deletionRequests" | "feedbackPending";
+  badge?: "inboxPending" | "deletionRequests" | "feedbackPending" | "testimonialsPending" | "trashCount";
 }
 
 interface SidebarGroup {
@@ -42,7 +46,7 @@ const groups: SidebarGroup[] = [
     title: "Principal",
     items: [
       {
-        name: "Admin Dashboard",
+        name: "Dashboard",
         href: "/dashboard/admin",
         icon: LayoutDashboard,
       },
@@ -57,17 +61,12 @@ const groups: SidebarGroup[] = [
         icon: Users,
         badge: "deletionRequests",
       },
-      {
-        name: "Portal",
-        href: "/dashboard/admin/portal",
-        icon: Globe2,
-      },
       { name: "Cuentas", href: "/dashboard/admin/usuarios", icon: Shield },
-      {
-        name: "Mensajes",
-        href: "/dashboard/admin/mensajes",
-        icon: MessageSquare,
-      },
+    ],
+  },
+  {
+    title: "Feedback",
+    items: [
       {
         name: "Inbox",
         href: "/dashboard/admin/inbox",
@@ -81,10 +80,30 @@ const groups: SidebarGroup[] = [
         badge: "feedbackPending",
       },
       {
-        name: "Licencias",
-        href: "/dashboard/admin/organizaciones",
-        icon: Building2,
-        locked: true,
+        name: "Testimonios",
+        href: "/dashboard/admin/testimonios",
+        icon: Sparkles,
+        badge: "testimonialsPending",
+      },
+      {
+        name: "Valoraciones",
+        href: "/dashboard/admin/valoraciones",
+        icon: Star,
+      },
+    ],
+  },
+  {
+    title: "Herramientas",
+    items: [
+      {
+        name: "Mensajes",
+        href: "/dashboard/admin/mensajes",
+        icon: MessageSquare,
+      },
+      {
+        name: "Portal",
+        href: "/dashboard/admin/portal",
+        icon: Globe2,
       },
     ],
   },
@@ -92,18 +111,19 @@ const groups: SidebarGroup[] = [
     title: "Finanzas",
     items: [
       { name: "Pagos", href: "/dashboard/admin/pagos", icon: CreditCard },
-      { name: "Membresías", href: "/dashboard/admin/membresias", icon: Crown },
+      { name: "Planes", href: "/dashboard/admin/membresias", icon: Crown },
       { name: "Cupones", href: "/dashboard/admin/cupones", icon: Crown },
+      { name: "Costos IA", href: "/dashboard/admin/ia-costos", icon: Cpu },
     ],
   },
   {
-    title: "Configuración",
+    title: "Otros",
     items: [
       {
-        name: "Ajustes Globales",
-        href: "/dashboard/admin/ajustes",
-        icon: Settings,
-        locked: true,
+        name: "Papelera",
+        href: "/dashboard/admin/papelera",
+        icon: Trash2,
+        badge: "trashCount",
       },
     ],
   },
@@ -114,7 +134,10 @@ const WORKER_ALLOWED_PATHS = new Set([
   "/dashboard/admin/nutricionistas",
   "/dashboard/admin/mensajes",
   "/dashboard/admin/feedback",
+  "/dashboard/admin/testimonios",
+  "/dashboard/admin/papelera",
   "/dashboard/admin/cupones",
+  "/dashboard/admin/ia-costos",
 ]);
 
 interface AdminSidebarProps {
@@ -129,6 +152,8 @@ export function AdminSidebar({ onItemClick, isMobile = false }: AdminSidebarProp
   const [inboxPendingCount, setInboxPendingCount] = useState(0);
   const [feedbackPendingCount, setFeedbackPendingCount] = useState(0);
   const [deletionRequestsCount, setDeletionRequestsCount] = useState(0);
+  const [testimonialsPendingCount, setTestimonialsPendingCount] = useState(0);
+  const [trashCount, setTrashCount] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
@@ -186,22 +211,72 @@ export function AdminSidebar({ onItemClick, isMobile = false }: AdminSidebarProp
       }
     };
 
+    const fetchTestimonialsCount = async () => {
+      try {
+        const token = getAuthToken();
+        const headers: Record<string, string> = {};
+        if (token) {
+          headers["Authorization"] = `Bearer ${token}`;
+        }
+
+        const response = await fetchApi("/testimonials/admin/unreviewed-count", { headers });
+
+        if (!response.ok) return;
+
+        const data = await response.json();
+        if (isMounted) {
+          setTestimonialsPendingCount(data.count || 0);
+        }
+      } catch (error) {
+        console.error("Error fetching testimonials unreviewed count:", error);
+      }
+    };
+
+    const fetchTrashCount = async () => {
+      try {
+        const token = getAuthToken();
+        const headers: Record<string, string> = {};
+        if (token) {
+          headers["Authorization"] = `Bearer ${token}`;
+        }
+
+        const response = await fetchApi("/users/trash/count", { headers });
+
+        if (!response.ok) return;
+
+        const data = await response.json();
+        if (isMounted) {
+          setTrashCount(data.count || 0);
+        }
+      } catch (error) {
+        console.error("Error fetching trash count:", error);
+      }
+    };
+
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
         fetchSupportCounts();
         fetchDeletionRequestsCount();
+        fetchTestimonialsCount();
+        fetchTrashCount();
       }
     };
 
     fetchSupportCounts();
     fetchDeletionRequestsCount();
+    fetchTestimonialsCount();
+    fetchTrashCount();
     window.addEventListener("admin-inbox-updated", fetchSupportCounts);
     window.addEventListener("admin-feedback-updated", fetchSupportCounts);
     window.addEventListener("admin-deletion-request-accepted", fetchDeletionRequestsCount);
+    window.addEventListener("admin-testimonials-updated", fetchTestimonialsCount);
+    window.addEventListener("admin-trash-updated", fetchTrashCount);
     document.addEventListener("visibilitychange", handleVisibilityChange);
     const interval = window.setInterval(() => {
       fetchSupportCounts();
       fetchDeletionRequestsCount();
+      fetchTestimonialsCount();
+      fetchTrashCount();
     }, 60000);
 
     return () => {
@@ -209,6 +284,8 @@ export function AdminSidebar({ onItemClick, isMobile = false }: AdminSidebarProp
       window.removeEventListener("admin-inbox-updated", fetchSupportCounts);
       window.removeEventListener("admin-feedback-updated", fetchSupportCounts);
       window.removeEventListener("admin-deletion-request-accepted", fetchDeletionRequestsCount);
+      window.removeEventListener("admin-testimonials-updated", fetchTestimonialsCount);
+      window.removeEventListener("admin-trash-updated", fetchTrashCount);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.clearInterval(interval);
     };
@@ -223,6 +300,12 @@ export function AdminSidebar({ onItemClick, isMobile = false }: AdminSidebarProp
     }
     if (item.badge === "deletionRequests" && deletionRequestsCount > 0) {
       return deletionRequestsCount > 99 ? "99+" : String(deletionRequestsCount);
+    }
+    if (item.badge === "testimonialsPending" && testimonialsPendingCount > 0) {
+      return testimonialsPendingCount > 99 ? "99+" : String(testimonialsPendingCount);
+    }
+    if (item.badge === "trashCount" && trashCount > 0) {
+      return trashCount > 99 ? "99+" : String(trashCount);
     }
     return null;
   };
@@ -259,22 +342,13 @@ export function AdminSidebar({ onItemClick, isMobile = false }: AdminSidebarProp
             width={!isMobile && isSidebarCollapsed ? 72 : 180}
             height={!isMobile && isSidebarCollapsed ? 23 : 57}
             className={cn("h-auto w-auto object-contain", !isMobile && isSidebarCollapsed ? "max-w-[72px]" : "max-w-[180px]")}
-            style={{ width: "auto", height: "auto" }}
+            style={{ height: "auto" }}
+            priority
           />
         </div>
       </div>
 
-      {(isMobile || !isSidebarCollapsed) && (
-        <button
-          type="button"
-          onClick={() => toggleViewMode()}
-          className="w-full flex items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50/90 hover:bg-indigo-100 text-indigo-700 font-bold px-3 py-2 text-xs transition-colors cursor-pointer"
-          title="Cambiar a la vista de nutricionista para acceder a dietas, pacientes y herramientas"
-        >
-          <span>Ir a Vista Nutricionista</span>
-          <span>🥗</span>
-        </button>
-      )}
+
 
       <nav className="flex flex-1 flex-col mt-2">
         <ul role="list" className="flex flex-1 flex-col gap-y-3">

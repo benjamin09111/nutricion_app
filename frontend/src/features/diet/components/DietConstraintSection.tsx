@@ -1,7 +1,6 @@
-import React from "react";
+import React, { type ReactNode } from "react";
 import { AlertCircle } from "lucide-react";
 import { Input } from "@/components/ui/Input";
-import { DatePicker } from "@/components/ui/DatePicker";
 import { Textarea } from "@/components/ui/Textarea";
 import { TagInput } from "@/components/ui/TagInput";
 import { DEFAULT_CONSTRAINTS } from "@/lib/constants";
@@ -20,10 +19,10 @@ interface DietConstraintSectionProps {
   findNewlyAddedTag: (previousTags: string[], nextTags: string[]) => string | undefined;
   hasTagInList: (list: string[], tagName: string) => boolean;
   normalizeConstraintList: (constraints: string[]) => string[];
-  setPendingTagCreation: (creation: { name: string; type: "classification" | "constraint" } | null) => void;
+  setPendingTagCreation?: (creation: { name: string; type: "classification" | "constraint" } | null) => void;
   saveDraft: (overrides?: any) => void;
   deliveryDate: string;
-  setDeliveryDate: (date: string) => void;
+  dateIcon: ReactNode;
   description: string;
   setDescription: (description: string) => void;
   planObjective: string;
@@ -49,7 +48,7 @@ export const DietConstraintSection: React.FC<DietConstraintSectionProps> = ({
   setPendingTagCreation,
   saveDraft,
   deliveryDate,
-  setDeliveryDate,
+  dateIcon,
   description,
   setDescription,
   planObjective,
@@ -66,17 +65,19 @@ export const DietConstraintSection: React.FC<DietConstraintSectionProps> = ({
           <Input
             placeholder="Nombre de la creación"
             value={dietName}
-            onChange={(e) => setDietName(e.target.value)}
+            onChange={(e) => {
+              setDietName(e.target.value);
+              saveDraft({ dietName: e.target.value });
+            }}
             className="h-11 rounded-xl border-slate-200 bg-slate-50 text-sm font-semibold"
           />
         </div>
         <div className="space-y-3">
           <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Fecha</p>
-          <DatePicker
-            value={deliveryDate}
-            onChange={(val) => setDeliveryDate(val)}
-            placeholder="Fecha..."
-          />
+          <div aria-disabled="true" className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-slate-100 px-3 text-sm font-medium text-slate-500 cursor-not-allowed">
+            {dateIcon}
+            <span>{deliveryDate}</span>
+          </div>
         </div>
         <div className="space-y-3">
           <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Hashtags</p>
@@ -84,16 +85,6 @@ export const DietConstraintSection: React.FC<DietConstraintSectionProps> = ({
             value={dietTags}
             onChange={(newTags) => {
               setDietTags(newTags);
-              const latest = findNewlyAddedTag(dietTags, newTags);
-              if (
-                latest &&
-                !hasTagInList(availableClassificationTags, latest)
-              ) {
-                setPendingTagCreation({
-                  name: latest,
-                  type: "classification",
-                });
-              }
               saveDraft({ dietTags: newTags });
             }}
             placeholder="Ej: keto, hipertrofia"
@@ -109,7 +100,10 @@ export const DietConstraintSection: React.FC<DietConstraintSectionProps> = ({
         <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Descripción</p>
         <Textarea
           value={description}
-          onChange={(event) => setDescription(event.target.value)}
+          onChange={(event) => {
+            setDescription(event.target.value);
+            saveDraft({ creationDescription: event.target.value });
+          }}
           placeholder="Notas internas sobre este plan..."
           className="min-h-[72px] rounded-xl border-slate-200 bg-slate-50 text-sm"
         />
@@ -118,7 +112,10 @@ export const DietConstraintSection: React.FC<DietConstraintSectionProps> = ({
         <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Objetivo del plan <span className="normal-case font-medium text-slate-400">(opcional)</span></p>
         <Textarea
           value={planObjective}
-          onChange={(event) => setPlanObjective(event.target.value)}
+          onChange={(event) => {
+            setPlanObjective(event.target.value);
+            saveDraft({ planObjective: event.target.value });
+          }}
           placeholder="Ej: Pérdida de grasa enfocada en alimentos simples"
           className="min-h-[72px] rounded-xl border-slate-200 bg-slate-50 text-sm"
         />
@@ -139,20 +136,6 @@ export const DietConstraintSection: React.FC<DietConstraintSectionProps> = ({
             onChange={(newTags) => {
               const normalizedTags = normalizeConstraintList(newTags);
               setActiveConstraints(normalizedTags);
-              const latest = findNewlyAddedTag(
-                activeConstraints,
-                normalizedTags,
-              );
-              if (
-                latest &&
-                !hasTagInList(availableConstraintTags, latest) &&
-                !DEFAULT_CONSTRAINTS.some((constraint) => constraint.id === latest)
-              ) {
-                setPendingTagCreation({
-                  name: latest,
-                  type: "constraint",
-                });
-              }
               saveDraft({ activeConstraints: normalizedTags });
             }}
             placeholder="Buscar o escribir una restricción"

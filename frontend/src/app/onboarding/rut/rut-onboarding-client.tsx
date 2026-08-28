@@ -98,7 +98,11 @@ export function RutOnboardingClient() {
       } else {
         setCurrentUser(data.user);
       }
-      router.replace(next);
+
+      const updatedUser = data?.user || getCurrentUser();
+      const needsPlan = updatedUser?.requiresPlanSelection ?? false;
+      const targetDestination = needsPlan ? "/plan" : next;
+      router.replace(targetDestination);
     } catch (submitError) {
       setError(
         submitError instanceof Error

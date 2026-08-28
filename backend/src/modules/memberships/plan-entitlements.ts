@@ -25,6 +25,7 @@ export const PLAN_ENTITLEMENT_KEYS = {
   NUTRITIONIST_PORTAL_ACCESS: 'nutritionist_portal.access',
   SII_INVOICES_ACCESS: 'sii_invoices.access',
   CREATIONS_SAVE_LIMIT: 'creations.save.limit',
+  CREATIONS_DIET_SAVE_LIMIT: 'creations.diet.save.limit',
   CREATIONS_EDIT_ACCESS: 'creations.edit.access',
   CREATIONS_DELETE_ACCESS: 'creations.delete.access',
   CREATIONS_IMPORT_ACCESS: 'creations.import.access',
@@ -67,6 +68,7 @@ export const MEMBERSHIP_PLAN_ENTITLEMENTS: Record<string, PlanEntitlements> = {
     [PLAN_ENTITLEMENT_KEYS.NUTRITIONIST_PORTAL_ACCESS]: false,
     [PLAN_ENTITLEMENT_KEYS.SII_INVOICES_ACCESS]: false,
     [PLAN_ENTITLEMENT_KEYS.CREATIONS_SAVE_LIMIT]: 6,
+    [PLAN_ENTITLEMENT_KEYS.CREATIONS_DIET_SAVE_LIMIT]: 1,
     [PLAN_ENTITLEMENT_KEYS.CREATIONS_EDIT_ACCESS]: false,
     [PLAN_ENTITLEMENT_KEYS.CREATIONS_DELETE_ACCESS]: false,
     [PLAN_ENTITLEMENT_KEYS.CREATIONS_IMPORT_ACCESS]: false,
@@ -106,6 +108,7 @@ export const MEMBERSHIP_PLAN_ENTITLEMENTS: Record<string, PlanEntitlements> = {
     [PLAN_ENTITLEMENT_KEYS.NUTRITIONIST_PORTAL_ACCESS]: true,
     [PLAN_ENTITLEMENT_KEYS.SII_INVOICES_ACCESS]: true,
     [PLAN_ENTITLEMENT_KEYS.CREATIONS_SAVE_LIMIT]: -1,
+    [PLAN_ENTITLEMENT_KEYS.CREATIONS_DIET_SAVE_LIMIT]: -1,
     [PLAN_ENTITLEMENT_KEYS.CREATIONS_EDIT_ACCESS]: true,
     [PLAN_ENTITLEMENT_KEYS.CREATIONS_DELETE_ACCESS]: true,
     [PLAN_ENTITLEMENT_KEYS.CREATIONS_IMPORT_ACCESS]: true,
@@ -145,6 +148,7 @@ export const MEMBERSHIP_PLAN_ENTITLEMENTS: Record<string, PlanEntitlements> = {
     [PLAN_ENTITLEMENT_KEYS.NUTRITIONIST_PORTAL_ACCESS]: true,
     [PLAN_ENTITLEMENT_KEYS.SII_INVOICES_ACCESS]: true,
     [PLAN_ENTITLEMENT_KEYS.CREATIONS_SAVE_LIMIT]: -1,
+    [PLAN_ENTITLEMENT_KEYS.CREATIONS_DIET_SAVE_LIMIT]: -1,
     [PLAN_ENTITLEMENT_KEYS.CREATIONS_EDIT_ACCESS]: true,
     [PLAN_ENTITLEMENT_KEYS.CREATIONS_DELETE_ACCESS]: true,
     [PLAN_ENTITLEMENT_KEYS.CREATIONS_IMPORT_ACCESS]: true,
@@ -184,6 +188,7 @@ export const MEMBERSHIP_PLAN_ENTITLEMENTS: Record<string, PlanEntitlements> = {
     [PLAN_ENTITLEMENT_KEYS.NUTRITIONIST_PORTAL_ACCESS]: true,
     [PLAN_ENTITLEMENT_KEYS.SII_INVOICES_ACCESS]: true,
     [PLAN_ENTITLEMENT_KEYS.CREATIONS_SAVE_LIMIT]: -1,
+    [PLAN_ENTITLEMENT_KEYS.CREATIONS_DIET_SAVE_LIMIT]: -1,
     [PLAN_ENTITLEMENT_KEYS.CREATIONS_EDIT_ACCESS]: true,
     [PLAN_ENTITLEMENT_KEYS.CREATIONS_DELETE_ACCESS]: true,
     [PLAN_ENTITLEMENT_KEYS.CREATIONS_IMPORT_ACCESS]: true,
@@ -205,7 +210,11 @@ export const getMembershipPlanEntitlements = (slug: string) =>
 export const normalizeMembershipPlanKey = (value: string) => {
   const normalized = value.trim().toLowerCase();
 
-  if (normalized.includes('free') || normalized.includes('gratis') || normalized.includes('freemium'))
+  if (
+    normalized.includes('free') ||
+    normalized.includes('gratis') ||
+    normalized.includes('freemium')
+  )
     return 'free';
   if (normalized.includes('iniciante') || normalized.includes('starter'))
     return 'iniciante';

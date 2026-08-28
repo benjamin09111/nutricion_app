@@ -70,9 +70,8 @@ export default function ExchangePortionsPage() {
 
   return (
     <ModuleLayout
-      title="Porciones de Intercambio"
-      description="Aquí puedes conocer e informarte de cómo esta plataforma calcula y opera distintos valores. Si ves algún error, por favor, envía feedback en la sección de ajustes en tu barra de navegacíon lateral izquierda."
-      step={{ number: 4, label: "Herramientas", icon: BookOpen, color: "text-emerald-600" }}
+      title="Información de Cálculos y Porciones"
+      description="Conoce cómo NutriNet calcula y opera distintos valores clínicos, macronutrientes y bloques de intercambio nutricional."
     >
       <div className="space-y-6">
         <section className="grid gap-6 xl:grid-cols-[1.25fr_0.95fr]">

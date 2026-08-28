@@ -93,6 +93,7 @@ export class PautasService {
         systemInstruction,
         userPrompt,
         pautaAiResponseSchema,
+        { accountId, feature: 'pautas.generate' },
       );
 
       if (

@@ -122,54 +122,6 @@ export class CreationsService {
       );
     }
 
-    const creationLimit = await this.permissionsService.getFeatureLimit(
-      accountId,
-      PLAN_ENTITLEMENT_KEYS.CREATIONS_SAVE_LIMIT,
-    );
-    if (type !== 'SCREENING_TEST' && creationLimit !== Infinity) {
-      const creationsCount = await this.prisma.creation.count({
-        where: {
-          nutritionistId: resolvedNutritionistId,
-          type: { not: 'SCREENING_TEST' },
-        },
-      });
-
-      if (creationsCount >= creationLimit) {
-        const creationFingerprint = buildCreationFingerprint({
-          type,
-          content,
-          metadata,
-        });
-
-        const existingCreations = await this.prisma.creation.findMany({
-          where: {
-            nutritionistId: resolvedNutritionistId,
-            type,
-          },
-          select: {
-            type: true,
-            content: true,
-            metadata: true,
-          },
-        });
-
-        const duplicateCreation = existingCreations.find(
-          (creation) =>
-            buildCreationFingerprint({
-              type: creation.type,
-              content: creation.content,
-              metadata: creation.metadata || {},
-            }) === creationFingerprint,
-        );
-
-        if (!duplicateCreation) {
-          throw new BadRequestException(
-            `Has alcanzado el límite de ${creationLimit} creaciones guardadas en tu plan. Elimina una existente o mejora tu plan para continuar.`,
-          );
-        }
-      }
-    }
-
     // Validar que el nombre no esté vacío
     if (!name || name.trim() === '') {
       throw new BadRequestException('El nombre de la creación es obligatorio');
@@ -206,6 +158,7 @@ export class CreationsService {
       },
     });
 
+    // 1. Si existe una creación con contenido idéntico (mismo fingerprint), se informa sin duplicar
     const duplicateCreation = existingCreations.find(
       (creation) =>
         buildCreationFingerprint({
@@ -219,12 +172,77 @@ export class CreationsService {
       return {
         ...duplicateCreation,
         wasCreated: false,
+        wasUpdated: false,
       };
+    }
+
+    // 2. Si ya existe una creación con el mismo NOMBRE para este nutricionista, SE ACTUALIZA en lugar de duplicar
+    const sameNameCreation = existingCreations.find(
+      (c) => c.name.toLowerCase().trim() === trimmedName.toLowerCase(),
+    );
+
+    if (sameNameCreation) {
+      const updatedCreation = await this.prisma.creation.update({
+        where: { id: sameNameCreation.id },
+        data: {
+          name: trimmedName,
+          content,
+          metadata: nextMetadata,
+          tags: tags && tags.length > 0 ? tags : sameNameCreation.tags,
+          updatedAt: new Date(),
+        },
+      });
+
+      await this.cacheService.invalidateNutritionistPrefix(
+        resolvedNutritionistId,
+        'creations',
+      );
+
+      return {
+        ...updatedCreation,
+        wasCreated: false,
+        wasUpdated: true,
+      };
+    }
+
+    // 3. Si es una NUEVA creación (nombre distinto), verificar los límites de cuota según el plan
+    if (type === 'DIET') {
+      const dietLimit = await this.permissionsService.getFeatureLimit(
+        accountId,
+        PLAN_ENTITLEMENT_KEYS.CREATIONS_DIET_SAVE_LIMIT,
+      );
+      if (dietLimit !== Infinity && existingCreations.length >= dietLimit) {
+        throw new BadRequestException(
+          `Has alcanzado el límite de ${dietLimit} creación(es) tipo Dieta guardadas en tu plan. Actualiza tu plan a Pro para guardar más dietas o edita la dieta existente.`,
+        );
+      }
+    }
+
+    const creationLimit = await this.permissionsService.getFeatureLimit(
+      accountId,
+      PLAN_ENTITLEMENT_KEYS.CREATIONS_SAVE_LIMIT,
+    );
+    if (type !== 'SCREENING_TEST' && creationLimit !== Infinity) {
+      const creationsCount = await this.prisma.creation.count({
+        where: {
+          nutritionistId: resolvedNutritionistId,
+          type: { not: 'SCREENING_TEST' },
+        },
+      });
+
+      if (creationsCount >= creationLimit) {
+        throw new BadRequestException(
+          `Has alcanzado el límite de ${creationLimit} creaciones guardadas en tu plan. Actualiza tu plan para continuar.`,
+        );
+      }
     }
 
     if (type === 'SCREENING_TEST') {
       const savedTests = await this.prisma.creation.count({
-        where: { nutritionistId: resolvedNutritionistId, type: 'SCREENING_TEST' },
+        where: {
+          nutritionistId: resolvedNutritionistId,
+          type: 'SCREENING_TEST',
+        },
       });
       await this.permissionsService.ensureWithinLimit(
         accountId,
@@ -256,7 +274,9 @@ export class CreationsService {
       };
     } catch (error: any) {
       console.error('Error al guardar la creación:', error);
-      throw new BadRequestException('Error al guardar creación. Contactar al soporte.');
+      throw new BadRequestException(
+        'Error al guardar creación. Contactar al soporte.',
+      );
     }
   }
 
@@ -291,7 +311,9 @@ export class CreationsService {
     });
 
     if (!creation) {
-      throw new NotFoundException('La creación solicitada no existe o no tienes permiso para eliminarla.');
+      throw new NotFoundException(
+        'La creación solicitada no existe o no tienes permiso para eliminarla.',
+      );
     }
 
     if (creation.type === 'SCREENING_TEST') {
@@ -305,10 +327,11 @@ export class CreationsService {
         );
       }
     } else {
-      const canDeleteCreations = await this.permissionsService.checkFeatureAccess(
-        accountId,
-        PLAN_ENTITLEMENT_KEYS.CREATIONS_DELETE_ACCESS,
-      );
+      const canDeleteCreations =
+        await this.permissionsService.checkFeatureAccess(
+          accountId,
+          PLAN_ENTITLEMENT_KEYS.CREATIONS_DELETE_ACCESS,
+        );
       const canEditCreations = await this.permissionsService.checkFeatureAccess(
         accountId,
         PLAN_ENTITLEMENT_KEYS.CREATIONS_EDIT_ACCESS,

@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Cookies from "js-cookie";
 import { Loader2 } from "lucide-react";
 import { ResourceEditor } from "../../ResourceEditor";
 import { fetchApi } from "@/lib/api-base";
@@ -35,9 +34,7 @@ export default function EditarRecursoPage() {
 
   async function fetchResource() {
     try {
-      const token = Cookies.get("auth_token") || localStorage.getItem("auth_token");
       const res = await fetchApi(`/resources/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
       setResource(data);

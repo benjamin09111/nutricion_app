@@ -18,7 +18,7 @@ import {
 import { AppointmentsService } from './appointments.service';
 import { UpdateScheduleDto } from './dto/update-schedule.dto';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
-import { ApiKeyGuard } from './api-key.guard';
+import { AppointmentsAuthGuard } from './appointments-auth.guard';
 import { PrismaService } from '../../prisma/prisma.service';
 import type { AppointmentRequest } from './appointments.types';
 import { resolveNutritionistIdFromRequest } from './appointments-auth';
@@ -30,7 +30,7 @@ import { RequireFeatures } from '../permissions/permissions.decorator';
 import { PLAN_ENTITLEMENT_KEYS } from '../memberships/plan-entitlements';
 
 @Controller('calendars')
-@UseGuards(ApiKeyGuard, PermissionsGuard)
+@UseGuards(AppointmentsAuthGuard, PermissionsGuard)
 export class AppointmentsController {
   constructor(
     private readonly appointmentsService: AppointmentsService,
