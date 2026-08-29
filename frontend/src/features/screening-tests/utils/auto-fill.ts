@@ -2,6 +2,7 @@ import type {
   ScreeningTestDefinition,
   ScreeningTestAnswers,
   PatientAutoFillData,
+  ScreeningTestType,
 } from '../types';
 
 /**
@@ -122,7 +123,7 @@ function resolveAutoFill(
 /**
  * Suggest the best test type based on patient demographics.
  */
-export function suggestTestType(patient: PatientAutoFillData): string | null {
+export function suggestTestType(patient: PatientAutoFillData): ScreeningTestType | null {
   if (patient.isPregnant) return 'ATALAH';
   if (patient.age == null) return null;
   if (patient.age < 18) return 'STRONGKIDS';

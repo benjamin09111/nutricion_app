@@ -337,7 +337,7 @@ export function NotesAgendaWidget() {
         description={`¿Estás seguro de que deseas eliminar la pestaña "${activeTab?.title}" y todo su contenido?`}
         confirmText="Eliminar pestaña"
         cancelText="Cancelar"
-        variant="danger"
+        variant="destructive"
       />
     </section>
   );

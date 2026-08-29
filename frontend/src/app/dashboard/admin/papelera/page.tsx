@@ -352,7 +352,7 @@ export default function AdminPapeleraPage() {
         description="Esta acción eliminará PERMANENTEMENTE de la base de datos todas las cuentas eliminadas y sus registros vinculados. Esta acción no se puede deshacer."
         confirmText={isEmptyingTrash ? "Vaciando..." : "Sí, vaciar papelera"}
         cancelText="Cancelar"
-        variant="danger"
+        variant="destructive"
         isLoading={isEmptyingTrash}
       />
 
@@ -365,7 +365,7 @@ export default function AdminPapeleraPage() {
         description={`Se borrarán de forma irrecuperable todos los datos vinculados a ${selectedPurgeAccount?.email || "este usuario"}.`}
         confirmText={purgingAccountId ? "Eliminando..." : "Eliminar permanentemente"}
         cancelText="Cancelar"
-        variant="danger"
+        variant="destructive"
         isLoading={!!purgingAccountId}
       />
 
@@ -378,7 +378,7 @@ export default function AdminPapeleraPage() {
         description={`La cuenta de ${selectedRestoreAccount?.email || "este usuario"} volverá a estar ACTIVA y podrá iniciar sesión.`}
         confirmText={restoringAccountId ? "Restaurando..." : "Sí, restaurar cuenta"}
         cancelText="Cancelar"
-        variant="success"
+        variant="primary"
         isLoading={!!restoringAccountId}
       />
     </div>

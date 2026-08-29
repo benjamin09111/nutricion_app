@@ -658,7 +658,7 @@ El Subencargado se somete a auditorías anuales independientes y asume la respon
         description="¿Estás seguro de que deseas eliminar permanentemente el historial de auditoría de IA de este navegador? Esta acción no se puede deshacer."
         confirmText="Eliminar historial"
         cancelText="Cancelar"
-        variant="danger"
+        variant="destructive"
       />
     </div>
   );

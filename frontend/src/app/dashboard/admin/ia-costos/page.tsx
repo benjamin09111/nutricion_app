@@ -513,7 +513,7 @@ export default function AdminIaCostosPage() {
         description="¿Deseas eliminar permanentemente todos los registros de uso de IA mayores a 60 días? Esta acción libera espacio y no se puede deshacer."
         confirmText="Limpiar registros"
         cancelText="Cancelar"
-        variant="danger"
+        variant="destructive"
         isLoading={cleanMutation.isPending}
       />
     </div>

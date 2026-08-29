@@ -90,7 +90,6 @@ export function PlanWizardShell({
           currentStep={currentStep}
           completedSteps={completedSteps}
           onStepClick={handleStepClick}
-          nextDisabled={nextDisabled}
           lockFutureSteps={lockFutureSteps}
           className="mb-0 pb-0"
         />

@@ -116,8 +116,8 @@ export default function TestsPage() {
   // Build patient auto-fill object
   const patientAutoFill: PatientAutoFillData | undefined = selectedPatient
     ? {
-        patientId: selectedPatient.id,
-        patientName: selectedPatient.fullName || selectedPatient.name,
+        id: selectedPatient.id,
+        fullName: selectedPatient.fullName || selectedPatient.name,
         age: selectedPatient.ageYears ?? selectedPatient.age ?? undefined,
         weight: parseNum(selectedPatient.weight) ?? undefined,
         height: parseNum(selectedPatient.height) ?? undefined,
