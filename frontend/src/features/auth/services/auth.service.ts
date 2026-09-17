@@ -1,4 +1,3 @@
-import { supabase } from "@/lib/supabase";
 import { LoginFormData, RegisterFormData } from "@/lib/schemas/auth";
 import { fetchApi } from "@/lib/api-base";
 import {
@@ -84,8 +83,6 @@ export const authService = {
   },
 
   async signOut() {
-    // Clear Supabase session if any (for future features like calendar integration)
-    await supabase.auth.signOut();
     await fetchApi(`/auth/logout`, { method: "POST" }).catch(() => undefined);
     // Clear presence indicator (httpOnly cookies are cleared by the backend /logout)
     Cookies.remove("auth_session_present");

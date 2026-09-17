@@ -5,6 +5,7 @@ import {
   UseGuards,
   Request,
   Res,
+  Logger,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import type { Response } from 'express';
@@ -19,6 +20,8 @@ import { PlanUsageService } from '../permissions/plan-usage.service';
 @UseGuards(AuthGuard('jwt'), PermissionsGuard)
 @RequireFeatures(PLAN_ENTITLEMENT_KEYS.AI_AUTOFILL_ACCESS)
 export class CopilotController {
+  private readonly logger = new Logger(CopilotController.name);
+
   constructor(
     private readonly copilotService: CopilotService,
     private readonly planUsageService: PlanUsageService,
@@ -73,10 +76,11 @@ export class CopilotController {
           PLAN_ENTITLEMENT_KEYS.AI_CALLS_LIMIT,
         );
       }
-      const message =
-        error instanceof Error ? error.message : 'Error desconocido';
+      this.logger.error('Error in Copilot chat:', error);
+      const safeMessage =
+        'No fue posible procesar tu consulta con el asistente en este momento. Intenta nuevamente más tarde.';
       res.write(
-        `data: ${JSON.stringify({ type: 'error', content: message })}\n\n`,
+        `data: ${JSON.stringify({ type: 'error', content: safeMessage })}\n\n`,
       );
     } finally {
       res.end();

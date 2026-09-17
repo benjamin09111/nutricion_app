@@ -576,8 +576,11 @@ export class AuthService {
       };
     } catch (error: any) {
       console.error('Error en register:', error);
+      if (error instanceof HttpException) {
+        throw error;
+      }
       throw new BadRequestException(
-        'No se pudo completar el registro: ' + error.message,
+        'No se pudo completar el registro. Intenta nuevamente o contacta a soporte.',
       );
     }
   }
@@ -1096,6 +1099,34 @@ export class AuthService {
     }
 
     return this.buildSessionPayload(account as any);
+  }
+
+  async revokeSession(accountId: string): Promise<void> {
+    if (!accountId) return;
+    try {
+      await this.prisma.account.update({
+        where: { id: accountId },
+        data: {
+          tokenVersion: {
+            increment: 1,
+          },
+        },
+      });
+    } catch (error) {
+      console.error('[AuthService] Error revoking session for account:', accountId, error);
+    }
+  }
+
+  async revokeSessionFromToken(token: string): Promise<void> {
+    if (!token) return;
+    try {
+      const payload: any = this.jwtService.verify(token, { ignoreExpiration: true });
+      if (payload?.sub && typeof payload.sub === 'string') {
+        await this.revokeSession(payload.sub);
+      }
+    } catch {
+      // Ignorar tokens con firma inválida o malformados
+    }
   }
 
   async completeRut(userId: string, rut: string) {

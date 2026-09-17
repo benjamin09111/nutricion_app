@@ -18,6 +18,12 @@ import { CreatePatientPortalQuestionDto } from './dto/create-patient-portal-ques
 import { CreatePatientPortalReplyDto } from './dto/create-patient-portal-reply.dto';
 import { CreatePatientPortalNotificationDto } from './dto/create-patient-portal-notification.dto';
 import { RequestAppointmentDto } from './dto/request-appointment.dto';
+import {
+  SendPortalInvitationEmailDto,
+  PortalLoginDto,
+  CreatePortalAdminMessageDto,
+  SetPortalAccessStatusDto,
+} from './dto/portal-request.dto';
 import { PatientPortalAuthGuard } from './guards/patient-portal.guard';
 import type { Response } from 'express';
 import {
@@ -50,7 +56,7 @@ export class PatientPortalsController {
   sendInvitationEmail(
     @Request() req: any,
     @Param('patientId') patientId: string,
-    @Body() body: { email?: string },
+    @Body() body: SendPortalInvitationEmailDto,
   ) {
     return this.patientPortalsService.sendInvitationEmail(
       req.user.nutritionistId,
@@ -113,7 +119,7 @@ export class PatientPortalsController {
   @Post('invitations/:token/verify')
   async verifyInvitation(
     @Param('token') token: string,
-    @Body() body: { email: string; accessCode: string },
+    @Body() body: PortalLoginDto,
     @Res({ passthrough: true }) res: Response,
   ) {
     const data = await this.patientPortalsService.verifyInvitation(
@@ -132,7 +138,7 @@ export class PatientPortalsController {
   }
   @Post('login')
   async login(
-    @Body() body: { email: string; accessCode: string },
+    @Body() body: PortalLoginDto,
     @Res({ passthrough: true }) res: Response,
   ) {
     const data = await this.patientPortalsService.login(
@@ -234,7 +240,7 @@ export class PatientPortalsController {
   createMessage(
     @Request() req: any,
     @Param('patientId') patientId: string,
-    @Body() body: { message: string },
+    @Body() body: CreatePortalAdminMessageDto,
   ) {
     return this.patientPortalsService.createPortalMessage(
       req.user.nutritionistId,
@@ -248,7 +254,7 @@ export class PatientPortalsController {
   setAccessStatus(
     @Request() req: any,
     @Param('patientId') patientId: string,
-    @Body() body: { status: 'ACTIVE' | 'BLOCKED' },
+    @Body() body: SetPortalAccessStatusDto,
   ) {
     return this.patientPortalsService.setAccessStatus(
       req.user.nutritionistId,

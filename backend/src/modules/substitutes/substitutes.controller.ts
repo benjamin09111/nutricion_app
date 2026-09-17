@@ -12,6 +12,7 @@ import { PermissionsGuard } from '../permissions/permissions.guard';
 import { RequireFeatures } from '../permissions/permissions.decorator';
 import { SPECIAL_FEATURES } from '../permissions/permissions.constants';
 import { NutritionistScopeGuard } from '../../common/guards/nutritionist-scope.guard';
+import { UpsertSubstitutesDto } from './dto/upsert-substitutes.dto';
 
 @Controller('substitutes')
 @UseGuards(AuthGuard, NutritionistScopeGuard, PermissionsGuard)
@@ -26,7 +27,7 @@ export class SubstitutesController {
   }
 
   @Post()
-  async upsert(@Request() req: any, @Body() body: { content: any }) {
+  async upsert(@Request() req: any, @Body() body: UpsertSubstitutesDto) {
     const nutritionistId = req.user.nutritionistId;
     return this.substitutesService.upsert(nutritionistId, body.content);
   }

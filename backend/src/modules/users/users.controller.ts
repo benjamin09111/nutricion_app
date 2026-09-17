@@ -20,6 +20,13 @@ import {
   isAdminRole,
   isStaffRole,
 } from '../permissions/permissions.constants';
+import {
+  UpdateMySettingsDto,
+  AdminUpdateUserDto,
+  UpdateUserPlanDto,
+  UpdatePublicProfileVisibilityDto,
+  AcceptDeletionRequestDto,
+} from './dto/user-management.dto';
 
 const WORKER_ALLOWED_USER_ROLES = new Set([
   'ADMIN_GENERAL',
@@ -101,7 +108,10 @@ export class UsersController {
 
   @Patch('me/settings')
   @UseGuards(AuthGuard)
-  async updateMySettings(@Request() req: any, @Body() body: any) {
+  async updateMySettings(
+    @Request() req: any,
+    @Body() body: UpdateMySettingsDto,
+  ) {
     return this.usersService.updateMySettings(req.user.id, body);
   }
 
@@ -110,7 +120,7 @@ export class UsersController {
   @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
   async update(
     @Param('id') id: string,
-    @Body() body: any,
+    @Body() body: AdminUpdateUserDto,
     @Request() req: any,
   ) {
     // 1. Basic check: must be at least some kind of admin
@@ -151,7 +161,7 @@ export class UsersController {
   @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
   updatePlan(
     @Param('id') id: string,
-    @Body() body: { plan: string; days?: number; recordPayment?: boolean },
+    @Body() body: UpdateUserPlanDto,
     @Request() req: any,
   ) {
     if (!isAdminRole(req.user.role)) {
@@ -185,7 +195,7 @@ export class UsersController {
   @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
   updatePublicProfileVisibility(
     @Param('id') id: string,
-    @Body() body: { publicProfileEnabled: boolean },
+    @Body() body: UpdatePublicProfileVisibilityDto,
     @Request() req: any,
   ) {
     if (!isAdminRole(req.user.role)) {
@@ -421,7 +431,7 @@ export class UsersController {
   @UseGuards(AuthGuard, PermissionsGuard)
   async acceptDeletionRequest(
     @Param('id') id: string,
-    @Body() body: { notes?: string },
+    @Body() body: AcceptDeletionRequestDto,
     @Request() req: any,
   ) {
     const requesterRole = req.user.role;

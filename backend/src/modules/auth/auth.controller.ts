@@ -169,7 +169,19 @@ export class AuthController {
 
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  logout(@Res({ passthrough: true }) res: Response) {
+  async logout(
+    @Req() req: ExpressRequest,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const sessionToken =
+      readCookie(req, AUTH_SESSION_COOKIE) ||
+      readCookie(req, 'auth_session') ||
+      readCookie(req, LEGACY_AUTH_SESSION_COOKIE);
+
+    if (sessionToken) {
+      await this.authService.revokeSessionFromToken(sessionToken);
+    }
+
     // Current session cookies
     res.clearCookie(AUTH_SESSION_COOKIE, { path: '/' });
     res.clearCookie(AUTH_PRESENCE_COOKIE, { path: '/' });
