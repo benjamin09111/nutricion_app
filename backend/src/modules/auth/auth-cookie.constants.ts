@@ -27,18 +27,28 @@ const isRemote =
     !process.env.FRONTEND_URL.includes('127.0.0.1'),
   );
 
-// Anotado como constante nombrada a proposito: dentro del literal el tipo
-// se ensancharia a `string` y dejaria de encajar en `CookieOptions`, y una
-// asercion en linea la elimina el autofix de no-unnecessary-type-assertion.
-const SAME_SITE: 'none' | 'lax' = isRemote ? 'none' : 'lax';
+const resolveSameSite = (): 'strict' | 'lax' | 'none' => {
+  const envVal = process.env.COOKIE_SAME_SITE?.toLowerCase();
+  if (envVal === 'strict') return 'strict';
+  if (envVal === 'lax') return 'lax';
+  if (envVal === 'none') return 'none';
+  return isRemote ? 'none' : 'lax';
+};
+
+const SAME_SITE: 'strict' | 'lax' | 'none' = resolveSameSite();
+const isSecure =
+  process.env.NODE_ENV === 'production' ||
+  process.env.NODE_ENV === 'prod' ||
+  isRemote ||
+  process.env.COOKIE_SECURE === 'true';
 
 // ─── Cookie option factories ──────────────────────────────────────────────────
-// In production/remote environments, frontend and backend are on different domains.
-// SameSite=None is REQUIRED for cookies to be sent in cross-origin fetch requests
-// with credentials:"include". SameSite=None also mandates Secure=true.
+// In production/remote cross-domain setups, SameSite=None + Secure=true is default.
+// When frontend and backend share the same site or via COOKIE_SAME_SITE=strict,
+// SameSite=Strict can be directly configured.
 export const authSessionCookieOptions = (maxAge?: number) => ({
   httpOnly: true as const,
-  secure: isRemote,
+  secure: isSecure,
   sameSite: SAME_SITE,
   path: '/',
   ...(maxAge ? { maxAge } : {}),
@@ -47,7 +57,7 @@ export const authSessionCookieOptions = (maxAge?: number) => ({
 /** Non-httpOnly presence indicator – value is always "1" */
 export const authPresenceCookieOptions = (maxAge?: number) => ({
   httpOnly: false as const,
-  secure: isRemote,
+  secure: isSecure,
   sameSite: SAME_SITE,
   path: '/',
   ...(maxAge ? { maxAge } : {}),
@@ -56,7 +66,7 @@ export const authPresenceCookieOptions = (maxAge?: number) => ({
 /** Temporary state cookie for Google OAuth transaction */
 export const googleOauthCookieOptions = () => ({
   httpOnly: true as const,
-  secure: isRemote,
+  secure: isSecure,
   sameSite: SAME_SITE,
   path: '/',
   maxAge: 10 * 60 * 1000,

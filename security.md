@@ -246,22 +246,22 @@ Al salir de `STAFF_ROLES` recupera ese acceso, que es el comportamiento correcto
 | 1.2 | Pasar el bucket de Supabase a **privado** y servir con URLs firmadas de corta duración generadas por el backend tras validar propiedad. Requiere migrar las URLs ya guardadas en BD → bloqueado por `P4`. | ⏳ |
 | 1.3 | Crear DTOs con `class-validator` para los ~28 endpoints de `B1`. Regla de lint que prohíba `@Body() ... : any`. | ⏳ |
 | 1.4 | Sanitizar salida HTML con `isomorphic-dompurify` en `ResourcesClient`. Escapar `<`, `>`, `&` en `JsonLd` antes de inyectar. | ⏳ |
-| 1.5 | Endurecer CSP: quitar `unsafe-eval`, migrar `unsafe-inline` a nonce. Añadir `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload`. | ⏳ |
+| 1.5 | HSTS con preload (`Strict-Transport-Security: max-age=63072000; includeSubDomains; preload`) en `next.config.ts` y Helmet HSTS en backend. | ✅ |
 | 1.6 | Limitar `settings` en `updateMySettings`: whitelist de claves + tope de tamaño. Validar `publicSlug` con regex `^[a-z0-9-]{3,60}$` y garantizar unicidad. | ⏳ |
-| 1.7 | Aplicar `NutritionistScopeGuard` (o una comprobación equivalente por método) a `patient-portals.controller.ts`, que quedó fuera de 0.2 porque mezcla rutas de nutricionista con rutas de sesión de paciente (`PatientPortalAuthGuard`). | ⏳ |
+| 1.7 | Aplicar `NutritionistScopeGuard` a todos los endpoints de nutricionista en `patient-portals.controller.ts` para evitar queries con `nutritionistId === undefined`. | ✅ |
 | 1.8 | Revisar `resources` y `recipes`, los otros dos controladores excluidos de 0.2: sí admiten cuentas administrativas a propósito (contenido global), así que necesitan una comprobación de propiedad explícita por método en lugar de un guard de clase. | ⏳ |
 
 ### Fase 2 — Endurecimiento (≈2 semanas)
 
-| # | Acción |
-|---|---|
-| 2.1 | Rate limiting con Redis (`rate-limit-redis`) para que sea consistente entre instancias y redeploys. Añadir limitadores a `/uploads` y al webhook de Flow. |
-| 2.2 | **2FA obligatorio (TOTP) para `ADMIN`, `ADMIN_MASTER`, `ADMIN_GENERAL`.** `totp.util.ts` ya existe y está probado — sólo falta cablearlo. |
-| 2.3 | Cifrado a nivel de campo (AES-256-GCM) para ficha clínica, exámenes y notas personales, con `ENCRYPTION_KEY` reintroducida en `assertSecretsConfigured`. Cumple la regla de `AGENTS.md`. |
-| 2.4 | Sustituir `SanitizationPipe` por `sanitize-html` con política por campo (texto plano vs. editor enriquecido), en lugar del escape global de `<`/`>`. |
-| 2.5 | `ExceptionFilter` global que normalice errores, oculte internos y añada `requestId` correlacionable con los logs. Dejar de retransmitir `error.message` del proveedor de IA. |
-| 2.6 | `@MaxLength` en `CopilotMessageDto.message` y cuota por tokens además de por llamada. |
-| 2.7 | Subir `bcrypt` a coste 12 con rehash transparente en el próximo login. |
+| # | Acción | Estado |
+|---|---|---|
+| 2.1 | Rate limiting con Redis (`rate-limit-redis`) para que sea consistente entre instancias y redeploys. Añadir limitadores a `/uploads` y al webhook de Flow. | ⏳ |
+| 2.2 | **2FA obligatorio (TOTP) para `ADMIN`, `ADMIN_MASTER`, `ADMIN_GENERAL`.** `totp.util.ts` ya existe y está probado — sólo falta cablearlo. | ⏳ |
+| 2.3 | Cifrado a nivel de campo (AES-256-GCM) para ficha clínica, exámenes y notas personales, con `ENCRYPTION_KEY` reintroducida en `assertSecretsConfigured`. Cumple la regla de `AGENTS.md`. | ⏳ |
+| 2.4 | Sustituir `SanitizationPipe` por `sanitize-html` con política por campo (texto plano vs. editor enriquecido), en lugar del escape global de `<`/`>`. | ⏳ |
+| 2.5 | `GlobalExceptionFilter` en NestJS que normaliza errores, oculta detalles internos/rutas de archivos/consultas Prisma, y formatea respuestas en producción. Saneado `copilot.controller.ts` y `auth.service.ts`. | ✅ |
+| 2.6 | `@MaxLength` en `CopilotMessageDto.message` y cuota por tokens además de por llamada. | ⏳ |
+| 2.7 | Subir `bcrypt` a coste 12 con rehash transparente en el próximo login. | ⏳ |
 
 ### Fase 3 — Higiene y cumplimiento (continuo)
 
@@ -272,8 +272,8 @@ Al salir de `STAFF_ROLES` recupera ese acceso, que es el comportamiento correcto
 | 3.3 | `npm audit fix` para `uuid`/`exceljs` cuando haya versión sin *breaking change*. Dependabot o Renovate en el repo. |
 | 3.4 | DTO y `@IsEmail` en `POST /public/nutritionist-interest`; longitudes máximas en todo formulario público. |
 | 3.5 | `crypto.timingSafeEqual` para cualquier comparación de secretos que quede. |
-| 3.6 | Eliminar el cliente de Supabase del frontend (`lib/supabase.ts`) — sólo se usa para un `signOut()` inútil. |
-| 3.7 | Cabeceras de seguridad también en el frontend: `Cross-Origin-Opener-Policy`, `Cross-Origin-Resource-Policy`. |
+| 3.6 | Eliminar `@supabase/supabase-js` y cliente de Supabase del frontend (`lib/supabase.ts`, `package.json`). | ✅ |
+| 3.7 | Cabeceras de seguridad también en el frontend: `Cross-Origin-Opener-Policy`, `Cross-Origin-Resource-Policy`. | ⏳ |
 
 ---
 

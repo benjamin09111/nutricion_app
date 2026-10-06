@@ -421,11 +421,11 @@ export class AuthService {
       };
     } catch (error: any) {
       console.error('CRITICAL ERROR creating account:', error);
-      if (error instanceof BadRequestException) {
+      if (error instanceof HttpException) {
         throw error;
       }
-      throw new BadRequestException(
-        `Error interno al crear cuenta: ${error.message}`,
+      throw new InternalServerErrorException(
+        'No fue posible procesar la creación de la cuenta. Inténtalo más tarde.',
       );
     }
   }
@@ -754,10 +754,15 @@ export class AuthService {
         throw new UnauthorizedException('Credenciales inválidas');
       }
 
-      const updateData: any = { lastLoginAt: new Date() };
-      await this.prisma.account.update({
+      const updatedAccount = await this.prisma.account.update({
         where: { id: account.id },
-        data: updateData,
+        data: {
+          lastLoginAt: new Date(),
+          tokenVersion: { increment: 1 },
+        },
+        select: {
+          tokenVersion: true,
+        },
       });
 
       if (
@@ -776,7 +781,7 @@ export class AuthService {
       const payload = {
         email: account.email,
         sub: account.id,
-        tokenVersion: account.tokenVersion ?? 0,
+        tokenVersion: updatedAccount.tokenVersion,
       };
 
       const isAdminAccount =

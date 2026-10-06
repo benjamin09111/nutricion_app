@@ -6,6 +6,7 @@ import {
   Request,
   Res,
   Logger,
+  HttpException,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import type { Response } from 'express';
@@ -49,8 +50,14 @@ export class CopilotController {
         );
         quotaReserved = true;
       } catch (error) {
+        this.logger.warn(
+          `Copilot quota consumption failed for account ${accountId}:`,
+          error,
+        );
         const message =
-          error instanceof Error ? error.message : 'Cuota agotada';
+          error instanceof HttpException
+            ? error.message
+            : 'Has alcanzado el límite de consultas permitidas por tu plan o tu cuota no está disponible.';
         res.write(
           `data: ${JSON.stringify({ type: 'error', content: message })}\n\n`,
         );

@@ -120,13 +120,13 @@ export class AuthController {
       const targetUrl = `${frontendUrl}/auth/callback?ticket=${encodeURIComponent(ticket)}&next=${encodeURIComponent(resolveSafePostAuthPath(callback.next))}`;
       return res.redirect(targetUrl);
     } catch (error: any) {
-      const rawMsg =
-        error?.response?.message ||
-        error?.message ||
-        'No fue posible iniciar sesión con Google. Intenta nuevamente.';
-      const formattedMsg = Array.isArray(rawMsg) ? rawMsg[0] : rawMsg;
+      this.logger.error('Error in Google OAuth callback:', error);
+      const safeMsg =
+        error instanceof HttpException
+          ? error.message
+          : 'No fue posible iniciar sesión con Google. Intenta nuevamente.';
       return res.redirect(
-        `${frontendUrl}/login?error=${encodeURIComponent(formattedMsg)}`,
+        `${frontendUrl}/login?error=${encodeURIComponent(safeMsg)}`,
       );
     }
   }
@@ -182,14 +182,14 @@ export class AuthController {
       await this.authService.revokeSessionFromToken(sessionToken);
     }
 
-    // Current session cookies
-    res.clearCookie(AUTH_SESSION_COOKIE, { path: '/' });
-    res.clearCookie(AUTH_PRESENCE_COOKIE, { path: '/' });
+    // Current session cookies destroyed with full security options
+    res.clearCookie(AUTH_SESSION_COOKIE, authSessionCookieOptions());
+    res.clearCookie(AUTH_PRESENCE_COOKIE, authPresenceCookieOptions());
     // Legacy cookie names (clean-up for existing sessions)
-    res.clearCookie(LEGACY_AUTH_SESSION_COOKIE, { path: '/' });
+    res.clearCookie(LEGACY_AUTH_SESSION_COOKIE, authSessionCookieOptions());
     res.clearCookie(LEGACY_SENTINEL_COOKIE, { path: '/' });
-    res.clearCookie(LEGACY_NUTRINET_SESSION_COOKIE, { path: '/' });
-    res.clearCookie('auth_session', { path: '/' });
+    res.clearCookie(LEGACY_NUTRINET_SESSION_COOKIE, authSessionCookieOptions());
+    res.clearCookie('auth_session', authSessionCookieOptions());
     return { success: true };
   }
 

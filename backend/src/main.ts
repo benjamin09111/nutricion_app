@@ -27,6 +27,8 @@ import {
   PATIENT_PORTAL_SESSION_COOKIE,
 } from './modules/patient-portals/patient-portal-cookie.constants';
 
+import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
+
 // Force IPv4 preference for DNS resolution to avoid ENETUNREACH on IPv6-only cloud networks
 dns.setDefaultResultOrder('ipv4first');
 
@@ -40,8 +42,16 @@ async function bootstrap() {
   // Trust reverse proxy (Render, Vercel) so real client IPs are used for rate limiting
   app.getHttpAdapter().getInstance().set('trust proxy', 1);
 
-  // Security
-  app.use(helmet());
+  // Security - Strict Transport Security (HSTS) with preload and subdomains
+  app.use(
+    helmet({
+      hsts: {
+        maxAge: 63072000,
+        includeSubDomains: true,
+        preload: true,
+      },
+    }),
+  );
 
   const expandOriginVariants = (value: string) => {
     const normalized = normalizeUrl(value.trim());
@@ -160,6 +170,9 @@ async function bootstrap() {
     }),
     new SanitizationPipe(),
   );
+
+  // Global Exception Sanitization (no stack traces, file paths, or raw DB errors in prod)
+  app.useGlobalFilters(new GlobalExceptionFilter());
 
   // Interceptors
   // app.useGlobalInterceptors(new LoggingInterceptor()); // Middleware now handles logging
