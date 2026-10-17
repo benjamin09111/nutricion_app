@@ -46,7 +46,33 @@ export const authService = {
       throw new Error(message);
     }
 
-    // Persist session presence on frontend domain and user metadata
+    // Persist session presence on frontend domain and user metadata only when 2FA is complete
+    if (data.user && !data.requiresTotp) {
+      persistAuthSession("", data.user);
+    }
+
+    return data;
+  },
+
+  async verifyTotp(tempToken: string, code: string) {
+    const response = await fetchApi(`/auth/login/totp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tempToken, code }),
+    });
+
+    const contentType = response.headers.get("content-type") || "";
+    const data = contentType.includes("application/json")
+      ? await response.json()
+      : { message: await response.text() };
+
+    if (!response.ok) {
+      const message = Array.isArray(data.message)
+        ? data.message.join(" ")
+        : data.message || data.error || "Código de verificación 2FA inválido";
+      throw new Error(message);
+    }
+
     if (data.user) {
       persistAuthSession("", data.user);
     }

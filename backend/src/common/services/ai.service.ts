@@ -149,6 +149,7 @@ export class AiService {
       providers?: AiProvider[];
       accountId?: string;
       feature?: string;
+      maxTokens?: number;
     },
   ): Promise<{
     provider: AiProvider;
@@ -157,6 +158,7 @@ export class AiService {
   }> {
     const temperature = options?.temperature ?? 0.2;
     const providers = options?.providers ?? ['gemini', 'openai', 'deepseek'];
+    const maxTokens = options?.maxTokens ?? 2000;
 
     return this.runWithFallback(
       taskName,
@@ -169,6 +171,7 @@ export class AiService {
             .join('\n'),
           prompt: userPrompt,
           temperature,
+          maxTokens,
           providerOptions:
             config.provider === 'gemini'
               ? { google: { structuredOutputs: true } }

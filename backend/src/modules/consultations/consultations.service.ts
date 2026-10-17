@@ -12,6 +12,10 @@ import { CacheService } from '../../common/services/cache.service';
 import { PermissionsService } from '../permissions/permissions.service';
 import { PLAN_ENTITLEMENT_KEYS } from '../memberships/plan-entitlements';
 import { PatientsService } from '../patients/patients.service';
+import {
+  encryptSensitiveText,
+  decryptSensitiveText,
+} from '../../common/utils/crypto.util';
 
 type ConsultationMetric = {
   key?: string;
@@ -139,13 +143,17 @@ export class ConsultationsService {
 
     this.assertMetricsDoNotContainClinicalFields(createConsultationDto.metrics);
 
+    const secureDescription = createConsultationDto.description
+      ? encryptSensitiveText(createConsultationDto.description)
+      : createConsultationDto.description;
+
     // Crear consulta y sincronizar métricas del paciente de forma atómica
     const consultation = await this.prisma.$transaction(async (tx) => {
       const created = await tx.consultation.create({
         data: {
           patientId: createConsultationDto.patientId,
           title: createConsultationDto.title,
-          description: createConsultationDto.description,
+          description: secureDescription,
           date: new Date(createConsultationDto.date),
           nutritionistId,
           plansDelivered: createConsultationDto.plansDelivered ?? false,
@@ -180,7 +188,12 @@ export class ConsultationsService {
       nutritionistId,
       'patients',
     );
-    return consultation;
+    return {
+      ...consultation,
+      description: consultation.description
+        ? decryptSensitiveText(consultation.description)
+        : consultation.description,
+    };
   }
 
   async findAll(
@@ -256,6 +269,9 @@ export class ConsultationsService {
     return {
       data: data.map((item) => ({
         ...item,
+        description: item.description
+          ? decryptSensitiveText(item.description)
+          : item.description,
         patientName: item.patient.fullName,
       })),
       meta: {
@@ -284,6 +300,9 @@ export class ConsultationsService {
 
     return {
       ...consultation,
+      description: consultation.description
+        ? decryptSensitiveText(consultation.description)
+        : consultation.description,
       patientName: consultation.patient.fullName,
     };
   }
@@ -306,13 +325,18 @@ export class ConsultationsService {
       data.date = new Date(updateConsultationDto.date);
     }
 
+    const secureDescription =
+      data.description !== undefined
+        ? encryptSensitiveText(data.description)
+        : undefined;
+
     const consultation = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.consultation.update({
         where: { id },
         data: {
           ...(data.title !== undefined && { title: data.title }),
-          ...(data.description !== undefined && {
-            description: data.description,
+          ...(secureDescription !== undefined && {
+            description: secureDescription,
           }),
           ...(data.date !== undefined && { date: data.date }),
           ...(data.metrics !== undefined && { metrics: data.metrics }),
@@ -345,7 +369,12 @@ export class ConsultationsService {
       nutritionistId,
       'patients',
     );
-    return consultation;
+    return {
+      ...consultation,
+      description: consultation.description
+        ? decryptSensitiveText(consultation.description)
+        : consultation.description,
+    };
   }
 
   private async reconcilePatientProfileFromConsultations(

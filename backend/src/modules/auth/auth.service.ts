@@ -3,6 +3,7 @@ import {
   BadRequestException,
   ConflictException,
   UnauthorizedException,
+  NotFoundException,
   ServiceUnavailableException,
   InternalServerErrorException,
   Inject,
@@ -21,6 +22,12 @@ import { RegisterDto } from './dto/register.dto';
 import { normalizeRut, isValidRut } from '../../common/utils/rut';
 import { PermissionsService } from '../permissions/permissions.service';
 import { resolveRequiredUrl } from '../../common/utils/runtime-url.util';
+import {
+  generateTotpSecret,
+  verifyTotpToken,
+  generateOtpAuthUrl,
+  generateRecoveryCodes,
+} from '../../common/utils/totp.util';
 
 import {
   Prisma,
@@ -755,90 +762,52 @@ export class AuthService {
         throw new UnauthorizedException('Credenciales inválidas');
       }
 
-      const updatedAccount = await this.prisma.account.update({
-        where: { id: account.id },
-        data: {
-          lastLoginAt: new Date(),
-          tokenVersion: { increment: 1 },
-        },
-        select: {
-          tokenVersion: true,
-        },
-      });
+      // Check if 2FA (TOTP) is enabled for this account
+      if (account.totpEnabled) {
+        if (!loginDto.totpCode) {
+          const tempToken = this.jwtService.sign(
+            {
+              sub: account.id,
+              email: account.email,
+              is2faTemp: true,
+              rememberMe: Boolean(loginDto.rememberMe),
+            },
+            { expiresIn: '5m' },
+          );
+          return {
+            requiresTotp: true,
+            tempToken,
+            user: {
+              id: account.id,
+              email: account.email,
+            },
+          };
+        }
 
-      if (
-        (account.role === 'NUTRITIONIST' ||
-          account.role === 'NUTRITIONIST_DEVELOPER') &&
-        !account.nutritionist
-      ) {
-        console.warn(
-          `[AuthService] Warning: Account ${account.email} has no Nutritionist record. Role: ${account.role}`,
-        );
+        // Verify supplied totpCode
+        const cleanCode = loginDto.totpCode.trim().toUpperCase();
+        let isValid = verifyTotpToken(account.totpSecret || '', cleanCode);
+        if (!isValid && account.totpRecoveryCodes?.length) {
+          const idx = account.totpRecoveryCodes.indexOf(cleanCode);
+          if (idx !== -1) {
+            isValid = true;
+            const updated = [...account.totpRecoveryCodes];
+            updated.splice(idx, 1);
+            await this.prisma.account.update({
+              where: { id: account.id },
+              data: { totpRecoveryCodes: updated },
+            });
+          }
+        }
+
+        if (!isValid) {
+          throw new UnauthorizedException(
+            'Código de autenticación en dos pasos inválido',
+          );
+        }
       }
 
-      // El JWT sólo identifica la cuenta. El rol NUNCA viaja en el token:
-      // se resuelve desde la base de datos en JwtStrategy.validate en cada
-      // request, así un token editado a mano no puede escalar privilegios.
-      const payload = {
-        email: account.email,
-        sub: account.id,
-        tokenVersion: updatedAccount.tokenVersion,
-      };
-
-      const isAdminAccount =
-        account.role === 'ADMIN' ||
-        account.role === 'ADMIN_GENERAL' ||
-        account.role === 'ADMIN_MASTER';
-
-      const signOptions: any = {
-        expiresIn: isAdminAccount ? '12h' : loginDto.rememberMe ? '30d' : '24h',
-      };
-
-      const accessSnapshot = await this.permissionsService.getAccessSnapshot(
-        account.id,
-      );
-      const effectivePlan =
-        (accessSnapshot as any)?.accountPlan ||
-        account.plan ||
-        SubscriptionPlan.FREE;
-      const planName =
-        accessSnapshot?.currentPlan?.name ||
-        (effectivePlan === SubscriptionPlan.FREE
-          ? 'Plan Gratuito'
-          : effectivePlan === SubscriptionPlan.ENTERPRISE
-            ? 'Plan Enterprise'
-            : 'Plan Pro');
-
-      const subscriptionInfo = account.subscription
-        ? {
-            status: account.subscription.status,
-            startDate: account.subscription.startDate,
-            endDate: account.subscription.endDate,
-            cancelAtPeriodEnd: account.subscription.cancelAtPeriodEnd,
-            canceledAt: account.subscription.canceledAt,
-            planId: account.subscription.planId,
-            planName: account.subscription.plan?.name || null,
-            planSlug: account.subscription.plan?.slug || null,
-            planPrice: account.subscription.plan
-              ? Number(account.subscription.plan.price)
-              : null,
-          }
-        : null;
-      return {
-        access_token: this.jwtService.sign(payload, signOptions),
-        user: {
-          id: account.id,
-          email: account.email,
-          role: account.role,
-          rut: account.rut || null,
-          plan: effectivePlan,
-          planName,
-          requiresPlanSelection: accessSnapshot?.requiresPlanSelection ?? true,
-          entitlements: accessSnapshot?.entitlements ?? {},
-          subscription: subscriptionInfo,
-          nutritionist: account.nutritionist,
-        },
-      };
+      return this.generateSessionForAccount(account, loginDto.rememberMe);
     } catch (error: any) {
       if (error?.code === 'P2022') {
         console.error('[AuthService] Prisma schema mismatch on login:', error);
@@ -849,6 +818,219 @@ export class AuthService {
 
       throw error;
     }
+  }
+
+  async generateSessionForAccount(account: any, rememberMe?: boolean) {
+    const updatedAccount = await this.prisma.account.update({
+      where: { id: account.id },
+      data: {
+        lastLoginAt: new Date(),
+        tokenVersion: { increment: 1 },
+      },
+      select: {
+        tokenVersion: true,
+      },
+    });
+
+    if (
+      (account.role === 'NUTRITIONIST' ||
+        account.role === 'NUTRITIONIST_DEVELOPER') &&
+      !account.nutritionist
+    ) {
+      console.warn(
+        `[AuthService] Warning: Account ${account.email} has no Nutritionist record. Role: ${account.role}`,
+      );
+    }
+
+    // El JWT sólo identifica la cuenta. El rol NUNCA viaja en el token:
+    // se resuelve desde la base de datos en JwtStrategy.validate en cada request.
+    const payload = {
+      email: account.email,
+      sub: account.id,
+      tokenVersion: updatedAccount.tokenVersion,
+    };
+
+    const isAdminAccount =
+      account.role === 'ADMIN' ||
+      account.role === 'ADMIN_GENERAL' ||
+      account.role === 'ADMIN_MASTER';
+
+    const signOptions: any = {
+      expiresIn: isAdminAccount ? '12h' : rememberMe ? '30d' : '24h',
+    };
+
+    const accessSnapshot = await this.permissionsService.getAccessSnapshot(
+      account.id,
+    );
+    const effectivePlan =
+      (accessSnapshot as any)?.accountPlan ||
+      account.plan ||
+      SubscriptionPlan.FREE;
+    const planName =
+      accessSnapshot?.currentPlan?.name ||
+      (effectivePlan === SubscriptionPlan.FREE
+        ? 'Plan Gratuito'
+        : effectivePlan === SubscriptionPlan.ENTERPRISE
+          ? 'Plan Enterprise'
+          : 'Plan Pro');
+
+    const subscriptionInfo = account.subscription
+      ? {
+          status: account.subscription.status,
+          startDate: account.subscription.startDate,
+          endDate: account.subscription.endDate,
+          cancelAtPeriodEnd: account.subscription.cancelAtPeriodEnd,
+          canceledAt: account.subscription.canceledAt,
+          planId: account.subscription.planId,
+          planName: account.subscription.plan?.name || null,
+          planSlug: account.subscription.plan?.slug || null,
+          planPrice: account.subscription.plan
+            ? Number(account.subscription.plan.price)
+            : null,
+        }
+      : null;
+
+    return {
+      access_token: this.jwtService.sign(payload, signOptions),
+      user: {
+        id: account.id,
+        email: account.email,
+        role: account.role,
+        rut: account.rut || null,
+        plan: effectivePlan,
+        planName,
+        requiresPlanSelection: accessSnapshot?.requiresPlanSelection ?? true,
+        entitlements: accessSnapshot?.entitlements ?? {},
+        subscription: subscriptionInfo,
+        nutritionist: account.nutritionist,
+      },
+    };
+  }
+
+  async verifyTotpLogin(tempToken: string, code: string) {
+    let decoded: any;
+    try {
+      decoded = this.jwtService.verify(tempToken);
+    } catch {
+      throw new UnauthorizedException(
+        'El token de verificación 2FA ha expirado o es inválido',
+      );
+    }
+
+    if (!decoded || !decoded.is2faTemp || !decoded.sub) {
+      throw new UnauthorizedException('Token 2FA inválido');
+    }
+
+    const account = await this.prisma.account.findUnique({
+      where: { id: decoded.sub },
+      include: {
+        nutritionist: true,
+        subscription: {
+          include: { plan: true },
+        },
+      },
+    });
+
+    if (!account || !account.totpEnabled || !account.totpSecret) {
+      throw new UnauthorizedException(
+        '2FA no está habilitado para esta cuenta',
+      );
+    }
+
+    const cleanCode = code.trim().toUpperCase();
+    let isValid = verifyTotpToken(account.totpSecret, cleanCode);
+
+    if (!isValid && account.totpRecoveryCodes?.length) {
+      const recoveryIndex = account.totpRecoveryCodes.indexOf(cleanCode);
+      if (recoveryIndex !== -1) {
+        isValid = true;
+        const updated = [...account.totpRecoveryCodes];
+        updated.splice(recoveryIndex, 1);
+        await this.prisma.account.update({
+          where: { id: account.id },
+          data: { totpRecoveryCodes: updated },
+        });
+      }
+    }
+
+    if (!isValid) {
+      throw new UnauthorizedException('Código de verificación 2FA inválido');
+    }
+
+    return this.generateSessionForAccount(account, decoded.rememberMe);
+  }
+
+  async setup2fa(accountId: string) {
+    const account = await this.prisma.account.findUnique({
+      where: { id: accountId },
+    });
+    if (!account) throw new NotFoundException('Cuenta no encontrada');
+
+    const secret = generateTotpSecret();
+    const otpAuthUrl = generateOtpAuthUrl(account.email, secret);
+
+    await this.prisma.account.update({
+      where: { id: accountId },
+      data: { totpSecret: secret },
+    });
+
+    return { secret, otpAuthUrl };
+  }
+
+  async confirm2fa(accountId: string, code: string) {
+    const account = await this.prisma.account.findUnique({
+      where: { id: accountId },
+    });
+    if (!account || !account.totpSecret) {
+      throw new BadRequestException('Configura 2FA primero antes de verificar');
+    }
+
+    const isValid = verifyTotpToken(account.totpSecret, code.trim());
+    if (!isValid) {
+      throw new BadRequestException('Código de verificación 2FA incorrecto');
+    }
+
+    const recoveryCodes = generateRecoveryCodes(8);
+
+    await this.prisma.account.update({
+      where: { id: accountId },
+      data: {
+        totpEnabled: true,
+        totpRecoveryCodes: recoveryCodes,
+      },
+    });
+
+    return {
+      success: true,
+      recoveryCodes,
+      message:
+        'Autenticación en dos pasos activada exitosamente. Guarda tus códigos de recuperación.',
+    };
+  }
+
+  async disable2fa(accountId: string, password: string) {
+    const account = await this.prisma.account.findUnique({
+      where: { id: accountId },
+    });
+    if (!account || !account.password) {
+      throw new BadRequestException('Cuenta no válida');
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, account.password);
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Contraseña incorrecta');
+    }
+
+    await this.prisma.account.update({
+      where: { id: accountId },
+      data: {
+        totpEnabled: false,
+        totpSecret: null,
+        totpRecoveryCodes: [],
+      },
+    });
+
+    return { success: true, message: 'Autenticación en dos pasos desactivada' };
   }
 
   async loginWithGoogle(profile: {

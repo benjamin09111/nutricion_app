@@ -1219,8 +1219,14 @@ export class RecipesService {
     }
   }
 
-  async findAll(userId: string) {
+  async findAll(userId: string, query?: { page?: number; limit?: number }) {
     try {
+      const safeLimit = query?.limit
+        ? Math.min(Math.max(1, query.limit), 50)
+        : 50;
+      const safePage = query?.page ? Math.max(1, query.page) : 1;
+      const skip = (safePage - 1) * safeLimit;
+
       const nutritionistId = await this.getNutritionistId(userId).catch(
         () => null,
       );
@@ -1258,6 +1264,8 @@ export class RecipesService {
         where,
         include,
         orderBy: { updatedAt: 'desc' },
+        skip,
+        take: safeLimit,
       });
       return recipes.map((r: any) => {
         const isMine = nutritionistId
@@ -1278,6 +1286,12 @@ export class RecipesService {
         '[RecipesService.findAll] Fallback to public recipes:',
         error,
       );
+      const safeLimit = query?.limit
+        ? Math.min(Math.max(1, query.limit), 50)
+        : 50;
+      const safePage = query?.page ? Math.max(1, query.page) : 1;
+      const skip = (safePage - 1) * safeLimit;
+
       const recipes = await this.prisma.recipe.findMany({
         where: { isPublic: true },
         include: {
@@ -1285,6 +1299,8 @@ export class RecipesService {
           nutritionist: { select: { fullName: true } },
         },
         orderBy: { updatedAt: 'desc' },
+        skip,
+        take: safeLimit,
       });
       return recipes.map((r: any) => ({
         ...r,

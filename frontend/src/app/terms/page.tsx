@@ -48,22 +48,23 @@ const sections: LegalSection[] = [
     ],
   },
   {
-    title: "5. Conductas prohibidas",
+    title: "5. Conductas prohibidas, anti-scraping e ingeniería inversa",
     paragraphs: [
-      "Se prohíbe ingresar información falsa o no autorizada, vulnerar la seguridad de la plataforma, intentar acceder a cuentas o datos ajenos, usar la plataforma con fines ilícitos o abusivos, o copiar, revender o sublicenciar la plataforma sin autorización.",
+      "Queda estrictamente prohibido: (a) el uso de herramientas automatizadas, spiders, rastreadores (crawlers), scrapers, bots o scripts para extraer, indexar, descargar masivamente o cosechar datos, bases de datos de alimentos, recetas, parámetros de cálculo o perfiles de la plataforma; (b) descompilar, desensamblar, realizar ingeniería inversa o intentar descubrir el código fuente, la arquitectura, los algoritmos clínicos o los prompts y directivas de los modelos de Inteligencia Artificial de NutriNet; (c) someter los asistentes de IA a técnicas de extracción de directivas (jailbreaking, prompt injection o model inversion); y (d) revender, sublicenciar, compartir credenciales o utilizar el software para construir o entrenar productos o servicios competidores.",
+      "Cualquier intento o acto de extracción no autorizada facultará a NutriNet para la suspensión inmediata de la cuenta infractora, el bloqueo permanente de acceso y el ejercicio de las acciones civiles y penales pertinentes bajo la Ley N° 17.336 de Propiedad Intelectual y la Ley N° 21.459 sobre Delitos Informáticos de Chile.",
     ],
   },
   {
     title: "6. Seguridad y disponibilidad",
     paragraphs: [
-      "NutriNet adopta medidas razonables de seguridad técnicas y organizativas. Sin perjuicio de ello, ningún sistema es completamente infalible.",
-      "La plataforma puede presentar caídas, inconsistencias o cambios mientras evoluciona el servicio, y algunas funciones pueden modificarse, limitarse o suspenderse por razones técnicas u operativas.",
+      "NutriNet adopta medidas de seguridad técnicas y organizativas del más alto estándar de la industria, incluyendo cifrado en tránsito y en reposo, autenticación de dos factores (2FA/TOTP) y controles de acceso estrictos. Sin perjuicio de ello, ningún sistema es completamente infalible.",
+      "La plataforma puede presentar caídas temporales por mantenimiento, inconsistencias o cambios mientras evoluciona el servicio, y algunas funciones pueden modificarse, limitarse o suspenderse por razones técnicas u operativas.",
     ],
   },
   {
     title: "7. Propiedad intelectual y protección de derechos de autor (Procedimiento de retiro / Takedown)",
     paragraphs: [
-      "La plataforma, su diseño, código, textos, flujos, interfaces y marcas pertenecen a NutriNet o a sus licenciantes.",
+      "La plataforma, su diseño, código, textos, flujos, interfaces, bases de datos nutricionales, perfiles de intercambio y marcas pertenecen exclusivamente a NutriNet o a sus licenciantes legítimos, constituyendo activos protegidos por la legislación de propiedad intelectual chilena e internacional.",
       "Respecto del contenido, archivos, imágenes o recursos cargados por los usuarios en la plataforma, el usuario garantiza contar con las autorizaciones y derechos de propiedad intelectual necesarios.",
       "Si cualquier titular de derechos considera que algún contenido alojado en NutriNet infringe sus derechos de autor o propiedad intelectual, podrá enviar una notificación de retiro (Notice and Takedown) a contacto@nutrinet.cl detallando el material infractor. NutriNet actuará con prontitud para evaluar y, en su caso, remover o deshabilitar el acceso a dicho material.",
     ],
@@ -88,7 +89,7 @@ export default function TermsPage() {
     <LegalPage
       title="Términos de Servicio"
       description="Condiciones generales de uso de NutriNet para profesionales de nutrición y dietética."
-      lastUpdated="17 de agosto de 2026"
+      lastUpdated="17 de octubre de 2026"
       sections={sections}
     />
   );

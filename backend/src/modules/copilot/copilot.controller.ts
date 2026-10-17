@@ -41,6 +41,7 @@ export class CopilotController {
     res.flushHeaders();
 
     const accountId = req.user?.id || req.user?.sub;
+    const nutritionistId = req.user?.nutritionistId;
     let quotaReserved = false;
     if (accountId) {
       try {
@@ -67,7 +68,11 @@ export class CopilotController {
     }
 
     try {
-      const result = await this.copilotService.chat(body.message, accountId);
+      const result = await this.copilotService.chat(
+        body.message,
+        accountId,
+        nutritionistId,
+      );
 
       for await (const chunk of result.textStream) {
         res.write(

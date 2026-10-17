@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowRight, AlertCircle } from "lucide-react";
+import { ArrowRight, AlertCircle, ShieldCheck, ArrowLeft } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/Button";
 import { authService } from "@/features/auth/services/auth.service";
@@ -24,6 +25,14 @@ export default function EmailLoginForm({
   onSuccess,
   onVerificationRequired,
 }: EmailLoginFormProps) {
+  const [totpChallenge, setTotpChallenge] = useState<{
+    tempToken: string;
+    email: string;
+  } | null>(null);
+  const [totpCode, setTotpCode] = useState("");
+  const [totpError, setTotpError] = useState<string | null>(null);
+  const [isVerifyingTotp, setIsVerifyingTotp] = useState(false);
+
   const {
     register,
     handleSubmit,
@@ -37,6 +46,13 @@ export default function EmailLoginForm({
   const onSubmit = async (values: LoginFormData) => {
     try {
       const response = await authService.signIn(values);
+      if (response.requiresTotp && response.tempToken) {
+        setTotpChallenge({
+          tempToken: response.tempToken,
+          email: values.email,
+        });
+        return;
+      }
       onSuccess(response.user || {});
     } catch (error) {
       const message =
@@ -50,6 +66,97 @@ export default function EmailLoginForm({
       setError("root.server", { message });
     }
   };
+
+  const handleVerifyTotp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!totpChallenge || !totpCode.trim()) return;
+
+    setIsVerifyingTotp(true);
+    setTotpError(null);
+
+    try {
+      const res = await authService.verifyTotp(
+        totpChallenge.tempToken,
+        totpCode.trim(),
+      );
+      onSuccess(res.user || {});
+    } catch (error) {
+      const msg =
+        error instanceof Error
+          ? error.message
+          : "Código de verificación incorrecto.";
+      setTotpError(msg);
+    } finally {
+      setIsVerifyingTotp(false);
+    }
+  };
+
+  if (totpChallenge) {
+    return (
+      <form onSubmit={handleVerifyTotp} className="space-y-4" noValidate>
+        <div className="flex items-center gap-3 rounded-2xl bg-emerald-50 border border-emerald-200 p-4 text-emerald-900">
+          <div className="rounded-xl bg-emerald-600 p-2.5 text-white shrink-0">
+            <ShieldCheck className="h-5 w-5" />
+          </div>
+          <div className="text-xs">
+            <p className="font-extrabold text-sm text-emerald-950">
+              Autenticación en dos pasos (2FA)
+            </p>
+            <p className="text-emerald-800">
+              Ingresa el código de 6 dígitos de tu aplicación de autenticación para{" "}
+              <strong className="font-semibold">{totpChallenge.email}</strong>.
+            </p>
+          </div>
+        </div>
+
+        {totpError ? (
+          <div
+            role="alert"
+            className="flex items-start gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700"
+          >
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>{totpError}</span>
+          </div>
+        ) : null}
+
+        <AuthField
+          id="totp-code"
+          label="Código de verificación o respaldo"
+          type="text"
+          autoComplete="one-time-code"
+          placeholder="123456 o XXXX-XXXX"
+          value={totpCode}
+          onChange={(e) => setTotpCode(e.target.value)}
+          required
+        />
+
+        <div className="flex gap-2 pt-2">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => {
+              setTotpChallenge(null);
+              setTotpCode("");
+              setTotpError(null);
+            }}
+            className="h-11 rounded-xl text-slate-600 hover:bg-slate-100"
+          >
+            <ArrowLeft className="mr-1.5 h-4 w-4" />
+            Volver
+          </Button>
+
+          <Button
+            type="submit"
+            className="h-11 flex-1 rounded-xl bg-emerald-600 text-sm font-bold text-white shadow-xs hover:bg-emerald-700 transition-colors"
+            isLoading={isVerifyingTotp}
+          >
+            {isVerifyingTotp ? "Verificando..." : "Confirmar e ingresar"}
+            {!isVerifyingTotp ? <ArrowRight className="ml-2 h-4 w-4" /> : null}
+          </Button>
+        </div>
+      </form>
+    );
+  }
 
   const supportHref = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(
     "Solicitud de recuperación de acceso a NutriNet",
@@ -117,4 +224,3 @@ export default function EmailLoginForm({
     </form>
   );
 }
-

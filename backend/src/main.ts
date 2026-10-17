@@ -16,6 +16,10 @@ import {
   publicInterestLimiter,
   publicPatientIntakeLimiter,
   supportRequestLimiter,
+  authLoginLimiter,
+  authRegisterLimiter,
+  copilotChatLimiter,
+  catalogAntiScrapingLimiter,
 } from './common/rate-limits';
 import type { NextFunction, Request, Response } from 'express';
 import {
@@ -160,6 +164,11 @@ async function bootstrap() {
   app.use('/public/nutritionists', publicAppointmentLimiter);
   app.use('/public/nutritionist-interest', publicInterestLimiter);
   app.use('/support', supportRequestLimiter);
+  app.use('/auth/login', authLoginLimiter);
+  app.use('/auth/register', authRegisterLimiter);
+  app.use('/copilot/chat', copilotChatLimiter);
+  app.use('/foods', catalogAntiScrapingLimiter);
+  app.use('/recipes', catalogAntiScrapingLimiter);
 
   // Validation & Sanitization
   app.useGlobalPipes(

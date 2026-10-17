@@ -6,6 +6,7 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
   UseGuards,
   Request,
   UseInterceptors,
@@ -81,8 +82,15 @@ export class RecipesController {
   }
 
   @Get()
-  findAll(@Request() req: any) {
-    return this.recipesService.findAll(req.user.id);
+  findAll(
+    @Request() req: any,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.recipesService.findAll(req.user.id, {
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined,
+    });
   }
 
   @Get(':id')

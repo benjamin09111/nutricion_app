@@ -1,6 +1,8 @@
 import {
   Controller,
   Post,
+  Get,
+  Query,
   UseInterceptors,
   UploadedFile,
   UseGuards,
@@ -88,4 +90,23 @@ export class UploadsController {
       filename: secureFilename,
     };
   }
+
+  @Get('signed-url')
+  async getSignedUrl(@Query('path') path: string) {
+    if (!path) {
+      throw new BadRequestException('El parámetro path es requerido');
+    }
+
+    const resolved = this.storageService.resolveObjectPath(path);
+    if (!resolved) {
+      throw new BadRequestException('Ruta de archivo inválida o no permitida');
+    }
+
+    const signedUrl = await this.storageService.createSignedUrl(resolved, 900);
+    return {
+      signedUrl,
+      expiresIn: 900,
+    };
+  }
 }
+

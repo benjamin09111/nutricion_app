@@ -73,6 +73,25 @@ export class StorageService implements OnModuleInit {
     return this.getPublicUrl(data.path);
   }
 
+  async createSignedUrl(
+    path: string,
+    expiresIn: number = 900,
+  ): Promise<string> {
+    const cleanPath = path.replace(/^\/+/, '');
+    const { data, error } = await this.requireClient()
+      .storage.from(this.bucket)
+      .createSignedUrl(cleanPath, expiresIn);
+
+    if (error || !data?.signedUrl) {
+      this.logger.error(`Supabase createSignedUrl failed: ${error?.message}`);
+      throw new Error(
+        'No se pudo generar el enlace seguro temporal para el archivo.',
+      );
+    }
+
+    return data.signedUrl;
+  }
+
   getPublicUrl(path: string): string {
     const { data } = this.requireClient()
       .storage.from(this.bucket)

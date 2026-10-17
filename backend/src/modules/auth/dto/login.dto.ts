@@ -22,4 +22,9 @@ export class LoginDto {
   @IsBoolean({ message: 'rememberMe debe ser un booleano' })
   @IsOptional()
   rememberMe?: boolean;
+
+  @IsString({ message: 'El código 2FA debe ser un texto' })
+  @IsOptional()
+  @MaxLength(20)
+  totpCode?: string;
 }
