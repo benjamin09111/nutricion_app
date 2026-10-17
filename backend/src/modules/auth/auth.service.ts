@@ -4,6 +4,7 @@ import {
   ConflictException,
   UnauthorizedException,
   ServiceUnavailableException,
+  InternalServerErrorException,
   Inject,
   HttpException,
   HttpStatus,

@@ -4,11 +4,10 @@ NutriNet es una plataforma SaaS para nutricionistas en Chile. El producto automa
 
 ## Leer primero
 
-1. `.agents/rules/core.md`
-2. `.agents/entrypoint.md`
-3. `.agents/context/product.md`
-4. `.agents/context/architecture.md`
-5. `docs/README.md`
+1. `NUTRINET_MASTER_DOCUMENT.md` (Documento Maestro Integral: Negocio, Propuesta de Valor, Arquitectura y Agentes)
+2. `.agents/rules/core.md`
+3. `.agents/AGENTS.md`
+4. `docs/README.md`
 
 ## Estructura del repo
 

@@ -13,6 +13,8 @@ import {
   BadRequestException,
   Res,
   Req,
+  Logger,
+  HttpException,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateAccountDto } from './dto/create-account.dto';
@@ -51,6 +53,8 @@ const readCookie = (request: ExpressRequest, name: string) => {
 
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(
     private readonly authService: AuthService,
     private readonly googleIntegrationService: GoogleIntegrationService,

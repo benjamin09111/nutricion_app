@@ -23,6 +23,7 @@ import {
   Star,
   ArrowRight,
   Lock,
+  Rocket,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
@@ -40,6 +41,12 @@ import {
   type AboutSectionTab,
 } from "@/components/landing/AboutNutriNetModal";
 import { AboutNutriNetNavExtension } from "@/components/landing/AboutNutriNetNavExtension";
+import { useLandingTracker } from "@/hooks/useLandingTracker";
+import { HeroSection } from "@/components/landing/HeroSection";
+import { ComparisonMatrixSection } from "@/components/landing/ComparisonMatrixSection";
+import { ValidationSocialProofSection } from "@/components/landing/ValidationSocialProofSection";
+import { BetaLeadCaptureSection } from "@/components/landing/BetaLeadCaptureSection";
+import { FloatingJumpChileButton } from "@/components/landing/FloatingJumpChileButton";
 
 const toMembershipPlanArray = (value: unknown): MembershipPlan[] => {
   let list: MembershipPlan[] = [];
@@ -56,12 +63,46 @@ const toMembershipPlanArray = (value: unknown): MembershipPlan[] => {
 
 export default function LandingPage() {
   const router = useRouter();
+  const { sessionId, trackEvent } = useLandingTracker();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [plans, setPlans] = useState<MembershipPlan[]>([]);
   const [isAboutDropdownOpen, setIsAboutDropdownOpen] = useState(false);
   const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
   const [aboutModalTab, setAboutModalTab] = useState<AboutSectionTab>("objetivos");
   const headerRef = useRef<HTMLElement>(null);
+
+  const handleHeroCtaClick = () => {
+    trackEvent("HERO_CTA_CLICK", { button: "hero_primary" });
+    const targetElement = document.getElementById("registro");
+    if (targetElement) {
+      const headerOffset = 80;
+      const elementPosition = targetElement.getBoundingClientRect().top;
+      const offsetPosition = elementPosition + window.scrollY - headerOffset;
+      window.scrollTo({ top: offsetPosition, behavior: "smooth" });
+      const input = document.getElementById("lead-fullname");
+      if (input) input.focus();
+    }
+  };
+
+  const handleExploreFeaturesClick = () => {
+    trackEvent("EXPLORE_FEATURES_CLICK");
+    const targetElement = document.getElementById("comparativa");
+    if (targetElement) {
+      const headerOffset = 80;
+      const elementPosition = targetElement.getBoundingClientRect().top;
+      const offsetPosition = elementPosition + window.scrollY - headerOffset;
+      window.scrollTo({ top: offsetPosition, behavior: "smooth" });
+    }
+  };
+
+
+  const handleLeadSubmitted = (leadData: { fullName: string; email: string; practiceArea: string }) => {
+    trackEvent("LEAD_CONVERSION_SUCCESS", { practiceArea: leadData.practiceArea });
+  };
+
+  const handleFloatingCtaClick = () => {
+    trackEvent("FLOATING_CTA_CLICK", { source: "floating_jump_chile_button" });
+  };
 
   useEffect(() => {
     fetchApi(`/memberships/active`)
@@ -204,22 +245,28 @@ export default function LandingPage() {
             </button>
 
             <a
+              href="#comparativa"
+              className="text-sm font-semibold transition-colors duration-200 text-slate-600 hover:text-slate-900"
+            >
+              Comparativa & Funcionalidades
+            </a>
+            <a
               href="#planes"
-              className="text-sm font-semibold transition-colors duration-200 text-[#a88aed] hover:text-[#8f70d8]"
+              className="text-sm font-semibold transition-colors duration-200 text-slate-600 hover:text-slate-900"
             >
               Precios
             </a>
             <Link
               href="/login"
-              className="text-sm font-semibold transition-colors duration-200 text-[#a88aed] hover:text-[#8f70d8]"
+              className="text-sm font-semibold transition-colors duration-200 text-slate-600 hover:text-slate-900"
             >
               Inicia Sesión
             </Link>
-            <Link href="/login">
+            <a href="#registro" onClick={handleHeroCtaClick}>
               <Button className="rounded-full h-10 px-6 text-xs font-bold uppercase tracking-wider bg-[#a88aed] hover:bg-[#8f70d8] text-white transition-all duration-300 hover:scale-105 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a88aed] focus-visible:ring-offset-2">
-                Empieza Gratis
+                Acceso Beta 50%
               </Button>
-            </Link>
+            </a>
           </nav>
 
           <button
@@ -270,165 +317,53 @@ export default function LandingPage() {
               </div>
 
               <a
+                href="#comparativa"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              >
+                Comparativa & Funcionalidades
+              </a>
+              <a
                 href="#planes"
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-[#a88aed]/5"
+                className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
               >
                 Precios
               </a>
               <Link
                 href="/login"
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-[#a88aed]/5"
+                className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
               >
                 Inicia Sesión
               </Link>
-              <Link
-                href="/login"
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="inline-flex items-center justify-center rounded-full bg-[#a88aed] px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#8f70d8]"
+              <a
+                href="#registro"
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  handleHeroCtaClick();
+                }}
+                className="inline-flex items-center justify-center rounded-full bg-[#a88aed] hover:bg-[#8f70d8] px-4 py-3 text-sm font-bold text-white shadow-sm transition"
               >
-                Empieza Gratis
-              </Link>
+                Acceso Beta 50% Dcto.
+              </a>
             </div>
           </div>
         )}
       </header>
 
       <main>
-        {/* Hero Section */}
-        <section className="relative overflow-hidden pt-28 pb-16 sm:pt-32 sm:pb-20 lg:pt-44 lg:pb-28">
-          <div className="mx-auto max-w-5xl px-4 sm:px-6">
-            <div className="space-y-8 text-center animate-in fade-in slide-in-from-bottom-8 duration-1000">
-              <div
-                className={cn(
-                  "inline-flex items-center gap-2 rounded-full border-2 px-4 py-2 text-xs font-medium transition-all duration-300 hover:scale-105 sm:px-5 sm:text-sm",
-                  "bg-[#a88aed]/10 text-[#a88aed] border-[#a88aed]/30",
-                )}
-              >
-                <Sparkles className="h-4 w-4" />
-                {content.hero.badge}
-              </div>
+        {/* 1. HERO SECTION (El Gancho Analgésico) */}
+        <HeroSection
+          onCtaClick={handleHeroCtaClick}
+          onExploreFeaturesClick={handleExploreFeaturesClick}
+        />
 
-              <div className="space-y-2">
-                <h1
-                  className="text-3xl font-black leading-none tracking-tight sm:text-5xl lg:text-7xl xl:text-8xl min-h-[1.1em] flex items-center justify-center overflow-visible px-2"
-                  style={{
-                    WebkitTextStroke: "3px #a6c261",
-                    color: "transparent",
-                    fontWeight: 900,
-                  }}
-                >
-                  <RotatingWord words={content.hero.titleWords || [content.hero.titleLine1]} />
-                </h1>
-                <div className="flex flex-col items-center justify-center gap-2 sm:flex-row sm:gap-3">
-                  <span className="text-2xl font-bold tracking-tight text-[#a88aed] sm:text-3xl lg:text-5xl">
-                    {content.hero.titleLine2}
-                  </span>
-                </div>
-              </div>
+        {/* 2. MATRIZ COMPARATIVA INTEGRAL (Todas las Funcionalidades & Diferenciación) */}
+        <ComparisonMatrixSection />
 
-              <p className="mx-auto max-w-3xl text-base text-slate-600 sm:text-lg lg:text-xl leading-relaxed">
-                {content.hero.description}
-              </p>
-
-              <div className="flex flex-col items-center justify-center gap-4 pt-4 sm:flex-row">
-                <Link href="/login" className="w-full sm:w-auto">
-                  <Button className="w-full sm:w-auto rounded-full h-14 px-8 text-sm font-bold uppercase tracking-wider bg-[#a88aed] hover:bg-[#8f70d8] text-white transition-all duration-300 hover:scale-105 hover:shadow-xl shadow-indigo-200">
-                    {content.hero.ctaButton}
-                  </Button>
-                </Link>
-                <a href="#funcionalidades" className="w-full sm:w-auto">
-                  <Button
-                    variant="outline"
-                    className="w-full sm:w-auto rounded-full h-14 px-8 text-sm font-bold text-[#a88aed] border-2 border-[#a88aed]/30 hover:border-[#a88aed] hover:bg-[#a88aed]/10 transition-all duration-300"
-                  >
-                    Conocer Funcionalidades
-                  </Button>
-                </a>
-              </div>
-
-              {/* Trust Badges Bar */}
-              <div className="pt-8 flex flex-wrap items-center justify-center gap-6 text-xs font-semibold text-slate-500">
-                <span className="flex items-center gap-1.5">
-                  <ShieldCheck className="h-4 w-4 text-emerald-600" /> Fichas 100% Cifradas (Ley 19.628)
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <Zap className="h-4 w-4 text-amber-500" /> Ahorro de 3+ Horas Diarias
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <Check className="h-4 w-4 text-indigo-600" /> Basado en Alimentos de Chile
-                </span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Features Section */}
-        <section
-          id="funcionalidades"
-          ref={featuresRef}
-          className={cn(
-            "py-16 transition-all duration-700 bg-slate-50/70 border-y border-slate-100 lg:py-24",
-            isFeaturesInView
-              ? "opacity-100 translate-y-0"
-              : "opacity-0 translate-y-8",
-          )}
-        >
-          <div className="mx-auto max-w-7xl px-4 sm:px-6">
-            <div className="space-y-4 mb-16 text-center max-w-3xl mx-auto">
-              <span className="text-xs font-black uppercase tracking-wider text-[#a88aed]">Todo en un solo lugar</span>
-              <h2 className="text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl text-slate-900">
-                Diseñado para simplificar tu consulta clínica
-              </h2>
-              <p className="text-sm sm:text-base text-slate-600">
-                NutriNet combina automatización inteligente, precisión nutricional y seguridad de datos para que te concentres en el cuidado de tus pacientes.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-3 hover:border-[#a88aed]/40 transition-all">
-                <div className="p-3 rounded-2xl bg-indigo-50 text-indigo-600 w-fit">
-                  <Monitor className="h-6 w-6" />
-                </div>
-                <h3 className="font-bold text-lg text-slate-900">Gestión de Pacientes</h3>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Ficha clínica unificada, historial antropométrico, seguimiento de exámenes y diario de alimentos en tiempo real.
-                </p>
-              </div>
-
-              <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-3 hover:border-[#a88aed]/40 transition-all">
-                <div className="p-3 rounded-2xl bg-emerald-50 text-emerald-600 w-fit">
-                  <Sparkles className="h-6 w-6" />
-                </div>
-                <h3 className="font-bold text-lg text-slate-900">Asistente IA (Naty)</h3>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Calcula aportes nutricionales, genera recetas adaptadas a restricciones clínicas y optimiza pautas en segundos.
-                </p>
-              </div>
-
-              <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-3 hover:border-[#a88aed]/40 transition-all">
-                <div className="p-3 rounded-2xl bg-amber-50 text-amber-600 w-fit">
-                  <Check className="h-6 w-6" />
-                </div>
-                <h3 className="font-bold text-lg text-slate-900">Entregables PDF Impactantes</h3>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Exporta documentos vectoriales profesionales con dietas, porciones, recetas y carrito de compras automático.
-                </p>
-              </div>
-
-              <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-3 hover:border-[#a88aed]/40 transition-all">
-                <div className="p-3 rounded-2xl bg-blue-50 text-blue-600 w-fit">
-                  <ShieldCheck className="h-6 w-6" />
-                </div>
-                <h3 className="font-bold text-lg text-slate-900">Seguridad Garantizada</h3>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Encriptación de grado bancario (Ley 19.628). Tus datos y los de tus pacientes pertenecen únicamente a ti.
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
+        {/* 3. VALIDACIÓN Y PRUEBA SOCIAL (Lean Startup) */}
+        <ValidationSocialProofSection />
 
         {/* Pricing Section */}
         <section
@@ -454,7 +389,7 @@ export default function LandingPage() {
                 {content.pricing.titleLine1}
               </span>
               <span className="block text-2xl font-bold text-[#a88aed] sm:text-3xl lg:text-4xl">
-                {content.pricing.titleLine2} 🌱
+                {content.pricing.titleLine2}
               </span>
             </div>
 
@@ -482,12 +417,14 @@ export default function LandingPage() {
                     )}
                   >
                     {plan.isComingSoon ? (
-                      <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold px-6 py-2 rounded-full shadow-lg uppercase tracking-wider whitespace-nowrap">
-                        🚀 Próximamente
+                      <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold px-5 py-1.5 rounded-full shadow-lg uppercase tracking-wider whitespace-nowrap flex items-center gap-1.5">
+                        <Rocket className="h-3.5 w-3.5 text-white" />
+                        <span>Próximamente</span>
                       </div>
                     ) : isPopular && (
-                      <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-xs font-bold px-6 py-2 rounded-full shadow-lg whitespace-nowrap">
-                        ⭐ Más Popular
+                      <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-xs font-bold px-5 py-1.5 rounded-full shadow-lg whitespace-nowrap flex items-center gap-1.5">
+                        <Star className="h-3.5 w-3.5 fill-white text-white" />
+                        <span>Más Popular</span>
                       </div>
                     )}
                     <div className="flex flex-col flex-1 p-6 sm:p-8 pt-10">
@@ -610,30 +547,27 @@ export default function LandingPage() {
         <TestimonialsSection />
 
         {/* Contact Form Section */}
-        <section
-          id="registro"
-          ref={registrationRef}
-          className={cn(
-            "py-16 transition-all duration-700 bg-slate-50/70 border-t border-slate-100 lg:py-24",
-            isRegistrationInView
-              ? "opacity-100 translate-y-0"
-              : "opacity-0 translate-y-8",
-          )}
-        >
-          <div className="mx-auto max-w-4xl px-4 sm:px-6">
-            <div className="space-y-4 mb-12 text-center">
-              <span className="text-xs font-black uppercase tracking-wider text-[#a88aed]">¿Tienes dudas o comentarios?</span>
-              <h2 className="text-3xl font-black tracking-tight sm:text-4xl text-slate-900">
-                Escríbenos directamente
-              </h2>
-              <p className="text-sm text-slate-600 max-w-xl mx-auto">
-                Estamos aquí para responder tus preguntas y acompañarte en la digitalización de tu consulta clínica.
-              </p>
-            </div>
+        {/* 7. FORMULARIO DE CAPTACIÓN / LANDING CTA FINAL (Jump Chile Beta) */}
+        <BetaLeadCaptureSection
+          sessionId={sessionId}
+          onLeadSubmitted={handleLeadSubmitted}
+        />
 
-            <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-10 shadow-lg">
-              <LandingContactForm />
-            </div>
+        {/* Secondary General Contact Accordion */}
+        <section className="py-12 bg-slate-50/70 border-t border-slate-200">
+          <div className="mx-auto max-w-4xl px-4 sm:px-6">
+            <details className="group rounded-3xl border border-slate-200 bg-white p-6 shadow-xs transition-all">
+              <summary className="flex items-center justify-between font-bold text-sm text-slate-700 cursor-pointer select-none">
+                <span className="flex items-center gap-2">
+                  <span>¿Tienes dudas técnicas o consultas comerciales adicionales?</span>
+                  <span className="text-xs text-indigo-600 font-semibold underline">Escríbenos directamente aquí</span>
+                </span>
+                <ChevronDown className="h-4 w-4 text-slate-400 group-open:rotate-180 transition-transform" />
+              </summary>
+              <div className="pt-6 border-t border-slate-100 mt-4">
+                <LandingContactForm />
+              </div>
+            </details>
           </div>
         </section>
       </main>
@@ -676,7 +610,8 @@ export default function LandingPage() {
         </div>
       </footer>
 
-      {/* Banners */}
+      {/* Banners & Widgets */}
+      <FloatingJumpChileButton onCtaClick={handleFloatingCtaClick} />
       <CookieBanner />
     </div>
   );

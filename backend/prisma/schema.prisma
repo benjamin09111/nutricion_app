@@ -122,6 +122,39 @@ model NutritionistInterest {
   @@map("nutritionist_interests")
 }
 
+model LandingLead {
+  id           String   @id @default(uuid())
+  fullName     String   @map("full_name")
+  email        String
+  phone        String?
+  practiceArea String   @map("practice_area")
+  status       String   @default("NUEVO")
+  notes        String?  @db.Text
+  source       String?  @default("jump_chile")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@index([email])
+  @@index([status, createdAt])
+  @@index([practiceArea])
+  @@map("landing_leads")
+}
+
+model LandingEvent {
+  id        String   @id @default(uuid())
+  sessionId String   @map("session_id")
+  eventType String   @map("event_type")
+  pagePath  String   @default("/") @map("page_path")
+  metadata  Json?    @default("{}")
+  referrer  String?
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([eventType, createdAt])
+  @@index([sessionId])
+  @@map("landing_events")
+}
+
 model Substitute {
   id             String       @id @default(uuid())
   nutritionistId String       @map("nutritionist_id")
