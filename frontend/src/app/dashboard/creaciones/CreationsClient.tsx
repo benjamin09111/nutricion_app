@@ -34,6 +34,7 @@ import { SearchableSelect } from "@/components/ui/SearchableSelect";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { fetchApi } from "@/lib/api-base";
+import { getAuthToken } from "@/lib/auth-token";
 import { formatDateOnlyForLocale } from "@/features/patients/utils/patient-helpers";
 import { MobileCardLoadingList } from "@/components/ui/MobileCardLoadingList";
 import { getFastDeliverableTableMode, normalizeFastDeliverableMeals } from "@/features/pdf/fastDeliverableMeals";
@@ -90,8 +91,10 @@ export default function CreationsClient({
       case "SHOPPING_LIST":
         return CreationType.SHOPPING_LIST;
       case "RECIPE":
+      case "RECETARIO":
         return CreationType.RECIPE;
       case "FAST_DELIVERABLE":
+      case "DELIVERABLE":
         return CreationType.FAST_DELIVERABLE;
       case "PAUTAS":
         return CreationType.PAUTAS;
@@ -117,7 +120,9 @@ export default function CreationsClient({
   // -- Fetch full creation data (shared by view and export) --
   const fetchFullData = async (id: string): Promise<any | null> => {
     try {
+      const token = getAuthToken();
       const response = await fetchApi(`/creations/${id}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
       if (response.ok) return await response.json();
     } catch (e) {
@@ -134,13 +139,13 @@ export default function CreationsClient({
     if (raw.metadata?.foodSummary?.length) {
       raw.metadata.foodSummary.forEach((f: any) => {
         foods.push({
-          producto: f.name,
-          grupo: f.group || "Varios",
-          unidad: f.unit,
-          calorias: f.calories,
-          proteinas: f.proteins,
-          lipidos: f.lipids,
-          carbohidratos: f.carbs,
+          producto: f.name || f.producto,
+          grupo: f.group || f.grupo || "Varios",
+          unidad: f.unit || f.unidad,
+          calorias: f.calories ?? f.calorias,
+          proteinas: f.proteins ?? f.proteinas,
+          lipidos: f.lipids ?? f.lipidos,
+          carbohidratos: f.carbs ?? f.carbohidratos,
         });
       });
     }
@@ -148,24 +153,56 @@ export default function CreationsClient({
     else if (raw.content?.manualAdditions?.length) {
       raw.content.manualAdditions.forEach((f: any) => {
         foods.push({
-          producto: f.producto,
-          grupo: f.grupo || "Varios",
-          unidad: f.unidad,
-          calorias: f.calorias,
-          proteinas: f.proteinas,
-          lipidos: f.lipidos,
-          carbohidratos: f.carbohidratos,
+          producto: f.producto || f.name,
+          grupo: f.grupo || f.group || "Varios",
+          unidad: f.unidad || f.unit,
+          calorias: f.calorias ?? f.calories,
+          proteinas: f.proteinas ?? f.proteins,
+          lipidos: f.lipidos ?? f.lipids,
+          carbohidratos: f.carbohidratos ?? f.carbs,
+        });
+      });
+    }
+    // Fallback: from content.groups (standard from /dashboard/dietas and seed)
+    else if (raw.content?.groups && typeof raw.content.groups === "object") {
+      Object.entries(raw.content.groups).forEach(([groupName, groupFoods]: [string, any]) => {
+        if (Array.isArray(groupFoods)) {
+          groupFoods.forEach((f: any) => {
+            foods.push({
+              producto: f.producto || f.name,
+              grupo: f.grupo || groupName || "Varios",
+              unidad: f.unidad || f.unit || "porción",
+              calorias: f.calorias ?? f.calories,
+              proteinas: f.proteinas ?? f.proteins,
+              lipidos: f.lipidos ?? f.lipids,
+              carbohidratos: f.carbohidratos ?? f.carbs,
+            });
+          });
+        }
+      });
+    }
+    // Fallback: from content.foods (flat array)
+    else if (Array.isArray(raw.content?.foods)) {
+      raw.content.foods.forEach((f: any) => {
+        foods.push({
+          producto: f.producto || f.name,
+          grupo: f.grupo || f.group || "Varios",
+          unidad: f.unidad || f.unit,
+          calorias: f.calorias ?? f.calories,
+          proteinas: f.proteinas ?? f.proteins,
+          lipidos: f.lipidos ?? f.lipids,
+          carbohidratos: f.carbohidratos ?? f.carbs,
         });
       });
     }
 
     return {
-      dietName: raw.name,
-      dietTags: raw.tags || [],
+      dietName: raw.name || "Dieta Base",
+      dietTags: raw.tags || raw.content?.dietTags || [],
       planObjective: typeof raw.content?.planObjective === "string" ? raw.content.planObjective : undefined,
       showPlanObjectiveInPdf: raw.content?.showPlanObjectiveInPdf === true,
       activeConstraints: raw.content?.activeConstraints || [],
-      patientName: raw.metadata?.patientName || raw.content?.patientMeta?.fullName,
+      patientName: raw.metadata?.patientName || raw.content?.patientMeta?.fullName || raw.content?.patientName,
       foods,
     };
   };
@@ -191,6 +228,16 @@ export default function CreationsClient({
       ? rawContent.resources
       : (rawResource && rawResource.title ? [{ resourceId: "hist", title: rawResource.title, content: rawResource.content || "" }] : []);
 
+    const rawMeals = Array.isArray(rawContent.meals) ? rawContent.meals : [];
+    const normalizedMeals = rawMeals.map((m: any, index: number) => ({
+      id: m.id || `meal-${index}`,
+      section: m.section || m.name || `Comida ${index + 1}`,
+      time: m.time || "",
+      mealText: m.mealText || m.description || m.details || "",
+      portion: m.portion || "",
+      optionTexts: Array.isArray(m.optionTexts) ? m.optionTexts : [],
+    }));
+
     return {
       name:
         typeof rawContent.title === "string"
@@ -201,7 +248,7 @@ export default function CreationsClient({
       patientName:
         typeof raw.metadata?.patientName === "string"
           ? raw.metadata.patientName
-          : (rawContent.patient as any)?.name || null,
+          : (rawContent.patient as any)?.name || (typeof rawContent.patientName === "string" ? rawContent.patientName : null),
       clinicalRestriction:
         typeof rawContent.clinicalRestriction === "string"
           ? rawContent.clinicalRestriction
@@ -214,10 +261,16 @@ export default function CreationsClient({
         (paragraphsFormatted.length > 0 ? "paragraphs" : "table"),
       paragraphs: paragraphsFormatted,
       tableMode: getFastDeliverableTableMode(rawContent.tableMode),
-      meals: normalizeFastDeliverableMeals(rawContent.meals, getFastDeliverableTableMode(rawContent.tableMode), rawContent.planMode),
-      avoidFoods: Array.isArray(rawContent.avoidFoods) ? rawContent.avoidFoods : [],
+      meals: normalizedMeals.length > 0
+        ? normalizeFastDeliverableMeals(normalizedMeals, getFastDeliverableTableMode(rawContent.tableMode), rawContent.planMode)
+        : [],
+      avoidFoods: Array.isArray(rawContent.avoidFoods)
+        ? rawContent.avoidFoods
+        : (Array.isArray(rawContent.recommendations) ? rawContent.recommendations : []),
       resources: resourcesList,
-      portionGuide: Array.isArray(rawContent.portionGuide) ? rawContent.portionGuide : [],
+      portionGuide: Array.isArray(rawContent.portionGuide)
+        ? rawContent.portionGuide
+        : (Array.isArray(rawContent.portionGuideRows) ? rawContent.portionGuideRows : []),
       generatedAt: typeof rawContent.updatedAt === "string"
         ? new Date(rawContent.updatedAt).toLocaleDateString("es-CL")
         : new Date().toLocaleDateString("es-CL"),
@@ -230,7 +283,7 @@ export default function CreationsClient({
     nutritionistNotes: typeof raw.content?.nutritionistNotes === "string" ? raw.content.nutritionistNotes : undefined,
     planObjective: typeof raw.content?.planObjective === "string" ? raw.content.planObjective : undefined,
     showPlanObjectiveInPdf: raw.content?.showPlanObjectiveInPdf === true,
-    dishes: Array.isArray(raw.content?.dishes) ? raw.content.dishes : [],
+    dishes: Array.isArray(raw.content?.dishes) ? raw.content.dishes : (Array.isArray(raw.dishes) ? raw.dishes : []),
     generatedAt: typeof raw.content?.updatedAt === "string"
       ? new Date(raw.content.updatedAt).toLocaleDateString("es-CL")
       : new Date().toLocaleDateString("es-CL"),
@@ -253,7 +306,7 @@ export default function CreationsClient({
         const { downloadFastDeliverablePdf } = await import("@/features/pdf/fastDeliverablePdfExport");
         await downloadFastDeliverablePdf(buildFastDeliverableData(raw), false);
         toast.success("PDF descargado correctamente.");
-      } else if (item.type === CreationType.RECIPE && (item.tags || []).includes("rapido")) {
+      } else if (item.type === CreationType.RECIPE) {
         const { downloadQuickRecipesPdf } = await import("@/features/pdf/quickRecipesPdfExport");
         await downloadQuickRecipesPdf(buildQuickRecipesData(raw), false);
         toast.success("PDF de recetas descargado correctamente.");
@@ -281,10 +334,12 @@ export default function CreationsClient({
 
     setIsSharing(item.id);
     try {
+      const token = getAuthToken();
       const response = await fetchApi(`/creations/${item.id}/share`, {
         method: "POST",
         headers: { 
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({ patientId }),
       });
@@ -315,7 +370,9 @@ export default function CreationsClient({
     setViewModalOpen(true);
     setIsLoadingDetails(true);
     try {
+      const token = getAuthToken();
       const response = await fetchApi(`/creations/${item.id}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
       if (response.ok) {
         const data = await response.json();

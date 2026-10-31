@@ -229,6 +229,14 @@ export default function LandingPage() {
             role="navigation"
             aria-label="Navegación principal"
           >
+            <Link
+              href="/nutricionistas"
+              className="inline-flex items-center gap-1.5 text-sm font-bold text-[#8f70d8] hover:text-[#7952c4] transition-all bg-[#a88aed]/10 hover:bg-[#a88aed]/20 px-3.5 py-1.5 rounded-full border border-[#a88aed]/30 shadow-xs cursor-pointer"
+            >
+              <Sparkles className="h-4 w-4 text-[#a88aed]" />
+              Encontrar mi nutricionista
+            </Link>
+
             {/* Sobre NutriNet Link that expands navbar */}
             <button
               type="button"
@@ -295,6 +303,18 @@ export default function LandingPage() {
         {isMobileMenuOpen && (
           <div className="border-t border-indigo-100 bg-white/95 px-4 py-4 shadow-lg backdrop-blur-md lg:hidden space-y-3">
             <div className="mx-auto flex max-w-7xl flex-col gap-2">
+              <Link
+                href="/nutricionistas"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="rounded-2xl border border-[#a88aed]/40 bg-[#a88aed]/10 px-4 py-3 text-sm font-bold text-[#8f70d8] flex items-center justify-between transition hover:bg-[#a88aed]/20 shadow-xs cursor-pointer"
+              >
+                <span className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-[#a88aed]" />
+                  Encontrar mi nutricionista
+                </span>
+                <ArrowRight className="h-4 w-4 text-[#a88aed]" />
+              </Link>
+
               <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
                 <span className="text-[10px] font-black uppercase text-[#a88aed]">Sobre NutriNet</span>
                 <div className="grid grid-cols-1 gap-1">

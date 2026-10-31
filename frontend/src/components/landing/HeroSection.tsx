@@ -22,26 +22,26 @@ export function HeroSection({ onCtaClick, onExploreFeaturesClick }: HeroSectionP
 
           {/* Títulos con el estándar visual original de NutriNet */}
           <div className="space-y-3">
-            <h1
-              className="text-3xl font-black leading-none tracking-tight sm:text-5xl lg:text-7xl xl:text-8xl min-h-[1.1em] flex items-center justify-center overflow-visible px-2 text-center"
-              style={{
-                WebkitTextStroke: "3px #a6c261",
-                color: "transparent",
-                fontWeight: 900,
-              }}
-            >
-              DEJA EL EXCEL
-            </h1>
-            <div className="flex flex-col items-center justify-center gap-2 sm:flex-row sm:gap-3">
-              <span className="text-2xl font-bold tracking-tight text-[#a88aed] sm:text-3xl lg:text-5xl">
-                Pautas clínicas perfectas en 5 minutos
+            <h1 className="space-y-2 sm:space-y-3">
+              <span
+                className="block text-3xl font-black leading-tight tracking-tight sm:text-5xl lg:text-6xl xl:text-7xl uppercase text-center"
+                style={{
+                  WebkitTextStroke: "2.5px #a6c261",
+                  color: "transparent",
+                  fontWeight: 900,
+                }}
+              >
+                Atiende a tus pacientes
               </span>
-            </div>
+              <span className="block text-2xl font-bold tracking-tight text-[#a88aed] sm:text-3xl lg:text-5xl xl:text-6xl text-center">
+                no a tus planillas
+              </span>
+            </h1>
           </div>
 
           {/* Subtítulo Clínico */}
           <p className="mx-auto max-w-3xl text-base text-slate-600 sm:text-lg lg:text-xl leading-relaxed">
-            El copiloto con Inteligencia Artificial que automatiza tus cálculos metabólicos, genera listas de compras automáticas y evita que el 86% de tus pacientes abandone el tratamiento.
+            NutriNet automatiza antropometría, cálculos y pautas con IA y datos chilenos. Tú solo revisas y validas.
           </p>
 
           {/* Hook Testimonial de Colega Nutricionista */}

@@ -13,6 +13,7 @@ import { UsersService } from './users.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { AppointmentsService } from '../appointments/appointments.service';
+import { MatchNutritionistDto } from './dto/match-nutritionist.dto';
 
 @Controller('public')
 export class PublicController {
@@ -92,6 +93,11 @@ export class PublicNutritionistsController {
       page: page ? Number(page) : undefined,
       limit: limit ? Number(limit) : undefined,
     });
+  }
+
+  @Post('match')
+  async matchPublicNutritionists(@Body() body: MatchNutritionistDto) {
+    return this.usersService.matchPublicNutritionists(body);
   }
 
   @Get(':slug/availability')
