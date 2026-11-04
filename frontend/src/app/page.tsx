@@ -231,7 +231,7 @@ export default function LandingPage() {
           >
             <Link
               href="/nutricionistas"
-              className="inline-flex items-center gap-1.5 text-sm font-bold text-[#8f70d8] hover:text-[#7952c4] transition-all bg-[#a88aed]/10 hover:bg-[#a88aed]/20 px-3.5 py-1.5 rounded-full border border-[#a88aed]/30 shadow-xs cursor-pointer"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-[#7c56cb] hover:text-[#6a42b9] transition-all bg-[#a88aed]/10 hover:bg-[#a88aed]/20 px-3.5 py-1.5 rounded-full border border-[#a88aed]/30 shadow-xs cursor-pointer"
             >
               <Sparkles className="h-4 w-4 text-[#a88aed]" />
               Encontrar mi nutricionista
@@ -242,7 +242,7 @@ export default function LandingPage() {
               type="button"
               onClick={() => setIsAboutDropdownOpen(!isAboutDropdownOpen)}
               className={cn(
-                "inline-flex items-center gap-1.5 text-sm font-bold transition-all py-2 px-3 rounded-full cursor-pointer",
+                "inline-flex items-center gap-1.5 text-sm font-medium transition-all py-2 px-3 rounded-full cursor-pointer",
                 isAboutDropdownOpen
                   ? "bg-[#a88aed] text-white shadow-md shadow-[#a88aed]/20"
                   : "text-[#a88aed] hover:text-[#8f70d8] hover:bg-[#a88aed]/10"
@@ -271,7 +271,7 @@ export default function LandingPage() {
               Inicia Sesión
             </Link>
             <a href="#registro" onClick={handleHeroCtaClick}>
-              <Button className="rounded-full h-10 px-6 text-xs font-bold uppercase tracking-wider bg-[#a88aed] hover:bg-[#8f70d8] text-white transition-all duration-300 hover:scale-105 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a88aed] focus-visible:ring-offset-2">
+              <Button className="rounded-full h-10 px-6 text-xs font-medium bg-[#a88aed] hover:bg-[#8f70d8] text-white transition-all duration-300 hover:scale-105 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a88aed] focus-visible:ring-offset-2">
                 Acceso Beta 50%
               </Button>
             </a>

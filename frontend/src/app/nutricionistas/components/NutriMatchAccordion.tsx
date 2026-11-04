@@ -210,7 +210,7 @@ export default function NutriMatchAccordion({
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto rounded-3xl border-2 border-[#a88aed]/30 bg-white shadow-lg shadow-[#a88aed]/5 overflow-hidden transition-all duration-300">
+    <div className="w-full max-w-4xl mx-auto rounded-xl border-2 border-[#a88aed]/30 bg-white shadow-lg shadow-[#a88aed]/5 overflow-hidden transition-all duration-300">
       {/* Accordion Trigger Header */}
       <div className="p-4 sm:p-5 bg-gradient-to-r from-violet-50/90 via-purple-50/50 to-white flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <button
@@ -218,21 +218,21 @@ export default function NutriMatchAccordion({
           onClick={onToggle}
           className="flex items-start sm:items-center gap-3.5 text-left cursor-pointer flex-1 group"
         >
-          <div className="h-11 w-11 rounded-2xl bg-gradient-to-tr from-[#a88aed] to-[#8f70d8] text-white flex items-center justify-center shrink-0 shadow-md shadow-[#a88aed]/30 group-hover:scale-105 transition-transform">
+          <div className="h-11 w-11 rounded-xl bg-gradient-to-tr from-[#a88aed] to-[#8f70d8] text-white flex items-center justify-center shrink-0 shadow-md shadow-[#a88aed]/30 group-hover:scale-105 transition-transform">
             <Sparkles className="h-5 w-5 text-yellow-200" />
           </div>
           <div>
             <div className="flex items-center gap-2 mb-0.5">
-              <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#a88aed]/20 text-[#7f5fd6]">
+              <span className="text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#a88aed]/15 text-[#6a42b9]">
                 Asistente Opcional
               </span>
               {isOpen && (
-                <span className="text-[11px] font-bold text-slate-500">
+                <span className="text-[11px] font-medium text-slate-500">
                   Paso {step} de {totalSteps}
                 </span>
               )}
             </div>
-            <h3 className="text-base sm:text-lg font-black text-slate-900 tracking-tight group-hover:text-[#a88aed] transition-colors">
+            <h3 className="text-base sm:text-lg font-semibold text-slate-900 tracking-tight group-hover:text-[#6a42b9] transition-colors">
               Encontrar mi nutricionista con NutriMatch
             </h3>
             <p className="text-xs text-slate-500">
@@ -245,7 +245,7 @@ export default function NutriMatchAccordion({
           <Button
             type="button"
             onClick={onToggle}
-            className={`rounded-xl px-4 h-9 font-extrabold text-xs shadow-sm transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`rounded-xl px-4 h-9 font-medium text-xs shadow-sm transition-all cursor-pointer flex items-center gap-1.5 ${
               isOpen
                 ? "bg-slate-200 hover:bg-slate-300 text-slate-700"
                 : "bg-gradient-to-r from-[#a88aed] to-[#8f70d8] hover:from-[#9c78ea] hover:to-[#7f5fd6] text-white shadow-[#a88aed]/20"
@@ -289,9 +289,9 @@ export default function NutriMatchAccordion({
                 <Bot className="h-4 w-4" />
               </span>
               <div>
-                <span className="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                <span className="text-xs font-medium text-slate-900 flex items-center gap-1.5">
                   Búsqueda Inteligente (Agente IA)
-                  <span className="text-[10px] bg-[#a88aed] text-white px-1.5 py-0.2 rounded-full font-bold">
+                  <span className="text-[10px] bg-[#a88aed] text-white px-1.5 py-0.2 rounded-full font-medium">
                     BETA
                   </span>
                 </span>
@@ -321,7 +321,7 @@ export default function NutriMatchAccordion({
                 variant="outline"
                 size="sm"
                 onClick={() => handleNext(true)}
-                className="rounded-xl text-xs font-bold text-slate-500 border-slate-200 hover:text-slate-900 hover:bg-slate-100 h-8 px-3 cursor-pointer"
+                className="rounded-xl text-xs font-medium text-slate-500 border-slate-200 hover:text-slate-900 hover:bg-slate-100 h-8 px-3 cursor-pointer"
               >
                 Omitir paso
               </Button>
@@ -331,7 +331,7 @@ export default function NutriMatchAccordion({
           {/* Smart Notes input if Smart Search is active */}
           {formData.smartSearch && (
             <div className="px-5 sm:px-6 py-3 bg-violet-50/50 border-b border-violet-100 animate-in fade-in duration-200 space-y-1">
-              <label className="text-xs font-bold text-violet-900 block">
+              <label className="text-xs font-medium text-violet-900 block">
                 Indicaciones adicionales para el Agente (opcional):
               </label>
               <Input
@@ -355,7 +355,7 @@ export default function NutriMatchAccordion({
                   </div>
                   <Loader2 className="h-6 w-6 text-[#a88aed] animate-spin absolute -bottom-1 -right-1" />
                 </div>
-                <h4 className="text-lg font-black text-slate-900">
+                <h4 className="text-lg font-semibold text-slate-900">
                   {agentPhase || "Buscando tus mejores matches..."}
                 </h4>
                 <p className="text-xs text-slate-500 max-w-sm">
@@ -368,7 +368,7 @@ export default function NutriMatchAccordion({
                 {step === 1 && (
                   <div className="space-y-4 animate-in fade-in duration-200">
                     <div>
-                      <h4 className="text-base sm:text-lg font-extrabold text-slate-900">
+                      <h4 className="text-base sm:text-lg font-semibold text-slate-900">
                         1. ¿Cuál es tu meta principal de salud o nutrición?
                       </h4>
                       <p className="text-xs text-slate-500 mt-0.5">
@@ -387,7 +387,7 @@ export default function NutriMatchAccordion({
                             onClick={() =>
                               setFormData({ ...formData, goal: goal.id })
                             }
-                            className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer relative flex flex-col justify-between ${
+                            className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer relative flex flex-col justify-between ${
                               isSelected
                                 ? "bg-[#a88aed]/10 border-[#8f70d8] shadow-sm ring-2 ring-[#a88aed]/30"
                                 : "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50"
@@ -399,12 +399,12 @@ export default function NutriMatchAccordion({
                               >
                                 <Icon className="h-4 w-4" />
                               </span>
-                              <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                              <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
                                 {goal.badge}
                               </span>
                             </div>
                             <div>
-                              <h5 className="font-extrabold text-xs sm:text-sm text-slate-900">
+                              <h5 className="font-medium text-xs sm:text-sm text-slate-900">
                                 {goal.title}
                               </h5>
                               <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
@@ -427,7 +427,7 @@ export default function NutriMatchAccordion({
                 {step === 2 && (
                   <div className="space-y-4 animate-in fade-in duration-200">
                     <div>
-                      <h4 className="text-base sm:text-lg font-extrabold text-slate-900">
+                      <h4 className="text-base sm:text-lg font-semibold text-slate-900">
                         2. ¿Cómo prefieres atenderte?
                       </h4>
                       <p className="text-xs text-slate-500 mt-0.5">
@@ -446,7 +446,7 @@ export default function NutriMatchAccordion({
                             onClick={() =>
                               setFormData({ ...formData, mode: mode.id })
                             }
-                            className={`p-4 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                            className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
                               isSelected
                                 ? "bg-[#a88aed]/10 border-[#8f70d8] shadow-sm ring-2 ring-[#a88aed]/30"
                                 : "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50"
@@ -463,7 +463,7 @@ export default function NutriMatchAccordion({
                               )}
                             </div>
                             <div>
-                              <h5 className="font-extrabold text-xs sm:text-sm text-slate-900">
+                              <h5 className="font-medium text-xs sm:text-sm text-slate-900">
                                 {mode.title}
                               </h5>
                               <p className="text-[11px] text-slate-500 mt-0.5">
@@ -476,8 +476,8 @@ export default function NutriMatchAccordion({
                     </div>
 
                     {formData.mode === "presencial" && (
-                      <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2 animate-in fade-in">
-                        <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2 animate-in fade-in">
+                        <label className="text-xs font-medium text-slate-700 flex items-center gap-1.5">
                           <MapPin className="h-4 w-4 text-[#a88aed]" />
                           ¿En qué comuna o ciudad buscas consulta?
                         </label>
@@ -501,7 +501,7 @@ export default function NutriMatchAccordion({
                 {step === 3 && (
                   <div className="space-y-4 animate-in fade-in duration-200">
                     <div>
-                      <h4 className="text-base sm:text-lg font-extrabold text-slate-900">
+                      <h4 className="text-base sm:text-lg font-semibold text-slate-900">
                         3. ¿En qué horario te acomoda más?
                       </h4>
                       <p className="text-xs text-slate-500 mt-0.5">
@@ -522,14 +522,14 @@ export default function NutriMatchAccordion({
                                 timePreference: time.id,
                               })
                             }
-                            className={`p-3.5 rounded-2xl border text-center transition-all cursor-pointer flex flex-col items-center justify-between ${
+                            className={`p-3.5 rounded-xl border text-center transition-all cursor-pointer flex flex-col items-center justify-between ${
                               isSelected
                                 ? "bg-[#a88aed]/10 border-[#8f70d8] shadow-sm ring-2 ring-[#a88aed]/30"
                                 : "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50"
                             }`}
                           >
                             <span className="text-2xl mb-1.5">{time.emoji}</span>
-                            <h5 className="font-extrabold text-xs text-slate-900">
+                            <h5 className="font-medium text-xs text-slate-900">
                               {time.title}
                             </h5>
                             <p className="text-[10px] text-slate-500 mt-0.5">
@@ -546,7 +546,7 @@ export default function NutriMatchAccordion({
                 {step === 4 && (
                   <div className="space-y-4 animate-in fade-in duration-200">
                     <div>
-                      <h4 className="text-base sm:text-lg font-extrabold text-slate-900">
+                      <h4 className="text-base sm:text-lg font-semibold text-slate-900">
                         4. Previsión o modalidad de pago (opcional)
                       </h4>
                       <p className="text-xs text-slate-500 mt-0.5">
@@ -567,19 +567,19 @@ export default function NutriMatchAccordion({
                                 insurance: isSelected ? "" : ins.id,
                               })
                             }
-                            className={`p-3 rounded-2xl border text-center transition-all cursor-pointer ${
+                            className={`p-3 rounded-xl border text-center transition-all cursor-pointer ${
                               isSelected
-                                ? "bg-[#a88aed] text-white border-[#8f70d8] font-bold shadow-xs"
+                                ? "bg-[#a88aed] text-white border-[#8f70d8] font-medium shadow-xs"
                                 : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
                             }`}
                           >
-                            <p className="text-xs font-bold">{ins.label}</p>
+                            <p className="text-xs font-medium">{ins.label}</p>
                           </button>
                         );
                       })}
                     </div>
 
-                    <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-600 flex items-center justify-between flex-wrap gap-2">
+                    <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600 flex items-center justify-between flex-wrap gap-2">
                       <span>
                         Objetivo:{" "}
                         <strong className="text-slate-900">
@@ -617,7 +617,7 @@ export default function NutriMatchAccordion({
                   <Button
                     variant="outline"
                     onClick={handleBack}
-                    className="rounded-xl text-xs font-bold text-slate-600 border-slate-200 h-9 px-3 cursor-pointer"
+                    className="rounded-xl text-xs font-medium text-slate-600 border-slate-200 h-9 px-3 cursor-pointer"
                   >
                     <ArrowLeft className="h-3.5 w-3.5 mr-1" />
                     Atrás
@@ -626,7 +626,7 @@ export default function NutriMatchAccordion({
                   <button
                     type="button"
                     onClick={() => handleNext(true)}
-                    className="text-xs font-bold text-slate-400 hover:text-slate-600 transition cursor-pointer"
+                    className="text-xs font-medium text-slate-400 hover:text-slate-600 transition cursor-pointer"
                   >
                     Omitir todo y buscar
                   </button>
@@ -637,14 +637,14 @@ export default function NutriMatchAccordion({
                 <Button
                   variant="ghost"
                   onClick={() => handleNext(true)}
-                  className="rounded-xl text-xs font-bold text-slate-500 hover:text-slate-800 h-9 px-3 cursor-pointer"
+                  className="rounded-xl text-xs font-medium text-slate-500 hover:text-slate-800 h-9 px-3 cursor-pointer"
                 >
                   Omitir paso
                 </Button>
 
                 <Button
                   onClick={() => handleNext(false)}
-                  className="rounded-xl px-5 h-9 bg-gradient-to-r from-[#a88aed] to-[#8f70d8] hover:from-[#9c78ea] hover:to-[#7f5fd6] text-white font-extrabold text-xs shadow-md shadow-[#a88aed]/20 transition cursor-pointer flex items-center gap-1.5"
+                  className="rounded-xl px-5 h-9 bg-slate-900 hover:bg-slate-800 text-white font-medium text-xs shadow-sm transition cursor-pointer flex items-center gap-1.5"
                 >
                   <span>
                     {step === totalSteps ? "Hacer Match Ahora" : "Continuar"}

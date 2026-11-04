@@ -25,7 +25,7 @@ import { SubscriptionProvider } from "@/context/SubscriptionContext";
 import { MembershipGate } from "@/components/memberships/MembershipGate";
 import { FreemiumUpgradeModal } from "@/components/memberships/FreemiumUpgradeModal";
 
-function DashboardContent({ children }: { children: React.ReactNode }) {
+function DashboardContent({ children, isDemo }: { children: React.ReactNode; isDemo?: boolean }) {
   const { isAdminView, isLoading } = useAdmin();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { isSidebarCollapsed, setSidebarCollapsed } = useDashboardShell();
@@ -71,7 +71,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  if (isLoading) {
+  if (isLoading && !isDemo) {
     return (
       <div className={cn("flex h-screen w-full items-center justify-center", isDarkMode ? "dashboard-shell-bg" : "bg-white")}>
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500"></div>
@@ -143,7 +143,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
     </div>
   );
 
-  if (isAdminView) {
+  if (isAdminView || isDemo) {
     return dashboardShell;
   }
 
@@ -152,14 +152,16 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
 
 export function DashboardShell({
   children,
+  isDemo,
 }: {
   children: React.ReactNode;
+  isDemo?: boolean;
 }) {
   return (
     <AdminProvider>
       <SubscriptionProvider>
         <DashboardShellProvider>
-          <DashboardContent>{children}</DashboardContent>
+          <DashboardContent isDemo={isDemo}>{children}</DashboardContent>
         </DashboardShellProvider>
       </SubscriptionProvider>
     </AdminProvider>

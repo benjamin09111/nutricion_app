@@ -226,13 +226,13 @@ export default function NutritionistsClient({
                   block: "start",
                 });
               }}
-              className="hidden sm:inline-flex items-center gap-1.5 text-xs font-bold text-[#8f70d8] hover:text-[#7952c4] transition-all bg-[#a88aed]/10 hover:bg-[#a88aed]/20 px-3.5 py-1.5 rounded-full border border-[#a88aed]/30 cursor-pointer"
+              className="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium text-[#7c56cb] hover:text-[#6a42b9] transition-all bg-[#a88aed]/10 hover:bg-[#a88aed]/20 px-3.5 py-1.5 rounded-full border border-[#a88aed]/30 cursor-pointer"
             >
               <Sparkles className="h-3.5 w-3.5 text-[#a88aed]" />
               {isAccordionOpen ? "Ocultar NutriMatch" : "Asistente NutriMatch"}
             </button>
             <Link href="/login">
-              <Button className="rounded-full h-8 sm:h-9 px-3 sm:px-5 text-xs sm:text-xs font-bold uppercase tracking-wider bg-[#a88aed] hover:bg-[#8f70d8]">
+              <Button className="rounded-full h-8 sm:h-9 px-3 sm:px-5 text-xs font-medium bg-[#a88aed] hover:bg-[#8f70d8]">
                 Iniciar sesión
               </Button>
             </Link>
@@ -244,7 +244,7 @@ export default function NutritionistsClient({
       {/* Hero Section: Manual search is primary */}
       <section className="relative py-8 sm:py-12 bg-gradient-to-b from-slate-50 via-purple-50/20 to-white">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 text-center">
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-slate-900 mb-2">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-semibold tracking-tight text-slate-900 mb-2">
             Portal de <span className="text-[#a88aed]">Nutricionistas</span>
           </h1>
           <p className="text-sm sm:text-base text-slate-600 max-w-2xl mx-auto mb-6">
@@ -263,12 +263,12 @@ export default function NutritionistsClient({
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder="Buscar por nombre, especialidad (deportiva, digestiva...) o ciudad..."
-                    className="h-13 pl-12 rounded-2xl border-slate-200 bg-white text-sm sm:text-base shadow-xs"
+                    className="h-13 pl-12 rounded-xl border-slate-200 bg-white text-sm sm:text-base shadow-xs"
                   />
                 </div>
                 <Button
                   type="submit"
-                  className="h-13 px-8 rounded-2xl bg-[#a88aed] hover:bg-[#8f70d8] font-bold cursor-pointer text-sm"
+                  className="h-13 px-8 rounded-xl bg-[#a88aed] hover:bg-[#8f70d8] font-medium cursor-pointer text-sm"
                 >
                   Buscar
                 </Button>
@@ -335,7 +335,7 @@ export default function NutritionistsClient({
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
             <div>
-              <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+              <h2 className="text-xl sm:text-2xl font-semibold text-slate-900 tracking-tight">
                 Directorio de Profesionales
               </h2>
               <p className="text-xs sm:text-sm text-slate-500">
@@ -354,7 +354,7 @@ export default function NutritionistsClient({
                     block: "start",
                   });
                 }}
-                className="text-xs font-bold text-[#8f70d8] hover:text-[#7952c4] flex items-center gap-1.5 self-start sm:self-auto cursor-pointer p-1"
+                className="text-xs font-medium text-[#7c56cb] hover:text-[#6a42b9] flex items-center gap-1.5 self-start sm:self-auto cursor-pointer p-1"
               >
                 <Sparkles className="h-3.5 w-3.5" />
                 ¿Quieres una recomendación automática? Abre el asistente aquí
@@ -374,7 +374,7 @@ export default function NutritionistsClient({
               <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3">
                 <Search className="h-6 w-6 text-slate-400" />
               </div>
-              <h3 className="text-base font-bold text-slate-900 mb-1">
+              <h3 className="text-base font-medium text-slate-900 mb-1">
                 No encontramos nutricionistas con estos filtros
               </h3>
               <p className="text-xs text-slate-500 max-w-md mx-auto">
@@ -410,7 +410,7 @@ export default function NutritionistsClient({
                     size="sm"
                     disabled={page <= 1}
                     onClick={() => handlePageChange(page - 1)}
-                    className="rounded-xl border-slate-200 text-xs font-bold text-slate-700 cursor-pointer h-9 px-3"
+                    className="rounded-xl border-slate-200 text-xs font-medium text-slate-700 cursor-pointer h-9 px-3"
                   >
                     <ChevronLeft className="h-4 w-4 mr-1" />
                     Anterior
@@ -424,7 +424,7 @@ export default function NutritionistsClient({
                           <button
                             key={p}
                             onClick={() => handlePageChange(p)}
-                            className={`h-9 w-9 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                            className={`h-9 w-9 rounded-xl text-xs font-medium transition-all cursor-pointer ${
                               isCurrent
                                 ? "bg-[#a88aed] text-white shadow-xs"
                                 : "bg-slate-50 text-slate-600 hover:bg-slate-100"
@@ -442,7 +442,7 @@ export default function NutritionistsClient({
                     size="sm"
                     disabled={page >= lastPage}
                     onClick={() => handlePageChange(page + 1)}
-                    className="rounded-xl border-slate-200 text-xs font-bold text-slate-700 cursor-pointer h-9 px-3"
+                    className="rounded-xl border-slate-200 text-xs font-medium text-slate-700 cursor-pointer h-9 px-3"
                   >
                     Siguiente
                     <ChevronRight className="h-4 w-4 ml-1" />
@@ -478,10 +478,10 @@ function NutritionistCard({
   };
 
   return (
-    <div className="group rounded-3xl border border-slate-200 bg-white p-5 transition-all hover:shadow-xl hover:shadow-slate-100 hover:border-[#a88aed]/30 flex flex-col justify-between">
+    <div className="group rounded-xl border border-slate-200 bg-white p-5 transition-all hover:shadow-xl hover:shadow-slate-100 hover:border-[#a88aed]/30 flex flex-col justify-between">
       <div>
         <div className="flex items-start gap-3.5 mb-3.5">
-          <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-emerald-100 to-emerald-200 flex items-center justify-center text-emerald-700 text-xl font-bold overflow-hidden shrink-0">
+          <div className="h-16 w-16 rounded-xl bg-slate-100 flex items-center justify-center text-slate-700 text-lg font-medium overflow-hidden shrink-0 border border-slate-200/60">
             {nutritionist.avatarUrl ? (
               <img
                 src={nutritionist.avatarUrl}
@@ -493,7 +493,7 @@ function NutritionistCard({
             )}
           </div>
           <div className="min-w-0">
-            <h3 className="font-bold text-slate-900 text-base group-hover:text-[#a88aed] transition-colors truncate">
+            <h3 className="font-semibold text-slate-900 text-base group-hover:text-[#7c56cb] transition-colors truncate">
               {nutritionist.fullName}
             </h3>
             <p className="text-[10px] font-semibold text-[#a88aed] uppercase tracking-wider mb-0.5">

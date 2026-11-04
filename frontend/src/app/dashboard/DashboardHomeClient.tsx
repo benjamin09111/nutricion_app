@@ -17,7 +17,7 @@ import { fetchApi } from "@/lib/api-base";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-interface DashboardStats {
+export interface DashboardStats {
   patients: { total: number; active: number; inactive: number };
   consultations: { total: number };
   pdfs: { rapido: number; pautas: number; dietas: number; recetas: number };
@@ -32,7 +32,7 @@ interface DashboardStats {
   recentConsultations: { id: string; title: string; date: string; patient: { id: string; fullName: string } | null }[];
 }
 
-interface RecentCreation {
+export interface RecentCreation {
   id: string;
   name: string;
   type: string;
@@ -108,13 +108,22 @@ function PlanUsageRing({ percent, limits, usage }: { percent: number; limits: Da
   );
 }
 
-export default function DashboardHomeClient() {
+export default function DashboardHomeClient({
+  initialStats,
+  initialCreations,
+  isDemo,
+}: {
+  initialStats?: DashboardStats;
+  initialCreations?: RecentCreation[];
+  isDemo?: boolean;
+} = {}) {
   const router = useRouter();
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [recentCreations, setRecentCreations] = useState<RecentCreation[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [stats, setStats] = useState<DashboardStats | null>(initialStats ?? null);
+  const [recentCreations, setRecentCreations] = useState<RecentCreation[]>(initialCreations ?? []);
+  const [isLoading, setIsLoading] = useState(!initialStats);
 
   const loadDashboardData = useCallback(async () => {
+    if (initialStats) return;
     setIsLoading(true);
     try {
       const res = await fetchApi("/dashboard/stats", {

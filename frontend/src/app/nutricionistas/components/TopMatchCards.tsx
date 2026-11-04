@@ -40,11 +40,11 @@ export default function TopMatchCards({
         {/* Match Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
           <div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#a88aed]/20 text-[#7f5fd6] text-xs font-black uppercase tracking-wider mb-1.5">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#a88aed]/20 text-[#6a42b9] text-xs font-medium uppercase tracking-wider mb-1.5">
               <Sparkles className="h-3.5 w-3.5 text-[#a88aed]" />
               NutriMatch · Top 3 Perfiles
             </div>
-            <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+            <h2 className="text-xl sm:text-2xl font-semibold text-slate-900 tracking-tight">
               Los 3 nutricionistas con mayor afinidad para ti
             </h2>
             <p className="text-xs sm:text-sm text-slate-500">
@@ -57,7 +57,7 @@ export default function TopMatchCards({
             variant="outline"
             size="sm"
             onClick={onResetMatch}
-            className="rounded-xl border-slate-200 text-xs font-bold text-slate-600 hover:text-slate-900 hover:bg-white self-start sm:self-auto cursor-pointer flex items-center gap-1.5"
+            className="rounded-xl border-slate-200 text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-white self-start sm:self-auto cursor-pointer flex items-center gap-1.5"
           >
             <RotateCcw className="h-3.5 w-3.5" />
             Limpiar Match
@@ -80,7 +80,7 @@ export default function TopMatchCards({
             return (
               <div
                 key={nutri.id}
-                className={`group relative rounded-3xl bg-white border transition-all duration-300 flex flex-col justify-between overflow-hidden ${
+                className={`group relative rounded-xl bg-white border transition-all duration-300 flex flex-col justify-between overflow-hidden ${
                   isFirst
                     ? "border-[#a88aed] shadow-lg shadow-[#a88aed]/15 ring-2 ring-[#a88aed]/20"
                     : "border-slate-200 hover:border-[#a88aed]/50 shadow-sm hover:shadow-md"
@@ -89,7 +89,7 @@ export default function TopMatchCards({
                 {/* Header Badge */}
                 <div className="p-4 border-b border-slate-100 flex items-center justify-between gap-2 bg-gradient-to-r from-slate-50 to-white">
                   <span
-                    className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-black tracking-wide ${
+                    className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold tracking-wide ${
                       isFirst
                         ? "bg-gradient-to-r from-[#a88aed] to-[#8f70d8] text-white shadow-xs"
                         : "bg-emerald-100 text-emerald-800"
@@ -98,7 +98,7 @@ export default function TopMatchCards({
                     <Sparkles className="h-3 w-3" />
                     {item.matchPercentage}% MATCH
                   </span>
-                  <span className="text-[11px] font-bold text-slate-400">
+                  <span className="text-[11px] font-medium text-slate-400">
                     Opción #{idx + 1}
                   </span>
                 </div>
@@ -106,7 +106,7 @@ export default function TopMatchCards({
                 {/* Card Body */}
                 <div className="p-5 space-y-3.5 flex-1">
                   <div className="flex items-start gap-3">
-                    <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-[#a88aed]/20 to-[#8f70d8]/30 flex items-center justify-center text-[#8f70d8] text-xl font-black overflow-hidden shrink-0 border border-[#a88aed]/20">
+                    <div className="h-14 w-14 rounded-xl bg-[#a88aed]/15 flex items-center justify-center text-[#7c56cb] text-lg font-medium overflow-hidden shrink-0 border border-[#a88aed]/20">
                       {nutri.avatarUrl ? (
                         <img
                           src={nutri.avatarUrl}
@@ -118,10 +118,10 @@ export default function TopMatchCards({
                       )}
                     </div>
                     <div className="min-w-0">
-                      <h3 className="font-extrabold text-slate-900 text-base group-hover:text-[#a88aed] transition-colors truncate">
+                      <h3 className="font-semibold text-slate-900 text-base group-hover:text-[#7c56cb] transition-colors truncate">
                         {nutri.fullName}
                       </h3>
-                      <p className="text-[11px] font-bold text-[#8f70d8] uppercase tracking-wider">
+                      <p className="text-[11px] font-medium text-[#7c56cb] uppercase tracking-wider">
                         {nutri.specialty || "Nutricionista"}
                       </p>
                       <div className="flex items-center gap-1 mt-0.5">
@@ -131,7 +131,7 @@ export default function TopMatchCards({
                             className="h-3 w-3 text-amber-400 fill-amber-400"
                           />
                         ))}
-                        <span className="text-[10px] text-slate-400 font-bold ml-1">
+                        <span className="text-[10px] text-slate-400 font-medium ml-1">
                           Verificado
                         </span>
                       </div>
@@ -152,18 +152,18 @@ export default function TopMatchCards({
 
                   {/* Tags */}
                   <div className="flex flex-wrap gap-1.5 pt-1">
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 text-[10px] font-bold text-slate-700">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 text-[10px] font-medium text-slate-700">
                       {modeLabels[nutri.consultationMode] ||
                         nutri.consultationMode}
                     </span>
                     {nutri.location && (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 text-[10px] font-bold text-slate-700">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 text-[10px] font-medium text-slate-700">
                         <MapPin className="h-3 w-3 text-slate-400" />
                         {nutri.location}
                       </span>
                     )}
                     {nutri.prices && (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-[10px] font-bold text-emerald-700">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-[10px] font-medium text-emerald-700">
                         {nutri.prices}
                       </span>
                     )}
@@ -173,7 +173,7 @@ export default function TopMatchCards({
                 {/* Card Actions & Quick Contact */}
                 <div className="p-4 sm:p-5 border-t border-slate-100 bg-slate-50/50 space-y-2.5">
                   <div className="flex items-center justify-between text-xs text-slate-500">
-                    <span className="text-[10px] font-bold uppercase text-slate-400">
+                    <span className="text-[10px] font-medium uppercase text-slate-400">
                       Contacto rápido:
                     </span>
                     <div className="flex items-center gap-1.5">
@@ -229,9 +229,9 @@ export default function TopMatchCards({
                     href={`/nutricionistas/${nutri.slug}#agenda`}
                     className="block"
                   >
-                    <Button className="w-full h-10 rounded-xl bg-gradient-to-r from-[#a88aed] to-[#8f70d8] hover:from-[#9b78ea] hover:to-[#7f5fd6] text-white font-extrabold text-xs shadow-md shadow-[#a88aed]/25 transition cursor-pointer flex items-center justify-center gap-2">
+                    <Button className="w-full h-10 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-medium text-xs shadow-sm transition cursor-pointer flex items-center justify-center gap-2">
                       <Calendar className="h-3.5 w-3.5" />
-                      <span>TOMAR HORA CON {nutri.fullName.split(" ")[0]}</span>
+                      <span>Tomar hora con {nutri.fullName.split(" ")[0]}</span>
                     </Button>
                   </Link>
 
@@ -239,7 +239,7 @@ export default function TopMatchCards({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="w-full h-8 rounded-xl text-slate-600 hover:text-slate-900 text-xs font-bold cursor-pointer"
+                      className="w-full h-8 rounded-xl text-slate-600 hover:text-slate-900 text-xs font-medium cursor-pointer"
                     >
                       <span>Ver perfil y disponibilidad completa</span>
                       <ArrowRight className="h-3 w-3 ml-1" />
