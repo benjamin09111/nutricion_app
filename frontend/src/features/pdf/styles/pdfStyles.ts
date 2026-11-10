@@ -1,23 +1,43 @@
 import { StyleSheet } from "@react-pdf/renderer";
 
-// -- Color Palette --
+// -- Official NutriNet Canva-Style Color Palette --
 export const colors = {
-    primary: "#7c5cac",
-    primaryDark: "#5f438f",
-    primaryLight: "#eee8f7",
-    secondary: "#9b79c6",
-    secondaryLight: "#f5f1fa",
-    slate900: "#0f172a",
+    // Official NutriNet Purple & Navy Palette
+    primary: "#7C3AED",
+    primaryDark: "#1E1B4B",
+    primaryLight: "#F3EDFF",
+    primaryGradientStart: "#7C3AED",
+    primaryGradientEnd: "#6D28D9",
+    // Official NutriNet Lime & Fresh Accents
+    secondary: "#84CC16",
+    secondaryLight: "#ECFCCB",
+    secondaryDark: "#3F6212",
+    accentYellow: "#FEF08A",
+    accentYellowDark: "#854D0E",
+    accentLime: "#84CC16",
+    accentLimeLight: "#ECFCCB",
+    // Warning & Avoid Foods Cream Palette
+    bgCream: "#FFFBEB",
+    borderAmber: "#FDE68A",
+    textAmber: "#92400E",
+    prohibitRed: "#EF4444",
+    prohibitRedLight: "#FEE2E2",
+    // Neutral Slate Scales
+    slate900: "#0F172A",
+    slate800: "#1E293B",
     slate700: "#334155",
-    slate500: "#64748b",
-    slate300: "#cbd5e1",
-    slate100: "#f1f5f9",
-    slate50: "#f8fafc",
-    white: "#ffffff",
-    amber: "#f59e0b",
-    amberLight: "#fef3c7",
-    rose: "#f43f5e",
-    roseLight: "#ffe4e6",
+    slate600: "#475569",
+    slate500: "#64748B",
+    slate400: "#94A3B8",
+    slate300: "#CBD5E1",
+    slate200: "#E2E8F0",
+    slate100: "#F1F5F9",
+    slate50: "#F8FAFC",
+    white: "#FFFFFF",
+    amber: "#F59E0B",
+    amberLight: "#FEF3C7",
+    rose: "#F43F5E",
+    roseLight: "#FFE4E6",
 };
 
 // -- Shared Styles --

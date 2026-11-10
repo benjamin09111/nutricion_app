@@ -1,71 +1,99 @@
 import React from "react";
-import { View, Text, StyleSheet, Page } from "@react-pdf/renderer";
-import { colors, shared } from "../styles/pdfStyles";
+import { View, Text, StyleSheet, Page, Image } from "@react-pdf/renderer";
+import { colors } from "../styles/pdfStyles";
+import { NUTRINET_LOGO_B64 } from "./NutriNetPdfAssets";
+import { PdfBrandedFooter } from "./PdfBrandedFooter";
 
-interface PageWrapperProps {
-    children: React.ReactNode;
-    pageNumber?: number;
-    totalPages?: number;
-    moduleLabel: string;
-    patientName?: string;
+export interface PageWrapperProps {
+  children: React.ReactNode;
+  pageNumber?: number;
+  totalPages?: number;
+  moduleLabel: string;
+  patientName?: string;
+  nutritionistName?: string;
 }
 
 const styles = StyleSheet.create({
-    page: {
-        ...shared.page,
-    },
-    headerBrand: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 4,
-    },
-    headerDot: {
-        width: 6,
-        height: 6,
-        backgroundColor: colors.primary,
-        borderRadius: 3,
-    },
+  page: {
+    backgroundColor: colors.white,
+    fontFamily: "Helvetica",
+    paddingTop: 24,
+    paddingBottom: 28,
+    paddingHorizontal: 30,
+    fontSize: 9.5,
+    lineHeight: 1.45,
+    color: colors.slate800,
+  },
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingBottom: 8,
+    marginBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.slate200,
+  },
+  logo: {
+    width: 95,
+    height: 22,
+    objectFit: "contain",
+  },
+  rightMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  badgePill: {
+    backgroundColor: colors.primaryLight,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+  },
+  badgeText: {
+    fontSize: 7.5,
+    fontFamily: "Helvetica-Bold",
+    color: colors.primary,
+  },
+  patientText: {
+    fontSize: 8,
+    color: colors.slate600,
+  },
 });
 
 export function PageWrapper({
-    children,
-    pageNumber,
-    moduleLabel,
-    patientName,
+  children,
+  pageNumber,
+  totalPages,
+  moduleLabel,
+  patientName,
+  nutritionistName,
 }: PageWrapperProps) {
-    return (
-        <Page size="A4" style={styles.page}>
-            {/* Header */}
-            <View style={shared.pageHeader}>
-                <View style={styles.headerBrand}>
-                    <View style={styles.headerDot} />
-                    <Text style={shared.pageHeaderBrand}>NutriNet</Text>
-                    <Text style={{ ...shared.pageHeaderTitle, marginLeft: 6 }}>
-                        — {moduleLabel}
-                    </Text>
-                </View>
-                {patientName && (
-                    <Text style={shared.pageHeaderTitle}>Paciente: {patientName}</Text>
-                )}
-            </View>
+  return (
+    <Page size="A4" style={styles.page}>
+      {/* Header */}
+      <View style={styles.headerRow}>
+        <Image src={NUTRINET_LOGO_B64} style={styles.logo} />
+        <View style={styles.rightMeta}>
+          {patientName && (
+            <Text style={styles.patientText}>
+              Paciente: <Text style={{ fontFamily: "Helvetica-Bold", color: colors.primaryDark }}>{patientName}</Text>
+            </Text>
+          )}
+          <View style={styles.badgePill}>
+            <Text style={styles.badgeText}>{moduleLabel}</Text>
+          </View>
+        </View>
+      </View>
 
-            {/* Content */}
-            {children}
+      {/* Content */}
+      <View style={{ flex: 1 }}>{children}</View>
 
-            {/* Footer */}
-            <View style={shared.pageFooter} fixed>
-                <Text style={shared.pageFooterText}>
-                    {new Date().toLocaleDateString("es-CL", {
-                        day: "2-digit",
-                        month: "long",
-                        year: "numeric",
-                    })}
-                </Text>
-                <Text style={shared.pageFooterBrand}>NutriNet</Text>
-                {pageNumber !== undefined && (
-                    <Text style={shared.pageFooterText}>Pág. {pageNumber}</Text>
-                )}
-            </View>
-        </Page>
-    );
+      {/* Footer */}
+      <PdfBrandedFooter
+        pageNumber={pageNumber}
+        totalPages={totalPages}
+        nutritionistName={nutritionistName}
+      />
+    </Page>
+  );
 }

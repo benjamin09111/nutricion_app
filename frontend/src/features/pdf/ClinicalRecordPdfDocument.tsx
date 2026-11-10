@@ -1,6 +1,12 @@
 import React from "react";
 import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
-import { colors, shared } from "./styles/pdfStyles";
+import { colors } from "./styles/pdfStyles";
+import {
+  PdfBrandedHeader,
+  PdfSectionHeader,
+  PdfAvoidFoodsSection,
+  PdfBrandedFooter,
+} from "./components";
 
 export interface ClinicalRecordPdfData {
   patientName: string;
@@ -62,411 +68,249 @@ export interface ClinicalRecordPdfData {
 
 const S = StyleSheet.create({
   page: {
-    ...shared.page,
-  },
-  coverHeader: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 32,
-    paddingTop: 18,
-    paddingBottom: 18,
-    marginHorizontal: -32,
-    marginTop: -30,
-    marginBottom: 16,
-  },
-  coverHeaderTop: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  coverBrand: {
-    fontSize: 22,
-    fontFamily: "Helvetica-Bold",
-    color: colors.white,
-    lineHeight: 1.2,
-  },
-  coverSubtitle: {
-    fontSize: 9,
-    color: "rgba(255,255,255,0.85)",
-    fontFamily: "Helvetica-Bold",
-    textTransform: "uppercase" as const,
-    letterSpacing: 0.8,
-    lineHeight: 1.2,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    marginBottom: 10,
-  },
-  coverHeaderBottom: {
-    flexDirection: "column",
-  },
-  patientName: {
-    fontSize: 18,
-    fontFamily: "Helvetica-Bold",
-    color: colors.white,
-    lineHeight: 1.25,
-    marginBottom: 4,
-  },
-  metaRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  metaText: {
-    fontSize: 8,
-    color: "rgba(255,255,255,0.75)",
+    backgroundColor: colors.white,
     fontFamily: "Helvetica",
-    lineHeight: 1.2,
+    paddingTop: 24,
+    paddingBottom: 24,
+    paddingHorizontal: 28,
+    fontSize: 9,
+    lineHeight: 1.4,
+    color: colors.slate800,
   },
   section: {
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 13,
-    fontFamily: "Helvetica-Bold",
-    color: colors.primary,
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
     marginBottom: 8,
-    paddingBottom: 4,
-    borderBottom: `1px solid ${colors.primaryLight}`,
   },
   twoCol: {
     flexDirection: "row",
-    gap: 12,
+    gap: 8,
   },
   col: {
     flex: 1,
   },
-  dataRow: {
+  // Stat Box
+  statsGrid: {
     flexDirection: "row",
-    marginBottom: 4,
-  },
-  dataLabel: {
-    fontSize: 8.5,
-    color: colors.slate500,
-    fontFamily: "Helvetica-Bold",
-    width: 90,
-    textTransform: "uppercase",
-  },
-  dataValue: {
-    fontSize: 10,
-    color: colors.slate900,
-    flex: 1,
-    fontFamily: "Helvetica",
-  },
-  dataValueBold: {
-    fontSize: 10,
-    color: colors.slate900,
-    fontFamily: "Helvetica-Bold",
-    flex: 1,
-  },
-  badge: {
-    backgroundColor: colors.slate100,
-    borderRadius: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    alignSelf: "flex-start",
-  },
-  badgeText: {
-    fontSize: 7,
-    color: colors.slate700,
-    fontFamily: "Helvetica-Bold",
-  },
-  restrictionBadge: {
-    backgroundColor: "#ffe4e6",
-    borderRadius: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    marginRight: 4,
-    marginBottom: 4,
-  },
-  restrictionBadgeText: {
-    fontSize: 7,
-    color: "#be123c",
-    fontFamily: "Helvetica-Bold",
-  },
-  box: {
-    backgroundColor: colors.slate50,
-    borderRadius: 6,
-    padding: 10,
+    gap: 6,
     marginBottom: 8,
-    border: `1px solid ${colors.slate100}`,
   },
-  boxLabel: {
-    fontSize: 7,
-    color: colors.slate500,
-    fontFamily: "Helvetica-Bold",
-    textTransform: "uppercase",
-    marginBottom: 3,
-  },
-  boxValue: {
-    fontSize: 10,
-    color: colors.slate900,
-    fontFamily: "Helvetica",
-    lineHeight: 1.4,
-  },
-  boxValueLarge: {
-    fontSize: 12,
-    fontFamily: "Helvetica-Bold",
-    color: colors.slate900,
-  },
-  statsRow: {
-    flexDirection: "row",
-    gap: 8,
-    marginBottom: 10,
-  },
-  statBox: {
+  statCard: {
     flex: 1,
     backgroundColor: colors.slate50,
-    borderRadius: 6,
-    padding: 10,
-    border: `1px solid ${colors.slate100}`,
+    borderWidth: 1,
+    borderColor: colors.slate200,
+    borderRadius: 8,
+    padding: 6,
     alignItems: "center",
-  },
-  statValue: {
-    fontSize: 17,
-    fontFamily: "Helvetica-Bold",
-    color: colors.slate900,
-    marginBottom: 2,
   },
   statLabel: {
     fontSize: 7,
     color: colors.slate500,
     textTransform: "uppercase",
-    textAlign: "center",
-  },
-  statUnit: {
-    fontSize: 8,
-    color: colors.slate500,
-    marginTop: 1,
-  },
- pregnancyBox: {
-    backgroundColor: "#fdf2f8",
-    borderRadius: 6,
-    padding: 10,
-    marginBottom: 8,
-    border: `1px solid #f9a8d4`,
-  },
-  pregnancyLabel: {
-    fontSize: 8,
-    color: "#9d174d",
+    marginBottom: 2,
     fontFamily: "Helvetica-Bold",
-    textTransform: "uppercase",
-    marginBottom: 4,
   },
-  pageFooter: {
-    position: "absolute",
-    bottom: 18,
-    left: 32,
-    right: 32,
+  statVal: {
+    fontSize: 13,
+    fontFamily: "Helvetica-Bold",
+    color: colors.primaryDark,
+  },
+  statBadge: {
+    backgroundColor: colors.secondaryLight,
+    paddingVertical: 1,
+    paddingHorizontal: 5,
+    borderRadius: 6,
+    marginTop: 2,
+  },
+  statBadgeText: {
+    fontSize: 6.5,
+    fontFamily: "Helvetica-Bold",
+    color: colors.secondaryDark,
+  },
+  // Card Container
+  cardBox: {
+    backgroundColor: colors.slate50,
+    borderWidth: 1,
+    borderColor: colors.slate200,
+    borderRadius: 8,
+    padding: 8,
+    marginBottom: 6,
+  },
+  dataRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    borderTop: `1px solid ${colors.slate300}`,
-    paddingTop: 6,
+    paddingVertical: 2,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.slate100,
   },
-  pageFooterText: {
-    fontSize: 8,
+  dataLabel: {
+    fontSize: 7.5,
     color: colors.slate500,
-  },
-  pageFooterBrand: {
-    fontSize: 8,
-    color: colors.primary,
     fontFamily: "Helvetica-Bold",
+  },
+  dataValue: {
+    fontSize: 7.5,
+    color: colors.slate800,
+    maxWidth: "60%",
+    textAlign: "right",
+  },
+  badgePill: {
+    backgroundColor: colors.primaryLight,
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    borderRadius: 8,
+    marginRight: 4,
+    marginBottom: 4,
+  },
+  badgeText: {
+    fontSize: 7,
+    fontFamily: "Helvetica-Bold",
+    color: colors.primary,
+  },
+  pregnancyBox: {
+    backgroundColor: "#FDF2F8",
+    borderWidth: 1,
+    borderColor: "#FBCFE8",
+    borderRadius: 8,
+    padding: 8,
+    marginBottom: 6,
   },
 });
 
-function notEmpty(val?: string | number | boolean | null | string[]): boolean {
-  if (val === undefined || val === null || val === "") return false;
-  if (typeof val === "boolean") return val;
-  if (Array.isArray(val)) return val.length > 0;
-  return true;
-}
-
-function fmtNum(val?: number | string | null): string {
-  if (val === undefined || val === null || val === "") return "—";
-  const n = typeof val === "string" ? parseFloat(val) : val;
-  if (isNaN(n)) return "—";
-  return n.toFixed(1);
-}
-
-function DataRow({ label, value }: { label: string; value?: string | number | boolean | null | string[] }) {
-  if (!notEmpty(value as string | number | boolean | string[])) return null;
-  const display = Array.isArray(value) ? value.join(", ") : String(value);
+function DataRow({ label, value }: { label: string; value?: string | number | null }) {
+  if (value === undefined || value === null || value === "") return null;
   return (
     <View style={S.dataRow}>
       <Text style={S.dataLabel}>{label}</Text>
-      <Text style={S.dataValue}>{display}</Text>
+      <Text style={S.dataValue}>{String(value)}</Text>
     </View>
   );
 }
 
 export function ClinicalRecordPdfDocument({ data }: { data: ClinicalRecordPdfData }) {
-  const date = data.generatedAt
-    ? new Date(data.generatedAt).toLocaleDateString("es-ES", { day: "2-digit", month: "long", year: "numeric" })
-    : new Date().toLocaleDateString("es-ES", { day: "2-digit", month: "long", year: "numeric" });
+  const extraMeta = [
+    data.patientRut ? { label: "RUT", value: data.patientRut } : null,
+    data.patientAge ? { label: "Edad", value: `${data.patientAge} años` } : null,
+    data.patientGender ? { label: "Sexo", value: data.patientGender } : null,
+  ].filter(Boolean) as Array<{ label: string; value: string }>;
 
   return (
     <Document>
       <Page size="A4" style={S.page}>
-        {/* Header */}
-        <View style={S.coverHeader}>
-          <View style={S.coverHeaderTop}>
-            <Text style={S.coverBrand}>NutriNet</Text>
-            <Text style={S.coverSubtitle}>Ficha Clínica Nutricional</Text>
-          </View>
+        {/* Header Canva */}
+        <PdfBrandedHeader
+          title="Ficha Clínica Nutricional"
+          subtitle={data.primaryCondition || "Evaluación Clínica Integral"}
+          badgeLabel="Ficha Clínica"
+          objective={data.motivoConsulta || "Control nutricional y seguimiento biométrico."}
+          patientName={data.patientName}
+          date={data.generatedAt}
+          extraMeta={extraMeta}
+        />
 
-          <View style={S.divider} />
-
-          <View style={S.coverHeaderBottom}>
-            <Text style={S.patientName}>{data.patientName}</Text>
-            <View style={S.metaRow}>
-              <Text style={S.metaText}>Expediente del Paciente</Text>
-              <Text style={S.metaText}>Generado el {date}</Text>
-            </View>
+        {/* Quick Stats Grid */}
+        <View style={S.statsGrid}>
+          <View style={S.statCard}>
+            <Text style={S.statLabel}>Peso Actual</Text>
+            <Text style={S.statVal}>{data.weight ? `${data.weight} kg` : "—"}</Text>
           </View>
-        </View>
-
-        {/* Key Metrics */}
-        <View style={S.statsRow}>
-          <View style={S.statBox}>
-            <Text style={S.statValue}>{fmtNum(data.weight)}</Text>
-            <Text style={S.statLabel}>Peso (kg)</Text>
+          <View style={S.statCard}>
+            <Text style={S.statLabel}>Estatura</Text>
+            <Text style={S.statVal}>{data.height ? `${data.height} cm` : "—"}</Text>
           </View>
-          <View style={S.statBox}>
-            <Text style={S.statValue}>{fmtNum(data.height)}</Text>
-            <Text style={S.statLabel}>Altura (cm)</Text>
-          </View>
-          <View style={S.statBox}>
-            <Text style={S.statValue}>{fmtNum(data.bmi)}</Text>
+          <View style={S.statCard}>
             <Text style={S.statLabel}>IMC</Text>
-            <Text style={S.statUnit}>{data.bmiClassification || "—"}</Text>
+            <Text style={S.statVal}>{data.bmi ? data.bmi.toFixed(1) : "—"}</Text>
+            {data.bmiClassification && (
+              <View style={S.statBadge}>
+                <Text style={S.statBadgeText}>{data.bmiClassification}</Text>
+              </View>
+            )}
           </View>
-          <View style={S.statBox}>
-            <Text style={S.statValue}>{fmtNum(data.get)}</Text>
-            <Text style={S.statLabel}>GET (kcal)</Text>
+          <View style={S.statCard}>
+            <Text style={S.statLabel}>Peso Objetivo</Text>
+            <Text style={S.statVal}>{data.weightTarget ? `${data.weightTarget} kg` : "—"}</Text>
           </View>
         </View>
 
-        {/* Identification */}
+        {/* Antropometría y Pliegues */}
         <View style={S.section}>
-          <Text style={S.sectionTitle}>Datos del Paciente</Text>
+          <PdfSectionHeader title="Antropometría y Mediciones" icon="clinical" />
           <View style={S.twoCol}>
-            <View style={S.col}>
-              <DataRow label="Email" value={data.patientEmail} />
-              <DataRow label="Teléfono" value={data.patientPhone} />
-              <DataRow label="RUT" value={data.patientRut} />
+            <View style={[S.col, S.cardBox]}>
+              <DataRow label="Peso habitual" value={data.weightHabitual ? `${data.weightHabitual} kg` : null} />
+              <DataRow label="Ajuste calórico" value={data.manualCaloriesAdjustment ? `${data.manualCaloriesAdjustment} kcal` : null} />
+              <DataRow label="Nivel de actividad" value={data.activityLevel} />
+              <DataRow label="Circ. cintura" value={data.waistCircumference ? `${data.waistCircumference} cm` : null} />
+              <DataRow label="Circ. cadera" value={data.hipCircumference ? `${data.hipCircumference} cm` : null} />
             </View>
-            <View style={S.col}>
-              <DataRow label="Sexo biológico" value={data.patientGender} />
-              <DataRow label="Edad" value={data.patientAge ? `${data.patientAge} años` : undefined} />
-              <DataRow label="Nacimiento" value={data.patientBirthDate} />
+            <View style={[S.col, S.cardBox]}>
+              <DataRow label="Pliegue Tricipital" value={data.tricipital ? `${data.tricipital} mm` : null} />
+              <DataRow label="Pliegue Bicipital" value={data.bicipital ? `${data.bicipital} mm` : null} />
+              <DataRow label="Pliegue Subescapular" value={data.subescapular ? `${data.subescapular} mm` : null} />
+              <DataRow label="Pliegue Suprailiaco" value={data.suprailiac ? `${data.suprailiac} mm` : null} />
+              <DataRow label="Circ. braquial" value={data.armCircumference ? `${data.armCircumference} cm` : null} />
             </View>
           </View>
         </View>
 
-        {/* Objectives */}
+        {/* Anamnesis General y Hábitos */}
         <View style={S.section}>
-          <Text style={S.sectionTitle}>Objetivos y Actividad</Text>
-          <DataRow label="Motivo de consulta" value={data.motivoConsulta} />
-          <View style={S.twoCol}>
-            <View style={S.col}>
-              <DataRow label="Enfoque nutricional" value={data.nutritionalFocus} />
-            </View>
-            <View style={S.col}>
-              <DataRow label="Meta fitness" value={data.fitnessGoals} />
-            </View>
-          </View>
-          <DataRow label="Nivel de actividad" value={data.activityLevel} />
-        </View>
-
-        {/* Anthropometry */}
-        <View style={S.section}>
-          <Text style={S.sectionTitle}>Antropometría</Text>
-          <View style={S.twoCol}>
-            <View style={S.col}>
-              <DataRow label="Peso habitual" value={data.weightHabitual ? `${data.weightHabitual} kg` : undefined} />
-              <DataRow label="Peso objetivo prof." value={data.weightTarget ? `${data.weightTarget} kg` : undefined} />
-              <DataRow label="Ajuste calórico" value={data.manualCaloriesAdjustment ? `${data.manualCaloriesAdjustment} kcal` : undefined} />
-            </View>
-            <View style={S.col}>
-              <DataRow label="Tricipital" value={data.tricipital ? `${data.tricipital} mm` : undefined} />
-              <DataRow label="Bicipital" value={data.bicipital ? `${data.bicipital} mm` : undefined} />
-              <DataRow label="Subescapular" value={data.subescapular ? `${data.subescapular} mm` : undefined} />
-              <DataRow label="Suprailiaco" value={data.suprailiac ? `${data.suprailiac} mm` : undefined} />
-            </View>
-          </View>
-          <View style={S.twoCol}>
-            <View style={S.col}>
-              <DataRow label="Circ. rodilla" value={data.kneeHeight ? `${data.kneeHeight} cm` : undefined} />
-              <DataRow label="Circ. pantorrilla" value={data.calfCircumference ? `${data.calfCircumference} cm` : undefined} />
-            </View>
-            <View style={S.col}>
-              <DataRow label="Circ. braquial" value={data.armCircumference ? `${data.armCircumference} cm` : undefined} />
-              <DataRow label="Circ. cintura" value={data.waistCircumference ? `${data.waistCircumference} cm` : undefined} />
-              <DataRow label="Circ. cadera" value={data.hipCircumference ? `${data.hipCircumference} cm` : undefined} />
+          <PdfSectionHeader title="Anamnesis General & Estilo de Vida" icon="chart" />
+          <View style={S.cardBox}>
+            <View style={S.twoCol}>
+              <View style={S.col}>
+                <DataRow label="Ocupación" value={data.occupation} />
+                <DataRow label="Calidad de sueño" value={data.sleepQuality} />
+                <DataRow label="Ejercicio semanal" value={data.weeklyExercise} />
+              </View>
+              <View style={S.col}>
+                <DataRow label="Patologías" value={data.diagnosedPathologies} />
+                <DataRow label="Medicamentos" value={data.medications} />
+                <DataRow label="Suplementos" value={data.supplementsOrDrugs} />
+              </View>
             </View>
           </View>
         </View>
 
-        {/* General Anamnesis */}
-        <View style={S.section}>
-          <Text style={S.sectionTitle}>Anamnesis General</Text>
-          <View style={S.twoCol}>
-            <View style={S.col}>
-              <DataRow label="Ocupación" value={data.occupation} />
-              <DataRow label="Horario laboral" value={data.workSchedule} />
-            </View>
-            <View style={S.col}>
-              <DataRow label="Calidad de sueño" value={data.sleepQuality} />
-              <DataRow label="Estrés percibido" value={data.perceivedStress} />
-              <DataRow label="Ejercicio semanal" value={data.weeklyExercise} />
-            </View>
-          </View>
-          <DataRow label="Medicamentos" value={data.medications} />
-          <DataRow label="Suplementos / drogas" value={data.supplementsOrDrugs} />
-          <DataRow label="Condición clínica principal" value={data.primaryCondition} />
-          <DataRow label="Patologías diagnosticadas" value={data.diagnosedPathologies} />
-          <DataRow label="Antecedentes familiares" value={data.familyHistory} />
-        </View>
-
-        {/* Pregnancy */}
+        {/* Gestación (si aplica) */}
         {data.isPregnant && (
           <View style={S.pregnancyBox}>
-            <Text style={S.pregnancyLabel}>Modo Gestante</Text>
+            <Text style={{ fontSize: 8.5, fontFamily: "Helvetica-Bold", color: "#9D174D", marginBottom: 3 }}>
+              Modo Gestante Activo
+            </Text>
             <View style={S.twoCol}>
-              <DataRow label="Semanas de gestación" value={data.pregnancyWeeks ? `${data.pregnancyWeeks} sem` : undefined} />
-              <DataRow label="Peso pre-gestacional" value={data.pregestationalWeight ? `${data.pregestationalWeight} kg` : undefined} />
+              <DataRow label="Semanas de gestación" value={data.pregnancyWeeks ? `${data.pregnancyWeeks} sem` : null} />
+              <DataRow label="Peso pregestacional" value={data.pregestationalWeight ? `${data.pregestationalWeight} kg` : null} />
             </View>
-            <DataRow label="Tipo de embarazo" value={data.pregnancyType} />
           </View>
         )}
 
-        {/* Nutritional Anamnesis */}
+        {/* Anamnesis Nutricional & Restricciones */}
         <View style={S.section}>
-          <Text style={S.sectionTitle}>Anamnesis Nutricional</Text>
-          {data.dietRestrictions && data.dietRestrictions.length > 0 && (
-            <View style={{ flexDirection: "row", flexWrap: "wrap", marginBottom: 6 }}>
-              {data.dietRestrictions.map((r) => (
-                <View key={r} style={S.restrictionBadge}>
-                  <Text style={S.restrictionBadgeText}>{r}</Text>
-                </View>
-              ))}
-            </View>
-          )}
-          <DataRow label="Gustos y preferencias" value={data.eatingPreferences} />
-          <DataRow label="Alimentos rechazados" value={data.rejectedFoods} />
-          <DataRow label="Síntesis clínica" value={data.clinicalObservations} />
-          <DataRow label="Diagnóstico nutricional" value={data.diagnosticoNutricional} />
+          <PdfSectionHeader title="Diagnóstico Nutricional & Restricciones" icon="leaf" />
+          <View style={S.cardBox}>
+            {data.dietRestrictions && data.dietRestrictions.length > 0 && (
+              <View style={{ flexDirection: "row", flexWrap: "wrap", marginBottom: 4 }}>
+                {data.dietRestrictions.map((r, i) => (
+                  <View key={i} style={S.badgePill}>
+                    <Text style={S.badgeText}>{r}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+            <DataRow label="Preferencias" value={data.eatingPreferences} />
+            <DataRow label="Rechazos" value={data.rejectedFoods} />
+            <DataRow label="Diagnóstico clínico" value={data.diagnosticoNutricional || data.clinicalObservations} />
+          </View>
         </View>
 
-        {/* Footer */}
-        <View style={S.pageFooter} fixed>
-          <Text style={S.pageFooterText}>NutriNet — Ficha Clínica Nutricional</Text>
-          <Text style={S.pageFooterBrand}>NutriNet</Text>
-        </View>
+        {/* Alimentos a evitar si hay restricciones */}
+        {data.dietRestrictions && data.dietRestrictions.length > 0 && (
+          <PdfAvoidFoodsSection avoidFoods={data.dietRestrictions} title="Restricciones alimentarias críticas" />
+        )}
+
+        {/* Footer Canva */}
+        <PdfBrandedFooter />
       </Page>
     </Document>
   );

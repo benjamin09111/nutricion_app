@@ -1,6 +1,13 @@
 import React from "react";
-import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { colors } from "./styles/pdfStyles";
 import { formatIngredientQuantityLabel } from "./pdfFormatters";
+import {
+  PdfBrandedHeader,
+  PdfSectionHeader,
+  PdfAvoidFoodsSection,
+  PdfBrandedFooter,
+} from "./components";
 
 export interface QuickRecipeIngredientPdf {
   name: string;
@@ -24,25 +31,6 @@ export interface QuickDishPdf {
   ingredients?: QuickRecipeIngredientPdf[];
 }
 
-const DEFAULT_DISH_IMAGE =
-  "data:image/svg+xml;utf8," +
-  encodeURIComponent(`
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 520">
-      <defs>
-        <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="#fef3c7"/>
-          <stop offset="100%" stop-color="#fde68a"/>
-        </linearGradient>
-      </defs>
-      <rect width="800" height="520" rx="48" fill="url(#bg)"/>
-      <circle cx="400" cy="260" r="128" fill="#ffffff" opacity="0.95"/>
-      <circle cx="400" cy="260" r="84" fill="#f8fafc"/>
-      <path d="M318 208c0-22 18-40 40-40 8 0 15 2 21 6 11-22 33-36 58-36 31 0 57 21 64 50 4-1 8-2 13-2 22 0 40 18 40 40v14H318v-32z" fill="#d97706"/>
-      <rect x="340" y="240" width="120" height="72" rx="24" fill="#f59e0b"/>
-      <text x="400" y="410" text-anchor="middle" font-family="Arial, sans-serif" font-size="30" font-weight="700" fill="#92400e">Plato NutriNet</text>
-    </svg>
-  `);
-
 export interface QuickRecipesPdfData {
   title: string;
   dietName?: string;
@@ -62,394 +50,221 @@ export interface QuickRecipesPdfData {
 
 const styles = StyleSheet.create({
   page: {
-    paddingTop: 22,
-    paddingBottom: 28,
+    paddingTop: 24,
+    paddingBottom: 24,
     paddingHorizontal: 28,
-    backgroundColor: "#ffffff",
+    backgroundColor: colors.white,
     fontFamily: "Helvetica",
-    color: "#251d32",
-    fontSize: 10,
-    lineHeight: 1.5,
+    color: colors.slate800,
+    fontSize: 9.5,
+    lineHeight: 1.45,
   },
-  header: {
-    marginBottom: 10,
-    paddingBottom: 8,
-    borderBottom: "4px solid #7c5cac",
-  },
-  brand: {
-    fontSize: 11,
-    fontFamily: "Helvetica-Bold",
-    color: "#7c5cac",
-    marginBottom: 3,
-  },
-  docTitle: {
-    fontSize: 24,
-    fontFamily: "Helvetica-Bold",
-    color: "#3f2c5f",
-    marginBottom: 6,
-    lineHeight: 1.15,
-  },
-  metaRow: {
-    flexDirection: "row",
-    gap: 12,
-    flexWrap: "wrap",
-  },
-  meta: {
-    fontSize: 9,
-    color: "#64748b",
-  },
-  infoBox: {
-    marginBottom: 6,
-    padding: 7,
-    backgroundColor: "#f5f1fa",
-    border: "1px solid #ddd1ed",
-    borderRadius: 8,
+  section: {
+    marginBottom: 8,
   },
   notesBox: {
+    backgroundColor: colors.primaryLight,
+    borderWidth: 1,
+    borderColor: "#DDD6FE",
+    borderRadius: 10,
+    padding: 8,
     marginBottom: 8,
-    padding: 7,
-    backgroundColor: "#fefce8",
-    border: "1px solid #fde68a",
-    borderRadius: 4,
-  },
-  boxLabel: {
-    fontSize: 8.5,
-    fontFamily: "Helvetica-Bold",
-    color: "#5f438f",
-    textTransform: "uppercase",
-    marginBottom: 3,
   },
   notesLabel: {
-    fontSize: 7,
+    fontSize: 8.5,
     fontFamily: "Helvetica-Bold",
-    color: "#92400e",
-    textTransform: "uppercase",
-    marginBottom: 3,
-  },
-  boxText: {
-    fontSize: 9.5,
-    color: "#334155",
-    lineHeight: 1.5,
+    color: colors.primaryDark,
+    marginBottom: 2,
   },
   notesText: {
     fontSize: 8,
-    color: "#78350f",
-    lineHeight: 1.5,
+    color: colors.slate700,
+    lineHeight: 1.35,
   },
   dishCard: {
-    marginBottom: 10,
-    border: "1px solid #e2e8f0",
-    borderRadius: 10,
-    overflow: "hidden",
-  },
-  dishHeader: {
-    backgroundColor: "#7c5cac",
-    borderBottom: "1px solid #7c5cac",
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  dishTitle: {
-    fontSize: 15,
-    fontFamily: "Helvetica-Bold",
-    color: "#ffffff",
-    flex: 1,
-  },
-  mealSectionBadge: {
-    fontSize: 7,
-    fontFamily: "Helvetica-Bold",
-    color: "#5f438f",
-    backgroundColor: "#ffffff",
-    paddingVertical: 2,
-    paddingHorizontal: 6,
-    borderRadius: 99,
-    textTransform: "uppercase",
-  },
-  dishBody: {
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-  },
-  dishImage: {
-    width: "100%",
-    height: 108,
-    objectFit: "cover",
-    borderRadius: 6,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.slate200,
+    borderRadius: 12,
+    padding: 10,
     marginBottom: 8,
   },
-  description: {
-    fontSize: 9.5,
-    color: "#475569",
-    marginBottom: 4,
-    lineHeight: 1.45,
+  dishHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 6,
+    paddingBottom: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.slate100,
   },
-  sectionLabel: {
-    fontSize: 9,
+  dishTitle: {
+    fontSize: 12,
     fontFamily: "Helvetica-Bold",
-    color: "#7c5cac",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 2,
-    marginTop: 4,
+    color: colors.primaryDark,
+    flex: 1,
   },
-  preparationText: {
-    fontSize: 9.5,
-    color: "#374151",
-    lineHeight: 1.55,
+  mealBadge: {
+    backgroundColor: colors.secondaryLight,
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    borderRadius: 8,
+  },
+  mealBadgeText: {
+    fontSize: 7.5,
+    fontFamily: "Helvetica-Bold",
+    color: colors.secondaryDark,
   },
   macroRow: {
     flexDirection: "row",
-    gap: 4,
-    marginTop: 6,
-    marginBottom: 3,
+    gap: 6,
+    marginBottom: 6,
   },
   macroBox: {
     flex: 1,
-    backgroundColor: "#f5f1fa",
-    border: "1px solid #ddd1ed",
-    borderRadius: 7,
-    paddingVertical: 5,
-    paddingHorizontal: 6,
+    backgroundColor: colors.slate50,
+    borderWidth: 1,
+    borderColor: colors.slate200,
+    borderRadius: 6,
+    padding: 4,
     alignItems: "center",
   },
-  macroValue: {
-    fontSize: 12,
+  macroVal: {
+    fontSize: 10.5,
     fontFamily: "Helvetica-Bold",
-    color: "#5f438f",
+    color: colors.primaryDark,
   },
   macroLabel: {
     fontSize: 6.5,
-    color: "#64748b",
+    color: colors.slate500,
     textTransform: "uppercase",
-    marginTop: 1,
   },
-  ingredientsGrid: {
-    marginTop: 1,
+  prepLabel: {
+    fontSize: 8,
+    fontFamily: "Helvetica-Bold",
+    color: colors.primaryDark,
+    marginTop: 4,
+    marginBottom: 2,
+  },
+  prepText: {
+    fontSize: 7.5,
+    color: colors.slate700,
+    lineHeight: 1.35,
+  },
+  ingredientsWrap: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 3,
+    gap: 4,
+    marginTop: 4,
+    marginBottom: 4,
   },
-  ingredientChip: {
+  ingredientPill: {
+    backgroundColor: colors.slate100,
+    borderRadius: 6,
     paddingVertical: 2,
-    paddingHorizontal: 6,
-    backgroundColor: "#f0fdf4",
-    border: "1px solid #bbf7d0",
-    borderRadius: 4,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
+    paddingHorizontal: 5,
   },
-  ingredientName: {
-    fontSize: 8.5,
-    color: "#166534",
-    fontFamily: "Helvetica-Bold",
-  },
-  ingredientQty: {
+  ingredientText: {
     fontSize: 7,
-    color: "#15803d",
-  },
-  portionRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginTop: 6,
-  },
-  portionLabel: {
-    fontSize: 7,
-    fontFamily: "Helvetica-Bold",
-    color: "#94a3b8",
-    textTransform: "uppercase",
-  },
-  portionValue: {
-    fontSize: 9.5,
-    color: "#374151",
-    fontFamily: "Helvetica-Bold",
-  },
-  footer: {
-    marginTop: 14,
-    paddingTop: 5,
-    borderTop: "1px solid #e2e8f0",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    fontSize: 7,
-    color: "#94a3b8",
-  },
-  muted: {
-    color: "#94a3b8",
-    fontStyle: "italic",
+    color: colors.slate700,
   },
 });
 
-function formatMacro(value: number | string | undefined): string {
-  const num = Number(value);
-  if (!value || !Number.isFinite(num)) return "-";
-  return String(Math.round(num));
-}
-
-const joinList = (items?: string[]) =>
-  Array.isArray(items) && items.length > 0 ? items.join(" · ") : "";
-
 export function QuickRecipesPdfDocument({ data }: { data: QuickRecipesPdfData }) {
-  const generatedAt = data.generatedAt || new Date().toLocaleDateString("es-CL");
-  const allowedFoods = joinList(data.allowedFoodsMain);
-  const restrictedFoods = joinList(data.restrictedFoods);
-  const referenceDishes = joinList(data.referenceDishes);
-  const resources = joinList(data.resources);
+  const extraMeta = [
+    data.dietName ? { label: "Plan", value: data.dietName } : null,
+    { label: "Platos", value: `${data.dishes.length}` },
+  ].filter(Boolean) as Array<{ label: string; value: string }>;
 
   return (
     <Document>
       <Page size="A4" style={styles.page}>
-        <View style={styles.header}>
-           <Text style={styles.brand}>NutriNet</Text>
-           <Text style={styles.docTitle}>{data.title || "Recetas Rápidas"}</Text>
-           {data.planObjective?.trim() ? (
-             <Text style={styles.boxText}>Objetivo: {data.planObjective.trim()}</Text>
-           ) : null}
-           <View style={styles.metaRow}>
-            {data.dietName ? <Text style={styles.meta}>Dieta: {data.dietName}</Text> : null}
-            {data.patientName ? <Text style={styles.meta}>Paciente: {data.patientName}</Text> : null}
-            <Text style={styles.meta}>Generado: {generatedAt}</Text>
-            <Text style={styles.meta}>{data.dishes.length} plato(s)</Text>
-          </View>
-        </View>
+        <PdfBrandedHeader
+          title={data.title || "Recetario Saludable"}
+          subtitle="Preparaciones & Platos Recomendados"
+          badgeLabel="Recetario NutriNet"
+          objective={data.planObjective?.trim() || "Instrucciones de preparación e ingredientes por porción."}
+          patientName={data.patientName}
+          date={data.generatedAt}
+          extraMeta={extraMeta}
+        />
 
-        {allowedFoods ? (
-          <View style={styles.infoBox}>
-            <Text style={styles.boxLabel}>Alimentos permitidos principales</Text>
-            <Text style={styles.boxText}>{allowedFoods}</Text>
-          </View>
-        ) : null}
-
-        {restrictedFoods ? (
-          <View style={styles.infoBox}>
-            <Text style={styles.boxLabel}>Restricciones de alimentos</Text>
-            <Text style={styles.boxText}>{restrictedFoods}</Text>
-          </View>
-        ) : null}
-
-        {data.specialConsiderations?.trim() ? (
-          <View style={styles.infoBox}>
-            <Text style={styles.boxLabel}>Consideraciones especiales</Text>
-            <Text style={styles.boxText}>{data.specialConsiderations}</Text>
-          </View>
-        ) : null}
-
-        {referenceDishes ? (
-          <View style={styles.infoBox}>
-            <Text style={styles.boxLabel}>Platos de referencia</Text>
-            <Text style={styles.boxText}>{referenceDishes}</Text>
-          </View>
-        ) : null}
-
-        {resources ? (
-          <View style={styles.infoBox}>
-            <Text style={styles.boxLabel}>Recursos</Text>
-            <Text style={styles.boxText}>{resources}</Text>
-          </View>
-        ) : null}
-
-        {data.nutritionistNotes?.trim() ? (
+        {data.nutritionistNotes?.trim() && (
           <View style={styles.notesBox}>
-            <Text style={styles.notesLabel}>Notas del nutricionista</Text>
-            <Text style={styles.notesText}>{data.nutritionistNotes}</Text>
+            <Text style={styles.notesLabel}>Indicaciones del Nutricionista</Text>
+            <Text style={styles.notesText}>{data.nutritionistNotes.trim()}</Text>
           </View>
-        ) : null}
-
-        {data.finalNotes?.trim() ? (
-          <View style={styles.infoBox}>
-            <Text style={styles.boxLabel}>Notas finales</Text>
-            <Text style={styles.boxText}>{data.finalNotes}</Text>
-          </View>
-        ) : null}
-
-        {data.dishes.length === 0 ? (
-          <Text style={styles.muted}>Sin platos registrados.</Text>
-        ) : (
-          data.dishes.map((dish, index) => (
-            <View key={index} style={styles.dishCard}>
-              <View style={styles.dishHeader}>
-                <Text style={styles.dishTitle}>{dish.title || `Plato ${index + 1}`}</Text>
-                {dish.mealSection ? (
-                  <Text style={styles.mealSectionBadge}>{dish.mealSection}</Text>
-                ) : null}
-              </View>
-
-              <View style={styles.dishBody}>
-                <View style={styles.macroRow}>
-                  <View style={styles.macroBox}>
-                    <Text style={styles.macroValue}>{formatMacro(dish.calories)} kcal</Text>
-                    <Text style={styles.macroLabel}>Calorías</Text>
-                  </View>
-                  <View style={styles.macroBox}>
-                    <Text style={styles.macroValue}>{formatMacro(dish.protein)} g</Text>
-                    <Text style={styles.macroLabel}>Proteínas</Text>
-                  </View>
-                  <View style={styles.macroBox}>
-                    <Text style={styles.macroValue}>{formatMacro(dish.fats)} g</Text>
-                    <Text style={styles.macroLabel}>Grasas</Text>
-                  </View>
-                </View>
-
-                {dish.recommendedPortion?.trim() ? (
-                  <View style={styles.portionRow}>
-                    <Text style={styles.portionLabel}>Porción recomendada:</Text>
-                    <Text style={styles.portionValue}>{dish.recommendedPortion}</Text>
-                  </View>
-                ) : null}
-
-                {dish.preparation?.trim() ? (
-                  <>
-                    <Text style={styles.sectionLabel}>Preparación</Text>
-                    <Text style={styles.preparationText}>
-                      {dish.preparation.split(/(\*\*.*?\*\*)/g).map((part, pIdx) => {
-                        if (part.startsWith("**") && part.endsWith("**")) {
-                          return (
-                            <Text key={pIdx} style={{ fontFamily: "Helvetica-Bold", color: "#0f172a" }}>
-                              {part.slice(2, -2)}
-                            </Text>
-                          );
-                        }
-                        return <Text key={pIdx}>{part}</Text>;
-                      })}
-                    </Text>
-                  </>
-                ) : null}
-
-                {dish.ingredients && dish.ingredients.length > 0 ? (
-                  <>
-                    <Text style={styles.sectionLabel}>Ingredientes</Text>
-                    <View style={styles.ingredientsGrid}>
-                      {dish.ingredients
-                        .filter((ingredient) => ingredient.name?.trim())
-                        .map((ingredient, ingredientIndex) => {
-                          const quantityLabel = formatIngredientQuantityLabel(
-                            ingredient.quantity,
-                            ingredient.amount,
-                            ingredient.unit,
-                          );
-
-                          return (
-                            <View key={ingredientIndex} style={styles.ingredientChip}>
-                              <Text style={styles.ingredientName}>{ingredient.name}</Text>
-                              {quantityLabel ? (
-                                <Text style={styles.ingredientQty}>· {quantityLabel}</Text>
-                              ) : null}
-                            </View>
-                          );
-                        })}
-                    </View>
-                  </>
-                ) : null}
-              </View>
-            </View>
-          ))
         )}
 
-        <View style={styles.footer}>
-          <Text>NutriNet · Recetas Express</Text>
-          <Text>Generado el {generatedAt}</Text>
+        <View style={styles.section}>
+          <PdfSectionHeader title="Recetas & Preparaciones" icon="recipe" />
+          {data.dishes.map((dish, index) => (
+            <View key={index} style={styles.dishCard}>
+              <View style={styles.dishHeader}>
+                <Text style={styles.dishTitle}>{dish.title || `Receta ${index + 1}`}</Text>
+                {dish.mealSection && (
+                  <View style={styles.mealBadge}>
+                    <Text style={styles.mealBadgeText}>{dish.mealSection}</Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Macros */}
+              <View style={styles.macroRow}>
+                <View style={styles.macroBox}>
+                  <Text style={styles.macroVal}>{dish.calories ? `${dish.calories}` : "—"}</Text>
+                  <Text style={styles.macroLabel}>Calorías (kcal)</Text>
+                </View>
+                <View style={styles.macroBox}>
+                  <Text style={styles.macroVal}>{dish.protein ? `${dish.protein}g` : "—"}</Text>
+                  <Text style={styles.macroLabel}>Proteínas</Text>
+                </View>
+                <View style={styles.macroBox}>
+                  <Text style={styles.macroVal}>{dish.carbs ? `${dish.carbs}g` : "—"}</Text>
+                  <Text style={styles.macroLabel}>Carbohidratos</Text>
+                </View>
+                <View style={styles.macroBox}>
+                  <Text style={styles.macroVal}>{dish.fats ? `${dish.fats}g` : "—"}</Text>
+                  <Text style={styles.macroLabel}>Grasas</Text>
+                </View>
+              </View>
+
+              {/* Ingredientes */}
+              {dish.ingredients && dish.ingredients.length > 0 && (
+                <>
+                  <Text style={styles.prepLabel}>Ingredientes:</Text>
+                  <View style={styles.ingredientsWrap}>
+                    {dish.ingredients.map((ing, iIdx) => {
+                      const qty = formatIngredientQuantityLabel(ing.quantity, ing.amount, ing.unit);
+                      return (
+                        <View key={iIdx} style={styles.ingredientPill}>
+                          <Text style={styles.ingredientText}>
+                            • {ing.name} {qty ? `(${qty})` : ""}
+                          </Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                </>
+              )}
+
+              {/* Preparación */}
+              {dish.preparation && (
+                <>
+                  <Text style={styles.prepLabel}>Preparación:</Text>
+                  <Text style={styles.prepText}>{dish.preparation}</Text>
+                </>
+              )}
+            </View>
+          ))}
         </View>
+
+        {/* Alimentos restringidos si aplica */}
+        {data.restrictedFoods && data.restrictedFoods.length > 0 && (
+          <PdfAvoidFoodsSection avoidFoods={data.restrictedFoods} />
+        )}
+
+        <PdfBrandedFooter />
       </Page>
     </Document>
   );
