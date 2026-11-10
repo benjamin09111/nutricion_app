@@ -220,7 +220,7 @@ export default function ConsultationsClient() {
                  router.push("/dashboard/consultas/nueva");
                }}
                disabled={consultationCreationBlocked || isConsultationLimitReached}
-               className="flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm rounded-xl transition-all shadow-sm active:scale-95 cursor-pointer w-full sm:w-auto shrink-0 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
+               className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#7c3aed] hover:bg-[#6d28d9] text-white font-semibold text-sm rounded-xl transition-all shadow-xs active:scale-95 cursor-pointer w-full sm:w-auto shrink-0 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none"
              >
               <Plus className="w-4 h-4 shrink-0" />
                <span>{consultationCreationBlocked ? "Verificando límite..." : isConsultationLimitReached ? "Límite alcanzado" : "Nueva Consulta"}</span>

@@ -319,8 +319,12 @@ export class FlowService {
   }
 
   private getReturnUrl(path: string) {
-    const apiUrl = this.configService.get<string>('API_URL');
-    const base = apiUrl ? apiUrl.replace(/\/$/, '') : 'http://localhost:3001';
+    const apiUrl =
+      this.configService.get<string>('API_URL') ||
+      this.configService.get<string>('BACKEND_PUBLIC_URL') ||
+      '';
+    const base = apiUrl ? apiUrl.replace(/\/$/, '') : '';
     return `${base}/payments/flow/return?path=${encodeURIComponent(path)}`;
   }
+
 }

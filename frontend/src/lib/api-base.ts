@@ -1,5 +1,6 @@
 import { resolveRequiredUrl, normalizeUrl } from "./runtime-url.util";
 import { clearCurrentUser } from "./current-user";
+import { handleDemoApi } from "./demo-local-api";
 
 let preferredApiOrigin: string | null = null;
 
@@ -17,11 +18,12 @@ export const getApiOriginCandidates = () => {
     process.env.NEXT_PUBLIC_API_URL,
     process.env.NEXT_PUBLIC_BACKEND_URL,
     preferredApiOrigin,
-    "http://localhost:3001",
+    process.env.NEXT_PUBLIC_DEFAULT_API_ORIGIN,
   ].filter((origin): origin is string => Boolean(origin));
 
   return Array.from(new Set(candidates.map((origin) => normalizeUrl(origin))));
 };
+
 
 export const getApiUrl = () => preferredApiOrigin || getConfiguredApiUrl();
 
@@ -29,6 +31,11 @@ export async function fetchApi(
   path: string,
   init?: RequestInit,
 ): Promise<Response> {
+  const demoResponse = handleDemoApi(path, init);
+  if (demoResponse) {
+    return demoResponse;
+  }
+
   let lastResponse: Response | null = null;
   let lastError: unknown = null;
 

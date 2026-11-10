@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useLayoutEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useState } from "react";
 
 export type FontPreference = "default" | "formal";
 
@@ -15,14 +15,18 @@ const STORAGE_KEY = "nutri_font_preference";
 const FontContext = createContext<FontContextValue | null>(null);
 
 export function FontProvider({ children }: { children: React.ReactNode }) {
-  const [fontPreference, setFontPreferenceState] = useState<FontPreference>(() => {
-    if (typeof window === "undefined") {
-      return "default";
-    }
+  const [fontPreference, setFontPreferenceState] = useState<FontPreference>("default");
 
-    const storedPreference = window.localStorage.getItem(STORAGE_KEY);
-    return storedPreference === "formal" ? "formal" : "default";
-  });
+  useEffect(() => {
+    try {
+      const storedPreference = window.localStorage.getItem(STORAGE_KEY);
+      if (storedPreference === "formal") {
+        setFontPreferenceState("formal");
+      }
+    } catch {
+      // Ignorar error al leer de localStorage
+    }
+  }, []);
 
   useLayoutEffect(() => {
     if (typeof document === "undefined") return;

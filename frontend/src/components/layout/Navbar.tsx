@@ -15,8 +15,9 @@ import {
   RotateCcw,
   NotebookPen,
   X,
+  HeartHandshake,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { useAdmin } from "@/context/AdminContext";
 import { cn } from "@/lib/utils";
@@ -28,6 +29,7 @@ import { useNotifications } from "@/context/NotificationsContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useFont } from "@/context/FontContext";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
+import { DemoInterestModal } from "@/components/demo/DemoInterestModal";
 import { PlanLimitsModal } from "@/components/memberships/PlanLimitsModal";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
@@ -45,18 +47,18 @@ export function Navbar({
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isResettingPdf, setIsResettingPdf] = useState(false);
   const [isResettingAi, setIsResettingAi] = useState(false);
-  const [userEmail] = useState<string>(() => {
-    if (typeof window === "undefined") {
-      return "usuario@demo.com";
-    }
+  const [userEmail, setUserEmail] = useState<string>("usuario@demo.com");
+  const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
 
+  useEffect(() => {
     const storedUser = getCurrentUser();
-    if (!storedUser) {
-      return "usuario@demo.com";
+    if (storedUser?.email && typeof storedUser.email === "string") {
+      setUserEmail(storedUser.email);
     }
-
-    return typeof storedUser?.email === "string" ? storedUser.email : "usuario@demo.com";
-  });
+    if (storedUser?.googleAvatarUrl) {
+      setUserAvatarUrl(storedUser.googleAvatarUrl);
+    }
+  }, []);
 
   const handleResetPdfQuotaDev = async () => {
     setIsResettingPdf(true);
@@ -89,21 +91,33 @@ export function Navbar({
       setIsResettingAi(false);
     }
   };
-  const [userAvatarUrl] = useState<string | null>(() => {
-    if (typeof window === "undefined") {
-      return null;
-    }
-
-    const storedUser = getCurrentUser();
-    if (!storedUser) {
-      return null;
-    }
-
-    return storedUser?.googleAvatarUrl || null;
-  });
   const router = useRouter();
+  const pathname = usePathname();
   const dropdownRef = useRef<HTMLDivElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
+
+  const [isGuest, setIsGuest] = useState(false);
+  const [isSecureSubModalOpen, setIsSecureSubModalOpen] = useState(false);
+  const [isSecuringSub, setIsSecuringSub] = useState(false);
+  const [isPlanLimitsModalOpen, setIsPlanLimitsModalOpen] = useState(false);
+  const [isDemoInterestModalOpen, setIsDemoInterestModalOpen] = useState(false);
+  const [todayString, setTodayString] = useState<string>("");
+
+  useEffect(() => {
+    const hasSession = document.cookie
+      .split(";")
+      .some((item) => item.trim().startsWith("auth_session_present="));
+    setIsGuest(!hasSession);
+
+    const now = new Date();
+    setTodayString(
+      now.toLocaleDateString("es-CL", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      }),
+    );
+  }, []);
 
   const { isAdmin, isAdminView, toggleViewMode } = useAdmin();
   const { planName, currentPlan, hasPendingTransfer, plan, isDeveloper } = useSubscription();
@@ -118,10 +132,6 @@ export function Navbar({
     useNotifications();
   const { isDarkMode, toggleTheme } = useTheme();
   const { fontPreference, setFontPreference } = useFont();
-
-  const [isSecureSubModalOpen, setIsSecureSubModalOpen] = useState(false);
-  const [isSecuringSub, setIsSecuringSub] = useState(false);
-  const [isPlanLimitsModalOpen, setIsPlanLimitsModalOpen] = useState(false);
 
   const handleSecureSubscription = async () => {
     setIsSecuringSub(true);
@@ -199,8 +209,49 @@ export function Navbar({
         />
       </button>
 
-        <div className="flex min-w-0 flex-1 items-center gap-x-1 sm:gap-x-4 lg:gap-x-6">
-          <div className="flex min-w-0 flex-1 items-center justify-end gap-x-1.5 sm:gap-x-4 lg:gap-x-8">
+        <div className="flex min-w-0 flex-1 items-center justify-between gap-x-2 sm:gap-x-4 lg:gap-x-6">
+          {/* Demo Action Bar & Status */}
+          <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap min-w-0">
+            {/* Cómo usar nutrinet? */}
+            <Link
+              href="/dashboard/uso-recomendado"
+              className={cn(
+                "inline-flex cursor-pointer items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium transition-all active:scale-95 shadow-xs",
+                isDarkMode
+                  ? "bg-purple-950/40 text-purple-300 border border-purple-800/60 hover:bg-purple-900/40"
+                  : "bg-[#f5effe] text-[#7c3aed] border border-purple-200/80 hover:bg-[#ede3fc]",
+              )}
+            >
+              <Sparkles className="h-3.5 w-3.5 text-[#7c3aed]" />
+              <span>¿Cómo usar NutriNet?</span>
+            </Link>
+
+            {/* Me interesa NutriNet */}
+            <button
+              type="button"
+              onClick={() => setIsDemoInterestModalOpen(true)}
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-medium transition-all active:scale-95 shadow-xs bg-[#7c3aed] hover:bg-[#6d28d9] text-white"
+            >
+              <HeartHandshake className="h-3.5 w-3.5 text-purple-200" />
+              <span>Me interesa NutriNet</span>
+            </button>
+
+            {/* Última actualización */}
+            <div
+              suppressHydrationWarning
+              className={cn(
+                "hidden md:inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-[11px] font-medium border shadow-xs transition-colors",
+                isDarkMode
+                  ? "bg-slate-800/80 text-slate-300 border-slate-700/80"
+                  : "bg-white/90 text-slate-500 border-slate-200/90",
+              )}
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
+              <span>Última actualización: {todayString || "10 nov 2026"}</span>
+            </div>
+          </div>
+
+          <div className="flex min-w-0 items-center justify-end gap-x-1.5 sm:gap-x-4 lg:gap-x-8">
             {process.env.NODE_ENV === "development" && false && userEmail === "benjaminmoralespizarro763@gmail.com" && (
               <>
                 <button
@@ -474,8 +525,29 @@ export function Navbar({
             )}
           </div>
 
-          <div className="relative" ref={dropdownRef}>
-            <button
+          {isGuest ? (
+            <div className="flex items-center gap-2 sm:gap-2.5">
+              <div
+                className={cn(
+                  "hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl border text-xs font-medium select-none shadow-xs",
+                  isDarkMode
+                    ? "bg-purple-950/40 text-purple-300 border-purple-800/60"
+                    : "bg-[#f5effe] text-[#7c3aed] border-purple-200/80",
+                )}
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-[#7c3aed]" />
+                <span>Modo Invitado</span>
+              </div>
+              <Link
+                href="/login"
+                className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold shadow-xs transition-all active:scale-95 bg-[#7c3aed] hover:bg-[#6d28d9] text-white"
+              >
+                <span>Iniciar sesión</span>
+              </Link>
+            </div>
+          ) : (
+            <div className="relative" ref={dropdownRef}>
+              <button
               className={cn(
                 "-m-1.5 flex items-center gap-3 rounded-xl p-2 transition-all outline-none",
                 isDarkMode ? "hover:bg-emerald-500/10" : "hover:bg-slate-50",
@@ -776,8 +848,9 @@ export function Navbar({
               </div>
             )}
           </div>
-        </div>
+        )}
       </div>
+    </div>
 
       <ConfirmationModal
         isOpen={isSecureSubModalOpen}
@@ -792,6 +865,10 @@ export function Navbar({
       <PlanLimitsModal
         isOpen={isPlanLimitsModalOpen}
         onClose={() => setIsPlanLimitsModalOpen(false)}
+      />
+      <DemoInterestModal
+        isOpen={isDemoInterestModalOpen}
+        onClose={() => setIsDemoInterestModalOpen(false)}
       />
     </div>
   );

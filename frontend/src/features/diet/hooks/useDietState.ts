@@ -2,7 +2,12 @@ import { useState, useMemo, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { DEFAULT_CONSTRAINTS } from "@/lib/constants";
-import { MarketPrice } from "@/features/foods";
+import {
+  MarketPrice,
+  OFFICIAL_MARKET_PRICES,
+  normalizeSearchText,
+} from "@/features/foods";
+
 import { useDashboardShell } from "@/context/DashboardShellContext";
 import { fetchApi } from "@/lib/api-base";
 import { hasActiveSession } from "@/lib/auth-token";
@@ -151,7 +156,10 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
   const [newConstraintLabel, setNewConstraintLabel] = useState("");
   const [customGroups, setCustomGroups] = useState<string[]>([]);
   const [deletedBaseGroups, setDeletedBaseGroups] = useState<string[]>([]);
-  const [dbCatalogFoods, setDbCatalogFoods] = useState<MarketPrice[]>([]);
+  const [dbCatalogFoods, setDbCatalogFoods] = useState<MarketPrice[]>(
+    OFFICIAL_MARKET_PRICES as unknown as MarketPrice[],
+  );
+
   const [isDeleteGroupConfirmOpen, setIsDeleteGroupConfirmOpen] =
     useState(false);
   const [groupToDelete, setGroupToDelete] = useState<string | null>(null);
@@ -2286,20 +2294,32 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
       return;
     }
 
+    // 1. Búsqueda instantánea en memoria (0ms latencia)
+    const normQuery = normalizeSearchText(foodSearchQuery);
+    const normalizedTargetGroup = normalizeGroupName(
+      activeGroupForAddition || "Varios",
+    );
+    const isCustomTargetGroup = customGroups.some(
+      (group) => normalizeGroupName(group) === normalizedTargetGroup,
+    );
+
+    const instantMatches = fullCatalogFoods.filter((f) => {
+      const matchName = normalizeSearchText(f.producto).includes(normQuery);
+      if (!matchName) return false;
+      if (isCustomTargetGroup) return true;
+      return normalizeGroupName(f.grupo || "Varios") === normalizedTargetGroup;
+    });
+
+    if (instantMatches.length > 0) {
+      setSearchResultFoods(instantMatches.slice(0, 30));
+    }
+
     const fetchFoods = async () => {
-      setIsSearchingFoods(true);
       try {
         const res = await fetchApi(
           `/foods?search=${foodSearchQuery}&limit=20`,);
         if (res.ok) {
           const data = await res.json();
-          const normalizedTargetGroup = normalizeGroupName(
-            activeGroupForAddition || "Varios",
-          );
-          const isCustomTargetGroup = customGroups.some(
-            (group) => normalizeGroupName(group) === normalizedTargetGroup,
-          );
-
           const filteredByGroup = isCustomTargetGroup
             ? data
             : data.filter((ing: any) => {
@@ -2309,21 +2329,23 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
                 return ingredientGroup === normalizedTargetGroup;
               });
 
-          setSearchResultFoods(
-            filteredByGroup.map((ing: any) => ({
-              id: ing.id,
-              producto: ing.name,
-              grupo: ing.category?.name || "Varios",
-              unidad: ing.unit || "g",
-              precioPromedio: ing.price || 0,
-              calorias: ing.calories || 0,
-              proteinas: ing.proteins || 0,
-              carbohidratos: ing.carbs || 0,
-              lipidos: ing.lipids || 0,
-              tags: ing.tags?.map((t: any) => t.name) || [],
-              isDraft: !!ing.isDraft,
-            })),
-          );
+          if (Array.isArray(filteredByGroup) && filteredByGroup.length > 0) {
+            setSearchResultFoods(
+              filteredByGroup.map((ing: any) => ({
+                id: ing.id,
+                producto: ing.name,
+                grupo: ing.category?.name || "Varios",
+                unidad: ing.unit || "g",
+                precioPromedio: ing.price || 0,
+                calorias: ing.calories || 0,
+                proteinas: ing.proteins || 0,
+                carbohidratos: ing.carbs || 0,
+                lipidos: ing.lipids || 0,
+                tags: ing.tags?.map((t: any) => t.name) || [],
+                isDraft: !!ing.isDraft,
+              })),
+            );
+          }
         }
       } catch (e) {
         console.error(e);
@@ -2332,13 +2354,14 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
       }
     };
 
-    const timeoutId = setTimeout(fetchFoods, 300);
+    const timeoutId = setTimeout(fetchFoods, 200);
     return () => clearTimeout(timeoutId);
   }, [
     isAddFoodModalOpen,
     foodSearchQuery,
     activeGroupForAddition,
     customGroups,
+    fullCatalogFoods,
   ]);
 
   useEffect(() => {
@@ -2348,14 +2371,35 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
       return;
     }
 
+    // 1. Búsqueda instantánea en memoria (0ms latencia)
+    const normQuery = normalizeSearchText(smartSearchQuery);
+    const instantSmart = fullCatalogFoods.filter((f) =>
+      normalizeSearchText(f.producto).includes(normQuery),
+    );
+    if (instantSmart.length > 0) {
+      setSmartSearchResults(
+        instantSmart.slice(0, 30).map((f) => ({
+          id: f.id,
+          name: f.producto,
+          category: { name: f.grupo },
+          unit: f.unidad,
+          calories: f.calorias,
+          proteins: f.proteinas,
+          carbs: f.carbohidratos,
+          lipids: f.lipidos,
+        })),
+      );
+    }
+
     const fetchFoods = async () => {
-      setIsSearchingInSmart(true);
       try {
         const res = await fetchApi(
           `/foods?search=${smartSearchQuery}&limit=20`,);
         if (res.ok) {
           const data = await res.json();
-          setSmartSearchResults(data);
+          if (Array.isArray(data) && data.length > 0) {
+            setSmartSearchResults(data);
+          }
         }
       } catch (e) {
         console.error(e);
@@ -2364,9 +2408,10 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
       }
     };
 
-    const timeoutId = setTimeout(fetchFoods, 300);
+    const timeoutId = setTimeout(fetchFoods, 200);
     return () => clearTimeout(timeoutId);
-  }, [smartAddTab, smartSearchQuery]);
+  }, [smartAddTab, smartSearchQuery, fullCatalogFoods]);
+
 
   const createBaseFoodStatus = () => {
     const nextStatus: Record<string, "base" | "removed"> = {};

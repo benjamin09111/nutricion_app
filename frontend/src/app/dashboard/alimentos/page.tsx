@@ -1,29 +1,34 @@
 import { cookies } from "next/headers";
 import { Suspense } from "react";
 import FoodsClient from "./FoodsClient";
-import { Ingredient } from "@/features/foods";
+import { Ingredient, OFFICIAL_INGREDIENTS } from "@/features/foods";
 import { fetchApi } from "@/lib/api-base";
 
 async function getIngredients(): Promise<Ingredient[]> {
   const cookieStore = await cookies();
   const token = cookieStore.get("auth_session")?.value;
 
+  // En modo invitado o sin sesión activa, servir inmediatamente los 569 alimentos locales
+  if (!token) {
+    return OFFICIAL_INGREDIENTS;
+  }
+
   try {
-    const res = await fetchApi("/foods?tab=app&limit=100", {
+    const res = await fetchApi("/foods?tab=app&limit=1000", {
       cache: "no-store",
       headers: {
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        Authorization: `Bearer ${token}`,
       },
     });
 
     if (!res.ok) {
-      console.error("Failed to fetch ingredients:", res.status, res.statusText);
-      return [];
+      return OFFICIAL_INGREDIENTS;
     }
-    return res.json();
+    const data = await res.json();
+    return Array.isArray(data) && data.length > 0 ? data : OFFICIAL_INGREDIENTS;
   } catch (error) {
-    console.error("Error fetching ingredients:", error);
-    return [];
+    console.error("Error fetching ingredients, falling back to local catalog:", error);
+    return OFFICIAL_INGREDIENTS;
   }
 }
 

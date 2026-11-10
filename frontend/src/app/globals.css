@@ -23,15 +23,18 @@
   --brand-indigo-700: #7557b7;
   --brand-indigo-800: #5f4696;
   --brand-indigo-900: #4c3778;
-  --dashboard-shell: radial-gradient(circle at top, #ffffff 0%, #f8fafc 42%, #eef2f7 100%);
-  --dashboard-nav: rgba(255, 255, 255, 0.92);
-  --dashboard-sidebar: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 1) 100%);
-  --dashboard-border: rgba(148, 163, 184, 0.22);
-  --dashboard-muted: #6b7280;
-  --dashboard-surface: rgba(255, 255, 255, 0.9);
+  --dashboard-shell: 
+    radial-gradient(ellipse 45% 35% at 0% 0%, rgba(220, 245, 215, 0.45) 0%, transparent 70%),
+    radial-gradient(ellipse 45% 40% at 100% 100%, rgba(238, 228, 255, 0.55) 0%, transparent 70%),
+    #fafbfc;
+  --dashboard-nav: rgba(255, 255, 255, 0.85);
+  --dashboard-sidebar: #ffffff;
+  --dashboard-border: rgba(241, 245, 249, 1);
+  --dashboard-muted: #64748b;
+  --dashboard-surface: #ffffff;
   --dashboard-surface-strong: #ffffff;
-  --dashboard-hover: rgba(168, 138, 237, 0.08);
-  --dashboard-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+  --dashboard-hover: rgba(124, 58, 237, 0.06);
+  --dashboard-shadow: 0 1px 3px rgba(15, 23, 42, 0.02);
   --font-default: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-formal: var(--font-inter), sans-serif;
   --font-brand: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -187,6 +190,7 @@ body {
 
 .dashboard-shell-bg {
   background: var(--dashboard-shell);
+  background-attachment: fixed;
 }
 
 .dashboard-nav-bg {

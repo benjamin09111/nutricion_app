@@ -29,29 +29,29 @@ export function RecordsTable<T>({
   loadingColumns = 5,
   emptyState,
   onRowClick,
-  rowClassName = "hover:bg-emerald-50/20 transition-colors group",
+  rowClassName = "hover:bg-slate-50/60 transition-colors group",
   footer,
 }: RecordsTableProps<T>) {
   const colSpan = columns.length;
 
   return (
-    <div className="bg-white shadow-xl shadow-slate-200/50 border border-slate-200/60 rounded-2xl overflow-hidden">
+    <div className="w-full">
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-slate-100">
-          <thead className="bg-slate-50/50">
-            <tr>
+        <table className="min-w-full border-collapse">
+          <thead>
+            <tr className="border-b border-slate-200/80">
               {columns.map((col) => (
                 <th
                   key={col.header}
                   scope="col"
-                  className={`px-6 py-4 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-widest border-b border-slate-100 ${col.className ?? ""}`}
+                  className={`py-3 px-4 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider ${col.className ?? ""}`}
                 >
                   {col.header}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-50 bg-white">
+          <tbody className="divide-y divide-slate-100">
             {isLoading ? (
               <TableLoadingRows rows={loadingRows} columns={loadingColumns} />
             ) : data.length > 0 ? (
@@ -64,7 +64,7 @@ export function RecordsTable<T>({
                   {columns.map((col) => (
                     <td
                       key={col.header}
-                      className={`px-6 py-4 ${col.className ?? ""}`}
+                      className={`py-3.5 px-4 ${col.className ?? ""}`}
                     >
                       {col.render(item)}
                     </td>
@@ -73,7 +73,7 @@ export function RecordsTable<T>({
               ))
             ) : (
               <tr>
-                <td colSpan={colSpan} className="text-center py-24">
+                <td colSpan={colSpan} className="text-center py-20">
                   {emptyState ?? (
                     <div className="flex flex-col items-center justify-center space-y-3">
                       <p className="text-sm font-semibold text-slate-500">
@@ -88,7 +88,7 @@ export function RecordsTable<T>({
         </table>
       </div>
       {footer && (
-        <div className="bg-slate-50/50 p-4 border-t border-slate-100 flex items-center justify-between">
+        <div className="pt-4 flex items-center justify-between">
           {footer}
         </div>
       )}

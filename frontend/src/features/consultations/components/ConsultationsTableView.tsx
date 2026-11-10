@@ -33,14 +33,12 @@ export function ConsultationsTableView({
           {
             header: "Paciente",
             render: (item: Consultation) => (
-              <div className="flex items-center">
-                <div className="h-10 w-10 shrink-0">
-                  <div className="h-10 w-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-semibold border border-indigo-100 shadow-sm">
-                    {item.patientName?.charAt(0) || "P"}
-                  </div>
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-xl bg-purple-100 flex items-center justify-center text-[#7c3aed] font-bold text-sm shrink-0">
+                  {item.patientName?.charAt(0) || "P"}
                 </div>
-                <div className="ml-4 min-w-0">
-                  <div className="text-sm font-semibold text-slate-900 leading-none mb-1 truncate">
+                <div className="min-w-0">
+                  <div className="text-sm font-bold text-slate-800 leading-tight mb-0.5 truncate group-hover:text-[#7c3aed] transition-colors">
                     {item.patientName}
                   </div>
                   {onViewPatient && (
@@ -49,7 +47,7 @@ export function ConsultationsTableView({
                         e.stopPropagation();
                         onViewPatient(item.patientId);
                       }}
-                      className="text-xs text-slate-500 font-medium hover:text-indigo-600 transition-colors text-left cursor-pointer"
+                      className="text-xs text-slate-400 font-normal hover:text-[#7c3aed] transition-colors text-left cursor-pointer"
                     >
                       Ver ficha del paciente
                     </button>
@@ -85,40 +83,40 @@ export function ConsultationsTableView({
       className: "text-right",
       render: (item: Consultation) => (
         <div
-          className="flex items-center justify-end gap-1"
+          className="flex items-center justify-end gap-1 text-slate-400"
           onClick={(e) => e.stopPropagation()}
         >
           {!isInsidePatient && onViewPatient && (
             <button
               onClick={() => onViewPatient(item.patientId)}
-              className="group relative p-2.5 text-slate-400 hover:text-sky-600 hover:bg-sky-50 rounded-xl transition-all cursor-pointer"
+              className="p-1.5 text-slate-400 hover:text-[#7c3aed] hover:bg-purple-50 rounded-lg transition-colors cursor-pointer"
               title="Ver Paciente"
             >
-              <User className="w-4.5 h-4.5" />
+              <User className="w-4 h-4" />
             </button>
           )}
           {onEdit && (
             <button
               onClick={() => onEdit(item.id)}
-              className="group relative p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all cursor-pointer"
+              className="p-1.5 text-slate-400 hover:text-[#7c3aed] hover:bg-purple-50 rounded-lg transition-colors cursor-pointer"
               title="Editar Consulta"
             >
-              <Edit2 className="w-4.5 h-4.5" />
+              <Edit2 className="w-4 h-4" />
             </button>
           )}
           <button
             onClick={() => onViewConsultation(item.id)}
-            className="group relative p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all cursor-pointer"
+            className="p-1.5 text-slate-400 hover:text-[#7c3aed] hover:bg-purple-50 rounded-lg transition-colors cursor-pointer"
             title="Ver Consulta"
           >
-            <Eye className="w-4.5 h-4.5" />
+            <Eye className="w-4 h-4" />
           </button>
           <button
             onClick={() => onDelete(item.id)}
-            className="group relative p-2.5 text-slate-400 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
+            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
             title="Eliminar"
           >
-            <Trash2 className="w-4.5 h-4.5 text-rose-500" />
+            <Trash2 className="w-4 h-4 text-rose-500" />
           </button>
         </div>
       ),

@@ -32,13 +32,14 @@ import {
   Megaphone,
   Sparkles,
   Star,
+  FlaskConical,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useDashboardShell } from "@/context/DashboardShellContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useAdmin } from "@/context/AdminContext";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface SidebarItem {
   name: string;
@@ -62,30 +63,25 @@ const groups: SidebarGroup[] = [
     items: [
       { name: "Pacientes", href: "/dashboard/pacientes", icon: Users, tutorialPath: "/dashboard/pacientes" },
       { name: "Consultas", href: "/dashboard/consultas", icon: CalendarDays, tutorialPath: "/dashboard/consultas" },
-      { name: "Fichas clínicas", href: "/dashboard/fichas-clinicas", icon: FileText, hidden: true },
       { name: "Citas", href: "/dashboard/citas", icon: CalendarDays, locked: true },
     ],
   },
   {
-    title: "Crecimiento",
+    title: "Dietética",
     items: [
-      { name: "Marketing", href: "/dashboard/marketing", icon: Megaphone, locked: true },
+      { name: "Dietas", href: "/dashboard/dietas", icon: Utensils, tutorialPath: "/dashboard/dietas" },
+      { name: "Entregable Rápido", href: "/dashboard/rapido", icon: NotebookText },
+      { name: "Recetas", href: "/dashboard/rapido/recetas", icon: ChefHat },
+      { name: "Personalizado", href: "/dashboard/dieta", icon: Apple, tutorialPath: "/dashboard/dieta" },
     ],
   },
   {
-      title: "Nutrición y Dietética",
-      items: [
-        { name: "Principal", isSubHeader: true },
-        { name: "Dietas", href: "/dashboard/dietas", icon: Utensils, tutorialPath: "/dashboard/dietas" },
-        { name: "Entregable Rápido", href: "/dashboard/rapido", icon: NotebookText },
-        { name: "Recetas", href: "/dashboard/rapido/recetas", icon: ChefHat },
-        { name: "Entregables personalizados", href: "/dashboard/dieta", icon: Apple, tutorialPath: "/dashboard/dieta" },
-        { name: "Fitness", href: "/dashboard/fitness", icon: Dumbbell, locked: true },
-        { name: "Evaluación antropométrica", href: "/dashboard/evaluacion-antropometrica", icon: Calculator, locked: true },
-      { name: "Alimentos", isSubHeader: true },
+    title: "Nutrición",
+    items: [
       { name: "Tabla de composición", href: "/dashboard/alimentos", icon: Apple, tutorialPath: "/dashboard/alimentos" },
-      { name: "Platos", href: "/dashboard/platos", icon: ChefHat, tutorialPath: "/dashboard/platos", hidden: true },
-      { name: "Grupos", href: "/dashboard/alimentos/grupos", icon: FolderPlus },
+      { name: "Grupos", href: "/dashboard/alimentos/grupos", icon: FolderPlus, locked: true },
+      { name: "Intercambios", href: "/dashboard/herramientas/porciones-intercambio", icon: Calculator, tutorialPath: "/dashboard/herramientas/porciones-intercambio" },
+      { name: "Cálculos", href: "/dashboard/herramientas/calculos", icon: Calculator, tutorialPath: "/dashboard/herramientas/calculos" },
     ],
   },
   {
@@ -93,41 +89,11 @@ const groups: SidebarGroup[] = [
     items: [
       { name: "Creaciones", href: "/dashboard/creaciones", icon: Folder, tutorialPath: "/dashboard/creaciones" },
       { name: "Recursos", href: "/dashboard/recursos", icon: FileText, tutorialPath: "/dashboard/recursos" },
-      { name: "Calculadora", href: "/dashboard/herramientas/calculos", icon: Calculator, tutorialPath: "/dashboard/herramientas/calculos" },
-      { name: "Tests", href: "/dashboard/herramientas/tests", icon: ClipboardCheck, tutorialPath: "/dashboard/herramientas/tests" },
-      { name: "Configuración Clínica", href: "/dashboard/detalles", icon: Settings, tutorialPath: "/dashboard/detalles" },
+      { name: "Exámenes", href: "/dashboard/herramientas/examenes", icon: FlaskConical, locked: true },
+      { name: "Tests", href: "/dashboard/herramientas/tests", icon: ClipboardCheck, tutorialPath: "/dashboard/herramientas/tests", locked: true },
     ],
   },
-  {
-    title: "Ejercicio y Deporte",
-    items: [
-      { name: "Rutinas de ejercicios", href: "/dashboard/ejercicio/rutinas", icon: Dumbbell, locked: true },
-      { name: "Suplementos", href: "/dashboard/ejercicio/suplementos", icon: Pill, locked: true },
-    ],
-  },
-  {
-    title: "Agentes & IA",
-    items: [
-      { name: "Chatbots", href: "/dashboard/chatbots", icon: MessageCircle, locked: true, hidden: true },
-      { name: "Agentes", href: "/dashboard/agentes", icon: Bot, locked: true, hidden: true },
-    ],
-  },
-  {
-    title: "Ajustes",
-    items: [
-      { name: "Notificaciones", href: "/dashboard/ajustes/notificaciones", icon: Bell },
-      { name: "Feedback & Soporte", href: "/dashboard/feedback", icon: MessageSquare },
-    ],
-  },
-  {
-    title: "Ayuda",
-    items: [
-      { name: "Guía de uso", href: "/dashboard/uso-recomendado", icon: BookOpen },
-      { name: "Futuras funciones", href: "/dashboard/actualizaciones", icon: Sparkles },
-      { name: "Información de Cálculos", href: "/dashboard/herramientas/porciones-intercambio", icon: BookOpen },
-      { name: "Preguntas frecuentes", href: "/dashboard/preguntas-frecuentes", icon: HelpCircle },
-    ],
-  },
+
 ];
 
 interface SidebarProps {
@@ -144,26 +110,26 @@ export function Sidebar({ onItemClick, isMobile = false }: SidebarProps = {}) {
 
   const SIDEBAR_GROUPS_STORAGE_KEY = "nutri_dashboard_sidebar_open_groups";
 
-  const getInitialOpenGroups = (): Record<string, boolean> => {
-    if (typeof window === "undefined") {
-      return { "Administración": true, "Crecimiento": true };
-    }
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
+    "Administración": true,
+    "Dietética": true,
+    "Nutrición": true,
+    "Herramientas": true,
+  });
+
+  useEffect(() => {
     try {
       const stored = localStorage.getItem(SIDEBAR_GROUPS_STORAGE_KEY);
-      if (stored === null) {
-        return { "Administración": true, "Crecimiento": true };
+      if (stored) {
+        const parsed = JSON.parse(stored) as Record<string, boolean>;
+        if (typeof parsed === "object" && parsed !== null) {
+          setOpenGroups((prev) => ({ ...prev, ...parsed }));
+        }
       }
-      const parsed = JSON.parse(stored) as Record<string, boolean>;
-      if (typeof parsed !== "object" || parsed === null) {
-        return { "Administración": true, "Crecimiento": true };
-      }
-      return { "Administración": true, "Crecimiento": true, ...parsed };
     } catch {
-      return { "Administración": true, "Crecimiento": true };
+      // Ignorar error al leer de localStorage
     }
-  };
-
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(getInitialOpenGroups);
+  }, []);
 
   const toggleGroup = (title: string) => {
     if (isSidebarCollapsed) return;
@@ -178,12 +144,9 @@ export function Sidebar({ onItemClick, isMobile = false }: SidebarProps = {}) {
 
   const getGroupPriority = (group: SidebarGroup) => {
     if (group.title === "Administración") return 0;
-    if (group.title === "Crecimiento") return 1;
-    if (group.title === "Nutrición y Dietética") return 2;
-    if (group.title === "Ejercicio y Deporte") return 3;
-    if (group.title === "Herramientas") return 4;
-    if (group.title === "Agentes & IA") return 5;
-    if (group.title === "Ayuda") return 6;
+    if (group.title === "Dietética") return 1;
+    if (group.title === "Nutrición") return 2;
+    if (group.title === "Herramientas") return 3;
     return 10;
   };
 
@@ -332,15 +295,14 @@ export function Sidebar({ onItemClick, isMobile = false }: SidebarProps = {}) {
                             className={cn(
                               isActive
                                 ? isDarkMode
-                                  ? "bg-indigo-500/12 text-indigo-50 font-bold"
-                                  : "bg-slate-50 text-indigo-600 font-bold"
+                                  ? "bg-[#7c3aed]/20 text-purple-300 font-bold"
+                                  : "bg-[#f5effe] text-[#7c3aed] font-bold"
                                 : isDarkMode
-                                  ? "text-indigo-100/72 hover:bg-indigo-500/8 hover:text-indigo-50 font-medium"
-                                  : "text-slate-600 hover:text-indigo-600 hover:bg-slate-50 font-medium",
-                              isLocked && "cursor-not-allowed grayscale opacity-50",
-                              "group flex min-w-0 cursor-pointer items-center gap-x-2 rounded-md p-2 leading-5 transition-colors",
+                                  ? "text-slate-300 hover:bg-slate-800 hover:text-white font-medium"
+                                  : "text-slate-600 hover:text-[#7c3aed] hover:bg-[#f5effe]/50 font-medium",
+                              isLocked && "cursor-not-allowed opacity-60",
+                              "group flex min-w-0 cursor-pointer items-center gap-x-2.5 rounded-xl p-2.5 leading-5 transition-all text-xs sm:text-sm",
                               shouldCollapse && "justify-center",
-                              !shouldCollapse && group.title === "Nutrición y Dietética" && "pl-4"
                             )}
                             title={item.name}
                           >
@@ -350,19 +312,19 @@ export function Sidebar({ onItemClick, isMobile = false }: SidebarProps = {}) {
                                   className={cn(
                                     isActive
                                       ? isDarkMode
-                                        ? "text-indigo-300"
-                                        : "text-indigo-600"
+                                        ? "text-purple-300"
+                                        : "text-[#7c3aed]"
                                       : isDarkMode
-                                        ? "text-indigo-100/35 group-hover:text-indigo-300"
-                                        : "text-slate-400 group-hover:text-indigo-600",
-                                    "h-4 w-4 shrink-0",
+                                        ? "text-slate-400 group-hover:text-purple-300"
+                                        : "text-slate-400 group-hover:text-[#7c3aed]",
+                                    "h-4 w-4 shrink-0 transition-colors",
                                   )}
                                   aria-hidden="true"
                                 />
                               )}
                             </span>
                             {!shouldCollapse && <span className="min-w-0 flex-1 truncate">{item.name}</span>}
-                            {isLocked && <Lock className={cn("h-3 w-3", isDarkMode ? "text-indigo-100/35" : "text-slate-400")} />}
+                            {isLocked && <Lock className={cn("h-3 w-3 shrink-0 ml-auto", isDarkMode ? "text-slate-500" : "text-slate-300")} />}
                           </Link>
                         </li>
                       );
@@ -374,6 +336,13 @@ export function Sidebar({ onItemClick, isMobile = false }: SidebarProps = {}) {
           })}
         </ul>
       </nav>
+
+      {/* Bottom Circular Initial Badge */}
+      <div className={cn("pt-2 pb-1 border-t border-slate-100 flex items-center", shouldCollapse ? "justify-center" : "justify-start px-2")}>
+        <div className="h-8 w-8 rounded-full bg-slate-900 text-white font-bold text-xs flex items-center justify-center shadow-xs">
+          N
+        </div>
+      </div>
     </div>
   );
 }

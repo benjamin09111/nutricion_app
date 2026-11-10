@@ -14,12 +14,18 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Pagination } from "@/components/ui/Pagination";
 import { SearchableSelect } from "@/components/ui/SearchableSelect";
-import { Ingredient } from "@/features/foods";
+import {
+  Ingredient,
+  OFFICIAL_INGREDIENTS,
+  normalizeSearchText,
+} from "@/features/foods";
 import { cn } from "@/lib/utils";
 import { useScrollLock } from "@/hooks/useScrollLock";
 import { fetchApi } from "@/lib/api-base";
 import { useSubscription } from "@/context/SubscriptionContext";
+import { isGuestMode, getLocalCustomFoods } from "@/lib/demo-local-api";
 import IngredientDetailsModal from "./IngredientDetailsModal";
+
 
 interface FoodsClientProps {
   initialData: Ingredient[];
@@ -61,8 +67,12 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
     loadSourceTab(sourceTab);
   };
 
-  const [data, setData] = useState<Ingredient[]>(initialData);
-  const [catalogPool, setCatalogPool] = useState<Ingredient[]>(initialData);
+  const initialCatalog = useMemo(() => {
+    return initialData && initialData.length > 0 ? initialData : OFFICIAL_INGREDIENTS;
+  }, [initialData]);
+
+  const [data, setData] = useState<Ingredient[]>(initialCatalog);
+  const [catalogPool, setCatalogPool] = useState<Ingredient[]>(initialCatalog);
   const [isLoadingIngredients, setIsLoadingIngredients] = useState(false);
   const [activeSourceTab, setActiveSourceTab] = useState<FoodSourceTab>("catalog");
   const [searchTerm, setSearchTerm] = useState("");
@@ -75,20 +85,20 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
   const [selectedIngredient, setSelectedIngredient] = useState<Ingredient | null>(null);
 
   const sourceCacheRef = useRef<Record<FoodSourceTab, Ingredient[]>>({
-    catalog: initialData,
+    catalog: initialCatalog,
     mine: [],
     community: [],
   });
-  const skipNextSearchFetchRef = useRef(true);
   const clearSourceSwitchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isAnyModalOpen = isDetailsModalOpen;
   useScrollLock(isAnyModalOpen);
 
   useEffect(() => {
-    setData(initialData);
-    setCatalogPool(initialData);
-    sourceCacheRef.current.catalog = initialData;
+    const valid = initialData && initialData.length > 0 ? initialData : OFFICIAL_INGREDIENTS;
+    setData(valid);
+    setCatalogPool(valid);
+    sourceCacheRef.current.catalog = valid;
   }, [initialData]);
 
   const sourceTabToApiTab = useCallback((sourceTab: FoodSourceTab) => {
@@ -123,7 +133,6 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
         clearSourceSwitchTimerRef.current = null;
       }
 
-      skipNextSearchFetchRef.current = true;
       setActiveSourceTab(sourceTab);
       setSearchTerm("");
       setSelectedCategory("Todos");
@@ -131,6 +140,27 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
       setSelectedUnit("Todas las unidades");
       setSelectedProfile("Todos los tipos");
       setCurrentPage(1);
+
+      // 1. Catálogo Oficial (100% instantáneo desde memoria local)
+      if (sourceTab === "catalog") {
+        const catalogItems = sourceCacheRef.current.catalog?.length
+          ? sourceCacheRef.current.catalog
+          : OFFICIAL_INGREDIENTS;
+        setCatalogPool(catalogItems);
+        setData(catalogItems);
+        setIsLoadingIngredients(false);
+        return;
+      }
+
+      // 2. Mis Alimentos (en modo invitado, carga directa desde localStorage)
+      if (sourceTab === "mine") {
+        if (isGuestMode()) {
+          const custom = getLocalCustomFoods();
+          setSourceTabData("mine", custom);
+          setIsLoadingIngredients(false);
+          return;
+        }
+      }
 
       const cachedItems = sourceCacheRef.current[sourceTab];
       if (cachedItems && cachedItems.length > 0) {
@@ -142,12 +172,12 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
 
       setData([]);
       setCatalogPool([]);
-
       setIsLoadingIngredients(true);
+
       try {
         const queryParams = new URLSearchParams({
           tab: sourceTabToApiTab(sourceTab),
-          limit: "100",
+          limit: "1000",
         });
 
         const response = await fetchApi(`/foods?${queryParams.toString()}`, {
@@ -168,50 +198,8 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
         setIsLoadingIngredients(false);
       }
     },
-    [sourceTabToApiTab, setSourceTabData, isSubscriptionLoading, foodSourcesLocked],
+    [sourceTabToApiTab, isSubscriptionLoading, foodSourcesLocked],
   );
-
-  const fetchIngredients = useCallback(async (sourceTab: FoodSourceTab = activeSourceTab) => {
-    setIsLoadingIngredients(true);
-    try {
-      const queryParams = new URLSearchParams({
-        tab: sourceTabToApiTab(sourceTab),
-        limit: "100",
-        ...(searchTerm.trim() && { search: searchTerm.trim() }),
-        ...(selectedCategory !== "Todos" && { category: selectedCategory }),
-        ...(selectedTag !== "Todos" && { tag: selectedTag }),
-      });
-
-      const response = await fetchApi(`/foods?${queryParams.toString()}`, {
-        cache: "no-store",
-      });
-
-      if (!response.ok) {
-        throw new Error("Error al cargar ingredientes");
-      }
-
-      const result = await response.json();
-      setData(Array.isArray(result) ? result : []);
-    } catch (error) {
-      console.error("Error fetching ingredients:", error);
-      toast.error("No se pudo cargar el catálogo de ingredientes");
-    } finally {
-      setIsLoadingIngredients(false);
-    }
-  }, [activeSourceTab, searchTerm, selectedCategory, selectedTag, sourceTabToApiTab]);
-
-  useEffect(() => {
-    if (skipNextSearchFetchRef.current) {
-      skipNextSearchFetchRef.current = false;
-      return;
-    }
-
-    const timer = setTimeout(() => {
-      fetchIngredients(activeSourceTab);
-    }, searchTerm.trim() ? 250 : 0);
-
-    return () => clearTimeout(timer);
-  }, [fetchIngredients, activeSourceTab, searchTerm, selectedCategory, selectedTag]);
 
   useEffect(
     () => () => {
@@ -284,11 +272,35 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
   }, [allTags, selectedTag]);
 
   const filteredIngredients = useMemo(() => {
-    return data.filter((item) => {
+    return catalogPool.filter((item) => {
+      // 1. Búsqueda instantánea multi-término normalizada sin tildes ni mayúsculas
+      if (searchTerm.trim()) {
+        const normQuery = normalizeSearchText(searchTerm);
+        const terms = normQuery.split(/\s+/).filter(Boolean);
+        const normName = normalizeSearchText(item.name);
+        const matchesAll = terms.every((term) => normName.includes(term));
+        if (!matchesAll) return false;
+      }
+
+      // 2. Filtro de Categoría
+      if (selectedCategory !== "Todos" && item.category?.name !== selectedCategory) {
+        return false;
+      }
+
+      // 3. Filtro de Etiqueta
+      if (selectedTag !== "Todos") {
+        const hasTag =
+          item.tags?.some((t) => t.name === selectedTag) ||
+          item.preferences?.[0]?.tags?.some((t) => t.name === selectedTag);
+        if (!hasTag) return false;
+      }
+
+      // 4. Filtro de Unidad
       if (selectedUnit !== "Todas las unidades" && item.unit !== selectedUnit) {
         return false;
       }
 
+      // 5. Perfil Nutricional
       if (selectedProfile === "Alto en Proteínas" && (item.proteins ?? 0) < 10) {
         return false;
       }
@@ -307,7 +319,8 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
 
       return true;
     });
-  }, [data, selectedUnit, selectedProfile]);
+  }, [catalogPool, searchTerm, selectedCategory, selectedTag, selectedUnit, selectedProfile]);
+
 
   const itemsPerPage = 15;
   const totalPages = Math.max(1, Math.ceil(filteredIngredients.length / itemsPerPage));
@@ -504,31 +517,30 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
 
       <div className="space-y-4">
         {/* Desktop Table View */}
-        <div className="hidden lg:block overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-100 table-auto">
-              <thead className="bg-slate-50/50">
-                <tr>
-                  <th className="border-b border-slate-100 px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-widest text-slate-500">Alimento</th>
-                  {activeSourceTab !== "catalog" && (
-                    <th className="border-b border-slate-100 px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-widest text-slate-500">Marca</th>
-                  )}
-                  <th className="border-b border-slate-100 px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-widest text-slate-500">Categoría</th>
-                  <th className="border-b border-slate-100 px-5 py-3 text-center text-[10px] font-semibold uppercase tracking-widest text-slate-500">Unidad</th>
-                  <th className="border-b border-slate-100 px-2 py-3 text-center text-[10px] font-semibold uppercase tracking-widest text-slate-500">Cals</th>
-                  <th className="border-b border-slate-100 px-2 py-3 text-center text-[10px] font-semibold uppercase tracking-widest text-slate-500">Prot</th>
-                  <th className="border-b border-slate-100 px-2 py-3 text-center text-[10px] font-semibold uppercase tracking-widest text-slate-500">Lip</th>
-                  <th className="border-b border-slate-100 px-2 py-3 text-center text-[10px] font-semibold uppercase tracking-widest text-slate-500">Carb</th>
-                  <th className="border-b border-slate-100 px-2 py-3 text-center text-[10px] font-semibold uppercase tracking-widest text-slate-500">Sug</th>
-                  <th className="border-b border-slate-100 px-2 py-3 text-center text-[10px] font-semibold uppercase tracking-widest text-slate-500">Fib</th>
-                  <th className="border-b border-slate-100 px-2 py-3 text-center text-[10px] font-semibold uppercase tracking-widest text-slate-500">Na</th>
-                  {activeSourceTab !== "catalog" && (
-                    <th className="border-b border-slate-100 px-5 py-3 text-center text-[10px] font-semibold uppercase tracking-widest text-slate-500">Tags</th>
-                  )}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 bg-white">
-                {isLoadingIngredients && data.length === 0 ? (
+        <div className="hidden lg:block overflow-x-auto">
+          <table className="min-w-full border-collapse table-auto">
+            <thead>
+              <tr className="border-b border-slate-200/80">
+                <th className="py-3 px-4 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">Alimento</th>
+                {activeSourceTab !== "catalog" && (
+                  <th className="py-3 px-4 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">Marca</th>
+                )}
+                <th className="py-3 px-4 text-left text-[11px] font-bold uppercase tracking-wider text-slate-400">Categoría</th>
+                <th className="py-3 px-4 text-center text-[11px] font-bold uppercase tracking-wider text-slate-400">Unidad</th>
+                <th className="py-3 px-2 text-center text-[11px] font-bold uppercase tracking-wider text-slate-400">Cals</th>
+                <th className="py-3 px-2 text-center text-[11px] font-bold uppercase tracking-wider text-slate-400">Prot</th>
+                <th className="py-3 px-2 text-center text-[11px] font-bold uppercase tracking-wider text-slate-400">Lip</th>
+                <th className="py-3 px-2 text-center text-[11px] font-bold uppercase tracking-wider text-slate-400">Carb</th>
+                <th className="py-3 px-2 text-center text-[11px] font-bold uppercase tracking-wider text-slate-400">Sug</th>
+                <th className="py-3 px-2 text-center text-[11px] font-bold uppercase tracking-wider text-slate-400">Fib</th>
+                <th className="py-3 px-2 text-center text-[11px] font-bold uppercase tracking-wider text-slate-400">Na</th>
+                {activeSourceTab !== "catalog" && (
+                  <th className="py-3 px-4 text-center text-[11px] font-bold uppercase tracking-wider text-slate-400">Tags</th>
+                )}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+                {isLoadingIngredients && catalogPool.length === 0 ? (
                   Array.from({ length: 6 }).map((_, i) => (
                     <tr key={i} className="animate-pulse">
                       <td className="px-5 py-3.5 align-middle">
@@ -653,11 +665,10 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
               </tbody>
             </table>
           </div>
-        </div>
 
         {/* Mobile Cards View */}
         <div className="lg:hidden space-y-3">
-          {isLoadingIngredients && data.length === 0 ? (
+          {isLoadingIngredients && catalogPool.length === 0 ? (
             Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="animate-pulse space-y-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
                 <div className="h-4 w-40 rounded-lg bg-slate-100" />

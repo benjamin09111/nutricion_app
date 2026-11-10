@@ -11,6 +11,7 @@ import {
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
+import { DashboardSkeleton } from "@/components/ui/DashboardSkeleton";
 import { formatDateOnlyForLocale } from "@/features/patients/utils/patient-helpers";
 import { getWorkflowAuthHeaders } from "@/lib/workflow";
 import { fetchApi } from "@/lib/api-base";
@@ -163,11 +164,7 @@ export default function DashboardHomeClient({
   }, [loadDashboardData]);
 
   if (isLoading) {
-    return (
-      <div className="flex h-[calc(100vh-12rem)] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   if (!stats) {
@@ -181,284 +178,236 @@ export default function DashboardHomeClient({
   const { patients, consultations, pdfs, planUsage, recentPatients, recentConsultations } = stats;
 
   return (
-    <>
-      <div className="w-full space-y-6 sm:space-y-8 pb-8">
-        {/* Row 1: Welcome + Plan Usage */}
-        <div
-          className={cn(
-            "grid grid-cols-1 gap-4 sm:gap-6 pt-2 sm:pt-4",
-            planUsage.isFree && "lg:grid-cols-2",
-          )}
-        >
-          {/* Col 1: Welcome */}
-          <header className="flex flex-col justify-center">
-            <div className="inline-flex w-fit items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50/50 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-indigo-600">
-              Panel de Control
-            </div>
-            <h1 className="mt-3 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl md:text-4xl">
-              Centro de Trabajo Clínico
-            </h1>
-            <p className="mt-2 max-w-xl text-sm sm:text-base text-slate-500">
-              Gestiona tus pacientes, citas y proyectos nutricionales desde un solo lugar con eficiencia y profesionalismo.
-            </p>
-          </header>
-
-          {/* Col 2: Plan Usage - only for FREE plan */}
-          {planUsage.isFree && (
-            <Card className="overflow-hidden rounded-2xl border-slate-200 bg-white shadow-sm">
-              <CardContent className="p-5 sm:p-6">
-                <div className="mb-4 flex items-center gap-2">
-                  <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-amber-600">
-                    Plan Gratuito
-                  </span>
-                </div>
-                <PlanUsageRing percent={planUsage.percent} limits={planUsage.limits} usage={planUsage.usage} />
-              </CardContent>
-            </Card>
-          )}
+    <div className="w-full flex-1 flex flex-col justify-between gap-3 sm:gap-4 lg:gap-5 min-h-0 lg:overflow-hidden">
+      {/* Row 1: Welcome Header + Plan Usage */}
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 shrink-0 pt-1">
+        <div>
+          <div className="inline-flex w-fit items-center gap-1.5 rounded-full border border-purple-200/60 bg-[#f5effe] px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-[#7c3aed]">
+            Panel de Control
+          </div>
+          <h1 className="mt-1 text-xl sm:text-2xl font-bold tracking-tight text-slate-800 leading-tight">
+            Centro de Trabajo Clínico
+          </h1>
+          <p className="text-xs text-slate-500 font-normal">
+            Gestiona tus pacientes, consultas y entregables desde un solo lugar con máxima fluidez.
+          </p>
         </div>
 
-        {/* Row 2: Stats Cards */}
-        <section className="grid grid-cols-1 gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {/* Patients Card */}
-          <Card
-            className="group cursor-pointer overflow-hidden rounded-2xl border-slate-200 bg-white shadow-sm transition-all hover:shadow-md"
-            onClick={() => router.push("/dashboard/pacientes")}
-          >
-            <CardContent className="p-5 sm:p-6 lg:p-8">
-              <div className="flex items-start justify-between">
-                <div className="space-y-4">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 transition-colors group-hover:bg-indigo-600 group-hover:text-white">
-                    <Users className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-slate-500">Pacientes totales</p>
-                    <h3 className="mt-1 text-3xl sm:text-4xl font-semibold text-slate-900">{patients.total}</h3>
-                    <div className="mt-3 flex items-center gap-4 text-xs">
-                      <span className="inline-flex items-center gap-1.5 font-medium text-emerald-600">
-                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {patients.active} activos
-                      </span>
-                      <span className="inline-flex items-center gap-1.5 font-medium text-slate-400">
-                        <span className="h-1.5 w-1.5 rounded-full bg-slate-300" />
-                        {patients.inactive} inactivos
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <ArrowRight className="h-4 w-4 text-slate-300 group-hover:text-indigo-500" />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Consultations Card */}
-          <Card
-            className="group cursor-pointer overflow-hidden rounded-2xl border-slate-200 bg-white shadow-sm transition-all hover:shadow-md"
-            onClick={() => router.push("/dashboard/consultas")}
-          >
-            <CardContent className="p-5 sm:p-6 lg:p-8">
-              <div className="flex items-start justify-between">
-                <div className="space-y-4">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 transition-colors group-hover:bg-emerald-600 group-hover:text-white">
-                    <Stethoscope className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-slate-500">Consultas totales</p>
-                    <h3 className="mt-1 text-3xl sm:text-4xl font-semibold text-slate-900">{consultations.total}</h3>
-                    <p className="mt-2 text-xs font-medium text-slate-400">hasta la fecha</p>
-                  </div>
-                </div>
-                <ArrowRight className="h-4 w-4 text-slate-300 group-hover:text-emerald-500" />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* PDFs Card */}
-          <Card className="group overflow-hidden rounded-2xl border-slate-200 bg-white shadow-sm transition-all hover:shadow-md sm:col-span-2 lg:col-span-1">
-            <CardContent className="p-5 sm:p-6 lg:p-8">
-              <div className="flex items-start justify-between">
-                <div className="space-y-4">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-50 text-violet-600 transition-colors group-hover:bg-violet-600 group-hover:text-white">
-                    <FileText className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-slate-500">PDFs creados</p>
-                    <h3 className="mt-1 text-3xl sm:text-4xl font-semibold text-slate-900">
-                      {pdfs.rapido + pdfs.pautas + pdfs.dietas + pdfs.recetas}
-                    </h3>
-                    <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-                      <span className="inline-flex items-center gap-1 font-medium text-violet-600">
-                        <span className="h-1.5 w-1.5 rounded-full bg-violet-400" />
-                        {pdfs.rapido} rápido
-                      </span>
-                      <span className="inline-flex items-center gap-1 font-medium text-sky-600">
-                        <span className="h-1.5 w-1.5 rounded-full bg-sky-400" />
-                        {pdfs.pautas} pautas
-                      </span>
-                      <span className="inline-flex items-center gap-1 font-medium text-amber-600">
-                        <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-                        {pdfs.dietas} dietas
-                      </span>
-                      <span className="inline-flex items-center gap-1 font-medium text-rose-600">
-                        <span className="h-1.5 w-1.5 rounded-full bg-rose-400" />
-                        {pdfs.recetas} recetas
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </section>
-
-        {/* Row 3: Recent Sections */}
-        <section className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {/* Recent Creations */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Mis creaciones</h2>
-              <Button
-                variant="link"
-                className="text-xs font-semibold text-indigo-600 hover:text-indigo-700"
-                onClick={() => router.push("/dashboard/creaciones")}
-              >
-                Ver todos
-              </Button>
+        {planUsage.isFree && (
+          <div className="flex items-center gap-3 rounded-xl border border-amber-200/70 bg-[#fef9c3]/60 px-3 py-1.5 shrink-0 shadow-xs">
+            <div className="flex flex-col">
+              <span className="text-[10px] font-medium uppercase tracking-wider text-amber-800">Plan Gratuito</span>
+              <span className="text-xs font-semibold text-slate-700">{planUsage.percent}% en uso</span>
             </div>
+            <div className="h-6 w-px bg-amber-300/60" />
+            <div className="flex items-center gap-2 text-[11px] text-slate-600 font-normal">
+              <span>Pacientes: <strong className="font-semibold">{planUsage.usage.patients}/{planUsage.limits.patients > 0 ? planUsage.limits.patients : "∞"}</strong></span>
+              <span>•</span>
+              <span>PDFs: <strong className="font-semibold">{planUsage.usage.pdfs}/{planUsage.limits.pdfs > 0 ? planUsage.limits.pdfs : "∞"}</strong></span>
+            </div>
+          </div>
+        )}
+      </header>
 
-            {recentCreations.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-6 sm:p-8 text-center">
-                <FileText className="mx-auto h-6 w-6 text-slate-300" />
-                <p className="mt-2 text-sm font-medium text-slate-400">Sin creaciones</p>
-                <Button
-                  className="mt-4 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700"
-                  size="sm"
+      {/* Row 2: Stats Cards */}
+      <section className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-3 shrink-0">
+        {/* Patients Card */}
+        <div
+          className="group cursor-pointer rounded-2xl bg-[#f5effe] p-3 sm:p-3.5 transition-all hover:bg-[#ede3fc] active:scale-[0.99] flex items-center justify-between"
+          onClick={() => router.push("/dashboard/pacientes")}
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/90 text-[#7c3aed] shadow-xs">
+              <Users className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-slate-500">Pacientes totales</p>
+              <h3 className="text-2xl font-semibold text-slate-800 leading-tight">{patients.total}</h3>
+              <p className="text-[11px] font-normal text-slate-500">
+                <span className="text-[#7c3aed] font-medium">{patients.active}</span> activos · <span className="text-slate-400">{patients.inactive}</span> inactivos
+              </p>
+            </div>
+          </div>
+          <ArrowRight className="h-4 w-4 text-slate-400 group-hover:text-[#7c3aed] transition-colors shrink-0 mr-1" />
+        </div>
+
+        {/* Consultations Card */}
+        <div
+          className="group cursor-pointer rounded-2xl bg-[#f8fafc] border border-slate-100 p-3 sm:p-3.5 transition-all hover:bg-slate-100/70 active:scale-[0.99] flex items-center justify-between"
+          onClick={() => router.push("/dashboard/consultas")}
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/90 text-slate-600 shadow-xs">
+              <Stethoscope className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-slate-500">Consultas totales</p>
+              <h3 className="text-2xl font-semibold text-slate-800 leading-tight">{consultations.total}</h3>
+              <p className="text-[11px] font-normal text-slate-400">registradas a la fecha</p>
+            </div>
+          </div>
+          <ArrowRight className="h-4 w-4 text-slate-400 group-hover:text-slate-700 transition-colors shrink-0 mr-1" />
+        </div>
+
+        {/* PDFs Card */}
+        <div
+          className="group rounded-2xl bg-[#f0f9f1] p-3 sm:p-3.5 transition-all flex items-center justify-between"
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/90 text-emerald-600 shadow-xs">
+              <FileText className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-slate-500">PDFs creados</p>
+              <h3 className="text-2xl font-semibold text-slate-800 leading-tight">
+                {pdfs.rapido + pdfs.pautas + pdfs.dietas + pdfs.recetas}
+              </h3>
+              <div className="flex items-center gap-2 text-[10px] font-normal text-slate-500 truncate">
+                <span>{pdfs.rapido} rápido</span>
+                <span>•</span>
+                <span>{pdfs.pautas} pautas</span>
+                <span>•</span>
+                <span>{pdfs.dietas} dietas</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Row 3: Recent Sections */}
+      <section className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-3 flex-1 min-h-0">
+        {/* Recent Creations */}
+        <div className="flex flex-col min-h-0">
+          <div className="flex items-center justify-between pb-1.5 shrink-0">
+            <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Mis creaciones</h2>
+            <button
+              type="button"
+              className="text-xs font-medium text-[#7c3aed] hover:text-[#6d28d9] cursor-pointer"
+              onClick={() => router.push("/dashboard/creaciones")}
+            >
+              Ver todas
+            </button>
+          </div>
+
+          {recentCreations.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-slate-200 bg-white/60 p-4 text-center my-auto">
+              <FileText className="mx-auto h-5 w-5 text-slate-300" />
+              <p className="mt-1 text-xs font-medium text-slate-400">Sin creaciones recientes</p>
+            </div>
+          ) : (
+            <div className="space-y-2 overflow-y-auto custom-scrollbar flex-1 min-h-0">
+              {recentCreations.slice(0, 3).map((creation) => (
+                <div
+                  key={creation.id}
+                  className="flex items-center justify-between rounded-xl border border-slate-100 bg-white px-3 py-2 shadow-xs transition-all hover:border-purple-200 hover:shadow-sm cursor-pointer"
                   onClick={() => router.push("/dashboard/creaciones")}
                 >
-                  Ver creaciones
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {recentCreations.map((creation) => (
-                  <div
-                    key={creation.id}
-                    className="flex items-center justify-between rounded-2xl border border-slate-100 bg-white p-3.5 sm:p-4 shadow-sm transition-all hover:border-indigo-100 hover:shadow-md cursor-pointer"
-                    onClick={() => router.push("/dashboard/creaciones")}
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
-                        <FileText className="h-4 w-4" />
-                      </div>
-                      <div className="min-w-0">
-                        <h4 className="truncate text-sm font-semibold text-slate-900">{creation.name}</h4>
-                        <p className="truncate text-xs font-medium text-slate-500">
-                          {creation.patientName || creation.type} · {formatDateOnlyForLocale(creation.createdAt, { day: "2-digit", month: "short", year: "numeric" })}
-                        </p>
-                      </div>
-                    </div>
-                    <ArrowRight className="ml-2 h-4 w-4 flex-shrink-0 text-slate-300" />
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Recent Patients */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Pacientes recientes</h2>
-              <Button
-                variant="link"
-                className="text-xs font-semibold text-indigo-600 hover:text-indigo-700"
-                onClick={() => router.push("/dashboard/pacientes")}
-              >
-                Ver todos
-              </Button>
-            </div>
-
-            {recentPatients.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-6 sm:p-8 text-center">
-                <Users className="mx-auto h-6 w-6 text-slate-300" />
-                <p className="mt-2 text-sm font-medium text-slate-400">Sin pacientes</p>
-                <Button
-                  className="mt-4 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700"
-                  size="sm"
-                  onClick={() => router.push("/dashboard/pacientes/new")}
-                >
-                  Agregar paciente
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {recentPatients.map((patient) => (
-                  <div
-                    key={patient.id}
-                    className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-white p-3.5 sm:p-4 shadow-sm transition-all hover:border-indigo-100 hover:shadow-md cursor-pointer"
-                    onClick={() => router.push(`/dashboard/pacientes/${patient.id}`)}
-                  >
-                    <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-                      <Users className="h-4 w-4" />
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-purple-50 text-[#7c3aed]">
+                      <FileText className="h-4 w-4" />
                     </div>
                     <div className="min-w-0">
-                      <h4 className="truncate text-sm font-semibold text-slate-900">{patient.fullName}</h4>
-                      <p className="text-xs text-slate-400">{formatDateOnlyForLocale(patient.updatedAt, { day: "2-digit", month: "short", year: "numeric" })}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Recent Consultations */}
-          <div className="space-y-4 md:col-span-2 lg:col-span-1">
-            <div className="flex items-center justify-between">
-              <h2 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Consultas recientes</h2>
-              <Button
-                variant="link"
-                className="text-xs font-semibold text-indigo-600 hover:text-indigo-700"
-                onClick={() => router.push("/dashboard/consultas")}
-              >
-                Ver todos
-              </Button>
-            </div>
-
-            {recentConsultations.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-6 sm:p-8 text-center">
-                <Stethoscope className="mx-auto h-6 w-6 text-slate-300" />
-                <p className="mt-2 text-sm font-medium text-slate-400">Sin consultas</p>
-                <Button
-                  className="mt-4 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700"
-                  size="sm"
-                  onClick={() => router.push("/dashboard/consultas/nueva")}
-                >
-                  Nueva consulta
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {recentConsultations.map((consultation) => (
-                  <div
-                    key={consultation.id}
-                    className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-white p-3.5 sm:p-4 shadow-sm transition-all hover:border-emerald-100 hover:shadow-md cursor-pointer"
-                    onClick={() => router.push(`/dashboard/consultas/${consultation.id}`)}
-                  >
-                    <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
-                      <Stethoscope className="h-4 w-4" />
-                    </div>
-                    <div className="min-w-0">
-                      <h4 className="truncate text-sm font-semibold text-slate-900">{consultation.title}</h4>
-                      <p className="truncate text-xs text-slate-400">
-                        {consultation.patient?.fullName || "Sin paciente"} · {formatDateOnlyForLocale(consultation.date, { day: "2-digit", month: "short", year: "numeric" })}
+                      <h4 className="truncate text-xs font-medium text-slate-800">{creation.name}</h4>
+                      <p suppressHydrationWarning className="truncate text-[10px] font-normal text-slate-400">
+                        {creation.patientName || creation.type} · {formatDateOnlyForLocale(creation.createdAt, { day: "2-digit", month: "short" })}
                       </p>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
+                  <ArrowRight className="ml-2 h-3.5 w-3.5 shrink-0 text-slate-300" />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Recent Patients */}
+        <div className="flex flex-col min-h-0">
+          <div className="flex items-center justify-between pb-1.5 shrink-0">
+            <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Pacientes recientes</h2>
+            <button
+              type="button"
+              className="text-xs font-medium text-[#7c3aed] hover:text-[#6d28d9] cursor-pointer"
+              onClick={() => router.push("/dashboard/pacientes")}
+            >
+              Ver todos
+            </button>
           </div>
-        </section>
-      </div>
-    </>
+
+          {recentPatients.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-slate-200 bg-white/60 p-4 text-center my-auto">
+              <Users className="mx-auto h-5 w-5 text-slate-300" />
+              <p className="mt-1 text-xs font-medium text-slate-400">Sin pacientes registrados</p>
+            </div>
+          ) : (
+            <div className="space-y-2 overflow-y-auto custom-scrollbar flex-1 min-h-0">
+              {recentPatients.slice(0, 3).map((patient) => (
+                <div
+                  key={patient.id}
+                  className="flex items-center justify-between rounded-xl border border-slate-100 bg-white px-3 py-2 shadow-xs transition-all hover:border-purple-200 hover:shadow-sm cursor-pointer"
+                  onClick={() => router.push(`/dashboard/pacientes/${patient.id}`)}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-purple-50 text-[#7c3aed] font-medium text-xs">
+                      {patient.fullName.charAt(0)}
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="truncate text-xs font-medium text-slate-800">{patient.fullName}</h4>
+                      <p suppressHydrationWarning className="truncate text-[10px] font-normal text-slate-400">
+                        {formatDateOnlyForLocale(patient.updatedAt, { day: "2-digit", month: "short" })} · {patient.email || "Sin correo"}
+                      </p>
+                    </div>
+                  </div>
+                  <ArrowRight className="ml-2 h-3.5 w-3.5 shrink-0 text-slate-300" />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Recent Consultations */}
+        <div className="flex flex-col min-h-0 md:col-span-2 lg:col-span-1">
+          <div className="flex items-center justify-between pb-1.5 shrink-0">
+            <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Consultas recientes</h2>
+            <button
+              type="button"
+              className="text-xs font-medium text-[#7c3aed] hover:text-[#6d28d9] cursor-pointer"
+              onClick={() => router.push("/dashboard/consultas")}
+            >
+              Ver todas
+            </button>
+          </div>
+
+          {recentConsultations.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-slate-200 bg-white/60 p-4 text-center my-auto">
+              <Stethoscope className="mx-auto h-5 w-5 text-slate-300" />
+              <p className="mt-1 text-xs font-medium text-slate-400">Sin consultas recientes</p>
+            </div>
+          ) : (
+            <div className="space-y-2 overflow-y-auto custom-scrollbar flex-1 min-h-0">
+              {recentConsultations.slice(0, 3).map((consultation) => (
+                <div
+                  key={consultation.id}
+                  className="flex items-center justify-between rounded-xl border border-slate-100 bg-white px-3 py-2 shadow-xs transition-all hover:border-emerald-200 hover:shadow-sm cursor-pointer"
+                  onClick={() => router.push(`/dashboard/consultas/${consultation.id}`)}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+                      <Stethoscope className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="truncate text-xs font-medium text-slate-800">{consultation.title}</h4>
+                      <p suppressHydrationWarning className="truncate text-[10px] font-normal text-slate-400">
+                        {consultation.patient?.fullName || "Sin paciente"} · {formatDateOnlyForLocale(consultation.date, { day: "2-digit", month: "short" })}
+                      </p>
+                    </div>
+                  </div>
+                  <ArrowRight className="ml-2 h-3.5 w-3.5 shrink-0 text-slate-300" />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+    </div>
   );
 }

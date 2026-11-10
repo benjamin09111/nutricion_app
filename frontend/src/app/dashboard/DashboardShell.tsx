@@ -24,6 +24,8 @@ import { cn } from "@/lib/utils";
 import { SubscriptionProvider } from "@/context/SubscriptionContext";
 import { MembershipGate } from "@/components/memberships/MembershipGate";
 import { FreemiumUpgradeModal } from "@/components/memberships/FreemiumUpgradeModal";
+import { ModuleSkeleton } from "@/components/ui/ModuleSkeleton";
+import { isGuestMode } from "@/lib/demo-local-api";
 
 function DashboardContent({ children, isDemo }: { children: React.ReactNode; isDemo?: boolean }) {
   const { isAdminView, isLoading } = useAdmin();
@@ -32,6 +34,12 @@ function DashboardContent({ children, isDemo }: { children: React.ReactNode; isD
   const { isDarkMode } = useTheme();
   const pathname = usePathname();
   const isRecipesModule = pathname.startsWith("/dashboard/recetas");
+  const isDashboardHome = pathname === "/dashboard" || pathname === "/demo";
+  const [isGuest, setIsGuest] = useState(false);
+
+  useEffect(() => {
+    setIsGuest(isGuestMode());
+  }, []);
 
   useEffect(() => {
     setSidebarOpen(false);
@@ -71,16 +79,16 @@ function DashboardContent({ children, isDemo }: { children: React.ReactNode; isD
     };
   }, []);
 
-  if (isLoading && !isDemo) {
+  if (isLoading && !isDemo && !isGuest) {
     return (
-      <div className={cn("flex h-screen w-full items-center justify-center", isDarkMode ? "dashboard-shell-bg" : "bg-white")}>
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500"></div>
+      <div className={cn("min-h-screen w-full p-4 sm:p-8", isDarkMode ? "dashboard-shell-bg" : "bg-white")}>
+        <ModuleSkeleton />
       </div>
     );
   }
 
   const dashboardShell = (
-    <div className="dashboard-shell-bg relative h-full">
+    <div className={cn("dashboard-shell-bg relative h-full", isDashboardHome && "lg:h-screen lg:max-h-screen lg:overflow-hidden")}>
       <MobileSidebar
         isOpen={sidebarOpen}
         isAdminView={isAdminView}
@@ -96,9 +104,11 @@ function DashboardContent({ children, isDemo }: { children: React.ReactNode; isD
       </div>
 
       <div
-        className={`flex h-full min-h-screen min-w-0 flex-col transition-all duration-300 ${
-          isSidebarCollapsed ? "lg:pl-20" : "lg:pl-[17rem]"
-        }`}
+        className={cn(
+          "flex h-full min-h-screen min-w-0 flex-col transition-all duration-300",
+          isSidebarCollapsed ? "lg:pl-20" : "lg:pl-[17rem]",
+          isDashboardHome && "lg:h-screen lg:max-h-screen lg:overflow-hidden",
+        )}
       >
         <Navbar
           onMenuClick={() => setSidebarOpen(true)}
@@ -106,18 +116,26 @@ function DashboardContent({ children, isDemo }: { children: React.ReactNode; isD
         />
         <main
           className={cn(
-            isAdminView ? "min-w-0 flex-1 py-4 lg:py-4 xl:py-5" : "min-w-0 flex-1 py-6 lg:py-4 xl:py-8",
+            "min-w-0 flex-1",
+            isDashboardHome
+              ? "py-2 sm:py-3 lg:py-4 flex flex-col min-h-0 lg:overflow-hidden"
+              : isAdminView
+              ? "py-4 lg:py-4 xl:py-5"
+              : "py-6 lg:py-4 xl:py-8",
             isAdminView && !isDarkMode && "bg-indigo-50/10",
           )}
         >
           <div
-            className={`mx-auto w-full min-w-0 ${
-              isAdminView
+            className={cn(
+              "mx-auto w-full min-w-0",
+              isDashboardHome
+                ? "max-w-[88rem] px-3 sm:px-4 lg:px-6 xl:px-8 flex-1 flex flex-col min-h-0 lg:overflow-hidden"
+                : isAdminView
                 ? "max-w-[96rem] px-3 sm:px-4 lg:px-4 xl:px-6"
                 : isRecipesModule
                 ? "max-w-[120rem] px-3 sm:px-5 lg:px-4 xl:px-6"
-                : "max-w-[88rem] px-3 sm:px-4 lg:px-6 xl:px-8"
-            }`}
+                : "max-w-[88rem] px-3 sm:px-4 lg:px-6 xl:px-8",
+            )}
           >
             {children}
           </div>
@@ -143,7 +161,7 @@ function DashboardContent({ children, isDemo }: { children: React.ReactNode; isD
     </div>
   );
 
-  if (isAdminView || isDemo) {
+  if (isAdminView || isDemo || isGuest) {
     return dashboardShell;
   }
 

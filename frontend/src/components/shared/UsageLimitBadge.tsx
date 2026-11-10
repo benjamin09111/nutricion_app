@@ -23,29 +23,25 @@ export function UsageLimitBadge({
   return (
     <div
       className={cn(
-        "inline-flex items-center gap-3 rounded-2xl border border-slate-200/90 bg-white px-3.5 py-2 shadow-xs shrink-0",
+        "inline-flex items-center gap-2 rounded-xl border border-slate-200/90 bg-white/80 px-3 py-1.5 shadow-xs shrink-0",
         className,
       )}
     >
-      <div className="space-y-1">
-        <div className="flex items-center justify-between gap-3 text-xs">
-          <span className="font-extrabold text-slate-400 uppercase text-[10px] tracking-wider">{label}</span>
-          <span className={cn("font-black text-xs", isAtLimit ? "text-rose-600" : "text-slate-900")}>
-            {usage} / {maxLimit === null ? "∞" : maxLimit}
-          </span>
+      <span className="font-bold text-slate-400 uppercase text-[10px] tracking-wider">{label}</span>
+      <span className={cn("font-extrabold text-xs", isAtLimit ? "text-rose-600" : "text-slate-800")}>
+        {usage} / {maxLimit === null ? "∞" : maxLimit}
+      </span>
+      {maxLimit !== null && maxLimit > 0 && (
+        <div className="h-1.5 w-16 rounded-full bg-slate-100 overflow-hidden ml-1">
+          <div
+            className={cn(
+              "h-full rounded-full transition-all duration-300",
+              isAtLimit ? "bg-rose-500" : "bg-[#7c3aed]",
+            )}
+            style={{ width: `${ratio}%` }}
+          />
         </div>
-        {maxLimit !== null && maxLimit > 0 && (
-          <div className="h-1.5 w-28 rounded-full bg-slate-100 overflow-hidden">
-            <div
-              className={cn(
-                "h-full rounded-full transition-all duration-300",
-                isAtLimit ? "bg-rose-500" : "bg-gradient-to-r from-indigo-500 to-emerald-500",
-              )}
-              style={{ width: `${ratio}%` }}
-            />
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }

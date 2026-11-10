@@ -18,6 +18,8 @@ import {
   FileSpreadsheet,
   ShieldCheck,
   Download,
+  Sprout,
+  Users,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/Input";
@@ -208,10 +210,10 @@ export default function PatientsClient() {
             type="button"
             onClick={() => setIsPrivacyModalOpen(true)}
             title="Protección y privacidad"
-            className="h-9 sm:h-10 px-3 sm:px-4 rounded-xl border border-indigo-200 text-indigo-600 hover:bg-indigo-50 font-medium transition-all flex items-center gap-1.5 sm:gap-2 shrink-0 cursor-pointer"
+            className="h-9 sm:h-10 px-3 sm:px-4 rounded-xl border border-purple-200/90 text-[#7c3aed] bg-white hover:bg-purple-50/70 font-semibold transition-all flex items-center gap-1.5 sm:gap-2 shrink-0 cursor-pointer shadow-xs"
             aria-label="Ver información de protección y privacidad"
           >
-            <ShieldCheck className="h-4 w-4 shrink-0" />
+            <ShieldCheck className="h-4 w-4 shrink-0 text-[#7c3aed]" />
             <span className="text-xs sm:text-sm whitespace-nowrap">
               <span className="hidden sm:inline">Protección y privacidad</span>
               <span className="sm:hidden">Privacidad</span>
@@ -221,12 +223,12 @@ export default function PatientsClient() {
             variant="outline"
             disabled={isExporting || patientDataPending}
             onClick={handleExportPatientsExcel}
-            className="h-9 sm:h-10 px-3 sm:px-5 rounded-xl border-emerald-200 text-emerald-700 hover:bg-emerald-50 font-medium transition-all flex items-center gap-1.5 sm:gap-2 shrink-0 cursor-pointer"
+            className="h-9 sm:h-10 px-3 sm:px-5 rounded-xl border border-purple-200/90 text-[#7c3aed] bg-white hover:bg-purple-50/70 font-semibold transition-all flex items-center gap-1.5 sm:gap-2 shrink-0 cursor-pointer shadow-xs"
           >
             {isExporting ? (
-              <div className="h-4 w-4 border-2 border-emerald-200 border-t-emerald-600 rounded-full animate-spin shrink-0" />
+              <div className="h-4 w-4 border-2 border-purple-200 border-t-[#7c3aed] rounded-full animate-spin shrink-0" />
             ) : (
-              <FileSpreadsheet className="h-4 w-4 shrink-0" />
+              <FileSpreadsheet className="h-4 w-4 shrink-0 text-[#7c3aed]" />
             )}
             <span className="text-xs sm:text-sm whitespace-nowrap">
               <span className="hidden sm:inline">Exportar Excel</span>
@@ -237,14 +239,56 @@ export default function PatientsClient() {
       }
       className="pb-8"
     >
-      <div className="space-y-4 mb-6">
+      <div className="space-y-5 mb-6">
+        {/* Metric Cards Row (Clean Pastel Minimalist matching the uploaded design) */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+          {/* Activos Card */}
+          <div className="flex items-center gap-4 rounded-2xl bg-[#f5effe] p-4 sm:p-5 transition-all">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/90 text-[#7c3aed] shadow-xs">
+              <Users className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-600">Activos</p>
+              <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 leading-tight">
+                {meta.activeCount}
+              </h3>
+            </div>
+          </div>
+
+          {/* Inactivos Card */}
+          <div className="flex items-center gap-4 rounded-2xl bg-[#f8fafc] p-4 sm:p-5 transition-all">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/90 text-slate-400 shadow-xs">
+              <User className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-500">Inactivos</p>
+              <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 leading-tight">
+                {meta.inactiveCount}
+              </h3>
+            </div>
+          </div>
+
+          {/* Total Card */}
+          <div className="flex items-center gap-4 rounded-2xl bg-[#f0f9f1] p-4 sm:p-5 transition-all">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/90 text-emerald-600 shadow-xs">
+              <Sprout className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-emerald-800/70">Total</p>
+              <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 leading-tight">
+                {meta.total}
+              </h3>
+            </div>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 items-center gap-3 lg:grid-cols-[minmax(0,1fr)_14rem_auto]">
           <div className="relative min-w-0">
             <Search className="pointer-events-none absolute left-3.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <Input
               type="search"
               placeholder="Buscar por nombre, rut o correo..."
-              className="h-10 border border-slate-200 bg-white pl-10 text-sm font-medium placeholder:text-slate-400 focus-visible:border-indigo-500"
+              className="h-10 border border-slate-200 bg-white pl-10 text-sm font-medium placeholder:text-slate-400 focus-visible:border-[#7c3aed] focus-visible:ring-[#7c3aed]/20 rounded-xl"
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
@@ -270,7 +314,7 @@ export default function PatientsClient() {
                 />
                 {patientDataPending && (
                   <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                    <div className="h-4 w-4 border-2 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+                    <div className="h-4 w-4 border-2 border-purple-200 border-t-[#7c3aed] rounded-full animate-spin" />
                   </div>
                 )}
               </div>
@@ -281,9 +325,9 @@ export default function PatientsClient() {
                 variant="outline"
                 disabled
                 onClick={() => setIsShareModalOpen(true)}
-                className="h-10 px-3 sm:px-5 flex-1 sm:flex-initial justify-center rounded-xl border-indigo-200 text-indigo-400 bg-slate-50 font-medium transition-all gap-1.5 sm:gap-2 cursor-not-allowed"
+                className="h-10 px-3 sm:px-5 flex-1 sm:flex-initial justify-center rounded-xl border-slate-200 text-slate-400 bg-white font-medium transition-all gap-1.5 sm:gap-2 cursor-not-allowed hover:bg-slate-50"
               >
-                <Lock className="h-4 w-4 shrink-0" />
+                <Lock className="h-4 w-4 shrink-0 text-slate-300" />
                 <span className="text-xs sm:text-sm whitespace-nowrap">
                   <span className="hidden sm:inline">Compartir formulario</span>
                   <span className="sm:hidden">Compartir</span>
@@ -305,7 +349,7 @@ export default function PatientsClient() {
                   router.push("/dashboard/pacientes/new");
                 }}
                  disabled={patientCreationBlocked || isPatientLimitReached}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium h-10 px-4 sm:px-6 flex-1 sm:flex-initial justify-center rounded-xl shadow-sm transition-all gap-1.5 sm:gap-2"
+                className="bg-[#7c3aed] hover:bg-[#6d28d9] text-white font-bold h-10 px-4 sm:px-6 flex-1 sm:flex-initial justify-center rounded-xl shadow-xs transition-all gap-1.5 sm:gap-2 active:scale-95"
               >
                 <Plus
                   className="h-4 w-4 shrink-0"
@@ -322,12 +366,12 @@ export default function PatientsClient() {
             </div>
         </div>
 
-         <div className="flex flex-col items-start justify-between gap-3 px-1 py-2 sm:flex-row sm:items-center sm:gap-4 sm:px-3">
+         <div className="flex flex-col items-start justify-between gap-3 px-1 py-1 sm:flex-row sm:items-center sm:gap-4 sm:px-2">
           <p className="text-xs font-medium text-slate-500 flex items-center gap-1.5 min-w-0 flex-wrap">
-            <User className="h-4 w-4 shrink-0 text-slate-400" />
+            <User className="h-3.5 w-3.5 shrink-0 text-slate-400" />
             <span>
-              <strong className="text-indigo-600 font-semibold">{meta.activeCount}</strong> activos,{" "}
-              <strong className="text-indigo-600 font-semibold">{meta.inactiveCount}</strong> inactivos.{" "}
+              <strong className="text-[#7c3aed] font-semibold">{meta.activeCount}</strong> activos,{" "}
+              <strong className="text-[#7c3aed] font-semibold">{meta.inactiveCount}</strong> inactivos.{" "}
               <span className="text-slate-400 font-normal">Total: </span>
               <strong className="text-slate-900 font-bold">{meta.total}</strong>
             </span>
@@ -341,7 +385,7 @@ export default function PatientsClient() {
                 setShowInactive(e.target.checked);
                 setPage(1);
               }}
-              className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+              className="h-4 w-4 rounded border-slate-300 text-[#7c3aed] focus:ring-[#7c3aed]"
             />
             <span>Mostrar inactivos</span>
           </label>
@@ -350,230 +394,224 @@ export default function PatientsClient() {
 
       <div className="space-y-4">
         {/* Desktop Table View */}
-        <div className="hidden lg:block bg-white shadow-xl shadow-slate-200/50 border border-slate-200 rounded-2xl overflow-hidden">
-          <div className="overflow-x-auto max-h-[calc(100vh-380px)] custom-scrollbar">
-            <table className="min-w-full divide-y divide-slate-100">
-              <thead className="bg-slate-50/50">
-                <tr>
-                  <th
-                    scope="col"
-                    className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider"
-                  >
-                    Identidad del Paciente
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider"
-                  >
-                    Documento / Id
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider"
-                  >
-                    Restricciones Médicas
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-6 py-4 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider"
-                  >
-                    Estado
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-6 py-4 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider"
-                  >
-                    Acciones
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50 bg-white">
-                {patientDataPending ? (
-                  <TableLoadingRows columns={5} rows={5} />
-                ) : filteredPatients.length > 0 ? (
-                  filteredPatients.map((patient) => {
-                    const restrictions = formatRestrictions(
-                      patient.dietRestrictions,
-                      patient.primaryCondition,
-                    );
-                    const visibleRestrictions = restrictions.slice(0, 2);
-                    const remainingRestrictions =
-                      restrictions.length - visibleRestrictions.length;
+        <div className="hidden lg:block overflow-x-auto">
+          <table className="min-w-full border-collapse">
+            <thead>
+              <tr className="border-b border-slate-200/80">
+                <th
+                  scope="col"
+                  className="py-3 px-4 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider"
+                >
+                  Identidad del Paciente
+                </th>
+                <th
+                  scope="col"
+                  className="py-3 px-4 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider"
+                >
+                  Documento / Id
+                </th>
+                <th
+                  scope="col"
+                  className="py-3 px-4 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider"
+                >
+                  Restricciones Médicas
+                </th>
+                <th
+                  scope="col"
+                  className="py-3 px-4 text-center text-[11px] font-bold text-slate-400 uppercase tracking-wider"
+                >
+                  Estado
+                </th>
+                <th
+                  scope="col"
+                  className="py-3 px-4 text-right text-[11px] font-bold text-slate-400 uppercase tracking-wider"
+                >
+                  Acciones
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {patientDataPending ? (
+                <TableLoadingRows columns={5} rows={5} />
+              ) : filteredPatients.length > 0 ? (
+                filteredPatients.map((patient) => {
+                  const restrictions = formatRestrictions(
+                    patient.dietRestrictions,
+                    patient.primaryCondition,
+                  );
+                  const visibleRestrictions = restrictions.slice(0, 2);
+                  const remainingRestrictions =
+                    restrictions.length - visibleRestrictions.length;
 
-                    return (
-                      <tr
-                        key={patient.id}
-                          onClick={() => {
-                            if (!patientDataPending) {
-                              router.push(`/dashboard/pacientes/${patient.id}`);
-                            }
-                          }}
-                        className={cn(
-                          "transition-colors group",
-                          patientDataPending
-                            ? "cursor-wait opacity-70"
-                            : "cursor-pointer hover:bg-slate-50",
-                        )}
-                      >
-                        <td className="px-6 py-4">
-                          <div className="flex items-center">
-                            <div className="h-10 w-10 shrink-0">
-                              <div className="h-10 w-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-semibold border border-indigo-100 shadow-sm">
-                                {patient.fullName.charAt(0)}
-                              </div>
+                  return (
+                    <tr
+                      key={patient.id}
+                      onClick={() => {
+                        if (!patientDataPending) {
+                          router.push(`/dashboard/pacientes/${patient.id}`);
+                        }
+                      }}
+                      className={cn(
+                        "transition-colors group",
+                        patientDataPending
+                          ? "cursor-wait opacity-70"
+                          : "cursor-pointer hover:bg-slate-50/60",
+                      )}
+                    >
+                      <td className="py-3.5 px-4">
+                        <div className="flex items-center gap-3">
+                          <div className="h-9 w-9 rounded-xl bg-purple-100 flex items-center justify-center text-[#7c3aed] font-bold text-sm shrink-0">
+                            {patient.fullName.charAt(0)}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-sm font-bold text-slate-800 leading-tight mb-0.5 truncate group-hover:text-[#7c3aed] transition-colors">
+                              {patient.fullName}
                             </div>
-                            <div className="ml-4 min-w-0">
-                              <div className="text-sm font-semibold text-slate-900 leading-none mb-1 truncate">
-                                {patient.fullName}
-                              </div>
-                              <div className="text-xs text-slate-500 font-medium flex items-center gap-1.5 min-w-0">
-                                <Mail className="w-3 h-3 text-slate-400 shrink-0" />
-                                <span className="truncate">
-                                  {patient.email || "Sin correo"}
-                                </span>
-                              </div>
+                            <div className="text-xs text-slate-400 font-normal flex items-center gap-1.5 min-w-0">
+                              <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                              <span className="truncate">
+                                {patient.email || "Sin correo"}
+                              </span>
                             </div>
                           </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="inline-flex items-center text-sm font-medium text-slate-600">
-                            {patient.documentId || "---"}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          {restrictions.length > 0 ? (
-                            <div className="flex flex-wrap items-center gap-2 max-w-[280px]">
-                              {visibleRestrictions.map((restriction) => (
-                                <span
-                                  key={restriction}
-                                  className="inline-flex items-center gap-1 rounded-full border border-[#cbd83b]/25 bg-[#fffeec] px-2.5 py-1 text-[11px] font-semibold text-indigo-700"
-                                >
-                                  <Heart className="h-3 w-3 text-emerald-600" />
-                                  <span className="truncate max-w-[180px]">
-                                    {restriction}
-                                  </span>
-                                </span>
-                              ))}
-                              {remainingRestrictions > 0 && (
-                                <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-500">
-                                  +{remainingRestrictions}
-                                </span>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="text-xs font-medium text-slate-400">
-                              Sin restricciones
-                            </span>
-                          )}
-                        </td>
-                        <td
-                          className="px-6 py-4 text-center"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <div className="flex items-center justify-center gap-2">
-                               <button
-                                type="button"
-                                disabled={patientDataPending}
-                              onClick={() => handleTogglePatientStatus(patient)}
-                              className={cn(
-                                "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2",
-                                patient.status !== "Inactive"
-                                  ? "bg-indigo-500"
-                                  : "bg-slate-300",
-                              )}
-                              role="switch"
-                              aria-checked={patient.status !== "Inactive"}
-                            >
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <span className="text-sm font-medium text-slate-700">
+                          {patient.documentId || "---"}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4">
+                        {restrictions.length > 0 ? (
+                          <div className="flex flex-wrap items-center gap-2">
+                            {visibleRestrictions.map((restriction) => (
                               <span
-                                className={cn(
-                                  "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out",
-                                  patient.status !== "Inactive"
-                                    ? "translate-x-4"
-                                    : "translate-x-0",
-                                )}
-                              />
-                            </button>
+                                key={restriction}
+                                className="inline-flex items-center gap-1.5 rounded-full border border-amber-200/70 bg-[#fef9c3] px-3 py-0.5 text-xs font-medium text-amber-900"
+                              >
+                                <span className="text-amber-700 text-xs font-normal">♡</span>
+                                <span>{restriction}</span>
+                              </span>
+                            ))}
+                            {remainingRestrictions > 0 && (
+                              <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-[11px] font-medium text-slate-500">
+                                +{remainingRestrictions}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-xs font-normal text-slate-400">
+                            Sin restricciones
+                          </span>
+                        )}
+                      </td>
+                      <td
+                        className="py-3.5 px-4 text-center"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="flex items-center justify-center gap-2.5">
+                          <button
+                            type="button"
+                            disabled={patientDataPending}
+                            onClick={() => handleTogglePatientStatus(patient)}
+                            className={cn(
+                              "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#7c3aed] focus:ring-offset-2",
+                              patient.status !== "Inactive"
+                                ? "bg-[#7c3aed]"
+                                : "bg-slate-300",
+                            )}
+                            role="switch"
+                            aria-checked={patient.status !== "Inactive"}
+                          >
                             <span
                               className={cn(
-                                "text-xs font-medium w-12 text-left",
+                                "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out",
                                 patient.status !== "Inactive"
-                                  ? "text-indigo-700"
-                                  : "text-slate-500",
+                                  ? "translate-x-4"
+                                  : "translate-x-0",
                               )}
-                            >
-                              {patient.status !== "Inactive"
-                                ? "Activo"
-                                : "Inactivo"}
-                            </span>
-                          </div>
-                        </td>
-                        <td
-                          className="px-6 py-4 text-right"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <div className="flex items-center justify-end gap-1">
-                             <button
-                              onClick={() => openPatientPreview(patient)}
-                              disabled={patientDataPending}
-                              className="group relative p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-                              title="Ver detalles"
-                            >
-                              <Eye className="w-4.5 h-4.5" />
-                            </button>
-                             <button
-                              onClick={() => handleExportClinicalRecord(patient)}
-                              className="group relative p-2.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
-                              title="Descargar ficha clínica PDF"
-                               disabled={isExporting || patientDataPending}
-                            >
-                              <Download className="w-4.5 h-4.5" />
-                            </button>
-                             <button
-                              onClick={() => handleTogglePatientStatus(patient)}
-                              disabled={patientDataPending}
-                              className="group relative p-2.5 text-slate-400 hover:bg-slate-100 rounded-xl transition-all"
-                              title={patient.status === "Active" ? "Inhabilitar paciente" : "Habilitar paciente"}
-                            >
-                              {patient.status === "Active" ? (
-                                <Ban className="w-4.5 h-4.5 text-emerald-600" />
-                              ) : (
-                                <CheckCircle2 className="w-4.5 h-4.5 text-indigo-600" />
-                              )}
-                            </button>
-                             <button
-                              onClick={() => {
-                                if (patientDataPending) return;
-                                setPatientToDelete(patient);
-                                setIsDeleteModalOpen(true);
-                              }}
-                              className="group relative p-2.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
-                              title="Eliminar paciente"
-                            >
-                              <Trash2 className="w-4.5 h-4.5" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                ) : (
-                  <tr>
-                    <td colSpan={5} className="text-center py-20">
-                      <div className="flex flex-col items-center gap-4">
-                        <div className="h-16 w-16 bg-slate-50 rounded-2xl flex items-center justify-center border border-slate-100">
-                          <User className="h-8 w-8 text-slate-300" />
+                            />
+                          </button>
+                          <span
+                            className={cn(
+                              "text-xs font-semibold w-12 text-left",
+                              patient.status !== "Inactive"
+                                ? "text-[#7c3aed]"
+                                : "text-slate-400",
+                            )}
+                          >
+                            {patient.status !== "Inactive"
+                              ? "Activo"
+                              : "Inactivo"}
+                          </span>
                         </div>
-                        <p className="text-slate-500 font-medium">
-                          Sin pacientes registrados
-                        </p>
+                      </td>
+                      <td
+                        className="py-3.5 px-4 text-right"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="flex items-center justify-end gap-1 text-slate-400">
+                          <button
+                            onClick={() => openPatientPreview(patient)}
+                            disabled={patientDataPending}
+                            className="p-1.5 text-slate-400 hover:text-[#7c3aed] hover:bg-purple-50 rounded-lg transition-colors"
+                            title="Ver detalles"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleExportClinicalRecord(patient)}
+                            className="p-1.5 text-slate-400 hover:text-[#7c3aed] hover:bg-purple-50 rounded-lg transition-colors"
+                            title="Descargar ficha clínica PDF"
+                            disabled={isExporting || patientDataPending}
+                          >
+                            <Download className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleTogglePatientStatus(patient)}
+                            disabled={patientDataPending}
+                            className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                            title={patient.status === "Active" ? "Inhabilitar paciente" : "Habilitar paciente"}
+                          >
+                            {patient.status === "Active" ? (
+                              <Ban className="w-4 h-4" />
+                            ) : (
+                              <CheckCircle2 className="w-4 h-4 text-[#7c3aed]" />
+                            )}
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (patientDataPending) return;
+                              setPatientToDelete(patient);
+                              setIsDeleteModalOpen(true);
+                            }}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                            title="Eliminar paciente"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan={5} className="text-center py-20">
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="h-16 w-16 bg-slate-50 rounded-2xl flex items-center justify-center border border-slate-100">
+                        <User className="h-8 w-8 text-slate-300" />
                       </div>
-                    </td>
-                  </tr>
-            )}
-      </tbody>
-    </table>
-  </div>
-</div>
+                      <p className="text-slate-500 font-medium">
+                        Sin pacientes registrados
+                      </p>
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
 
         {/* Mobile Card View */}
         <div className="lg:hidden space-y-4">
