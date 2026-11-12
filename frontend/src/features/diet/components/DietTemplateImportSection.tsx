@@ -23,12 +23,12 @@ export const DietTemplateImportSection: React.FC<DietTemplateImportSectionProps>
 
   if (!hasImportedDiet) {
     return (
-      <div className="rounded-2xl border border-dashed border-indigo-200 bg-indigo-50/50 p-6">
+      <div className="rounded-2xl border border-dashed border-[#DDE7B8] bg-[#F0F5DF]/50 p-6">
         <div className="flex flex-col items-center gap-5 text-center">
           <div className="max-w-2xl">
             <div className="flex items-center justify-center gap-2 mb-1.5">
-              <Utensils className="h-5 w-5 text-indigo-600" />
-              <h3 className="text-sm font-bold text-indigo-950">Dieta Base o Plantilla</h3>
+              <Utensils className="h-5 w-5 text-[#86A83C]" />
+              <h3 className="text-sm font-bold text-slate-900">Dieta Base o Plantilla</h3>
             </div>
             <p className="text-xs leading-5 text-slate-600">
               Importa una estructura alimenticia guardada anteriormente o crea una nueva plantilla en el módulo de dietas. Puedes ir a diseñar una dieta y regresar cuando desees; <strong>tu avance, paciente y datos en este entregable se guardarán automáticamente como borrador</strong>.
@@ -40,9 +40,9 @@ export const DietTemplateImportSection: React.FC<DietTemplateImportSectionProps>
               type="button"
               variant="outline"
               onClick={onImportDiet}
-              className="h-10 w-full sm:w-auto min-w-0 sm:min-w-44 justify-center rounded-xl border-indigo-200 bg-white px-4 text-sm font-semibold text-indigo-700 hover:border-indigo-300 hover:bg-indigo-50 shadow-xs"
+              className="h-10 w-full sm:w-auto min-w-0 sm:min-w-44 justify-center rounded-xl border-[#DDE7B8] bg-[#F0F5DF] px-4 text-xs font-bold text-[#668E20] hover:bg-[#E8EFCB] shadow-2xs cursor-pointer"
             >
-              <Filter className="mr-2 h-4 w-4 text-indigo-600" />
+              <Filter className="mr-2 h-4 w-4 text-[#86A83C]" />
               Importar dieta
             </Button>
 
@@ -50,9 +50,9 @@ export const DietTemplateImportSection: React.FC<DietTemplateImportSectionProps>
               type="button"
               variant="outline"
               onClick={onCreateDiet}
-              className="h-10 w-full sm:w-auto min-w-0 sm:min-w-44 justify-center rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:border-slate-300 hover:bg-slate-50 shadow-xs"
+              className="h-10 w-full sm:w-auto min-w-0 sm:min-w-44 justify-center rounded-xl border-[#E9E5E7] bg-white px-4 text-xs font-semibold text-slate-700 hover:border-[#86A83C] hover:bg-[#F0F5DF]/50 hover:text-[#668E20] shadow-2xs cursor-pointer"
             >
-              <Plus className="mr-2 h-4 w-4 text-slate-600" />
+              <Plus className="mr-2 h-4 w-4 text-slate-500" />
               Crear una dieta
             </Button>
           </div>
@@ -62,14 +62,14 @@ export const DietTemplateImportSection: React.FC<DietTemplateImportSectionProps>
   }
 
   return (
-    <details className="group rounded-2xl border border-indigo-200/80 bg-white" open>
+    <details className="group rounded-2xl border border-[#E9E5E7] bg-white shadow-2xs" open>
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-4 select-none [&::-webkit-details-marker]:hidden">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-100 text-indigo-700">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#F0F5DF] text-[#668E20]">
             <Utensils className="h-4 w-4" />
           </div>
           <div>
-            <span className="text-xs font-bold text-indigo-600 block uppercase tracking-wider">Dieta Cargada</span>
+            <span className="text-xs font-bold text-[#668E20] block uppercase tracking-wider">Dieta Cargada</span>
             <span className="text-sm font-bold text-slate-900">{dietName || "Dieta Base"}</span>
           </div>
         </div>
@@ -80,7 +80,7 @@ export const DietTemplateImportSection: React.FC<DietTemplateImportSectionProps>
               e.preventDefault();
               onImportDiet();
             }}
-            className="text-xs font-bold text-indigo-600 hover:text-indigo-700"
+            className="text-xs font-bold text-[#668E20] hover:text-[#86A83C] cursor-pointer"
           >
             Cambiar dieta
           </button>
@@ -90,7 +90,7 @@ export const DietTemplateImportSection: React.FC<DietTemplateImportSectionProps>
               e.preventDefault();
               onCreateDiet();
             }}
-            className="text-xs font-bold text-slate-600 hover:text-slate-800"
+            className="text-xs font-bold text-slate-600 hover:text-slate-800 cursor-pointer"
           >
             Crear una dieta
           </button>

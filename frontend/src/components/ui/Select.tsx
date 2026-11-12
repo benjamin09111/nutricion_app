@@ -5,19 +5,20 @@ import { Check, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/context/ThemeContext";
 
-interface SelectOption {
+export interface SelectOption {
   value: string;
   label: string;
 }
 
-interface SelectProps {
-  options: SelectOption[];
+export interface SelectProps {
+  options: (SelectOption | string)[];
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
   disabled?: boolean;
   errored?: boolean;
   className?: string;
+  triggerClassName?: string;
 }
 
 export function Select({
@@ -28,21 +29,26 @@ export function Select({
   disabled,
   errored,
   className,
+  triggerClassName,
 }: SelectProps) {
   const { isDarkMode } = useTheme();
   const [open, setOpen] = useState(false);
   const [openUpward, setOpenUpward] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  const normalizedOptions: SelectOption[] = options.map((opt) =>
+    typeof opt === "string" ? { value: opt, label: opt } : opt,
+  );
+
   const selectedLabel =
-    options.find((opt) => opt.value === value)?.label || undefined;
+    normalizedOptions.find((opt) => opt.value === value)?.label || undefined;
 
   useEffect(() => {
     if (open && containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
       const spaceBelow = window.innerHeight - rect.bottom;
       const spaceAbove = rect.top;
-      setOpenUpward(spaceBelow < 220 && spaceAbove > spaceBelow);
+      setOpenUpward(spaceBelow < 260 && spaceAbove > spaceBelow);
     }
   }, [open]);
 
@@ -60,70 +66,78 @@ export function Select({
   }, []);
 
   return (
-    <div className="relative" ref={containerRef}>
+    <div className={cn("relative", className)} ref={containerRef}>
       <button
         type="button"
         onClick={() => !disabled && setOpen(!open)}
         disabled={disabled}
         className={cn(
-          "w-full h-10 flex items-center justify-between rounded-lg border px-3 text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed",
+          "w-full h-11 flex items-center justify-between rounded-xl border border-[#E9E5E7] bg-white px-3.5 text-sm font-medium transition-all shadow-2xs disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer",
           errored
             ? "border-red-300 bg-red-50 text-red-900 focus:ring-red-500/20"
             : isDarkMode
               ? "border-emerald-400/12 bg-slate-950/65 text-emerald-50"
-              : "border-slate-200 bg-white text-slate-900",
-          !errored && "focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500",
-          className,
+              : "border-[#E9E5E7] bg-white text-[#20212B]",
+          !errored && "focus:outline-none focus:ring-2 focus:ring-[#7842D4]/15 focus:border-[#7842D4]",
+          triggerClassName,
         )}
       >
         <span
           className={cn(
-            "truncate text-left",
-            !selectedLabel && "text-slate-400",
-            selectedLabel && isDarkMode && "text-emerald-50",
-            selectedLabel && !isDarkMode && !errored && "text-slate-900",
+            "truncate text-left font-medium",
+            !selectedLabel
+              ? "text-[#848792]"
+              : isDarkMode
+                ? "text-emerald-50"
+                : "text-[#20212B]",
           )}
         >
           {selectedLabel || placeholder}
         </span>
-        <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        <ChevronDown
+          className={cn(
+            "ml-2 h-4 w-4 shrink-0 text-[#848792] transition-transform duration-200",
+            open && "rotate-180",
+          )}
+        />
       </button>
 
       {open && (
         <div
           className={cn(
-            "absolute z-50 left-0 w-full overflow-auto rounded-lg py-1 text-sm shadow-lg ring-1 animate-in fade-in zoom-in-95 duration-100",
-            openUpward ? "bottom-full mb-1" : "top-full mt-1",
-            isDarkMode ? "bg-slate-950 ring-emerald-400/10" : "bg-white ring-black/5",
+            "absolute z-[100] left-0 w-full min-w-[180px] overflow-auto rounded-2xl border border-[#E9E5E7] bg-white p-1.5 text-sm shadow-xl shadow-purple-950/5 ring-1 ring-black/5 animate-in fade-in zoom-in-95 duration-100",
+            openUpward ? "bottom-full mb-1.5" : "top-full mt-1.5",
+            isDarkMode && "bg-slate-950 border-emerald-400/10 ring-emerald-400/10",
           )}
-          style={{ maxHeight: "min(14rem, calc(100vh - 14rem))" }}
+          style={{ maxHeight: "min(16rem, calc(100vh - 14rem))" }}
         >
-          {options.map((option) => (
-            <div
-              key={option.value}
-              className={cn(
-                "relative cursor-pointer select-none py-2.5 pl-3 pr-9 text-sm transition-colors",
-                value === option.value
-                  ? isDarkMode
-                    ? "bg-emerald-500/12 text-emerald-200"
-                    : "bg-emerald-50 text-emerald-700"
-                  : isDarkMode
-                    ? "text-emerald-50 hover:bg-emerald-500/8 hover:text-emerald-200"
-                    : "text-slate-900 hover:bg-emerald-50 hover:text-emerald-700",
-              )}
-              onClick={() => {
-                onChange(option.value);
-                setOpen(false);
-              }}
-            >
-              <span className="block truncate">{option.label}</span>
-              {value === option.value && (
-                <span className="absolute inset-y-0 right-0 flex items-center pr-3 text-emerald-600">
-                  <Check className="h-3.5 w-3.5" />
-                </span>
-              )}
-            </div>
-          ))}
+          {normalizedOptions.map((option) => {
+            const isSelected = value === option.value;
+            return (
+              <div
+                key={option.value}
+                className={cn(
+                  "relative cursor-pointer select-none rounded-xl px-3 py-2 text-xs sm:text-sm font-medium transition-colors flex items-center justify-between",
+                  isSelected
+                    ? isDarkMode
+                      ? "bg-emerald-500/12 text-emerald-200"
+                      : "bg-[#F3ECFC] text-[#7842D4] font-semibold"
+                    : isDarkMode
+                      ? "text-emerald-50 hover:bg-emerald-500/8 hover:text-emerald-200"
+                      : "text-[#20212B] hover:bg-[#F8F9FB] hover:text-[#7842D4]",
+                )}
+                onClick={() => {
+                  onChange(option.value);
+                  setOpen(false);
+                }}
+              >
+                <span className="block truncate">{option.label}</span>
+                {isSelected && (
+                  <Check className="ml-2 h-4 w-4 shrink-0 text-[#7842D4]" />
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

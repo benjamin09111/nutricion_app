@@ -11,6 +11,7 @@ import {
   Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
 import { MarketPrice } from "@/features/foods";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
@@ -308,67 +309,36 @@ export const DietGenerateNatyModal: React.FC<DietGenerateNatyModalProps> = ({
 
   return (
     <>
-      <div
-        onClick={(e) => {
-          if (e.target === e.currentTarget && !isLoading) {
-            onClose();
-          }
-        }}
-        className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in duration-200"
+      <Modal
+        isOpen={isOpen}
+        onClose={onClose}
+        title="Generar Dieta Base con Naty"
+        description="Selecciona y combina los mejores alimentos de tu catálogo clínico."
+        className="max-w-4xl"
       >
-        <div
-          onClick={(e) => e.stopPropagation()}
-          className="relative w-full max-w-4xl bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden space-y-0"
-        >
-          {/* Header */}
-          <div className="p-5 bg-slate-900 text-white border-b border-slate-800 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-emerald-600 text-white rounded-xl shadow-xs">
-                <Sparkles className="h-5 w-5 fill-white text-white" />
-              </div>
-              <div>
-                <h3 className="text-base font-black text-white flex items-center gap-2">
-                  Generar Dieta Base con Naty
-                </h3>
-                <p className="text-xs text-slate-300 font-medium mt-0.5">
-                  Instruye a Naty para seleccionar y combinar los mejores alimentos de tu catálogo.
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={onClose}
-              disabled={isLoading}
-              className="p-1.5 text-slate-300 hover:text-white bg-slate-800 rounded-xl border border-slate-700 transition-colors cursor-pointer"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-
+        <div className="space-y-5">
           {/* Content Body */}
           {isLoading ? (
-            <div className="p-12 flex flex-col items-center justify-center text-center space-y-5 my-4">
-              <div className="relative">
-                <div className="p-5 bg-emerald-100 text-emerald-600 rounded-2xl border border-emerald-300 shadow-xl animate-pulse">
-                  <ChefHat className="h-12 w-12 text-emerald-600 animate-bounce" />
-                </div>
-                <Sparkles className="h-6 w-6 text-emerald-500 fill-emerald-200 absolute -top-2 -right-2 animate-spin" />
+            <div className="p-10 flex flex-col items-center justify-center text-center space-y-4 my-2">
+              <div className="p-4 bg-[#F0F5DF] text-[#668E20] rounded-2xl border border-[#DDE7B8] shadow-sm animate-pulse">
+                <ChefHat className="h-10 w-10 text-[#668E20] animate-bounce" />
               </div>
               <div className="space-y-1 max-w-sm">
-                <h4 className="font-black text-slate-800 text-base">
+                <h4 className="font-bold text-[#20212B] text-base">
                   Naty está estructurando tu pauta alimentaria...
                 </h4>
-                <p className="text-xs text-slate-500 font-medium">
+                <p className="text-xs text-slate-500 font-normal">
                   Seleccionando la combinación ideal de alimentos desde la base de datos oficial.
                 </p>
               </div>
             </div>
           ) : (
-            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 max-h-[75vh] overflow-y-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-1">
               {/* Left Column: Mode & Category Selection */}
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-xs font-black text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
-                    <Layers className="h-3.5 w-3.5 text-emerald-600" />
+                  <label className="text-xs font-semibold text-[#20212B] flex items-center gap-1.5">
+                    <Layers className="h-3.5 w-3.5 text-[#86A83C]" />
                     Modo de Selección de Categorías
                   </label>
                   <div className="grid grid-cols-1 gap-2">
@@ -377,14 +347,14 @@ export const DietGenerateNatyModal: React.FC<DietGenerateNatyModalProps> = ({
                       onClick={() => setMode("existing")}
                       className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
                         mode === "existing"
-                          ? "border-emerald-600 bg-emerald-50 ring-2 ring-emerald-600/20 shadow-xs"
-                          : "border-slate-200 bg-white hover:border-slate-300"
+                          ? "border-[#86A83C] bg-[#F0F5DF]/60 shadow-2xs"
+                          : "border-[#E9E5E7] bg-white hover:border-slate-300"
                       }`}
                     >
-                      <div className="font-bold text-xs text-slate-800">
+                      <div className="font-bold text-xs text-[#20212B]">
                         Rellenar categorías activas ({activeCategories.length})
                       </div>
-                      <div className="text-[11px] text-slate-500 mt-0.5 font-medium">
+                      <div className="text-[11px] text-[#626573] mt-0.5">
                         Usa únicamente las categorías desplegadas en tu pauta.
                       </div>
                     </button>
@@ -394,14 +364,14 @@ export const DietGenerateNatyModal: React.FC<DietGenerateNatyModalProps> = ({
                       onClick={() => setMode("custom")}
                       className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
                         mode === "custom"
-                          ? "border-emerald-600 bg-emerald-50 ring-2 ring-emerald-600/20 shadow-xs"
-                          : "border-slate-200 bg-white hover:border-slate-300"
+                          ? "border-[#86A83C] bg-[#F0F5DF]/60 shadow-2xs"
+                          : "border-[#E9E5E7] bg-white hover:border-slate-300"
                       }`}
                     >
-                      <div className="font-bold text-xs text-slate-800">
+                      <div className="font-bold text-xs text-[#20212B]">
                         Seleccionar qué categorías llenar ({selectedCustomCategories.length})
                       </div>
-                      <div className="text-[11px] text-slate-500 mt-0.5 font-medium">
+                      <div className="text-[11px] text-[#626573] mt-0.5">
                         Elige manualmente las categorías a completar.
                       </div>
                     </button>
@@ -410,16 +380,16 @@ export const DietGenerateNatyModal: React.FC<DietGenerateNatyModalProps> = ({
 
                 {/* Category Selector Box when Mode === 'custom' */}
                 {mode === "custom" && (
-                  <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl space-y-2.5">
+                  <div className="p-3.5 bg-slate-50 border border-[#E9E5E7] rounded-xl space-y-2.5">
                     <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-black text-slate-700 uppercase tracking-wider">
+                      <span className="text-[11px] font-semibold text-[#20212B]">
                         Categorías ({selectedCustomCategories.length} de {platformCategories.length})
                       </span>
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
                           onClick={selectAllCategories}
-                          className="text-[11px] font-bold text-emerald-600 hover:text-emerald-700 cursor-pointer"
+                          className="text-[11px] font-semibold text-[#668E20] hover:underline cursor-pointer"
                         >
                           Marcar todas
                         </button>
@@ -427,7 +397,7 @@ export const DietGenerateNatyModal: React.FC<DietGenerateNatyModalProps> = ({
                         <button
                           type="button"
                           onClick={deselectAllCategories}
-                          className="text-[11px] font-bold text-slate-500 hover:text-slate-700 cursor-pointer"
+                          className="text-[11px] font-semibold text-slate-500 hover:text-slate-700 cursor-pointer"
                         >
                           Desmarcar todas
                         </button>
@@ -442,14 +412,14 @@ export const DietGenerateNatyModal: React.FC<DietGenerateNatyModalProps> = ({
                             key={cat}
                             type="button"
                             onClick={() => toggleCategorySelection(cat)}
-                            className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer flex items-center gap-1.5 ${
+                            className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all cursor-pointer flex items-center gap-1.5 ${
                               isSelected
-                                ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
-                                : "bg-white text-slate-700 border-slate-200 hover:border-slate-300"
+                                ? "bg-[#86A83C] text-white border-[#78A82F] shadow-2xs"
+                                : "bg-white text-[#20212B] border-[#E9E5E7] hover:border-slate-300"
                             }`}
                           >
                             <span>{cat}</span>
-                            {isSelected && <Check className="h-3 w-3" />}
+                            {isSelected && <Check className="h-3 w-3 stroke-[2.5]" />}
                           </button>
                         );
                       })}
@@ -462,12 +432,12 @@ export const DietGenerateNatyModal: React.FC<DietGenerateNatyModalProps> = ({
               <div className="space-y-4">
                 {/* Max Foods Per Category Selector */}
                 <div className="space-y-2">
-                  <label className="text-xs font-black text-slate-600 uppercase tracking-wider flex items-center justify-between">
+                  <label className="text-xs font-semibold text-[#20212B] flex items-center justify-between">
                     <span className="flex items-center gap-1.5">
-                      <Sliders className="h-3.5 w-3.5 text-emerald-600" />
+                      <Sliders className="h-3.5 w-3.5 text-[#86A83C]" />
                       Máximo de alimentos por categoría
                     </span>
-                    <span className="text-emerald-600 font-bold">{maxFoodsPerCategory} alimentos</span>
+                    <span className="text-[#668E20] font-semibold">{maxFoodsPerCategory} alimentos</span>
                   </label>
                   <div className="flex gap-2">
                     {[2, 3, 4, 5].map((num) => (
@@ -475,13 +445,13 @@ export const DietGenerateNatyModal: React.FC<DietGenerateNatyModalProps> = ({
                         key={num}
                         type="button"
                         onClick={() => setMaxFoodsPerCategory(num)}
-                        className={`flex-1 py-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                        className={`flex-1 py-2 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
                           maxFoodsPerCategory === num
-                            ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
-                            : "bg-white text-slate-700 border-slate-200 hover:border-emerald-300"
+                            ? "bg-[#86A83C] text-white border-[#78A82F] shadow-2xs"
+                            : "bg-white text-[#20212B] border-[#E9E5E7] hover:border-[#86A83C]"
                         }`}
                       >
-                        {num} alimentos
+                        {num}
                       </button>
                     ))}
                   </div>
@@ -489,16 +459,16 @@ export const DietGenerateNatyModal: React.FC<DietGenerateNatyModalProps> = ({
 
                 {/* Prompt Instructions */}
                 <div className="space-y-2">
-                  <label className="text-xs font-black text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
-                    <FileText className="h-3.5 w-3.5 text-emerald-600" />
+                  <label className="text-xs font-semibold text-[#20212B] flex items-center gap-1.5">
+                    <FileText className="h-3.5 w-3.5 text-[#86A83C]" />
                     Instrucciones especiales para Naty
                   </label>
                   <textarea
                     value={instructions}
                     onChange={(e) => setInstructions(e.target.value)}
-                    placeholder="Ej: Pauta normocalórica para deportista, libre de gluten, rica en proteínas y sin lácteos..."
+                    placeholder="Ej: Pauta normocalórica para deportista, libre de gluten, rica en proteínas..."
                     rows={4}
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all outline-none resize-none"
+                    className="w-full p-3 bg-white border border-[#E9E5E7] rounded-xl text-xs font-normal text-[#20212B] placeholder:text-[#848792] focus:border-[#86A83C] focus:ring-2 focus:ring-[#86A83C]/15 transition-all outline-none resize-none"
                   />
 
                   {/* Quick Prompt Chips */}
@@ -508,7 +478,7 @@ export const DietGenerateNatyModal: React.FC<DietGenerateNatyModalProps> = ({
                         key={chip.label}
                         type="button"
                         onClick={() => handleChipClick(chip.text)}
-                        className="px-2.5 py-1 bg-slate-100 hover:bg-emerald-100 text-slate-700 hover:text-emerald-900 border border-slate-200 hover:border-emerald-300 rounded-lg text-[11px] font-semibold transition-all cursor-pointer"
+                        className="px-2.5 py-1 bg-slate-100 hover:bg-[#F0F5DF] text-[#20212B] hover:text-[#668E20] border border-[#E9E5E7] hover:border-[#DDE7B8] rounded-lg text-xs font-medium transition-all cursor-pointer"
                       >
                         {chip.label}
                       </button>
@@ -521,27 +491,26 @@ export const DietGenerateNatyModal: React.FC<DietGenerateNatyModalProps> = ({
 
           {/* Footer Actions */}
           {!isLoading && (
-            <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-3">
-              <Button
+            <div className="pt-4 border-t border-[#F0ECEE] flex items-center justify-end gap-2.5">
+              <button
                 type="button"
-                variant="outline"
                 onClick={onClose}
-                className="h-10 px-5 border-slate-200 text-slate-600 font-bold rounded-xl text-xs cursor-pointer"
+                className="h-10 px-4 rounded-xl border border-[#E9E5E7] bg-white text-xs font-semibold text-[#20212B] hover:bg-slate-50 transition-all cursor-pointer"
               >
                 Cancelar
-              </Button>
-              <Button
+              </button>
+              <button
                 type="button"
                 onClick={handleGenerate}
-                className="h-10 px-6 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl gap-2 text-xs shadow-md shadow-emerald-600/20 cursor-pointer"
+                className="h-10 px-5 rounded-xl bg-[#86A83C] hover:bg-[#78A82F] text-white text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer shadow-sm shadow-[#86A83C]/20"
               >
-                <Sparkles className="h-4 w-4 text-emerald-200 fill-emerald-100" />
-                Generar Base con Naty
-              </Button>
+                <Sparkles className="h-4 w-4" />
+                <span>Generar Base con Naty</span>
+              </button>
             </div>
           )}
         </div>
-      </div>
+      </Modal>
 
       <FreemiumUpgradeModal
         isOpen={isUpgradeModalOpen}

@@ -23,6 +23,8 @@ import { cn, sanitizePhone } from "@/lib/utils";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { calculateBMI, calculateGET, getIdealWeightRange, calculateAge } from "@/lib/nutrition-formulas";
 import { formatRut, validateRut } from "@/lib/rut-utils";
+import { DEFAULT_CONSTRAINTS } from "@/lib/constants";
+import { OFFICIAL_INGREDIENTS } from "@/features/foods";
 import { fetchApi, getApiUrl } from "@/lib/api-base";
 import { useSubscription } from "@/context/SubscriptionContext";
 
@@ -105,6 +107,11 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
   const customVariableMap = useMemo(
     () => new Map((draft.customVariables || []).map((item) => [item.key, item])),
     [draft.customVariables],
+  );
+
+  const foodNameSuggestions = useMemo(
+    () => OFFICIAL_INGREDIENTS.map((item) => item.name),
+    [],
   );
 
   const getCustomVariableValue = (key: string) => customVariableMap.get(key)?.value as string | undefined;
@@ -679,7 +686,7 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
                 <TagInput
                   value={draft.dietRestrictions || []}
                   onChange={(tags) => updateDraft({ dietRestrictions: tags })}
-                  fetchSuggestionsUrl={`${getApiUrl()}/tags`}
+                  suggestions={DEFAULT_CONSTRAINTS.map((c) => c.label)}
                   placeholder="Diabetes, Celiaco, Alergias..."
                   className="rounded-xl bg-slate-50 border-transparent h-10 text-sm"
                 />
@@ -760,13 +767,13 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
                 <TagInput
                   value={Array.isArray(draft.dislikedFoods) ? draft.dislikedFoods : typeof draft.dislikedFoods === "string" && Boolean(draft.dislikedFoods) ? (draft.dislikedFoods as string).split(",").map(s => s.trim()).filter(Boolean) : []}
                   onChange={(tags) => updateDraft({ dislikedFoods: tags })}
-                  fetchSuggestionsUrl={`${getApiUrl()}/foods`}
+                  suggestions={foodNameSuggestions}
                   includeSystemSuggestions={false}
                   minSearchLength={1}
                   itemTypeName="alimento"
                   placeholder="Escribe para buscar alimentos (ej: pescado, legumbres, palta...)"
                   className="rounded-xl bg-slate-50 border-transparent min-h-10 text-sm"
-                  helperText="Escribe para buscar alimentos e ingredientes en la base de datos."
+                  helperText="Escribe para buscar alimentos e ingredientes del catálogo oficial."
                 />
               </div>
               <div className="space-y-1.5">

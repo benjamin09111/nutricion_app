@@ -82,56 +82,43 @@ export function DietFinalPlanSection({
   };
 
   return (
-    <div className="space-y-8">
-      {/* Header Banner */}
-      <div className="flex flex-col gap-4 rounded-3xl border border-emerald-100 bg-gradient-to-r from-emerald-50 via-white to-indigo-50 p-6 shadow-sm xl:flex-row xl:items-center xl:justify-between">
-        <div className="flex items-start gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-md shadow-emerald-200">
-            <FileCheck className="h-6 w-6" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600">Paso Final</span>
-              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-800">Plan Final</span>
-            </div>
-            <h2 className="mt-1 text-xl font-black text-slate-900">Resumen y Entregable Consolidado</h2>
-            <p className="mt-0.5 text-sm text-slate-600">
-              Personaliza las secciones a incluir en el PDF final antes de descargar o guardar.
-            </p>
-          </div>
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-base sm:text-lg font-bold text-slate-900">Resumen y Entregable Consolidado</h2>
+          <p className="text-xs text-slate-500">
+            Personaliza las secciones a incluir en el PDF final antes de descargar o guardar.
+          </p>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full xl:w-auto">
-          {/* 1. Guardar y Descargar PDF */}
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             type="button"
             onClick={handleSaveAndExport}
-            className="h-11 rounded-xl bg-emerald-600 px-5 font-bold text-white shadow-md hover:bg-emerald-700 w-full sm:w-auto justify-center"
+            className="h-10 rounded-xl bg-[#86A83C] px-4 text-xs font-bold text-white shadow-2xs hover:bg-[#78A82F] cursor-pointer"
           >
-            <Save className="mr-1.5 h-4 w-4" />
-            <Download className="mr-2 h-4 w-4" />
+            <Save className="mr-1.5 h-3.5 w-3.5" />
+            <Download className="mr-1.5 h-3.5 w-3.5" />
             Guardar y Descargar PDF
           </Button>
 
-          {/* 2. Solo Guardar */}
           <Button
             type="button"
             variant="outline"
             onClick={onSaveCreation}
-            className="h-11 rounded-xl border-slate-200 bg-white font-bold text-slate-700 hover:bg-slate-50 w-full sm:w-auto justify-center"
+            className="h-10 rounded-xl border-[#E9E5E7] bg-white px-3.5 text-xs font-semibold text-slate-700 hover:border-[#86A83C] hover:bg-[#F0F5DF] hover:text-[#668E20] shadow-2xs cursor-pointer"
           >
-            <Save className="mr-2 h-4 w-4" />
+            <Save className="mr-1.5 h-3.5 w-3.5" />
             Solo Guardar
           </Button>
 
-          {/* 3. Solo Descargar PDF */}
           <Button
             type="button"
             variant="outline"
             onClick={onExportPdf}
-            className="h-11 rounded-xl border-slate-200 bg-white font-bold text-slate-700 hover:bg-slate-50 w-full sm:w-auto justify-center"
+            className="h-10 rounded-xl border-[#E9E5E7] bg-white px-3.5 text-xs font-semibold text-slate-700 hover:border-[#86A83C] hover:bg-[#F0F5DF] hover:text-[#668E20] shadow-2xs cursor-pointer"
           >
-            <Download className="mr-2 h-4 w-4" />
+            <Download className="mr-1.5 h-3.5 w-3.5" />
             Solo Descargar PDF
           </Button>
         </div>
@@ -142,28 +129,28 @@ export function DietFinalPlanSection({
         {/* Dimensión 0: Portada e Introducción */}
         <div
           className={
-            "space-y-4 rounded-3xl border p-6 transition-all shadow-sm " +
-            (includeIntroInPdf ? "border-slate-200 bg-white" : "border-dashed border-slate-200 bg-slate-50/60 opacity-75")
+            "space-y-4 rounded-2xl border p-5 transition-all shadow-2xs " +
+            (includeIntroInPdf ? "border-[#E9E5E7] bg-white" : "border-dashed border-[#E9E5E7] bg-slate-50/60 opacity-75")
           }
         >
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="flex items-center justify-between border-b border-[#F0ECEE] pb-3">
             <div className="flex items-center gap-2.5">
               <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
                 <FileCheck className="h-4 w-4" />
               </div>
-              <h3 className="text-sm font-black text-slate-900">Portada e Introducción</h3>
+              <h3 className="text-sm font-bold text-slate-900">Portada e Introducción</h3>
             </div>
             <button
               type="button"
               onClick={() => setIncludeIntroInPdf(!includeIntroInPdf)}
               className={
-                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-bold transition-all cursor-pointer " +
+                "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-bold transition-all cursor-pointer " +
                 (includeIntroInPdf
-                  ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                  : "border-slate-200 bg-white text-slate-500 hover:bg-slate-100")
+                  ? "border-[#DDE7B8] bg-[#F0F5DF] text-[#668E20] hover:bg-[#E8EFCB]"
+                  : "border-[#E9E5E7] bg-white text-slate-500 hover:bg-slate-50")
               }
             >
-              <span className={"h-2 w-2 rounded-full " + (includeIntroInPdf ? "bg-emerald-500" : "bg-slate-400")} />
+              <span className={"h-1.5 w-1.5 rounded-full " + (includeIntroInPdf ? "bg-[#86A83C]" : "bg-slate-400")} />
               {includeIntroInPdf ? "Incluido en PDF" : "Excluido de PDF"}
             </button>
           </div>
@@ -185,17 +172,17 @@ export function DietFinalPlanSection({
         </div>
 
         {/* Dimensión 1: Paciente e Info General */}
-        <div className="space-y-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div className="space-y-4 rounded-2xl border border-[#E9E5E7] bg-white p-5 shadow-2xs">
+          <div className="flex items-center justify-between border-b border-[#F0ECEE] pb-3">
             <div className="flex items-center gap-2.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#F0F5DF] text-[#668E20]">
                 <User className="h-4 w-4" />
               </div>
-              <h3 className="text-sm font-black text-slate-900">1. Contexto del Paciente</h3>
+              <h3 className="text-sm font-bold text-slate-900">1. Contexto del Paciente</h3>
             </div>
 
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700">
-              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#DDE7B8] bg-[#F0F5DF] px-2.5 py-0.5 text-[11px] font-bold text-[#668E20]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#86A83C]" />
               Incluido siempre
             </span>
           </div>
@@ -217,7 +204,7 @@ export function DietFinalPlanSection({
             </div>
             <div className="flex justify-between">
               <span className="font-medium text-slate-500">Meta calórica base:</span>
-              <span className="font-bold text-emerald-700">{calorieTarget > 0 ? `${calorieTarget} kcal/día` : "Personalizada"}</span>
+              <span className="font-bold text-[#668E20]">{calorieTarget > 0 ? `${calorieTarget} kcal/día` : "Personalizada"}</span>
             </div>
           </div>
         </div>
@@ -225,31 +212,31 @@ export function DietFinalPlanSection({
         {/* Dimensión 2: Dieta Base */}
         <div
           className={
-            "space-y-4 rounded-3xl border p-6 transition-all shadow-sm " +
-            (includeFoodTableSection ? "border-slate-200 bg-white" : "border-dashed border-slate-200 bg-slate-50/60 opacity-75")
+            "space-y-4 rounded-2xl border p-5 transition-all shadow-2xs " +
+            (includeFoodTableSection ? "border-[#E9E5E7] bg-white" : "border-dashed border-[#E9E5E7] bg-slate-50/60 opacity-75")
           }
         >
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="flex items-center justify-between border-b border-[#F0ECEE] pb-3">
             <div className="flex items-center gap-2.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#F0F5DF] text-[#668E20]">
                 <Apple className="h-4 w-4" />
               </div>
-              <h3 className="text-sm font-black text-slate-900">2. Estrategia & Dieta Base</h3>
+              <h3 className="text-sm font-bold text-slate-900">2. Estrategia & Dieta Base</h3>
             </div>
 
             <button
               type="button"
               onClick={() => setIncludeFoodTableSection(!includeFoodTableSection)}
               className={
-                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-bold transition-all cursor-pointer " +
+                "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-bold transition-all cursor-pointer " +
                 (includeFoodTableSection
-                  ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                  : "border-slate-200 bg-white text-slate-500 hover:bg-slate-100")
+                  ? "border-[#DDE7B8] bg-[#F0F5DF] text-[#668E20] hover:bg-[#E8EFCB]"
+                  : "border-[#E9E5E7] bg-white text-slate-500 hover:bg-slate-50")
               }
             >
               <span
                 className={
-                  "h-2 w-2 rounded-full " + (includeFoodTableSection ? "bg-emerald-500" : "bg-slate-400")
+                  "h-1.5 w-1.5 rounded-full " + (includeFoodTableSection ? "bg-[#86A83C]" : "bg-slate-400")
                 }
               />
               {includeFoodTableSection ? "Incluido en PDF" : "Excluido de PDF"}
@@ -267,7 +254,7 @@ export function DietFinalPlanSection({
             </div>
             <div className="flex justify-between">
               <span className="font-medium text-slate-500">Alimentos seleccionados:</span>
-              <span className="font-bold text-indigo-600">{totalSelectedFoods} víveres permitidos</span>
+              <span className="font-bold text-[#668E20]">{totalSelectedFoods} víveres permitidos</span>
             </div>
           </div>
         </div>
@@ -275,31 +262,31 @@ export function DietFinalPlanSection({
         {/* Dimensión 3: Recetas y Porciones */}
         <div
           className={
-            "space-y-4 rounded-3xl border p-6 transition-all shadow-sm " +
-            (includeMealsSection ? "border-slate-200 bg-white" : "border-dashed border-slate-200 bg-slate-50/60 opacity-75")
+            "space-y-4 rounded-2xl border p-5 transition-all shadow-2xs " +
+            (includeMealsSection ? "border-[#E9E5E7] bg-white" : "border-dashed border-[#E9E5E7] bg-slate-50/60 opacity-75")
           }
         >
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="flex items-center justify-between border-b border-[#F0ECEE] pb-3">
             <div className="flex items-center gap-2.5">
               <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
                 <ChefHat className="h-4 w-4" />
               </div>
-              <h3 className="text-sm font-black text-slate-900">3. Recetas y Porciones</h3>
+              <h3 className="text-sm font-bold text-slate-900">3. Recetas y Porciones</h3>
             </div>
 
             <button
               type="button"
               onClick={() => setIncludeMealsSection(!includeMealsSection)}
               className={
-                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-bold transition-all cursor-pointer " +
+                "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-bold transition-all cursor-pointer " +
                 (includeMealsSection
-                  ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                  : "border-slate-200 bg-white text-slate-500 hover:bg-slate-100")
+                  ? "border-[#DDE7B8] bg-[#F0F5DF] text-[#668E20] hover:bg-[#E8EFCB]"
+                  : "border-[#E9E5E7] bg-white text-slate-500 hover:bg-slate-50")
               }
             >
               <span
                 className={
-                  "h-2 w-2 rounded-full " + (includeMealsSection ? "bg-emerald-500" : "bg-slate-400")
+                  "h-1.5 w-1.5 rounded-full " + (includeMealsSection ? "bg-[#86A83C]" : "bg-slate-400")
                 }
               />
               {includeMealsSection ? "Incluido en PDF" : "Excluido de PDF"}
@@ -321,31 +308,31 @@ export function DietFinalPlanSection({
         {/* Dimensión 4: Carrito de Compras */}
         <div
           className={
-            "space-y-4 rounded-3xl border p-6 transition-all shadow-sm " +
-            (includeCartSection ? "border-slate-200 bg-white" : "border-dashed border-slate-200 bg-slate-50/60 opacity-75")
+            "space-y-4 rounded-2xl border p-5 transition-all shadow-2xs " +
+            (includeCartSection ? "border-[#E9E5E7] bg-white" : "border-dashed border-[#E9E5E7] bg-slate-50/60 opacity-75")
           }
         >
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="flex items-center justify-between border-b border-[#F0ECEE] pb-3">
             <div className="flex items-center gap-2.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-purple-50 text-purple-600">
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#F0F5DF] text-[#668E20]">
                 <ShoppingCart className="h-4 w-4" />
               </div>
-              <h3 className="text-sm font-black text-slate-900">4. Carrito de Compras</h3>
+              <h3 className="text-sm font-bold text-slate-900">4. Carrito de Compras</h3>
             </div>
 
             <button
               type="button"
               onClick={() => setIncludeCartSection(!includeCartSection)}
               className={
-                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-bold transition-all cursor-pointer " +
+                "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-bold transition-all cursor-pointer " +
                 (includeCartSection
-                  ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                  : "border-slate-200 bg-white text-slate-500 hover:bg-slate-100")
+                  ? "border-[#DDE7B8] bg-[#F0F5DF] text-[#668E20] hover:bg-[#E8EFCB]"
+                  : "border-[#E9E5E7] bg-white text-slate-500 hover:bg-slate-50")
               }
             >
               <span
                 className={
-                  "h-2 w-2 rounded-full " + (includeCartSection ? "bg-emerald-500" : "bg-slate-400")
+                  "h-1.5 w-1.5 rounded-full " + (includeCartSection ? "bg-[#86A83C]" : "bg-slate-400")
                 }
               />
               {includeCartSection ? "Incluido en PDF" : "Excluido de PDF"}
@@ -367,31 +354,31 @@ export function DietFinalPlanSection({
         {/* Dimensión 5: Recursos Educativos */}
         <div
           className={
-            "space-y-4 rounded-3xl border p-6 transition-all shadow-sm " +
-            (includeResourcesSection ? "border-slate-200 bg-white" : "border-dashed border-slate-200 bg-slate-50/60 opacity-75")
+            "space-y-4 rounded-2xl border p-5 transition-all shadow-2xs " +
+            (includeResourcesSection ? "border-[#E9E5E7] bg-white" : "border-dashed border-[#E9E5E7] bg-slate-50/60 opacity-75")
           }
         >
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="flex items-center justify-between border-b border-[#F0ECEE] pb-3">
             <div className="flex items-center gap-2.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-sky-50 text-sky-600">
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#F0F5DF] text-[#668E20]">
                 <Sparkles className="h-4 w-4" />
               </div>
-              <h3 className="text-sm font-black text-slate-900">5. Recursos Educativos</h3>
+              <h3 className="text-sm font-bold text-slate-900">5. Recursos Educativos</h3>
             </div>
 
             <button
               type="button"
               onClick={() => setIncludeResourcesSection(!includeResourcesSection)}
               className={
-                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-bold transition-all cursor-pointer " +
+                "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-bold transition-all cursor-pointer " +
                 (includeResourcesSection
-                  ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                  : "border-slate-200 bg-white text-slate-500 hover:bg-slate-100")
+                  ? "border-[#DDE7B8] bg-[#F0F5DF] text-[#668E20] hover:bg-[#E8EFCB]"
+                  : "border-[#E9E5E7] bg-white text-slate-500 hover:bg-slate-50")
               }
             >
               <span
                 className={
-                  "h-2 w-2 rounded-full " + (includeResourcesSection ? "bg-emerald-500" : "bg-slate-400")
+                  "h-1.5 w-1.5 rounded-full " + (includeResourcesSection ? "bg-[#86A83C]" : "bg-slate-400")
                 }
               />
               {includeResourcesSection ? "Incluido en PDF" : "Excluido de PDF"}
@@ -413,29 +400,29 @@ export function DietFinalPlanSection({
         {/* Dimensión 6: Alimentos a evitar */}
         <div
           className={
-            "space-y-4 rounded-3xl border p-6 transition-all shadow-sm " +
-            (includeAvoidFoodsInPdf ? "border-slate-200 bg-white" : "border-dashed border-slate-200 bg-slate-50/60 opacity-75")
+            "space-y-4 rounded-2xl border p-5 transition-all shadow-2xs " +
+            (includeAvoidFoodsInPdf ? "border-[#E9E5E7] bg-white" : "border-dashed border-[#E9E5E7] bg-slate-50/60 opacity-75")
           }
         >
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="flex items-center justify-between border-b border-[#F0ECEE] pb-3">
             <div className="flex items-center gap-2.5">
               <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-rose-50 text-rose-600">
                 <Ban className="h-4 w-4" />
               </div>
-              <h3 className="text-sm font-black text-slate-900">6. Alimentos a Evitar</h3>
+              <h3 className="text-sm font-bold text-slate-900">6. Alimentos a Evitar</h3>
             </div>
 
             <button
               type="button"
               onClick={() => setIncludeAvoidFoodsInPdf(!includeAvoidFoodsInPdf)}
               className={
-                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-bold transition-all cursor-pointer " +
+                "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-bold transition-all cursor-pointer " +
                 (includeAvoidFoodsInPdf
-                  ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                  : "border-slate-200 bg-white text-slate-500 hover:bg-slate-100")
+                  ? "border-[#DDE7B8] bg-[#F0F5DF] text-[#668E20] hover:bg-[#E8EFCB]"
+                  : "border-[#E9E5E7] bg-white text-slate-500 hover:bg-slate-50")
               }
             >
-              <span className={"h-2 w-2 rounded-full " + (includeAvoidFoodsInPdf ? "bg-emerald-500" : "bg-slate-400")} />
+              <span className={"h-1.5 w-1.5 rounded-full " + (includeAvoidFoodsInPdf ? "bg-[#86A83C]" : "bg-slate-400")} />
               {includeAvoidFoodsInPdf ? "Incluido en PDF" : "Excluido de PDF"}
             </button>
           </div>
@@ -455,29 +442,29 @@ export function DietFinalPlanSection({
         {/* Dimensión 7: Despedida */}
         <div
           className={
-            "space-y-4 rounded-3xl border p-6 transition-all shadow-sm " +
-            (includeClosingInPdf ? "border-slate-200 bg-white" : "border-dashed border-slate-200 bg-slate-50/60 opacity-75")
+            "space-y-4 rounded-2xl border p-5 transition-all shadow-2xs " +
+            (includeClosingInPdf ? "border-[#E9E5E7] bg-white" : "border-dashed border-[#E9E5E7] bg-slate-50/60 opacity-75")
           }
         >
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="flex items-center justify-between border-b border-[#F0ECEE] pb-3">
             <div className="flex items-center gap-2.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#F0F5DF] text-[#668E20]">
                 <MessageCircleHeart className="h-4 w-4" />
               </div>
-              <h3 className="text-sm font-black text-slate-900">7. Despedida</h3>
+              <h3 className="text-sm font-bold text-slate-900">7. Despedida</h3>
             </div>
 
             <button
               type="button"
               onClick={() => setIncludeClosingInPdf(!includeClosingInPdf)}
               className={
-                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-bold transition-all cursor-pointer " +
+                "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-bold transition-all cursor-pointer " +
                 (includeClosingInPdf
-                  ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                  : "border-slate-200 bg-white text-slate-500 hover:bg-slate-100")
+                  ? "border-[#DDE7B8] bg-[#F0F5DF] text-[#668E20] hover:bg-[#E8EFCB]"
+                  : "border-[#E9E5E7] bg-white text-slate-500 hover:bg-slate-50")
               }
             >
-              <span className={"h-2 w-2 rounded-full " + (includeClosingInPdf ? "bg-emerald-500" : "bg-slate-400")} />
+              <span className={"h-1.5 w-1.5 rounded-full " + (includeClosingInPdf ? "bg-[#86A83C]" : "bg-slate-400")} />
               {includeClosingInPdf ? "Incluido en PDF" : "Excluido de PDF"}
             </button>
           </div>

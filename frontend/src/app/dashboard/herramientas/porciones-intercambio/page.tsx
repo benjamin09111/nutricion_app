@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
 import { cn } from "@/lib/utils";
 import {
   buildExchangeGuideForAi,
@@ -70,19 +71,29 @@ export default function ExchangePortionsPage() {
 
   return (
     <ModuleLayout
-      title="Información de Cálculos y Porciones"
-      description="Conoce cómo NutriNet calcula y opera distintos valores clínicos, macronutrientes y bloques de intercambio nutricional."
+      title="Porciones de Intercambio"
+      description={
+        <div className="space-y-1">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-[#668E20] -mt-0.5 mb-0.5">
+            <Scale className="w-4 h-4 text-[#86A83C]" />
+            <span className="tracking-wider uppercase text-[10px] font-bold">Sistema de Porciones Clínicas</span>
+          </div>
+          <p className="text-sm sm:text-[15px] text-[#626573] leading-relaxed">
+            Conoce cómo NutriNet calcula y opera distintos valores clínicos, macronutrientes y bloques de intercambio nutricional unificados.
+          </p>
+        </div>
+      }
     >
       <div className="space-y-6">
         <section className="grid gap-6 xl:grid-cols-[1.25fr_0.95fr]">
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
+          <div className="rounded-2xl border border-[#E9E5E7] bg-white p-4 sm:p-6 shadow-2xs">
             <div className="flex items-center gap-3">
-              <div className="rounded-2xl bg-emerald-50 p-3 text-emerald-600 shrink-0">
+              <div className="rounded-xl bg-[#F0F5DF] p-3 text-[#668E20] shrink-0">
                 <Activity className="h-6 w-6" />
               </div>
               <div>
-                <h2 className="text-base sm:text-lg font-black text-slate-900 leading-snug">Cómo usamos los intercambios en NutriNet</h2>
-                <p className="text-xs sm:text-sm font-medium text-slate-500 mt-0.5">
+                <h2 className="text-base sm:text-lg font-bold text-[#20212B] leading-snug">Cómo usamos los intercambios en NutriNet</h2>
+                <p className="text-xs sm:text-sm font-medium text-[#626573] mt-0.5">
                   La idea es que la misma porción valga lo mismo en cálculos, recetas, carrito y PDF.
                 </p>
               </div>
@@ -90,24 +101,24 @@ export default function ExchangePortionsPage() {
 
             <div className="mt-6 grid gap-3 grid-cols-1 md:grid-cols-2">
               {HOW_TO_USE.map((item, index) => (
-                <div key={item} className="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600">
+                <div key={item} className="rounded-xl border border-[#E9E5E7] bg-[#F8F9FB] p-3.5">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-[#668E20]">
                     Paso {index + 1}
                   </p>
-                  <p className="mt-1.5 text-xs sm:text-sm font-semibold leading-relaxed text-slate-700">{item}</p>
+                  <p className="mt-1 text-xs sm:text-sm font-medium leading-relaxed text-[#20212B]">{item}</p>
                 </div>
               ))}
             </div>
 
-            <div className="mt-6 rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4">
+            <div className="mt-6 rounded-xl border border-[#DDE7B8] bg-[#F0F5DF]/70 p-4">
               <div className="flex flex-wrap items-center gap-2">
                 {FLOW_LABELS.map((label, index) => (
                   <div key={label} className="flex items-center gap-1.5 sm:gap-2">
-                    <span className="rounded-full bg-white px-2.5 sm:px-3 py-1 text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-emerald-700 shadow-xs">
+                    <span className="rounded-full bg-white px-2.5 sm:px-3 py-1 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-[#668E20] shadow-2xs border border-[#DDE7B8]">
                       {label}
                     </span>
                     {index < FLOW_LABELS.length - 1 ? (
-                      <span className="text-xs sm:text-sm font-black text-emerald-400">→</span>
+                      <span className="text-xs sm:text-sm font-bold text-[#86A83C]">→</span>
                     ) : null}
                   </div>
                 ))}
@@ -115,14 +126,14 @@ export default function ExchangePortionsPage() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
+          <div className="rounded-2xl border border-[#E9E5E7] bg-white p-4 sm:p-6 shadow-2xs">
             <div className="flex items-center gap-3">
-              <div className="rounded-2xl bg-blue-50 p-3 text-blue-600 shrink-0">
+              <div className="rounded-xl bg-purple-50 p-3 text-[#7842D4] shrink-0">
                 <Calculator className="h-6 w-6" />
               </div>
               <div>
-                <h2 className="text-base sm:text-lg font-black text-slate-900 leading-snug">Mini calculadora clínica</h2>
-                <p className="text-xs sm:text-sm font-medium text-slate-500 mt-0.5">
+                <h2 className="text-base sm:text-lg font-bold text-[#20212B] leading-snug">Mini calculadora clínica</h2>
+                <p className="text-xs sm:text-sm font-medium text-[#626573] mt-0.5">
                   Sirve para validar rápido cuántos intercambios representa un alimento real.
                 </p>
               </div>
@@ -130,67 +141,65 @@ export default function ExchangePortionsPage() {
 
             <div className="mt-5 space-y-4">
               <div>
-                <label className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
+                <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-[#848792]">
                   Perfil de intercambio
                 </label>
-                <select
+                <Select
                   value={selectedProfileId}
-                  onChange={(event) => setSelectedProfileId(event.target.value)}
-                  className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-3 text-xs sm:text-sm font-semibold text-slate-700 cursor-pointer outline-none focus:ring-2 focus:ring-blue-500/20"
-                >
-                  {EXCHANGE_PORTION_PROFILES.map((profile) => (
-                    <option key={profile.id} value={profile.id}>
-                      {profile.label}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(val) => setSelectedProfileId(val)}
+                  options={EXCHANGE_PORTION_PROFILES.map((p) => ({
+                    value: p.id,
+                    label: p.label,
+                  }))}
+                  triggerClassName="h-11 rounded-xl border-[#E9E5E7] bg-white text-xs sm:text-sm font-medium text-[#20212B] shadow-2xs"
+                />
               </div>
 
               <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
                 <div>
-                  <label className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
+                  <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-[#848792]">
                     Gramaje
                   </label>
-                  <Input value={grams} onChange={(event) => setGrams(event.target.value)} type="number" className="h-11 rounded-2xl text-xs font-semibold" />
+                  <Input value={grams} onChange={(event) => setGrams(event.target.value)} type="number" className="h-11 rounded-xl text-xs sm:text-sm font-medium border-[#E9E5E7] shadow-2xs" />
                 </div>
-                <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-2.5 flex flex-col justify-center">
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Porción casera</p>
-                  <p className="mt-0.5 text-xs sm:text-sm font-semibold text-slate-700">{selectedProfile.householdPortion}</p>
+                <div className="rounded-xl border border-[#E9E5E7] bg-[#F8F9FB] px-3.5 py-2 flex flex-col justify-center">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-[#848792]">Porción casera</p>
+                  <p className="mt-0.5 text-xs sm:text-sm font-semibold text-[#20212B]">{selectedProfile.householdPortion}</p>
                 </div>
               </div>
 
               <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
                 <div>
-                  <label className="mb-1 block text-[10px] font-black uppercase tracking-wider text-slate-400 sm:hidden">CHO / 100g</label>
-                  <Input value={carbsPer100g} onChange={(event) => setCarbsPer100g(event.target.value)} type="number" className="h-11 rounded-2xl text-xs font-semibold" placeholder="CHO / 100g" />
+                  <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-[#848792] sm:hidden">CHO / 100g</label>
+                  <Input value={carbsPer100g} onChange={(event) => setCarbsPer100g(event.target.value)} type="number" className="h-11 rounded-xl text-xs sm:text-sm font-medium border-[#E9E5E7] shadow-2xs" placeholder="CHO / 100g" />
                 </div>
                 <div>
-                  <label className="mb-1 block text-[10px] font-black uppercase tracking-wider text-slate-400 sm:hidden">Prot / 100g</label>
-                  <Input value={proteinPer100g} onChange={(event) => setProteinPer100g(event.target.value)} type="number" className="h-11 rounded-2xl text-xs font-semibold" placeholder="Prot / 100g" />
+                  <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-[#848792] sm:hidden">Prot / 100g</label>
+                  <Input value={proteinPer100g} onChange={(event) => setProteinPer100g(event.target.value)} type="number" className="h-11 rounded-xl text-xs sm:text-sm font-medium border-[#E9E5E7] shadow-2xs" placeholder="Prot / 100g" />
                 </div>
                 <div>
-                  <label className="mb-1 block text-[10px] font-black uppercase tracking-wider text-slate-400 sm:hidden">Grasas / 100g</label>
-                  <Input value={fatPer100g} onChange={(event) => setFatPer100g(event.target.value)} type="number" className="h-11 rounded-2xl text-xs font-semibold" placeholder="Grasas / 100g" />
+                  <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-[#848792] sm:hidden">Grasas / 100g</label>
+                  <Input value={fatPer100g} onChange={(event) => setFatPer100g(event.target.value)} type="number" className="h-11 rounded-xl text-xs sm:text-sm font-medium border-[#E9E5E7] shadow-2xs" placeholder="Grasas / 100g" />
                 </div>
               </div>
 
               <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
-                <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-600">Intercambios calculados</p>
-                  <p className="mt-1 text-2xl sm:text-3xl font-black text-emerald-800">{calculatorResult.displayPortions}</p>
-                  <p className="mt-0.5 text-xs font-semibold text-emerald-700">{calculatorResult.basisLabel}</p>
+                <div className="rounded-xl border border-[#DDE7B8] bg-[#F0F5DF] p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-[#668E20]">Intercambios calculados</p>
+                  <p className="mt-1 text-2xl sm:text-3xl font-bold text-[#668E20]">{calculatorResult.displayPortions}</p>
+                  <p className="mt-0.5 text-xs font-semibold text-[#668E20]">{calculatorResult.basisLabel}</p>
                 </div>
-                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Lectura clínica</p>
-                  <p className="mt-1 text-xs sm:text-sm font-black text-slate-800">{calculatorResult.profile.label}</p>
-                  <p className="mt-0.5 text-xs font-medium leading-relaxed text-slate-500">{calculatorResult.note}</p>
+                <div className="rounded-xl border border-[#E9E5E7] bg-[#F8F9FB] p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-[#848792]">Lectura clínica</p>
+                  <p className="mt-1 text-xs sm:text-sm font-bold text-[#20212B]">{calculatorResult.profile.label}</p>
+                  <p className="mt-0.5 text-xs font-medium leading-relaxed text-[#626573]">{calculatorResult.note}</p>
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-blue-100 bg-blue-50/80 p-4">
-                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-blue-600">Resultado para paciente</p>
-                <p className="mt-1 text-xs sm:text-sm font-semibold text-blue-900 leading-relaxed">
-                  {grams || "0"} g de este alimento equivalen a <strong>{calculatorResult.displayPortions}</strong> intercambio(s) del perfil{" "}
+              <div className="rounded-xl border border-purple-200 bg-purple-50/70 p-4">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-[#7842D4]">Resultado para paciente</p>
+                <p className="mt-1 text-xs sm:text-sm font-semibold text-[#20212B] leading-relaxed">
+                  {grams || "0"} g de este alimento equivalen a <strong className="text-[#7842D4]">{calculatorResult.displayPortions}</strong> intercambio(s) del perfil{" "}
                   <strong>{calculatorResult.profile.label}</strong>.
                 </p>
               </div>
@@ -198,14 +207,14 @@ export default function ExchangePortionsPage() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
+        <section className="rounded-2xl border border-[#E9E5E7] bg-white p-4 sm:p-6 shadow-2xs">
           <div className="flex items-center gap-3 mb-5">
-            <div className="rounded-2xl bg-rose-50 p-3 text-rose-600 shrink-0">
+            <div className="rounded-xl bg-[#F0F5DF] p-3 text-[#668E20] shrink-0">
               <Scale className="h-6 w-6" />
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-black text-slate-900">Tabla clínica V1</h2>
-              <p className="text-xs sm:text-sm font-medium text-slate-500">
+              <h2 className="text-base sm:text-lg font-bold text-[#20212B]">Tabla clínica de intercambios</h2>
+              <p className="text-xs sm:text-sm font-medium text-[#626573]">
                 Fuente única de verdad para intercambios y porciones caseras.
               </p>
             </div>
@@ -216,41 +225,41 @@ export default function ExchangePortionsPage() {
             {coverageRows.map((row) => {
               const profile = EXCHANGE_PORTION_PROFILES.find((item) => item.id === row.profileId) as ExchangePortionProfile;
               return (
-                <div key={row.profileId} className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4 space-y-3">
+                <div key={row.profileId} className="rounded-2xl border border-[#E9E5E7] bg-[#F8F9FB]/60 p-4 space-y-3 shadow-2xs">
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <p className="font-black text-slate-900 text-sm">{row.label}</p>
-                      <span className={cn("inline-block mt-1 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border", row.isClinicalExchange ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-amber-50 text-amber-700 border-amber-200")}>
+                      <p className="font-bold text-[#20212B] text-sm">{row.label}</p>
+                      <span className={cn("inline-block mt-1 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border", row.isClinicalExchange ? "bg-[#F0F5DF] text-[#668E20] border-[#DDE7B8]" : "bg-amber-50 text-amber-700 border-amber-200")}>
                         {row.isClinicalExchange ? "Intercambio clínico" : "Referencia / revisión"}
                       </span>
                     </div>
-                    <span className="text-xs font-black text-slate-700 bg-white px-2.5 py-1 rounded-xl border border-slate-200 shadow-xs">
+                    <span className="text-xs font-bold text-[#20212B] bg-white px-2.5 py-1 rounded-xl border border-[#E9E5E7] shadow-2xs">
                       {profile.kcal} kcal
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-4 gap-1.5 text-center bg-white p-2.5 rounded-xl border border-slate-100">
+                  <div className="grid grid-cols-4 gap-1.5 text-center bg-white p-2.5 rounded-xl border border-[#E9E5E7]">
                     <div>
-                      <span className="text-[9px] font-bold text-slate-400 block uppercase">Porción</span>
-                      <span className="text-xs font-bold text-slate-700 truncate block">{row.householdPortion}</span>
+                      <span className="text-[9px] font-bold text-[#848792] block uppercase">Porción</span>
+                      <span className="text-xs font-bold text-[#20212B] truncate block">{row.householdPortion}</span>
                     </div>
                     <div>
-                      <span className="text-[9px] font-bold text-amber-600 block uppercase">CHO</span>
-                      <span className="text-xs font-black text-amber-700">{profile.cho}g</span>
+                      <span className="text-[9px] font-bold text-emerald-600 block uppercase">CHO</span>
+                      <span className="text-xs font-bold text-emerald-700">{profile.cho}g</span>
                     </div>
                     <div>
                       <span className="text-[9px] font-bold text-blue-600 block uppercase">Prot</span>
-                      <span className="text-xs font-black text-blue-700">{profile.protein}g</span>
+                      <span className="text-xs font-bold text-blue-700">{profile.protein}g</span>
                     </div>
                     <div>
                       <span className="text-[9px] font-bold text-rose-600 block uppercase">Grasas</span>
-                      <span className="text-xs font-black text-rose-700">{profile.fat}g</span>
+                      <span className="text-xs font-bold text-rose-700">{profile.fat}g</span>
                     </div>
                   </div>
 
-                  <div className="space-y-1 text-xs text-slate-600">
-                    <p><strong className="text-slate-800">Cobertura:</strong> {row.categoriesCovered}</p>
-                    <p><strong className="text-slate-800">Nota:</strong> {row.clinicalNote}</p>
+                  <div className="space-y-1 text-xs text-[#626573]">
+                    <p><strong className="text-[#20212B]">Cobertura:</strong> {row.categoriesCovered}</p>
+                    <p><strong className="text-[#20212B]">Nota:</strong> {row.clinicalNote}</p>
                   </div>
                 </div>
               );
@@ -258,35 +267,35 @@ export default function ExchangePortionsPage() {
           </div>
 
           {/* Tabla Desktop (>= 768px) */}
-          <div className="hidden md:block overflow-x-auto rounded-2xl border border-slate-200">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-100">
+          <div className="hidden md:block overflow-x-auto rounded-2xl border border-[#E9E5E7] shadow-2xs">
+            <table className="w-full text-sm border-collapse">
+              <thead className="bg-[#F8F9FB] border-b border-[#E8EBF0]">
                 <tr>
                   {["Perfil", "Porción casera", "CHO", "Prot", "Grasas", "kcal", "Cobertura", "Nota"].map((header) => (
-                    <th key={header} className="px-3 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
+                    <th key={header} className="px-3 py-3 text-left text-xs font-medium text-[#667085] uppercase tracking-wider">
                       {header}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 bg-white">
+              <tbody className="divide-y divide-[#F0ECEE] bg-white">
                 {coverageRows.map((row) => {
                   const profile = EXCHANGE_PORTION_PROFILES.find((item) => item.id === row.profileId) as ExchangePortionProfile;
                   return (
-                    <tr key={row.profileId} className="align-top">
+                    <tr key={row.profileId} className="align-top hover:bg-[#F8F9FB] transition-colors">
                       <td className="px-3 py-3">
-                        <p className="font-black text-slate-900">{row.label}</p>
-                        <p className={cn("mt-1 text-[10px] font-black uppercase tracking-[0.18em]", row.isClinicalExchange ? "text-emerald-600" : "text-amber-600")}>
+                        <p className="font-semibold text-[#20212B]">{row.label}</p>
+                        <p className={cn("mt-1 text-[10px] font-bold uppercase tracking-wider", row.isClinicalExchange ? "text-[#668E20]" : "text-amber-600")}>
                           {row.isClinicalExchange ? "Intercambio clínico" : "Referencia / revisión"}
                         </p>
                       </td>
-                      <td className="px-3 py-3 font-semibold text-slate-700">{row.householdPortion}</td>
-                      <td className="px-3 py-3 font-bold text-amber-700">{profile.cho} g</td>
-                      <td className="px-3 py-3 font-bold text-blue-700">{profile.protein} g</td>
-                      <td className="px-3 py-3 font-bold text-rose-700">{profile.fat} g</td>
-                      <td className="px-3 py-3 font-bold text-slate-700">{profile.kcal}</td>
-                      <td className="px-3 py-3 text-xs font-medium leading-relaxed text-slate-500">{row.categoriesCovered}</td>
-                      <td className="px-3 py-3 text-xs font-medium leading-relaxed text-slate-500">{row.clinicalNote}</td>
+                      <td className="px-3 py-3 font-medium text-[#20212B]">{row.householdPortion}</td>
+                      <td className="px-3 py-3 font-semibold text-emerald-700">{profile.cho} g</td>
+                      <td className="px-3 py-3 font-semibold text-blue-700">{profile.protein} g</td>
+                      <td className="px-3 py-3 font-semibold text-rose-700">{profile.fat} g</td>
+                      <td className="px-3 py-3 font-bold text-[#20212B]">{profile.kcal}</td>
+                      <td className="px-3 py-3 text-xs font-medium leading-relaxed text-[#626573]">{row.categoriesCovered}</td>
+                      <td className="px-3 py-3 text-xs font-medium leading-relaxed text-[#626573]">{row.clinicalNote}</td>
                     </tr>
                   );
                 })}

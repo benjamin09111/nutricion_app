@@ -1778,61 +1778,53 @@ export default function QuickRecipesClient() {
           onReset={handleReset}
         >
         <div className="space-y-6">
-          {currentStep === 0 && <div ref={generalSectionRef} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_9rem_1fr]">
-              <div className="space-y-1">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Título <span className="text-rose-500">*</span></p>
+          {currentStep === 0 && <div ref={generalSectionRef} className="space-y-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="space-y-1.5">
+                <p className="text-xs font-semibold text-[#20212B]">Título <span className="text-rose-500">*</span></p>
                 <Input
                   value={title}
                   onChange={(event) => setTitle(event.target.value)}
                   placeholder="Entregable rápido"
-                  className="h-11 rounded-xl border-slate-200 bg-slate-50 text-sm font-semibold"
+                  className="h-10 rounded-xl border-[#E9E5E7] bg-white text-sm font-normal text-[#20212B]"
                   maxLength={120}
                 />
               </div>
-              <div className="space-y-1">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Fecha</p>
-                <Input
-                  type="date"
-                  value={deliveryDate}
-                  onChange={(event) => setDeliveryDate(event.target.value)}
-                  className="h-11 appearance-none rounded-xl border-slate-200 bg-slate-50 text-sm [&::-webkit-calendar-picker-indicator]:hidden"
-                />
-              </div>
-              <div className="space-y-1">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Hashtags</p>
+              <div className="space-y-1.5">
+                <p className="text-xs font-semibold text-[#20212B]">Hashtags</p>
                 <TagInput
                   value={quickHashtags.split(",").map((tag) => tag.trim()).filter(Boolean)}
                   onChange={(tags) => setQuickHashtags(tags.join(", "))}
                   fetchSuggestionsUrl={`${getApiUrl()}/tags`}
-                  helperText="Selecciona una sugerencia o presiona Enter para usar uno personalizado."
+                  helperText=""
                   placeholder="Ej: keto, hipertrofia"
+                  className="h-10 rounded-xl border-[#E9E5E7] bg-white text-xs font-normal text-[#20212B]"
                 />
               </div>
             </div>
             <div className="mt-4 space-y-1">
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Descripción</p>
+              <p className="text-xs font-semibold text-[#20212B]">Descripción</p>
               <Textarea
                 value={quickDescription}
                 onChange={(event) => setQuickDescription(event.target.value)}
-                className="min-h-[72px] rounded-xl border-slate-200 bg-slate-50 text-sm"
+                className="min-h-[72px] rounded-xl border-[#E9E5E7] bg-white text-xs font-normal text-[#20212B]"
                 placeholder="Notas internas sobre este entregable..."
               />
             </div>
             <div className="mt-4 space-y-2">
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Objetivo del plan <span className="normal-case font-medium text-slate-400">(opcional)</span></p>
+              <p className="text-xs font-semibold text-[#20212B]">Objetivo del plan <span className="normal-case font-normal text-slate-400">(opcional)</span></p>
               <Textarea
                 value={planObjective}
                 onChange={(event) => setPlanObjective(event.target.value)}
-                className="min-h-[72px] rounded-xl border-slate-200 bg-slate-50 text-sm"
+                className="min-h-[72px] rounded-xl border-[#E9E5E7] bg-white text-xs font-normal text-[#20212B]"
                 placeholder="Ej: Pérdida de grasa enfocada en alimentos simples"
               />
             </div>
             {selectedPatient?.fullName?.trim() ? (
-              <details className="group mt-4 rounded-2xl border border-slate-200 bg-white" open>
+              <details className="group mt-4 rounded-2xl border border-[#E9E5E7] bg-white shadow-2xs" open>
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-2xl px-4 py-3 select-none [&::-webkit-details-marker]:hidden">
                   <div className="flex items-center gap-2">
-                    <User className="h-4 w-4 text-emerald-600" />
+                    <User className="h-4 w-4 text-[#86A83C]" />
                     <span className="text-sm font-bold text-slate-900">{selectedPatient.fullName}</span>
                   </div>
                   <div className="flex items-center gap-3">
@@ -1843,14 +1835,14 @@ export default function QuickRecipesClient() {
                         setSelectedPatient(null);
                         setIsManualPatientExpanded(false);
                       }}
-                      className="text-xs font-bold text-rose-600 hover:text-rose-700"
+                      className="text-xs font-bold text-rose-600 hover:text-rose-700 cursor-pointer"
                     >
                       Quitar
                     </button>
                     <span className="text-xs font-bold text-slate-400 transition-transform group-open:rotate-180">⌄</span>
                   </div>
                 </summary>
-                <div className="space-y-4 border-t border-slate-100 px-4 pb-4 pt-4">
+                <div className="space-y-4 border-t border-[#F0ECEE] px-4 pb-4 pt-4">
                   <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                     <div className="rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2">
                       <p className="text-[10px] font-black uppercase text-slate-400">Edad</p>
@@ -1896,26 +1888,26 @@ export default function QuickRecipesClient() {
                 </div>
               </details>
             ) : (
-              <div className="mt-5 rounded-2xl border border-dashed border-amber-200 bg-amber-50/60 p-6">
+              <div className="mt-5 rounded-2xl border border-dashed border-[#DDE7B8] bg-[#F0F5DF]/50 p-6">
                 <div className="flex flex-col items-center gap-5 text-center">
                   <div className="max-w-2xl">
-                    <p className="text-sm font-bold leading-6 text-amber-900">Puedes generar platos sin paciente o importar uno para personalizar mejor la IA.</p>
-                    <p className="mt-2 text-xs leading-5 text-amber-800/80">
+                    <p className="text-sm font-bold leading-6 text-slate-900">Puedes generar platos sin paciente o importar uno para personalizar mejor la IA.</p>
+                    <p className="mt-2 text-xs leading-5 text-slate-600">
                       Si importas un paciente, Naty considerará sus restricciones, objetivos y contexto clínico. El PDF sigue requiriendo un paciente vinculado.
                     </p>
                   </div>
                   <div className="flex w-full flex-col justify-center gap-3 sm:w-auto sm:flex-row flex-wrap">
                     <Button
                       variant="outline"
-                      className="h-10 min-w-44 justify-center rounded-xl border-amber-200 bg-white text-amber-700 hover:bg-amber-100"
+                      className="h-10 min-w-44 justify-center rounded-xl border-[#DDE7B8] bg-[#F0F5DF] text-[#668E20] hover:bg-[#E8EFCB] shadow-2xs font-bold cursor-pointer"
                       onClick={openPatientModal}
                     >
-                      <User className="mr-2 h-4 w-4" />
+                      <User className="mr-2 h-4 w-4 text-[#86A83C]" />
                       Importar paciente
                     </Button>
                     <Button
                       variant="outline"
-                      className="h-10 min-w-44 justify-center rounded-xl border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                      className="h-10 min-w-44 justify-center rounded-xl border-[#E9E5E7] bg-white text-slate-700 hover:border-[#86A83C] hover:bg-[#F0F5DF]/60 hover:text-[#668E20] shadow-2xs cursor-pointer"
                       onClick={startManualPatientEntry}
                     >
                       <FileText className="mr-2 h-4 w-4" />
@@ -1923,7 +1915,7 @@ export default function QuickRecipesClient() {
                     </Button>
                     <Button
                       variant="outline"
-                      className="h-10 min-w-44 justify-center rounded-xl border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-semibold"
+                      className="h-10 min-w-44 justify-center rounded-xl border-[#E9E5E7] bg-white text-slate-700 hover:border-[#86A83C] hover:bg-[#F0F5DF]/60 hover:text-[#668E20] shadow-2xs cursor-pointer"
                       onClick={() => {
                         setSelectedPatient({
                           ...createEmptyQuickPatient(),
@@ -1933,7 +1925,7 @@ export default function QuickRecipesClient() {
                         toast.info("Modo recetas generales activado. Puedes continuar generando recetas sin seleccionar un paciente específico.");
                       }}
                     >
-                      <Sparkles className="mr-2 h-4 w-4 text-indigo-600" />
+                      <Sparkles className="mr-2 h-4 w-4 text-[#86A83C]" />
                       Continuar sin paciente
                     </Button>
                   </div>
@@ -2033,17 +2025,17 @@ export default function QuickRecipesClient() {
 
           {currentStep === 1 && <div
             ref={instructionsSectionRef}
-            className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4"
+            className="space-y-4"
           >
             {/* Mode Tabs */}
-            <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+            <div className="flex items-center gap-2 border-b border-[#F0ECEE] pb-3">
               <button
                 type="button"
                 onClick={() => setInstructionsMode("manual")}
                 className={cn(
-                  "flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-black uppercase tracking-wider transition-all cursor-pointer",
+                  "flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer",
                   instructionsMode === "manual"
-                    ? "bg-amber-100 text-amber-900 shadow-2xs"
+                    ? "bg-[#F0F5DF] text-[#668E20] border border-[#DDE7B8] shadow-2xs"
                     : "bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-700",
                 )}
               >
@@ -2054,32 +2046,32 @@ export default function QuickRecipesClient() {
                 type="button"
                 onClick={() => setInstructionsMode("creation")}
                 className={cn(
-                  "flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-black uppercase tracking-wider transition-all cursor-pointer",
+                  "flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer",
                   instructionsMode === "creation"
-                    ? "bg-indigo-100 text-indigo-900 shadow-2xs"
+                    ? "bg-[#F0F5DF] text-[#668E20] border border-[#DDE7B8] shadow-2xs"
                     : "bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-700",
                 )}
               >
-                <Library className="h-3.5 w-3.5 text-indigo-600" />
+                <Library className="h-3.5 w-3.5 text-[#86A83C]" />
                 En base a una creación / dieta
               </button>
             </div>
 
             {/* Creation Mode Banner */}
             {instructionsMode === "creation" && (
-              <div className="rounded-2xl border border-indigo-200 bg-indigo-50/70 p-4">
+              <div className="rounded-2xl border border-[#DDE7B8] bg-[#F0F5DF]/60 p-4">
                 {selectedBaseCreation ? (
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
-                        <span className="rounded-md bg-indigo-200/80 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-indigo-900">
+                        <span className="rounded-md bg-[#E8EFCB] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#668E20]">
                           {selectedBaseCreation.type}
                         </span>
                         <h4 className="text-sm font-bold text-slate-900">
                           {selectedBaseCreation.name}
                         </h4>
                       </div>
-                      <p className="text-xs font-medium text-indigo-950">
+                      <p className="text-xs font-medium text-slate-600">
                         Alimentos extraídos automáticamente de esta creación para pasarle a Naty.
                       </p>
                     </div>
@@ -2089,7 +2081,7 @@ export default function QuickRecipesClient() {
                         variant="outline"
                         size="sm"
                         onClick={() => setIsImportCreationModalOpen(true)}
-                        className="h-8 rounded-xl border-indigo-200 bg-white text-xs font-bold text-indigo-700 hover:bg-indigo-100"
+                        className="h-8 rounded-xl border-[#DDE7B8] bg-white text-xs font-bold text-[#668E20] hover:bg-[#F0F5DF] cursor-pointer"
                       >
                         Cambiar creación
                       </Button>
@@ -2101,7 +2093,7 @@ export default function QuickRecipesClient() {
                           setSelectedBaseCreation(null);
                           setInstructionsMode("manual");
                         }}
-                        className="h-8 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100"
+                        className="h-8 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100 cursor-pointer"
                       >
                         Quitar
                       </Button>
@@ -2109,17 +2101,17 @@ export default function QuickRecipesClient() {
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center py-4 text-center">
-                    <Library className="mb-2 h-8 w-8 text-indigo-400" />
-                    <p className="text-sm font-bold text-indigo-900">
+                    <Library className="mb-2 h-8 w-8 text-[#86A83C]" />
+                    <p className="text-sm font-bold text-slate-900">
                       Importa una dieta o creación existente para ocupar sus alimentos como base
                     </p>
-                    <p className="mt-1 text-xs font-medium text-indigo-950 max-w-md">
+                    <p className="mt-1 text-xs font-medium text-slate-600 max-w-md">
                       Naty tomará los alimentos de la dieta, entregable o recetario seleccionado para sugerirte nuevas recetas.
                     </p>
                     <Button
                       type="button"
                       onClick={() => setIsImportCreationModalOpen(true)}
-                      className="mt-3 rounded-xl bg-indigo-600 font-bold text-white hover:bg-indigo-700"
+                      className="mt-3 rounded-xl bg-[#86A83C] font-bold text-white hover:bg-[#78A82F] shadow-2xs cursor-pointer"
                     >
                       Seleccionar creación / dieta base
                     </Button>
@@ -2258,12 +2250,12 @@ export default function QuickRecipesClient() {
           </div>}
 
           {currentStep === 2 && <div ref={generationSectionRef} className="space-y-4">
-            <div className="rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4">
+            <div className="rounded-2xl border border-[#E9E5E7] bg-white p-5 shadow-2xs">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <h3 className="text-sm font-black uppercase tracking-widest text-indigo-700">
+                <h3 className="text-sm font-bold text-slate-900">
                   Generar con Naty según instrucciones
                 </h3>
-                <div className="text-xs font-semibold text-indigo-700">
+                <div className="text-xs font-bold text-[#668E20] bg-[#F0F5DF] border border-[#DDE7B8] px-2.5 py-0.5 rounded-full">
                   Total a generar: {selectedGenerationTotal}
                 </div>
               </div>
@@ -2271,9 +2263,9 @@ export default function QuickRecipesClient() {
                 {mealGenerationTargets.map((target) => (
                   <label
                     key={target.mealSection}
-                    className="flex items-center justify-between rounded-xl border border-indigo-100 bg-white px-3 py-2"
+                    className="flex items-center justify-between rounded-xl border border-[#E9E5E7] bg-slate-50/60 px-3 py-2 cursor-pointer hover:bg-slate-50 transition-colors"
                   >
-                    <span className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                    <span className="flex items-center gap-2 text-xs font-semibold text-slate-700">
                       <input
                         type="checkbox"
                         checked={target.enabled}
@@ -2284,13 +2276,13 @@ export default function QuickRecipesClient() {
                             event.target.checked,
                           )
                         }
-                        className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                        className="h-4 w-4 rounded border-[#DDE7B8] text-[#86A83C] focus:ring-[#86A83C] accent-[#86A83C] cursor-pointer"
                       />
                       <span>{target.mealSection}</span>
                     </span>
                     <Input
                       type="number"
-                       min="0"
+                      min="0"
                       max="14"
                       value={target.count}
                       disabled={!target.enabled}
@@ -2301,13 +2293,13 @@ export default function QuickRecipesClient() {
                           Number(event.target.value || "1"),
                         )
                       }
-                      className="h-9 w-16 rounded-lg border-slate-200 bg-slate-50 px-2 text-center text-sm"
+                      className="h-8 w-16 rounded-lg border-[#E9E5E7] bg-white px-2 text-center text-xs font-bold text-[#20212B]"
                     />
                   </label>
                 ))}
               </div>
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-indigo-100/80 pt-3">
-                <p className="text-xs font-semibold text-indigo-900">
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-[#F0ECEE] pt-3">
+                <p className="text-xs font-medium text-slate-600">
                   {hasGeneratedDishes && meaningfulDishes.length > 0
                     ? `Ya tienes ${meaningfulDishes.length} plato(s) generado(s). Presiona 'Siguiente' para volver a la lista o vuelve a generar si cambiaste los parámetros.`
                     : "Configura las cantidades y haz clic en 'Siguiente' para generar los platos con Naty."}
@@ -2319,7 +2311,7 @@ export default function QuickRecipesClient() {
                     size="sm"
                     onClick={() => generateWithAi("single")}
                     disabled={isGenerating || isGeneratingWeekly}
-                    className="rounded-xl border-indigo-200 bg-white font-bold text-indigo-700 hover:bg-indigo-50"
+                    className="rounded-xl border-[#DDE7B8] bg-[#F0F5DF] font-bold text-[#668E20] hover:bg-[#E8EFCB] cursor-pointer"
                   >
                     {isGenerating ? "Generando..." : "Regenerar platos con Naty"}
                   </Button>
@@ -2337,9 +2329,9 @@ export default function QuickRecipesClient() {
                     <button
                       key={tab}
                       onClick={() => setActiveMealSectionFilter(tab)}
-                      className={`rounded-xl px-3 py-1.5 text-xs font-bold ${activeMealSectionFilter === tab
-                          ? "bg-slate-900 text-white"
-                          : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"
+                      className={`rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all cursor-pointer ${activeMealSectionFilter === tab
+                          ? "bg-slate-900 text-white shadow-2xs"
+                          : "bg-white text-slate-600 border border-[#E9E5E7] hover:bg-slate-50"
                         }`}
                     >
                       {tab}
@@ -2348,8 +2340,8 @@ export default function QuickRecipesClient() {
                 </div>
 
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <h2 className="flex items-center gap-2 text-sm font-black uppercase tracking-widest text-slate-500">
-                    <ChefHat className="h-4 w-4 text-amber-500" />
+                  <h2 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-600">
+                    <ChefHat className="h-4 w-4 text-[#86A83C]" />
                     Platos ({filteredDishesByCategory.length})
                   </h2>
                   <div className="flex items-center gap-2">
@@ -2363,7 +2355,7 @@ export default function QuickRecipesClient() {
                         }))
                       }
                       disabled={currentCategoryPage <= 1}
-                      className="rounded-xl border-slate-200 text-slate-600 hover:bg-slate-50"
+                      className="rounded-xl border-[#E9E5E7] text-slate-600 hover:border-[#86A83C] hover:bg-[#F0F5DF] hover:text-[#668E20] cursor-pointer"
                     >
                       Anterior
                     </Button>
@@ -2383,7 +2375,7 @@ export default function QuickRecipesClient() {
                         }))
                       }
                       disabled={currentCategoryPage >= totalCategoryPages}
-                      className="rounded-xl border-slate-200 text-slate-600 hover:bg-slate-50"
+                      className="rounded-xl border-[#E9E5E7] text-slate-600 hover:border-[#86A83C] hover:bg-[#F0F5DF] hover:text-[#668E20] cursor-pointer"
                     >
                       Siguiente
                     </Button>
@@ -2400,8 +2392,8 @@ export default function QuickRecipesClient() {
                         key={dish.id}
                         className={`overflow-hidden rounded-2xl border transition-all ${
                           isExpanded
-                            ? "border-amber-300 bg-white shadow-sm ring-1 ring-amber-200/50"
-                            : "border-slate-200 bg-white hover:border-amber-200 hover:shadow-xs"
+                            ? "border-[#DDE7B8] bg-white shadow-2xs ring-1 ring-[#86A83C]/20"
+                            : "border-[#E9E5E7] bg-white hover:border-[#86A83C]/50 hover:shadow-2xs"
                         }`}
                       >
                         {/* Vista Simple (Fila Clickeable Minimalista) */}
@@ -2413,16 +2405,16 @@ export default function QuickRecipesClient() {
                           className="flex cursor-pointer flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
                         >
                           <div className="flex items-center gap-3 min-w-0 flex-1">
-                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-800">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#F0F5DF] text-[#668E20]">
                               <ChefHat className="h-5 w-5" />
                             </div>
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2">
-                                <span className="rounded-full bg-amber-100/80 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-widest text-amber-800">
+                                <span className="rounded-full bg-[#F0F5DF] border border-[#DDE7B8] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#668E20]">
                                   {dish.mealSection || "Plato"}
                                 </span>
                               </div>
-                              <h3 className="mt-0.5 truncate text-base font-bold text-slate-900">
+                              <h3 className="mt-0.5 truncate text-sm font-bold text-slate-900">
                                 {dish.title.trim() || "Plato sin nombre"}
                               </h3>
                             </div>
@@ -2431,16 +2423,16 @@ export default function QuickRecipesClient() {
                           <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
                             {/* Nutrientes: Solo Kcal, Proteínas, Grasas */}
                             <div className="flex items-center gap-2 text-xs">
-                              <div className="rounded-xl border border-slate-100 bg-slate-50 px-2.5 py-1 text-center">
-                                <span className="block font-black text-slate-800">{dish.calories || "0"}</span>
+                              <div className="rounded-xl border border-[#E9E5E7] bg-slate-50 px-2.5 py-1 text-center">
+                                <span className="block font-bold text-slate-800">{dish.calories || "0"}</span>
                                 <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Kcal</span>
                               </div>
-                              <div className="rounded-xl border border-slate-100 bg-slate-50 px-2.5 py-1 text-center">
-                                <span className="block font-black text-slate-800">{dish.protein || "0"}g</span>
+                              <div className="rounded-xl border border-[#E9E5E7] bg-slate-50 px-2.5 py-1 text-center">
+                                <span className="block font-bold text-slate-800">{dish.protein || "0"}g</span>
                                 <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Prot.</span>
                               </div>
-                              <div className="rounded-xl border border-slate-100 bg-slate-50 px-2.5 py-1 text-center">
-                                <span className="block font-black text-slate-800">{dish.fats || "0"}g</span>
+                              <div className="rounded-xl border border-[#E9E5E7] bg-slate-50 px-2.5 py-1 text-center">
+                                <span className="block font-bold text-slate-800">{dish.fats || "0"}g</span>
                                 <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Grasas</span>
                               </div>
                             </div>
@@ -2451,7 +2443,7 @@ export default function QuickRecipesClient() {
                                 e.stopPropagation();
                                 setDishToDelete(dish);
                               }}
-                              className="rounded-xl p-2 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600"
+                              className="rounded-xl p-2 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600 cursor-pointer"
                               title="Eliminar plato"
                             >
                               <Trash2 className="h-4 w-4" />
@@ -2747,24 +2739,23 @@ export default function QuickRecipesClient() {
           </div>}
 
           {currentStep === 4 && (
-            <section className="space-y-5 rounded-3xl border border-slate-200 bg-white p-10 shadow-sm">
+            <section className="space-y-4">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-600">Resumen del recetario</p>
-                <h2 className="mt-2 text-xl font-black text-slate-900">Revisa tu entrega antes de continuar</h2>
-                <p className="mt-1 text-sm text-slate-500">Puedes volver a cualquier etapa desde el indicador superior.</p>
+                <h2 className="text-base sm:text-lg font-bold text-slate-900">Revisa tu entrega antes de continuar</h2>
+                <p className="text-xs text-slate-500">Puedes volver a cualquier etapa desde el indicador superior.</p>
               </div>
               <div className="grid gap-3 md:grid-cols-2">
-                <div className="rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-indigo-600">Paciente</p>
+                <div className="rounded-2xl border border-[#E9E5E7] bg-white p-4 shadow-2xs">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Paciente</p>
                   <p className="mt-1 text-sm font-bold text-slate-900">{selectedPatient?.fullName || "Sin paciente vinculado"}</p>
                 </div>
-                <div className="rounded-2xl border border-amber-100 bg-amber-50/60 p-4">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-amber-600">Platos</p>
+                <div className="rounded-2xl border border-[#E9E5E7] bg-white p-4 shadow-2xs">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Platos</p>
                   <p className="mt-1 text-sm font-bold text-slate-900">{meaningfulDishes.length} preparados</p>
                 </div>
-                <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4 md:col-span-2">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-emerald-600">Indicaciones</p>
-                  <p className="mt-1 text-sm font-semibold text-slate-800">
+                <div className="rounded-2xl border border-[#DDE7B8] bg-[#F0F5DF] p-4 md:col-span-2 shadow-2xs">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-[#668E20]">Indicaciones</p>
+                  <p className="mt-1 text-xs font-semibold text-[#668E20]">
                     {skipInstructions
                       ? "Naty completará las indicaciones con la información disponible."
                       : `${parseLines(allowedFoodsMainText).length} alimentos permitidos · ${parseLines(restrictedFoodsText).length} restricciones`}
@@ -2775,7 +2766,7 @@ export default function QuickRecipesClient() {
                 <Button
                   onClick={handleExportPdf}
                   disabled={isExportingPdf || isExportDisabled}
-                  className="h-11 rounded-2xl bg-emerald-600 px-6 font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                  className="h-10 rounded-xl bg-[#86A83C] px-5 font-bold text-white hover:bg-[#78A82F] shadow-2xs cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {isExportingPdf ? "Guardando y generando..." : "Descargar y guardar PDF"}
                 </Button>

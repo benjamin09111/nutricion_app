@@ -431,13 +431,13 @@ export function DietRecipesSection({
       ) : null}
 
       {/* Sección Única: Estructura de Comidas y Platos (Estilo NutriNet / Entregables) */}
-      <div className="space-y-5 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="space-y-5">
         {/* Selector de Categorías de Comida del Día (Checkboxes) */}
-        <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 space-y-2.5">
+        <div className="rounded-2xl border border-[#E9E5E7] bg-white p-4 space-y-2.5 shadow-2xs">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <Utensils className="h-4 w-4 text-emerald-600" />
-              <span className="text-xs font-black uppercase tracking-wider text-slate-800">
+              <Utensils className="h-4 w-4 text-[#86A83C]" />
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
                 Categorías de comida en el día
               </span>
             </div>
@@ -458,8 +458,8 @@ export function DietRecipesSection({
                   key={cat.id}
                   className={`group flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-bold transition-all ${
                     isChecked
-                      ? "border-emerald-300 bg-emerald-50/90 text-emerald-900 shadow-2xs"
-                      : "border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50"
+                      ? "border-[#DDE7B8] bg-[#F0F5DF] text-[#668E20] shadow-2xs"
+                      : "border-[#E9E5E7] bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50"
                   }`}
                 >
                   <input
@@ -472,11 +472,11 @@ export function DietRecipesSection({
                         setEnabledCategories((prev) => prev.filter((id) => id !== cat.id));
                       }
                     }}
-                    className="h-4 w-4 rounded-md border-slate-300 text-emerald-600 focus:ring-emerald-500 accent-emerald-600 cursor-pointer"
+                    className="h-4 w-4 rounded-md border-[#DDE7B8] text-[#86A83C] focus:ring-[#86A83C] accent-[#86A83C] cursor-pointer"
                   />
                   <span>{cat.label}</span>
                   {mealsCountInCat > 0 && (
-                    <span className="rounded-full bg-emerald-200/80 px-1.5 py-0.2 text-[10px] font-black text-emerald-900">
+                    <span className="rounded-full bg-[#E8EFCB] px-1.5 py-0.2 text-[10px] font-black text-[#668E20]">
                       {mealsCountInCat}
                     </span>
                   )}
@@ -487,7 +487,7 @@ export function DietRecipesSection({
         </div>
 
         {/* Subheader & Naty IA trigger */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#F0ECEE] pb-4">
           <div className="flex flex-wrap items-center gap-2">
             {availableTabs.map((tab) => {
               const count =
@@ -508,8 +508,8 @@ export function DietRecipesSection({
                   }}
                   className={`rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all cursor-pointer ${
                     activeTab === tab
-                      ? "bg-slate-900 text-white shadow-xs"
-                      : "bg-slate-50 text-slate-600 hover:bg-slate-100"
+                      ? "bg-slate-900 text-white shadow-2xs"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200/70"
                   }`}
                 >
                   {tab} ({count})
@@ -524,9 +524,9 @@ export function DietRecipesSection({
                 type="button"
                 onClick={() => setIsDishesModalOpen(true)}
                 disabled={isGeneratingAiDishes}
-                className="h-9 rounded-xl bg-emerald-600 text-xs font-bold text-white hover:bg-emerald-700 shadow-xs cursor-pointer transition-all"
+                className="h-9 rounded-xl bg-[#86A83C] text-xs font-bold text-white hover:bg-[#78A82F] shadow-2xs cursor-pointer transition-all"
               >
-                <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-200" />
+                <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-100" />
                 {isGeneratingAiDishes ? "Nati está cocinando..." : "Generar platos con Naty IA"}
               </Button>
             )}
@@ -536,9 +536,9 @@ export function DietRecipesSection({
                 type="button"
                 onClick={onImportRecipe}
                 variant="outline"
-                className="h-9 rounded-xl border-indigo-200 bg-white text-xs font-bold text-indigo-700 hover:bg-indigo-50 shadow-xs cursor-pointer"
+                className="h-9 rounded-xl border border-[#E9E5E7] bg-white text-xs font-bold text-slate-700 hover:border-[#86A83C] hover:bg-[#F0F5DF] hover:text-[#668E20] shadow-2xs cursor-pointer"
               >
-                <Filter className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
+                <Filter className="mr-1.5 h-3.5 w-3.5 text-slate-500" />
                 Importar receta
               </Button>
             )}
@@ -557,7 +557,7 @@ export function DietRecipesSection({
             return (
               <details
                 key={cat.id}
-                className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden transition-all duration-300"
+                className="group bg-white rounded-2xl border border-[#E9E5E7] shadow-2xs overflow-hidden transition-all duration-300"
                 open={isCatOpen}
                 onToggle={(e) => {
                   const isOpen = e.currentTarget.open;
@@ -568,9 +568,9 @@ export function DietRecipesSection({
                   );
                 }}
               >
-                <summary className="list-none cursor-pointer select-none bg-slate-50/80 p-4 border-b border-slate-100 flex items-center justify-between [&::-webkit-details-marker]:hidden hover:bg-slate-100/70 transition-colors">
+                <summary className="list-none cursor-pointer select-none bg-slate-50/80 p-4 border-b border-[#F0ECEE] flex items-center justify-between [&::-webkit-details-marker]:hidden hover:bg-slate-100/70 transition-colors">
                   <div className="flex items-center gap-3">
-                    <ChevronDown className="h-4 w-4 text-emerald-600 transition-transform group-open:rotate-180" />
+                    <ChevronDown className="h-4 w-4 text-[#86A83C] transition-transform group-open:rotate-180" />
                     <div className="flex items-center gap-2">
                       <h3 className="font-bold text-slate-800 uppercase tracking-wide text-xs">
                         {cat.label}

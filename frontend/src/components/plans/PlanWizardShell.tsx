@@ -84,23 +84,29 @@ export function PlanWizardShell({
   return (
     <div ref={wizardRef} className={cn("scroll-mt-24 space-y-6 flex-1", className)}>
       {/* Control Superior */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full pb-4 border-b border-slate-100">
+      <div className="space-y-4 w-full pb-4 border-b border-[#E9E5E7]/70">
         <WizardStepper
           steps={steps}
           currentStep={currentStep}
           completedSteps={completedSteps}
           onStepClick={handleStepClick}
           lockFutureSteps={lockFutureSteps}
-          className="mb-0 pb-0"
+          className="w-full"
         />
-        <FormNavigationFooter
-          onBack={onBack}
-          onNext={handleNext}
-          isFirstStep={currentStep === 0}
-          nextDisabled={nextDisabled}
-          nextLabel={nextLabel || (isLastStep ? "Finalizar" : "Continuar")}
-          hideNext={hideNextOnLastStep && isLastStep}
-        />
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-xs text-[#626573] font-medium">
+            Paso {currentStep + 1} de {steps.length}: <strong className="text-[#20212B] font-semibold">{steps[currentStep]}</strong>
+          </span>
+          <FormNavigationFooter
+            onBack={onBack}
+            onNext={handleNext}
+            isFirstStep={currentStep === 0}
+            nextDisabled={nextDisabled}
+            nextLabel={nextLabel || (isLastStep ? "Finalizar" : "Continuar")}
+            hideNext={hideNextOnLastStep && isLastStep}
+            className="mt-0 w-auto"
+          />
+        </div>
       </div>
 
       {/* Contenido del Paso */}

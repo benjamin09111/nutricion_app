@@ -14,6 +14,7 @@ import {
   X,
   Loader2,
   NotebookText,
+  Search,
   Share2,
   User,
 } from "lucide-react";
@@ -21,7 +22,6 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
-import { Filtros_B } from "@/components/ui/Filtros_B";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
@@ -31,6 +31,7 @@ import { Creation, CreationType, useCreations } from "@/features/creations";
 import { Pagination } from "@/components/ui/Pagination";
 import { RecordsTable, type Column } from "@/components/shared/RecordsTable";
 import { SearchableSelect } from "@/components/ui/SearchableSelect";
+import { Select } from "@/components/ui/Select";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { fetchApi } from "@/lib/api-base";
@@ -427,9 +428,9 @@ export default function CreationsClient({
       case CreationType.RECIPE:
         return <ChefHat className="w-4 h-4 text-amber-500" />;
       case CreationType.FAST_DELIVERABLE:
-        return <NotebookText className="w-4 h-4 text-fuchsia-500" />;
+        return <NotebookText className="w-4 h-4 text-[#7842D4]" />;
       case CreationType.PAUTAS:
-        return <NotebookText className="w-4 h-4 text-purple-500" />;
+        return <NotebookText className="w-4 h-4 text-[#668E20]" />;
       default:
         return <Folder className="w-4 h-4 text-slate-400" />;
     }
@@ -438,17 +439,17 @@ export default function CreationsClient({
   const getTypeStyles = (type: CreationType) => {
     switch (type) {
       case CreationType.DIET:
-        return "bg-blue-50 text-blue-700 ring-blue-600/20";
+        return "bg-blue-50 text-blue-700 border border-blue-200/80";
       case CreationType.SHOPPING_LIST:
-        return "bg-emerald-50 text-emerald-700 ring-emerald-600/20";
+        return "bg-emerald-50 text-emerald-700 border border-emerald-200/80";
       case CreationType.RECIPE:
-        return "bg-amber-50 text-amber-700 ring-amber-600/20";
+        return "bg-amber-50 text-amber-700 border border-amber-200/80";
       case CreationType.FAST_DELIVERABLE:
-        return "bg-fuchsia-50 text-fuchsia-700 ring-fuchsia-600/20";
+        return "bg-purple-50 text-[#7842D4] border border-purple-200/80";
       case CreationType.PAUTAS:
-        return "bg-purple-50 text-purple-700 ring-purple-600/20";
+        return "bg-[#F0F5DF] text-[#668E20] border border-[#DDE7B8]";
       default:
-        return "bg-slate-50 text-slate-600 ring-slate-500/10";
+        return "bg-slate-50 text-slate-600 border border-slate-200/80";
     }
   };
 
@@ -527,14 +528,15 @@ export default function CreationsClient({
       render: (item) => (
         <div className="flex items-center gap-3">
           <div className={cn(
-            "p-2 rounded-lg bg-slate-50 border border-slate-100",
-            item.type === CreationType.DIET && "group-hover:bg-blue-50 group-hover:border-blue-100",
-            item.type === CreationType.SHOPPING_LIST && "group-hover:bg-emerald-50 group-hover:border-emerald-100",
-            item.type === CreationType.RECIPE && "group-hover:bg-amber-50 group-hover:border-amber-100",
+            "p-2 rounded-xl bg-slate-50 border border-[#E9E5E7]",
+            item.type === CreationType.DIET && "group-hover:bg-blue-50/60",
+            item.type === CreationType.SHOPPING_LIST && "group-hover:bg-emerald-50/60",
+            item.type === CreationType.RECIPE && "group-hover:bg-amber-50/60",
+            item.type === CreationType.FAST_DELIVERABLE && "group-hover:bg-purple-50/60",
           )}>
             {getTypeIcon(item.type)}
           </div>
-          <span className="text-sm font-bold text-slate-700 group-hover:text-slate-900 transition-colors">
+          <span className="text-sm font-semibold text-[#20212B] group-hover:text-[#7842D4] transition-colors">
             {item.name}
           </span>
         </div>
@@ -544,14 +546,12 @@ export default function CreationsClient({
       header: "Paciente",
       render: (item) => (
         (item as any).patientName ? (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-bold border border-indigo-100">
-            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-purple-50 text-[#7842D4] text-xs font-semibold border border-purple-200/80">
+            <User className="w-3 h-3" />
             {(item as any).patientName}
           </span>
         ) : (
-          <span className="text-xs text-slate-400 italic">Sin paciente</span>
+          <span className="text-xs text-[#848792] italic">Sin paciente</span>
         )
       ),
     },
@@ -563,13 +563,13 @@ export default function CreationsClient({
             item.tags.map((tag) => (
               <span
                 key={tag}
-                className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200"
+                className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-[#626573]"
               >
                 #{tag}
               </span>
             ))
           ) : (
-            <span className="text-xs text-slate-400 italic">
+            <span className="text-xs text-[#848792] italic">
               Sin etiquetas
             </span>
           )}
@@ -581,7 +581,7 @@ export default function CreationsClient({
       render: (item) => (
         <span
           className={cn(
-            "inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset",
+            "inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold",
             getTypeStyles(item.type),
           )}
         >
@@ -592,7 +592,7 @@ export default function CreationsClient({
     {
       header: "Fecha",
       render: (item) => (
-        <span className="text-sm text-slate-500 font-medium whitespace-nowrap">
+        <span className="text-xs text-[#626573] font-medium whitespace-nowrap">
           {item.createdAt}
         </span>
       ),
@@ -604,7 +604,7 @@ export default function CreationsClient({
         <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
           <button
             onClick={() => handleInfoClick(item)}
-            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all cursor-pointer"
+            className="p-1.5 text-[#848792] hover:text-[#7842D4] hover:bg-purple-50 rounded-lg transition-all cursor-pointer"
             title="Más info"
           >
             <Info className="h-4 w-4" />
@@ -612,7 +612,7 @@ export default function CreationsClient({
           {item.type !== CreationType.FAST_DELIVERABLE && (
             <button
               onClick={() => handleViewClick(item)}
-              className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all cursor-pointer"
+              className="p-1.5 text-[#848792] hover:text-[#7842D4] hover:bg-purple-50 rounded-lg transition-all cursor-pointer"
               title="Previsualizar"
             >
               <Eye className="h-4 w-4" />
@@ -620,14 +620,14 @@ export default function CreationsClient({
           )}
           <button
             onClick={() => handleEdit(item)}
-            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all cursor-pointer"
+            className="p-1.5 text-[#848792] hover:text-[#7842D4] hover:bg-purple-50 rounded-lg transition-all cursor-pointer"
             title="Editar"
           >
             <Edit className="h-4 w-4" />
           </button>
           <button
             onClick={() => handleDownloadClick(item)}
-            className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all cursor-pointer"
+            className="p-1.5 text-[#848792] hover:text-[#668E20] hover:bg-[#F0F5DF] rounded-lg transition-all cursor-pointer"
             title="Descargar / Exportar"
           >
             <Download className="h-4 w-4" />
@@ -637,10 +637,10 @@ export default function CreationsClient({
               onClick={() => handleShareClick(item)}
               disabled={isSharing === item.id}
               className={cn(
-                "p-2 rounded-xl transition-all cursor-pointer",
+                "p-1.5 rounded-lg transition-all cursor-pointer",
                 sharedCreationIdSet.has(item.id)
-                  ? "text-emerald-600 bg-emerald-50 animate-pulse hover:bg-emerald-100"
-                  : "text-slate-400 hover:text-indigo-600 hover:bg-indigo-50",
+                  ? "text-[#668E20] bg-[#F0F5DF] animate-pulse hover:bg-[#E4ECC8]"
+                  : "text-[#848792] hover:text-[#7842D4] hover:bg-purple-50",
                 isSharing === item.id && "cursor-not-allowed"
               )}
               title="Compartir con el paciente"
@@ -650,10 +650,10 @@ export default function CreationsClient({
           )}
           {(item.type !== CreationType.SCREENING_TEST || canDeleteScreeningTests) && (
             <>
-              <div className="w-px h-4 bg-slate-200 mx-1" />
+              <div className="w-px h-3.5 bg-[#E9E5E7] mx-0.5" />
               <button
                 onClick={() => handleDelete(item.id)}
-                className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all cursor-pointer"
+                className="p-1.5 text-[#848792] hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all cursor-pointer"
                 title="Eliminar"
               >
                 <Trash2 className="h-4 w-4" />
@@ -668,77 +668,164 @@ export default function CreationsClient({
   const content = (
     <div className="space-y-6">
       {!isInsidePatientDetail && (
-        <div className="flex items-start gap-3 px-4 py-3 rounded-2xl bg-indigo-50 border border-indigo-100 text-indigo-800 text-xs font-semibold">
-          <svg className="w-4 h-4 shrink-0 mt-0.5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20A10 10 0 0012 2z" />
-          </svg>
-          <span>
-            <strong>Recomendación de uso:</strong> crear plantillas generales para simplemente reutilizarlas.
-          </span>
-        </div>
+        <>
+          {/* Barra de Indicadores — Idéntica a Pacientes, Consultas y Alimentos con 3 columnas */}
+          <div className="relative overflow-hidden bg-white border border-[#E9E5E7] rounded-[18px] p-5 sm:p-6 min-h-[110px] shadow-2xs">
+            <svg
+              className="absolute left-0 top-0 h-full w-36 text-[#B0C76F] pointer-events-none select-none opacity-15"
+              viewBox="0 0 120 100"
+              preserveAspectRatio="none"
+              fill="currentColor"
+            >
+              <path d="M0 0 C 45 15, 65 55, 25 100 L 0 100 Z" />
+              <path d="M0 20 C 35 35, 45 75, 10 100 L 0 100 Z" opacity="0.6" />
+            </svg>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 divide-y md:divide-y-0 md:divide-x divide-[#F0ECEE] relative z-10">
+              {/* 1. Creaciones totales */}
+              <div className="flex items-center justify-between sm:px-3">
+                <div className="flex items-center gap-3.5">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#F0F5DF] text-[#668E20]">
+                    <Folder className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-[#626573]">Total creaciones</p>
+                    <h3 className="text-3xl font-semibold text-[#20212B] tracking-tight leading-none mt-1">
+                      {localCreations.length}
+                    </h3>
+                  </div>
+                </div>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#F0F5DF] text-[#668E20] border border-[#DDE7B8]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#86A83C] animate-pulse" />
+                  <span>Historial</span>
+                </span>
+              </div>
+
+              {/* 2. Pacientes con pautas */}
+              <div className="flex items-center justify-between pt-4 md:pt-0 md:px-6">
+                <div className="flex items-center gap-3.5">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-purple-50 text-[#7842D4]">
+                    <User className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-[#626573]">Pacientes con pautas</p>
+                    <h3 className="text-3xl font-semibold text-[#20212B] tracking-tight leading-none mt-1">
+                      {new Set(localCreations.map((c: any) => c.patientName).filter(Boolean)).size}
+                    </h3>
+                  </div>
+                </div>
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-50 text-[#7842D4] border border-purple-200">
+                  En seguimiento
+                </span>
+              </div>
+
+              {/* 3. Módulo Rápido */}
+              <div className="flex items-center justify-between pt-4 md:pt-0 md:px-6">
+                <div className="flex items-center gap-3.5">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#F3ECFC] text-[#7842D4]">
+                    <NotebookText className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-[#626573]">Módulo Rápido</p>
+                    <h3 className="text-3xl font-semibold text-[#20212B] tracking-tight leading-none mt-1">
+                      {localCreations.filter((c) => c.type === CreationType.FAST_DELIVERABLE || c.type === CreationType.PAUTAS).length}
+                    </h3>
+                  </div>
+                </div>
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#F3ECFC] text-[#7842D4] border border-[#E4D5FA]">
+                  100% disponibles
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Recomendación de uso */}
+          <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-[#F8F9FB] border border-[#E9E5E7] text-[#626573] text-xs font-medium">
+            <Info className="w-4 h-4 text-[#7842D4] shrink-0" />
+            <span>
+              <strong className="text-[#20212B]">Recomendación de uso:</strong> puedes crear plantillas generales en el módulo Rápido para reutilizarlas con tus pacientes.
+            </span>
+          </div>
+        </>
       )}
 
-      <div className="space-y-4">
-        <Filtros_B
-          searchValue={searchTerm}
-          onSearchChange={setSearchTerm}
-          searchPlaceholder="Buscar por nombre..."
-          rightContent={
-            <>
-              {!isInsidePatientDetail && (
-                <div className="relative w-full sm:w-52">
-                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                    <svg className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
-                  </div>
-                  <Input
-                    type="search"
-                    placeholder="Filtrar por paciente..."
-                    className="pl-10 h-10 rounded-xl bg-white border border-slate-200 focus:border-indigo-500 transition-all w-full font-medium text-sm"
-                    value={patientFilter}
-                    onChange={(e) => setPatientFilter(e.target.value)}
-                  />
-                  {patientFilter && (
-                    <button
-                      onClick={() => setPatientFilter("")}
-                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 cursor-pointer"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  )}
+      {/* Buscador y Filtros — Una única fila horizontal uniforme de 44px */}
+      <div className="space-y-2">
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
+          <div className="relative flex-1 min-w-0">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[#848792]" />
+            <input
+              type="search"
+              placeholder="Buscar por nombre..."
+              className="h-11 w-full rounded-xl border border-[#E9E5E7] bg-white pl-10 pr-4 text-sm font-medium text-[#20212B] placeholder:text-[#848792] focus:outline-none focus:ring-2 focus:ring-[#7842D4]/15 focus:border-[#7842D4] transition-all shadow-2xs"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+
+          <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+            {!isInsidePatientDetail && (
+              <div className="relative w-full sm:w-52">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                  <User className="h-4 w-4 text-[#848792]" />
                 </div>
-              )}
-              <select
-                value={selectedType}
-                onChange={(e) => setSelectedType(e.target.value as any)}
-                className="h-10 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-600 outline-none focus:border-indigo-500 transition-all cursor-pointer w-full sm:w-auto"
-              >
-                <option value="Todos">Todos los Tipos</option>
-                <option value={CreationType.DIET}>Dietas</option>
-                <option value={CreationType.SHOPPING_LIST}>Listas de Compra</option>
-                <option value={CreationType.RECIPE}>Recetas</option>
-                <option value={CreationType.FAST_DELIVERABLE}>Entregables Rápidos</option>
-              </select>
-              <div className="w-full sm:w-56">
-                <SearchableSelect
-                  options={[
-                    { value: "Todos", label: "Todas las etiquetas" },
-                    ...allTags.map((tag) => ({ value: tag, label: tag })),
-                  ]}
-                  value={selectedTag}
-                  onChange={setSelectedTag}
-                  placeholder="Etiquetas..."
-                  triggerClassName="h-10 rounded-xl border border-slate-200 bg-white pl-4 pr-10 font-medium text-sm"
+                <input
+                  type="search"
+                  placeholder="Filtrar por paciente..."
+                  className="h-11 w-full rounded-xl border border-[#E9E5E7] bg-white pl-10 pr-8 text-sm font-medium text-[#20212B] placeholder:text-[#848792] focus:outline-none focus:ring-2 focus:ring-[#7842D4]/15 focus:border-[#7842D4] transition-all shadow-2xs"
+                  value={patientFilter}
+                  onChange={(e) => setPatientFilter(e.target.value)}
                 />
+                {patientFilter && (
+                  <button
+                    onClick={() => setPatientFilter("")}
+                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 cursor-pointer"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
               </div>
-            </>
-          }
-        />
+            )}
+
+            <div className="w-full sm:w-52">
+              <Select
+                value={selectedType}
+                onChange={(val) => setSelectedType(val as any)}
+                options={[
+                  { value: "Todos", label: "Todos los Tipos" },
+                  { value: CreationType.DIET, label: "Dietas" },
+                  { value: CreationType.SHOPPING_LIST, label: "Listas de Compra" },
+                  { value: CreationType.RECIPE, label: "Recetas" },
+                  { value: CreationType.FAST_DELIVERABLE, label: "Rápido" },
+                ]}
+                triggerClassName="h-11 rounded-xl border-[#E9E5E7] bg-white text-sm font-medium text-[#20212B] shadow-2xs"
+              />
+            </div>
+
+            <div className="w-full sm:w-56">
+              <SearchableSelect
+                options={[
+                  { value: "Todos", label: "Todas las etiquetas" },
+                  ...allTags.map((tag) => ({ value: tag, label: tag })),
+                ]}
+                value={selectedTag}
+                onChange={setSelectedTag}
+                placeholder="Etiquetas..."
+                triggerClassName="h-11 rounded-xl border border-[#E9E5E7] bg-white pl-4 pr-10 font-medium text-sm text-[#20212B] shadow-2xs"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="px-1 pt-1">
+          <p className="text-xs font-semibold text-[#626573]">
+            <span className="font-bold text-[#7842D4]">{filteredData.length}</span> creaciones encontradas
+          </p>
+        </div>
       </div>
 
       {/* Desktop Table View */}
-      <div className="hidden lg:block">
+      <div className="hidden lg:block bg-white rounded-2xl border border-[#E9E5E7] shadow-2xs overflow-hidden">
         <RecordsTable
           columns={creationColumns}
           data={paginatedData}
@@ -761,13 +848,13 @@ export default function CreationsClient({
               </div>
             </div>
           }
-          rowClassName="hover:bg-emerald-50/20 transition-colors group"
+          rowClassName="hover:bg-[#F8F9FB] transition-colors group cursor-pointer"
           footer={
-            <>
-              <p className="text-xs font-bold text-slate-500">
+            <div className="flex items-center justify-between px-4 py-3 border-t border-[#E8EBF0]">
+              <p className="text-xs font-semibold text-[#626573]">
                 Mostrando{" "}
-                <span className="text-slate-900">{paginatedData.length}</span> de{" "}
-                <span className="text-slate-900">{filteredData.length}</span>{" "}
+                <span className="font-bold text-[#20212B]">{paginatedData.length}</span> de{" "}
+                <span className="font-bold text-[#20212B]">{filteredData.length}</span>{" "}
                 resultados
               </p>
               <div className="flex items-center gap-2">
@@ -779,7 +866,7 @@ export default function CreationsClient({
                   />
                 )}
               </div>
-            </>
+            </div>
           }
         />
       </div>
@@ -1158,16 +1245,37 @@ export default function CreationsClient({
     return (
       <ModuleLayout
         title="Mis Creaciones"
-        description="Aquí encontrarás todo lo que has creado para tus pacientes, puedes filtrar, buscar y volver a descargar tus creaciones que hayas guardado, ya sea en el módulo de entregable personalizable o en entregables rápidos."
-        rightContent={
-          hasResolvedCreationUsage ? (
-            <UsageLimitBadge
-              label="Creaciones"
-              usage={creationsUsed}
-              limit={creationsLimit}
-            />
-          ) : null
+        description={
+          <div className="space-y-1">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-[#668E20] -mt-0.5 mb-0.5">
+              <Folder className="w-4 h-4 text-[#86A83C]" />
+              <span className="tracking-wider uppercase text-[10px] font-bold">Documentos y Pautas Clínicas</span>
+            </div>
+            <p className="text-sm sm:text-[15px] text-[#626573] leading-relaxed">
+              Consulta, gestiona y vuelve a descargar todas las pautas, dietas y recetas creadas para tus pacientes.
+            </p>
+          </div>
         }
+        rightContent={
+          <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
+            {hasResolvedCreationUsage ? (
+              <UsageLimitBadge
+                label="Creaciones"
+                usage={creationsUsed}
+                limit={creationsLimit}
+              />
+            ) : null}
+            <button
+              type="button"
+              onClick={() => router.push("/dashboard/rapido")}
+              className="h-11 px-5 rounded-xl bg-[#7842D4] hover:bg-[#6936C8] text-white text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 shrink-0 shadow-2xs active:scale-[0.99] cursor-pointer"
+            >
+              <NotebookText className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span>Nuevo en Rápido</span>
+            </button>
+          </div>
+        }
+        className="pb-16 relative"
       >
         {content}
       </ModuleLayout>

@@ -9,10 +9,7 @@ import { useRouter } from "next/navigation";
 import { fetchApi } from "@/lib/api-base";
 import {
   Check,
-  Zap,
   ShieldCheck,
-  Monitor,
-  Sparkles,
   Menu,
   X,
   ChevronDown,
@@ -21,8 +18,7 @@ import {
   HelpCircle,
   HeartPulse,
   Star,
-  ArrowRight,
-  Lock,
+  Sparkles,
   Rocket,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -32,21 +28,14 @@ import { JsonLd } from "@/components/seo/JsonLd";
 import { getMembershipFeatureDisplay } from "@/features/memberships/utils/feature-format";
 import { type MembershipPlan } from "@/features/memberships/services/membership.service";
 import { sortPlansForLanding } from "@/features/memberships/utils/sort-plans";
-import LandingContactForm from "@/components/landing/LandingContactForm";
-import { RotatingWord } from "@/components/landing/RotatingWord";
 import { CookieBanner } from "@/components/landing/CookieBanner";
-import { TestimonialsSection } from "@/components/landing/TestimonialsSection";
 import {
-  AboutNutriNetModal,
   type AboutSectionTab,
 } from "@/components/landing/AboutNutriNetModal";
 import { AboutNutriNetNavExtension } from "@/components/landing/AboutNutriNetNavExtension";
 import { useLandingTracker } from "@/hooks/useLandingTracker";
 import { HeroSection } from "@/components/landing/HeroSection";
-import { ComparisonMatrixSection } from "@/components/landing/ComparisonMatrixSection";
-import { ValidationSocialProofSection } from "@/components/landing/ValidationSocialProofSection";
 import { BetaLeadCaptureSection } from "@/components/landing/BetaLeadCaptureSection";
-import { FloatingJumpChileButton } from "@/components/landing/FloatingJumpChileButton";
 
 const toMembershipPlanArray = (value: unknown): MembershipPlan[] => {
   let list: MembershipPlan[] = [];
@@ -67,26 +56,11 @@ export default function LandingPage() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [plans, setPlans] = useState<MembershipPlan[]>([]);
   const [isAboutDropdownOpen, setIsAboutDropdownOpen] = useState(false);
-  const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
-  const [aboutModalTab, setAboutModalTab] = useState<AboutSectionTab>("objetivos");
   const headerRef = useRef<HTMLElement>(null);
-
-  const handleHeroCtaClick = () => {
-    trackEvent("HERO_CTA_CLICK", { button: "hero_primary" });
-    const targetElement = document.getElementById("registro");
-    if (targetElement) {
-      const headerOffset = 80;
-      const elementPosition = targetElement.getBoundingClientRect().top;
-      const offsetPosition = elementPosition + window.scrollY - headerOffset;
-      window.scrollTo({ top: offsetPosition, behavior: "smooth" });
-      const input = document.getElementById("lead-fullname");
-      if (input) input.focus();
-    }
-  };
 
   const handleExploreFeaturesClick = () => {
     trackEvent("EXPLORE_FEATURES_CLICK");
-    const targetElement = document.getElementById("comparativa");
+    const targetElement = document.getElementById("planes");
     if (targetElement) {
       const headerOffset = 80;
       const elementPosition = targetElement.getBoundingClientRect().top;
@@ -95,13 +69,8 @@ export default function LandingPage() {
     }
   };
 
-
   const handleLeadSubmitted = (leadData: { fullName: string; email: string; practiceArea: string }) => {
     trackEvent("LEAD_CONVERSION_SUCCESS", { practiceArea: leadData.practiceArea });
-  };
-
-  const handleFloatingCtaClick = () => {
-    trackEvent("FLOATING_CTA_CLICK", { source: "floating_jump_chile_button" });
   };
 
   useEffect(() => {
@@ -131,18 +100,11 @@ export default function LandingPage() {
     router.push(`/sobre-nutrinet?tab=${tab}`);
   };
 
-  const { ref: featuresRef, isInView: isFeaturesInView } = useInView({
-    threshold: 0.15,
-  });
   const { ref: pricingRef, isInView: isPricingInView } = useInView({
     threshold: 0.15,
   });
-  const { ref: registrationRef, isInView: isRegistrationInView } = useInView({
-    threshold: 0.1,
-  });
   const visiblePlans = plans.filter((plan) => plan.isActive || plan.isComingSoon);
   const sortedPlans = sortPlansForLanding(visiblePlans);
-  const paidPlan = visiblePlans.find((plan) => Number(plan.price) > 0 && !plan.isComingSoon);
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -229,57 +191,49 @@ export default function LandingPage() {
             role="navigation"
             aria-label="Navegación principal"
           >
-            <Link
-              href="/nutricionistas"
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-[#7c56cb] hover:text-[#6a42b9] transition-all bg-[#a88aed]/10 hover:bg-[#a88aed]/20 px-3.5 py-1.5 rounded-full border border-[#a88aed]/30 shadow-xs cursor-pointer"
-            >
-              <Sparkles className="h-4 w-4 text-[#a88aed]" />
-              Encontrar mi nutricionista
-            </Link>
-
-            {/* Sobre NutriNet Link that expands navbar */}
+            {/* Sobre NutriNet en texto normal/oscuro */}
             <button
               type="button"
               onClick={() => setIsAboutDropdownOpen(!isAboutDropdownOpen)}
               className={cn(
-                "inline-flex items-center gap-1.5 text-sm font-medium transition-all py-2 px-3 rounded-full cursor-pointer",
+                "inline-flex items-center gap-1.5 text-sm font-semibold transition-all py-1.5 px-3 rounded-xl cursor-pointer",
                 isAboutDropdownOpen
-                  ? "bg-[#a88aed] text-white shadow-md shadow-[#a88aed]/20"
-                  : "text-[#a88aed] hover:text-[#8f70d8] hover:bg-[#a88aed]/10"
+                  ? "bg-slate-100 text-slate-900"
+                  : "text-slate-700 hover:text-slate-900 hover:bg-slate-50"
               )}
             >
               Sobre NutriNet
-              <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", isAboutDropdownOpen && "rotate-180")} />
+              <ChevronDown className={cn("h-4 w-4 text-slate-500 transition-transform duration-200", isAboutDropdownOpen && "rotate-180")} />
             </button>
 
             <a
-              href="#comparativa"
-              className="text-sm font-semibold transition-colors duration-200 text-slate-600 hover:text-slate-900"
+              href="#planes"
+              className="text-sm font-semibold transition-colors duration-200 text-slate-700 hover:text-slate-900"
             >
-              Comparativa & Funcionalidades
+              Funcionalidades
             </a>
             <a
               href="#planes"
-              className="text-sm font-semibold transition-colors duration-200 text-slate-600 hover:text-slate-900"
+              className="text-sm font-semibold transition-colors duration-200 text-slate-700 hover:text-slate-900"
             >
               Precios
             </a>
             <Link
               href="/login"
-              className="text-sm font-semibold transition-colors duration-200 text-slate-600 hover:text-slate-900"
+              className="text-sm font-semibold transition-colors duration-200 text-slate-700 hover:text-slate-900"
             >
-              Inicia Sesión
+              Iniciar sesión
             </Link>
-            <a href="#registro" onClick={handleHeroCtaClick}>
-              <Button className="rounded-full h-10 px-6 text-xs font-medium bg-[#a88aed] hover:bg-[#8f70d8] text-white transition-all duration-300 hover:scale-105 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a88aed] focus-visible:ring-offset-2">
-                Acceso Beta 50%
+            <Link href="/dashboard">
+              <Button className="rounded-full h-10 px-5 text-xs font-bold uppercase tracking-wider bg-[#a88aed] hover:bg-[#8f70d8] text-white transition-all duration-300 hover:scale-105 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a88aed] focus-visible:ring-offset-2 cursor-pointer">
+                PROBAR NUTRINET
               </Button>
-            </a>
+            </Link>
           </nav>
 
           <button
             type="button"
-            className="inline-flex items-center justify-center rounded-full border border-[#a88aed]/20 bg-white p-2 text-[#a88aed] shadow-sm transition hover:bg-[#a88aed]/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a88aed] focus-visible:ring-offset-2 lg:hidden"
+            className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white p-2 text-slate-700 shadow-xs transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a88aed] focus-visible:ring-offset-2 lg:hidden"
             onClick={() => setIsMobileMenuOpen((value) => !value)}
             aria-label={isMobileMenuOpen ? "Cerrar menú" : "Abrir menú"}
             aria-expanded={isMobileMenuOpen}
@@ -303,20 +257,8 @@ export default function LandingPage() {
         {isMobileMenuOpen && (
           <div className="border-t border-indigo-100 bg-white/95 px-4 py-4 shadow-lg backdrop-blur-md lg:hidden space-y-3">
             <div className="mx-auto flex max-w-7xl flex-col gap-2">
-              <Link
-                href="/nutricionistas"
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="rounded-2xl border border-[#a88aed]/40 bg-[#a88aed]/10 px-4 py-3 text-sm font-bold text-[#8f70d8] flex items-center justify-between transition hover:bg-[#a88aed]/20 shadow-xs cursor-pointer"
-              >
-                <span className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-[#a88aed]" />
-                  Encontrar mi nutricionista
-                </span>
-                <ArrowRight className="h-4 w-4 text-[#a88aed]" />
-              </Link>
-
               <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
-                <span className="text-[10px] font-black uppercase text-[#a88aed]">Sobre NutriNet</span>
+                <span className="text-[10px] font-black uppercase text-slate-600">Sobre NutriNet</span>
                 <div className="grid grid-cols-1 gap-1">
                   <button onClick={() => openAboutTab("objetivos")} className="text-left text-xs font-bold text-slate-700 py-1 flex items-center gap-2">
                     <Target className="h-3.5 w-3.5 text-indigo-600" /> Objetivos y Dirección
@@ -337,11 +279,11 @@ export default function LandingPage() {
               </div>
 
               <a
-                href="#comparativa"
+                href="#planes"
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
               >
-                Comparativa & Funcionalidades
+                Funcionalidades
               </a>
               <a
                 href="#planes"
@@ -355,37 +297,27 @@ export default function LandingPage() {
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
               >
-                Inicia Sesión
+                Iniciar sesión
               </Link>
-              <a
-                href="#registro"
-                onClick={() => {
-                  setIsMobileMenuOpen(false);
-                  handleHeroCtaClick();
-                }}
-                className="inline-flex items-center justify-center rounded-full bg-[#a88aed] hover:bg-[#8f70d8] px-4 py-3 text-sm font-bold text-white shadow-sm transition"
+              <Link
+                href="/dashboard"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="inline-flex items-center justify-center rounded-full bg-[#a88aed] hover:bg-[#8f70d8] px-4 py-3 text-sm font-bold uppercase tracking-wider text-white shadow-sm transition"
               >
-                Acceso Beta 50% Dcto.
-              </a>
+                PROBAR NUTRINET
+              </Link>
             </div>
           </div>
         )}
       </header>
 
       <main>
-        {/* 1. HERO SECTION (El Gancho Analgésico) */}
+        {/* 1. HERO SECTION */}
         <HeroSection
-          onCtaClick={handleHeroCtaClick}
           onExploreFeaturesClick={handleExploreFeaturesClick}
         />
 
-        {/* 2. MATRIZ COMPARATIVA INTEGRAL (Todas las Funcionalidades & Diferenciación) */}
-        <ComparisonMatrixSection />
-
-        {/* 3. VALIDACIÓN Y PRUEBA SOCIAL (Lean Startup) */}
-        <ValidationSocialProofSection />
-
-        {/* Pricing Section */}
+        {/* 2. PLANES (Pricing Section) */}
         <section
           id="planes"
           ref={pricingRef}
@@ -564,32 +496,11 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <TestimonialsSection />
-
-        {/* Contact Form Section */}
-        {/* 7. FORMULARIO DE CAPTACIÓN / LANDING CTA FINAL (Jump Chile Beta) */}
+        {/* 3. ¿TE INTERESA NUTRINET? (Apoyo a Jump Chile & Descuento de Lanzamiento) */}
         <BetaLeadCaptureSection
           sessionId={sessionId}
           onLeadSubmitted={handleLeadSubmitted}
         />
-
-        {/* Secondary General Contact Accordion */}
-        <section className="py-12 bg-slate-50/70 border-t border-slate-200">
-          <div className="mx-auto max-w-4xl px-4 sm:px-6">
-            <details className="group rounded-3xl border border-slate-200 bg-white p-6 shadow-xs transition-all">
-              <summary className="flex items-center justify-between font-bold text-sm text-slate-700 cursor-pointer select-none">
-                <span className="flex items-center gap-2">
-                  <span>¿Tienes dudas técnicas o consultas comerciales adicionales?</span>
-                  <span className="text-xs text-indigo-600 font-semibold underline">Escríbenos directamente aquí</span>
-                </span>
-                <ChevronDown className="h-4 w-4 text-slate-400 group-open:rotate-180 transition-transform" />
-              </summary>
-              <div className="pt-6 border-t border-slate-100 mt-4">
-                <LandingContactForm />
-              </div>
-            </details>
-          </div>
-        </section>
       </main>
 
       {/* Footer */}
@@ -610,13 +521,13 @@ export default function LandingPage() {
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-6 text-xs text-slate-400">
-            <button onClick={() => openAboutTab("seguridad")} className="hover:text-white transition-colors">
+            <button onClick={() => openAboutTab("seguridad")} className="hover:text-white transition-colors cursor-pointer">
               Privacidad y Seguridad
             </button>
-            <button onClick={() => openAboutTab("faq")} className="hover:text-white transition-colors">
+            <button onClick={() => openAboutTab("faq")} className="hover:text-white transition-colors cursor-pointer">
               Preguntas Frecuentes
             </button>
-            <button onClick={() => openAboutTab("objetivos")} className="hover:text-white transition-colors">
+            <button onClick={() => openAboutTab("objetivos")} className="hover:text-white transition-colors cursor-pointer">
               Sobre NutriNet
             </button>
             <Link href="/terms" className="hover:text-white transition-colors">
@@ -631,7 +542,6 @@ export default function LandingPage() {
       </footer>
 
       {/* Banners & Widgets */}
-      <FloatingJumpChileButton onCtaClick={handleFloatingCtaClick} />
       <CookieBanner />
     </div>
   );

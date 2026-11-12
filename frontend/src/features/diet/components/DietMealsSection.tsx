@@ -143,53 +143,34 @@ export function DietMealsSection({
 
   return (
     <div className="space-y-6">
-      {/* Banner de Encabezado */}
-      <div className="flex flex-col gap-4 rounded-3xl border border-indigo-100 bg-gradient-to-r from-indigo-50/80 via-white to-purple-50/50 p-6 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-start gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-md shadow-indigo-200">
-            <Utensils className="h-6 w-6" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600">Paso 4 de 6</span>
-              <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-bold text-indigo-800">Comidas & Horarios</span>
-            </div>
-            <h2 className="mt-1 text-xl font-black text-slate-900">Tabla de Comidas y Porciones</h2>
-            <p className="mt-0.5 text-sm text-slate-600">
-              Estructura los tiempos de comida, asigna porciones y enlaza tus platos creados para {patientName || "el paciente"}.
-            </p>
-          </div>
-        </div>
-      </div>
-
       {/* Contenedor Principal de la Tabla de Comidas */}
-      <div className="space-y-5 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between border-b border-slate-100 pb-4">
+      <div className="space-y-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <h3 className="text-lg font-black text-slate-900">
-                Tabla de comidas <span className="text-rose-600">*</span>
+            <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
+              <h3 className="text-base sm:text-lg font-bold text-[#20212B]">
+                Tabla de comidas <span className="text-rose-500">*</span>
               </h3>
               <button
                 type="button"
                 onClick={() => setIncludeMealsSection((current) => !current)}
                 className={cn(
-                  "inline-flex items-center justify-center gap-2 rounded-full border px-3.5 py-1.5 text-[11px] font-black uppercase tracking-widest transition-colors w-fit cursor-pointer",
+                  "inline-flex items-center justify-center gap-1.5 rounded-xl border px-3 py-1 text-xs font-semibold transition-colors w-fit cursor-pointer",
                   includeMealsSection
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                    : "border-slate-200 bg-white text-slate-500"
+                    ? "border-[#DDE7B8] bg-[#F0F5DF] text-[#668E20]"
+                    : "border-[#E9E5E7] bg-white text-slate-500"
                 )}
               >
                 <span
                   className={cn(
-                    "h-2.5 w-2.5 rounded-full",
-                    includeMealsSection ? "bg-emerald-500" : "bg-slate-300"
+                    "h-2 w-2 rounded-full",
+                    includeMealsSection ? "bg-[#86A83C]" : "bg-slate-300"
                   )}
                 />
-                {includeMealsSection ? "Sección visible" : "Ocultar sección"}
+                {includeMealsSection ? "Ocultar sección" : "Incluir sección"}
               </button>
             </div>
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-0.5 text-xs text-[#626573]">
               Completa hora, indicación y porción para cada tiempo de comida.
             </p>
           </div>
@@ -197,25 +178,23 @@ export function DietMealsSection({
 
         {/* Tabla Desktop y Móvil */}
         {!includeMealsSection ? (
-          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 py-10 text-center">
+          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[#E9E5E7] bg-slate-50/50 py-10 text-center">
             <Utensils className="h-8 w-8 text-slate-300 mb-2" />
-            <p className="text-sm font-bold text-slate-500">La sección de Tabla de Comidas está oculta en el entregable.</p>
-            <Button
+            <p className="text-xs font-semibold text-slate-500">La sección de Tabla de Comidas está oculta en el entregable.</p>
+            <button
               type="button"
-              variant="outline"
-              size="sm"
               onClick={() => setIncludeMealsSection(true)}
-              className="mt-3 rounded-xl border-slate-200 text-xs font-bold text-slate-700"
+              className="mt-3 rounded-xl border border-[#DDE7B8] bg-[#F0F5DF] px-3.5 py-1.5 text-xs font-semibold text-[#668E20] hover:bg-[#E8EFCB] transition-colors cursor-pointer"
             >
               Hacer visible la sección
-            </Button>
+            </button>
           </div>
         ) : (
           <div className="space-y-4">
             {/* Tabla en vista Desktop */}
-            <div className="overflow-x-auto rounded-2xl border border-slate-200">
-              <table className="w-full min-w-[760px] bg-white text-left text-sm">
-                <thead className="bg-slate-50 text-[10px] font-black uppercase tracking-wider text-slate-500 border-b border-slate-200">
+            <div className="overflow-x-auto rounded-2xl border border-[#E9E5E7] bg-white shadow-2xs">
+              <table className="w-full min-w-[760px] bg-white text-left text-xs">
+                <thead className="bg-[#FAF9F9] text-xs font-semibold text-[#626573] border-b border-[#E9E5E7]">
                   <tr>
                     <th className="px-4 py-3 w-44">Categoría</th>
                     <th className="px-4 py-3">Alimentos / Seleccionar Plato</th>
@@ -233,12 +212,12 @@ export function DietMealsSection({
                     );
 
                     return (
-                      <tr key={row.id} className="hover:bg-slate-50/60 transition-colors">
-                        <td className="px-4 py-3 align-top">
+                      <tr key={row.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="px-4 py-2.5 align-top">
                           <select
                             value={row.section}
                             onChange={(e) => updateMealRow(row.id, "section", e.target.value)}
-                            className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            className="h-10 w-full rounded-xl border border-[#E9E5E7] bg-white px-3 text-xs font-normal text-[#20212B]"
                           >
                             {QUICK_SECTIONS.map((sec) => (
                               <option key={sec} value={sec}>
@@ -248,7 +227,7 @@ export function DietMealsSection({
                           </select>
                         </td>
 
-                        <td className="px-4 py-3 align-top">
+                        <td className="px-4 py-2.5 align-top">
                           <div className="space-y-1.5 relative">
                             {/* Selector Principal de Plato Creado en Paso 3 */}
                             <button
@@ -257,13 +236,13 @@ export function DietMealsSection({
                               className={cn(
                                 "flex h-10 w-full items-center justify-between rounded-xl border px-3 text-xs font-semibold transition-all cursor-pointer",
                                 selectedDish || row.mealText
-                                  ? "border-indigo-200 bg-indigo-50/60 text-indigo-950 hover:bg-indigo-50 shadow-2xs"
+                                  ? "border-[#DDE7B8] bg-[#F0F5DF] text-[#668E20] hover:bg-[#E8EFCB] shadow-2xs"
                                   : "border-amber-200 bg-amber-50/60 text-amber-900 hover:bg-amber-50"
                               )}
                             >
                               <div className="flex items-center gap-2 truncate">
-                                <ChefHat className={cn("h-4 w-4 shrink-0", selectedDish ? "text-indigo-600" : "text-amber-600")} />
-                                <span className="truncate font-bold">
+                                <ChefHat className={cn("h-4 w-4 shrink-0", selectedDish ? "text-[#86A83C]" : "text-amber-600")} />
+                                <span className="truncate font-semibold">
                                   {selectedDish
                                     ? selectedDish.name
                                     : row.mealText || `Seleccionar plato de ${row.section}...`}
@@ -311,7 +290,7 @@ export function DietMealsSection({
                                           onClick={() => selectDishForMealRow(row.id, dish)}
                                           className={`flex w-full items-center justify-between rounded-xl border p-2 text-left text-xs transition-all cursor-pointer ${
                                             row.dishId === dish.id
-                                              ? "border-indigo-300 bg-indigo-50/80 text-indigo-900 font-bold"
+                                              ? "border-[#DDE7B8] bg-[#F0F5DF] text-[#668E20] font-bold"
                                               : "border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50 text-slate-700"
                                           }`}
                                         >
@@ -322,7 +301,7 @@ export function DietMealsSection({
                                             </span>
                                           </div>
                                           {row.dishId === dish.id && (
-                                            <Check className="h-4 w-4 text-indigo-600 shrink-0" />
+                                            <Check className="h-4 w-4 text-[#86A83C] shrink-0" />
                                           )}
                                         </button>
                                       ))}
@@ -339,7 +318,7 @@ export function DietMealsSection({
                                                 onClick={() => selectDishForMealRow(row.id, dish)}
                                                 className={`flex w-full items-center justify-between rounded-xl border p-2 text-left text-xs transition-all cursor-pointer ${
                                                   row.dishId === dish.id
-                                                    ? "border-indigo-300 bg-indigo-50/80 text-indigo-900 font-bold"
+                                                    ? "border-[#DDE7B8] bg-[#F0F5DF] text-[#668E20] font-bold"
                                                     : "border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50 text-slate-700"
                                                 }`}
                                               >
@@ -350,7 +329,7 @@ export function DietMealsSection({
                                                   </span>
                                                 </div>
                                                 {row.dishId === dish.id && (
-                                                  <Check className="h-4 w-4 text-indigo-600 shrink-0" />
+                                                  <Check className="h-4 w-4 text-[#86A83C] shrink-0" />
                                                 )}
                                               </button>
                                             ))}
@@ -369,7 +348,7 @@ export function DietMealsSection({
                             value={row.time}
                             onChange={(e) => updateMealRow(row.id, "time", e.target.value)}
                             placeholder="08:30"
-                            className="h-10 rounded-xl border-slate-200 bg-white text-xs font-semibold"
+                            className="h-10 rounded-xl border border-[#E9E5E7] bg-white text-xs font-semibold text-[#20212B]"
                           />
                         </td>
 
@@ -378,7 +357,7 @@ export function DietMealsSection({
                             value={row.portion}
                             onChange={(e) => updateMealRow(row.id, "portion", e.target.value)}
                             placeholder="1 porción"
-                            className="h-10 rounded-xl border-slate-200 bg-white text-xs font-semibold"
+                            className="h-10 rounded-xl border border-[#E9E5E7] bg-white text-xs font-semibold text-[#20212B]"
                           />
                         </td>
 
@@ -386,7 +365,7 @@ export function DietMealsSection({
                           <button
                             type="button"
                             onClick={() => removeMealRow(row.id)}
-                            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-400 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 transition-colors cursor-pointer"
+                            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[#E9E5E7] text-slate-400 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 transition-colors cursor-pointer"
                             title="Eliminar fila"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -408,7 +387,7 @@ export function DietMealsSection({
                     key={sec}
                     type="button"
                     onClick={() => addMealRow(sec)}
-                    className="rounded-xl border border-slate-200 bg-white px-2.5 py-1 text-xs font-bold text-slate-600 hover:border-indigo-300 hover:bg-indigo-50/50 hover:text-indigo-700 cursor-pointer transition-all"
+                    className="rounded-xl border border-[#E9E5E7] bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 hover:border-[#86A83C] hover:bg-[#F0F5DF] hover:text-[#668E20] cursor-pointer transition-all"
                   >
                     + {sec}
                   </button>
@@ -420,7 +399,7 @@ export function DietMealsSection({
       </div>
 
       {/* Alimentos a evitar (con toggle de inclusión en PDF) */}
-      <div className="space-y-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="space-y-4 rounded-2xl border border-[#E9E5E7] bg-white p-5 sm:p-6 shadow-2xs">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-50 text-rose-700">
@@ -458,14 +437,14 @@ export function DietMealsSection({
               }
             }}
             placeholder="Ej: Maní, Lácteos, Mariscos..."
-            className="h-10 max-w-xs rounded-xl border-slate-200 bg-white text-xs font-semibold"
+            className="h-10 max-w-xs rounded-xl border-[#E9E5E7] bg-white text-xs font-semibold text-[#20212B]"
           />
           <Button
             type="button"
             variant="outline"
             size="sm"
             onClick={submitAvoidFood}
-            className="rounded-xl border-slate-200 text-xs font-bold text-slate-700"
+            className="rounded-xl border-[#E9E5E7] text-xs font-bold text-slate-700 hover:border-[#86A83C] hover:bg-[#F0F5DF] hover:text-[#668E20] cursor-pointer"
           >
             <Plus className="mr-1 h-3.5 w-3.5" /> Agregar
           </Button>
@@ -496,7 +475,7 @@ export function DietMealsSection({
       </div>
 
       {/* Guía de Porciones de Intercambio (Collapsible con Toggle para PDF) */}
-      <div className="space-y-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="space-y-4 rounded-2xl border border-[#E9E5E7] bg-white p-5 sm:p-6 shadow-2xs">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-50 text-amber-700">

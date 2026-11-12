@@ -219,7 +219,7 @@ export default function DietasClient({ initialFoods }: DietasClientProps) {
         icon: Filter,
         label: "Importar dieta creada",
         description: "Cargar una dieta previamente guardada",
-        variant: "indigo",
+        variant: "emerald",
         onClick: () => setIsUpgradeModalOpen(true),
       },
       {
@@ -244,7 +244,7 @@ export default function DietasClient({ initialFoods }: DietasClientProps) {
         icon: isExportingPdf ? Loader2 : Download,
         label: isExportingPdf ? "Exportando..." : "Descargar",
         description: "Descargar pauta en PDF",
-        variant: "indigo",
+        variant: "emerald",
         disabled: isExportingPdf,
         onClick: () => void handleExportPdf(),
       },
@@ -256,158 +256,148 @@ export default function DietasClient({ initialFoods }: DietasClientProps) {
     <>
       <ModuleLayout
         title="Dietas Generales"
-        description="Crea plantillas alimenticias generales clasificadas por categorías y alimentos. Calcula aportes nutricionales globales y guarda en formato JSON o PDF para reutilizar en entregables."
-        step={{
-          number: 1,
-          label: "Diseñador de Dieta",
-          icon: Utensils,
-          color: "text-emerald-600",
-        }}
+        description={
+          <div className="space-y-1">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-[#668E20] -mt-0.5 mb-0.5">
+              <Utensils className="w-4 h-4 text-[#86A83C]" />
+              <span className="tracking-wider uppercase text-[10px] font-bold">Planificación y Estrategia Dietética</span>
+            </div>
+            <p className="text-sm sm:text-[15px] text-[#626573] leading-relaxed">
+              Crea plantillas alimenticias generales clasificadas por categorías y alimentos. Calcula aportes nutricionales globales y guarda en creaciones para reutilizar.
+            </p>
+          </div>
+        }
         rightContent={<ModuleUsageBadges />}
         rightNavItems={state.isHydrating ? [] : actionItems}
         rightNavDesktopBreakpoint="lg"
         className="max-w-[68rem]"
       >
         {state.isHydrating ? (
-          <div className="flex min-h-[24rem] items-center justify-center rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-            <div className="flex items-center gap-3 text-sm font-semibold text-slate-500">
-              <Loader2 className="h-5 w-5 animate-spin text-emerald-600" />
+          <div className="flex min-h-[24rem] items-center justify-center rounded-2xl border border-[#E9E5E7] bg-white p-8 shadow-2xs">
+            <div className="flex items-center gap-3 text-sm font-semibold text-[#626573]">
+              <Loader2 className="h-5 w-5 animate-spin text-[#86A83C]" />
               Cargando diseñador de dietas...
             </div>
           </div>
         ) : (
           <div className="space-y-6">
-            {/* Header: Title & Info */}
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="flex-1 space-y-1">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                    Nombre de la Dieta
+            {/* Header: Title, Constraints & Actions (Unboxed Layout) */}
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-end">
+                {/* Diet Name */}
+                <div className="lg:col-span-5 space-y-1.5">
+                  <label className="text-xs font-semibold text-[#20212B] flex items-center gap-1">
+                    Nombre de la Dieta <span className="text-rose-500">*</span>
                   </label>
                   <Input
                     value={state.dietName}
                     onChange={(e) => state.setDietName(e.target.value)}
                     placeholder="Ej. Dieta Normocalórica Base - 1800 kcal"
-                    className="h-11 font-bold text-slate-900 text-lg border-slate-200 focus:border-emerald-500 rounded-xl"
+                    className="h-10 rounded-xl border-[#E9E5E7] bg-white text-sm text-[#20212B] font-normal focus:border-[#86A83C] shadow-2xs"
                   />
                 </div>
 
-                <div className="flex items-center gap-2 pt-5 md:pt-0 flex-wrap">
-                  <Button
+                {/* Restricción Clínica Input */}
+                <div className="lg:col-span-4 space-y-1.5">
+                  <label className="text-xs font-semibold text-[#20212B] flex items-center gap-1.5">
+                    <AlertCircle className="h-3.5 w-3.5 text-amber-500" />
+                    Restricción / Foco Nutricional
+                  </label>
+                  <TagInput
+                    value={state.activeConstraints}
+                    onChange={(newTags) => state.setActiveConstraints(newTags)}
+                    placeholder="Sin gluten, intolerancia..."
+                    suggestions={state.availableConstraintTags}
+                    disableDelete={true}
+                    openDirection="down"
+                    className="h-10 rounded-xl border-[#E9E5E7] bg-white text-xs shadow-2xs"
+                  />
+                </div>
+
+                {/* Action Buttons */}
+                <div className="lg:col-span-3 flex items-center gap-2 justify-end">
+                  <button
                     type="button"
-                    variant="outline"
                     onClick={state.applyBaseFoods}
-                    className="h-11 px-4 border-slate-200 text-slate-700 hover:bg-slate-50 font-bold rounded-xl gap-2 shadow-xs cursor-pointer"
+                    className="h-10 px-3.5 border border-[#E9E5E7] bg-white text-[#20212B] hover:border-[#86A83C] hover:bg-[#F0F5DF] hover:text-[#668E20] font-semibold text-xs rounded-xl flex items-center gap-1.5 shadow-2xs cursor-pointer transition-all"
                   >
-                    <ChefHat className="h-4 w-4 text-emerald-600" />
-                    Aplicar ingredientes base
-                  </Button>
-                  <Button
+                    <ChefHat className="h-4 w-4 text-[#86A83C]" />
+                    <span>Ingredientes base</span>
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => void handleSaveCreation()}
                     disabled={isSaving}
-                    className="h-11 px-5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl gap-2 shadow-sm"
+                    className="h-10 px-4 bg-[#86A83C] hover:bg-[#78A82F] text-white font-semibold text-xs rounded-xl flex items-center gap-1.5 shadow-2xs cursor-pointer transition-all disabled:opacity-50"
                   >
                     {isSaving ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
                       <Save className="h-4 w-4" />
                     )}
-                    Guardar Dieta
-                  </Button>
+                    <span>Guardar Dieta</span>
+                  </button>
                 </div>
               </div>
 
-              {/* Tag Badges */}
-              <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
-                <span className="text-xs font-semibold text-slate-400 flex items-center gap-1">
-                  <TagIcon className="h-3.5 w-3.5" /> Etiquetas:
-                </span>
-                {state.dietTags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="inline-flex items-center gap-1 px-3 py-1 bg-slate-100 text-slate-700 text-xs font-bold rounded-full border border-slate-200"
-                  >
-                    {tag}
-                    <button
-                      type="button"
-                      onClick={() =>
-                        state.setDietTags((prev) => prev.filter((t) => t !== tag))
-                      }
-                      className="hover:text-rose-600 transition-colors"
-                    >
-                      ×
-                    </button>
+              {/* Tag Badges (Clean inline chips) */}
+              {state.dietTags.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <span className="text-xs font-medium text-[#848792] flex items-center gap-1">
+                    <TagIcon className="h-3.5 w-3.5" /> Etiquetas:
                   </span>
-                ))}
-                <span className="text-xs text-slate-400 italic">
-                  ({totalFoodsCount} alimentos seleccionados)
-                </span>
-              </div>
-
-              {/* Restricción Clínica Input */}
-              <div className="space-y-2 pt-3 border-t border-slate-100">
-                <label className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                  <AlertCircle className="h-4 w-4 text-amber-500" />
-                  Restricción Clínica / Foco Nutricional
-                </label>
-                <TagInput
-                  value={state.activeConstraints}
-                  onChange={(newTags) => state.setActiveConstraints(newTags)}
-                  placeholder="Ej: Sin gluten, Intolerancia a la lactosa, Diabético, HTA..."
-                  suggestions={state.availableConstraintTags}
-                  disableDelete={true}
-                  openDirection="down"
-                  helperText="Selecciona sugerencias o presiona Enter para agregar una restricción."
-                  className="min-h-[44px] rounded-xl border-slate-200 bg-white shadow-xs"
-                />
-              </div>
+                  {state.dietTags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-slate-100 text-[#626573] text-xs font-medium rounded-full border border-slate-200"
+                    >
+                      {tag}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          state.setDietTags((prev) => prev.filter((t) => t !== tag))
+                        }
+                        className="hover:text-rose-600 transition-colors ml-0.5 cursor-pointer"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {/* Macro Calculations Summary Bar */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="bg-white border border-slate-200/90 p-4 rounded-2xl shadow-xs flex flex-col justify-between hover:border-slate-300 transition-all">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                  <Scale className="h-4 w-4 text-emerald-600" /> Energía Total
-                </span>
-                <div className="mt-2">
-                  <span className="text-2xl font-black text-slate-900">{totals.calories}</span>
-                  <span className="text-xs font-semibold text-slate-400 ml-1">kcal</span>
+            {/* Macro Calculations Summary Bar (Minimalist Horizontal Bar) */}
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#E9E5E7] bg-white px-5 py-3.5 shadow-2xs">
+              <div className="flex items-center gap-5 sm:gap-7 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <Scale className="h-4 w-4 text-[#86A83C]" />
+                  <span className="text-xs text-[#626573] font-medium">Energía:</span>
+                  <span className="text-sm font-bold text-[#20212B]">{totals.calories} <span className="text-xs font-normal text-[#848792]">kcal</span></span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Beef className="h-4 w-4 text-blue-600" />
+                  <span className="text-xs text-[#626573] font-medium">Proteínas:</span>
+                  <span className="text-sm font-bold text-blue-700">{totals.protein} <span className="text-xs font-normal text-[#848792]">g</span></span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Wheat className="h-4 w-4 text-[#86A83C]" />
+                  <span className="text-xs text-[#626573] font-medium">Carbohidratos:</span>
+                  <span className="text-sm font-bold text-[#668E20]">{totals.carbs} <span className="text-xs font-normal text-[#848792]">g</span></span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Droplets className="h-4 w-4 text-amber-600" />
+                  <span className="text-xs text-[#626573] font-medium">Lípidos:</span>
+                  <span className="text-sm font-bold text-amber-700">{totals.fats} <span className="text-xs font-normal text-[#848792]">g</span></span>
                 </div>
               </div>
-
-              <div className="bg-white border border-slate-200/90 p-4 rounded-2xl shadow-xs flex flex-col justify-between hover:border-slate-300 transition-all">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                  <Beef className="h-4 w-4 text-slate-500" /> Proteínas
-                </span>
-                <div className="mt-2">
-                  <span className="text-2xl font-black text-slate-900">{totals.protein}</span>
-                  <span className="text-xs font-semibold text-slate-400 ml-1">g</span>
-                </div>
-              </div>
-
-              <div className="bg-white border border-slate-200/90 p-4 rounded-2xl shadow-xs flex flex-col justify-between hover:border-slate-300 transition-all">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                  <Wheat className="h-4 w-4 text-slate-500" /> Carbohidratos
-                </span>
-                <div className="mt-2">
-                  <span className="text-2xl font-black text-slate-900">{totals.carbs}</span>
-                  <span className="text-xs font-semibold text-slate-400 ml-1">g</span>
-                </div>
-              </div>
-
-              <div className="bg-white border border-slate-200/90 p-4 rounded-2xl shadow-xs flex flex-col justify-between hover:border-slate-300 transition-all">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                  <Droplets className="h-4 w-4 text-slate-500" /> Lípidos
-                </span>
-                <div className="mt-2">
-                  <span className="text-2xl font-black text-slate-900">{totals.fats}</span>
-                  <span className="text-xs font-semibold text-slate-400 ml-1">g</span>
-                </div>
-              </div>
+              <span className="text-xs text-[#848792] font-medium">
+                {totalFoodsCount} alimentos seleccionados
+              </span>
             </div>
 
             {/* Diet Categories & Food Builder Section */}
-            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+            <div className="space-y-4">
               <DietPlannerSection
                 allGroupsToRender={state.allGroupsToRender}
                 openAddModal={state.openAddModal}

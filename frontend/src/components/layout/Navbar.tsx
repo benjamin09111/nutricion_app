@@ -179,7 +179,7 @@ export function Navbar({
   return (
     <div
       className={cn(
-        "dashboard-nav-bg sticky top-0 z-30 flex h-16 min-w-0 shrink-0 items-center gap-x-2 border-b px-3 backdrop-blur-xl sm:gap-x-6 sm:px-6 lg:px-8 transition-colors",
+        "dashboard-nav-bg sticky top-0 z-30 flex h-13 sm:h-14 min-w-0 shrink-0 items-center gap-x-2 border-b px-3 backdrop-blur-xl sm:gap-x-6 sm:px-6 lg:px-8 transition-colors",
         isAdminView && !isDarkMode && "bg-indigo-50/50 border-indigo-100",
         isAdminView && isDarkMode && "border-indigo-400/20",
       )}
@@ -210,46 +210,16 @@ export function Navbar({
       </button>
 
         <div className="flex min-w-0 flex-1 items-center justify-between gap-x-2 sm:gap-x-4 lg:gap-x-6">
-          {/* Demo Action Bar & Status */}
-          <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap min-w-0">
-            {/* Cómo usar nutrinet? */}
-            <Link
-              href="/dashboard/uso-recomendado"
-              className={cn(
-                "inline-flex cursor-pointer items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium transition-all active:scale-95 shadow-xs",
-                isDarkMode
-                  ? "bg-purple-950/40 text-purple-300 border border-purple-800/60 hover:bg-purple-900/40"
-                  : "bg-[#f5effe] text-[#7c3aed] border border-purple-200/80 hover:bg-[#ede3fc]",
-              )}
-            >
-              <Sparkles className="h-3.5 w-3.5 text-[#7c3aed]" />
-              <span>¿Cómo usar NutriNet?</span>
-            </Link>
-
-            {/* Me interesa NutriNet */}
-            <button
-              type="button"
-              onClick={() => setIsDemoInterestModalOpen(true)}
-              className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-medium transition-all active:scale-95 shadow-xs bg-[#7c3aed] hover:bg-[#6d28d9] text-white"
-            >
-              <HeartHandshake className="h-3.5 w-3.5 text-purple-200" />
-              <span>Me interesa NutriNet</span>
-            </button>
-
-            {/* Última actualización */}
-            <div
-              suppressHydrationWarning
-              className={cn(
-                "hidden md:inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-[11px] font-medium border shadow-xs transition-colors",
-                isDarkMode
-                  ? "bg-slate-800/80 text-slate-300 border-slate-700/80"
-                  : "bg-white/90 text-slate-500 border-slate-200/90",
-              )}
-            >
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
-              <span>Última actualización: {todayString || "10 nov 2026"}</span>
-            </div>
-          </div>
+          {/* Workspace Context — Clean, quiet & clinical */}
+          <Link
+            href="/dashboard"
+            className="flex items-center gap-2 min-w-0 hover:opacity-80 transition-opacity cursor-pointer select-none"
+            title="Ir al panel principal"
+          >
+            <span className="text-xs font-semibold text-[#7842D4]">NutriNet</span>
+            <span className="text-xs text-slate-300">/</span>
+            <span className="text-xs font-medium text-slate-600">Espacio Clínico</span>
+          </Link>
 
           <div className="flex min-w-0 items-center justify-end gap-x-1.5 sm:gap-x-4 lg:gap-x-8">
             {process.env.NODE_ENV === "development" && false && userEmail === "benjaminmoralespizarro763@gmail.com" && (

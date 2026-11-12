@@ -227,17 +227,25 @@ export default function DietClient({ initialFoods }: DietClientProps) {
   return (
     <>
       <ModuleLayout
-        title={state.flowMode === "quick" ? "Entregable Rápido" : "Estrategia: Pauta Nutricional Unificada"}
+        title={state.flowMode === "quick" ? "Rápido" : "Pauta Nutricional Personalizada"}
         description={
-          state.flowMode === "quick"
-            ? "Crea una pauta rápida con la misma base nutricional, sin pasar por recetas ni carrito. Puedes ampliarla después."
-            : "Diseña la pauta nutricional completa de tu paciente paso a paso: Información General, Dieta, Recetas & Porciones, Carrito de Compras y Plan Final."
+          <div className="space-y-1">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-[#668E20] -mt-0.5 mb-0.5">
+              <Apple className="w-4 h-4 text-[#86A83C]" />
+              <span className="tracking-wider uppercase text-[10px] font-bold">Planificación Personalizada</span>
+            </div>
+            <p className="text-sm sm:text-[15px] text-[#626573] leading-relaxed">
+              {state.flowMode === "quick"
+                ? "Crea una pauta rápida con la misma base nutricional, sin pasar por recetas ni carrito. Puedes ampliarla después."
+                : "Diseña la pauta nutricional completa de tu paciente paso a paso: Información General, Dieta, Recetas & Porciones, Carrito de Compras y Plan Final."}
+            </p>
+          </div>
         }
         step={{
           number: currentStep + 1,
           label: wizardSteps[currentStep],
           icon: GraduationCap,
-          color: "text-emerald-600",
+          color: "text-[#7842D4]",
         }}
         rightContent={<ModuleUsageBadges />}
         rightNavItems={state.isHydrating ? [] : actionItems}
@@ -316,13 +324,13 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                   />
 
                   {/* Introducción y Despedida del PDF */}
-                  <div className="space-y-5 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                  <div className="space-y-5 rounded-2xl border border-[#E9E5E7] bg-white p-5 sm:p-6 shadow-2xs">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-violet-50 text-violet-700">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#F0F5DF] text-[#668E20]">
                         <MessageCircleHeart className="h-5 w-5" />
                       </div>
                       <div>
-                        <h3 className="text-base font-black text-slate-900">Introducción y despedida</h3>
+                        <h3 className="text-base font-bold text-slate-900">Introducción y despedida</h3>
                         <p className="text-xs text-slate-500">
                           Se generan automáticamente con el nombre de {state.selectedPatient?.fullName || "tu paciente"}; puedes editarlas libremente.
                         </p>
@@ -331,13 +339,13 @@ export default function DietClient({ initialFoods }: DietClientProps) {
 
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <label className="text-xs font-black uppercase tracking-wider text-slate-500">Introducción</label>
-                        <label className="flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50/70 px-3 py-1 text-[11px] font-bold text-violet-900 cursor-pointer hover:bg-violet-100/70 transition-colors">
+                        <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">Introducción</label>
+                        <label className="flex items-center gap-2 rounded-xl border border-[#DDE7B8] bg-[#F0F5DF] px-3 py-1 text-[11px] font-bold text-[#668E20] cursor-pointer hover:bg-[#E8EFCB] transition-colors">
                           <input
                             type="checkbox"
                             checked={state.includeIntroInPdf}
                             onChange={(e) => state.setIncludeIntroInPdf(e.target.checked)}
-                            className="h-3.5 w-3.5 rounded border-violet-300 text-violet-600 focus:ring-violet-500 cursor-pointer"
+                            className="h-3.5 w-3.5 rounded border-[#86A83C] text-[#86A83C] focus:ring-[#86A83C] cursor-pointer"
                           />
                           Incluir en el PDF
                         </label>
@@ -346,19 +354,19 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                         value={state.introMessage}
                         onChange={(e) => state.updateIntroMessage(e.target.value)}
                         placeholder="Mensaje de bienvenida para el paciente..."
-                        className="min-h-[90px] rounded-xl text-sm"
+                        className="min-h-[90px] rounded-xl border-[#E9E5E7] text-xs font-normal text-[#20212B]"
                       />
                     </div>
 
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <label className="text-xs font-black uppercase tracking-wider text-slate-500">Despedida</label>
-                        <label className="flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50/70 px-3 py-1 text-[11px] font-bold text-violet-900 cursor-pointer hover:bg-violet-100/70 transition-colors">
+                        <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">Despedida</label>
+                        <label className="flex items-center gap-2 rounded-xl border border-[#DDE7B8] bg-[#F0F5DF] px-3 py-1 text-[11px] font-bold text-[#668E20] cursor-pointer hover:bg-[#E8EFCB] transition-colors">
                           <input
                             type="checkbox"
                             checked={state.includeClosingInPdf}
                             onChange={(e) => state.setIncludeClosingInPdf(e.target.checked)}
-                            className="h-3.5 w-3.5 rounded border-violet-300 text-violet-600 focus:ring-violet-500 cursor-pointer"
+                            className="h-3.5 w-3.5 rounded border-[#86A83C] text-[#86A83C] focus:ring-[#86A83C] cursor-pointer"
                           />
                           Incluir en el PDF
                         </label>
@@ -367,7 +375,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                         value={state.closingMessage}
                         onChange={(e) => state.updateClosingMessage(e.target.value)}
                         placeholder="Mensaje de cierre / despedida para el paciente..."
-                        className="min-h-[90px] rounded-xl text-sm"
+                        className="min-h-[90px] rounded-xl border-[#E9E5E7] text-xs font-normal text-[#20212B]"
                       />
                     </div>
                   </div>
@@ -412,22 +420,22 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                   />
 
                   {/* Collapsible Macro Target Calculator */}
-                  <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                  <div className="overflow-hidden rounded-2xl border border-[#E9E5E7] bg-white p-5 sm:p-6 shadow-2xs">
                     <div
                       onClick={() => setShowMacroCalculator(!showMacroCalculator)}
                       className="flex cursor-pointer items-center justify-between"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#F0F5DF] text-[#668E20]">
                           <Calculator className="h-5 w-5" />
                         </div>
                         <div>
-                          <h3 className="text-sm font-black text-slate-900">Calculadora de Metas Calóricas y Macronutrientes</h3>
+                          <h3 className="text-sm font-bold text-slate-900">Calculadora de Metas Calóricas y Macronutrientes</h3>
                           <p className="text-xs text-slate-500">Configura el GET, déficit calórico y distribución de macros (opcional)</p>
                         </div>
                       </div>
 
-                      <Button type="button" variant="ghost" className="h-8 w-8 rounded-xl p-0 text-slate-500">
+                      <Button type="button" variant="ghost" className="h-8 w-8 rounded-xl p-0 text-slate-500 cursor-pointer">
                         {showMacroCalculator ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
                       </Button>
                     </div>

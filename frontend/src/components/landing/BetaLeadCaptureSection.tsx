@@ -78,13 +78,13 @@ export function BetaLeadCaptureSection({ sessionId, onLeadSubmitted }: BetaLeadC
               fontWeight: 900,
             }}
           >
-            ACCESO BETA
+            ¿TE INTERESA NUTRINET?
           </span>
           <span className="block text-xl font-bold text-[#a88aed] sm:text-2xl lg:text-4xl">
-            50% de Descuento Permanente para Jump Chile
+            Apóyanos en Jump Chile y Recibe un Descuento de Lanzamiento
           </span>
           <p className="text-xs sm:text-sm text-slate-500 max-w-xl mx-auto pt-1">
-            Déjanos tus datos profesionales para enviarte tu cuenta con descuento exclusivo a cambio de tu feedback de uso.
+            Déjanos tus datos profesionales para registrar tu apoyo en nuestra postulación a Jump Chile. Cuando el producto salga oficialmente, recibirás un 50% de descuento exclusivo.
           </p>
         </div>
 
@@ -94,10 +94,10 @@ export function BetaLeadCaptureSection({ sessionId, onLeadSubmitted }: BetaLeadC
           <div className="flex flex-wrap items-center justify-between gap-3 mb-8 pb-4 border-b border-slate-100">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#a88aed]/10 text-[#a88aed] text-xs font-bold uppercase tracking-wider border border-[#a88aed]/20">
               <Sparkles className="h-3.5 w-3.5" />
-              <span>Convocatoria Jump Chile 2026</span>
+              <span>Apoyo a Jump Chile 2026</span>
             </div>
             <div className="text-xs font-semibold text-slate-500">
-              Cupos limitados para los primeros 50 nutricionistas
+              Descuento exclusivo asegurado al lanzamiento
             </div>
           </div>
 
@@ -195,10 +195,10 @@ export function BetaLeadCaptureSection({ sessionId, onLeadSubmitted }: BetaLeadC
                     {isSubmitting ? (
                       <span className="flex items-center gap-2">
                         <span className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        Reservando tu cupo...
+                        Registrando tu apoyo...
                       </span>
                     ) : (
-                      "Reservar Mi Cupo Beta con 50% Dcto."
+                      "Registrar Mi Apoyo y Obtener Descuento"
                     )}
                   </Button>
                 </div>
@@ -206,12 +206,12 @@ export function BetaLeadCaptureSection({ sessionId, onLeadSubmitted }: BetaLeadC
                 {/* Privacy & Trust text */}
                 <div className="pt-2 flex flex-wrap items-center justify-center gap-4 text-xs font-medium text-slate-400">
                   <span className="flex items-center gap-1">
-                    <ShieldCheck className="h-4 w-4 text-emerald-600" /> Sin tarjeta de crédito
+                    <ShieldCheck className="h-4 w-4 text-emerald-600" /> Sin cobros inmediatos
                   </span>
                   <span>•</span>
                   <span>Datos cifrados (Ley 19.628)</span>
                   <span>•</span>
-                  <span>Acceso anticipado garantizado</span>
+                  <span>Descuento de 50% asegurado al lanzamiento</span>
                 </div>
               </form>
             </div>
@@ -224,11 +224,11 @@ export function BetaLeadCaptureSection({ sessionId, onLeadSubmitted }: BetaLeadC
 
               <div className="space-y-2 max-w-lg mx-auto">
                 <h3 className="text-xl sm:text-2xl font-bold text-slate-900">
-                  ¡Cupo reservado con éxito!
+                  ¡Muchas gracias por tu apoyo!
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-                  ¡Gracias, <strong className="text-slate-900">{fullName}</strong>! Te contactaremos a{" "}
-                  <strong className="text-[#8f70d8]">{email}</strong> para enviarte tu acceso exclusivo al Beta de NutriNet con 50% de descuento permanente.
+                  ¡Gracias, <strong className="text-slate-900">{fullName}</strong>! Registramos tus datos exitosamente. Tu respaldo impulsa nuestro proyecto en Jump Chile y te contactaremos a{" "}
+                  <strong className="text-[#8f70d8]">{email}</strong> para entregarte tu 50% de descuento preferencial apenas lancemos oficialmente el producto.
                 </p>
               </div>
 

@@ -20,6 +20,7 @@ import {
   Lock,
   Apple,
   Layers,
+  NotebookText,
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
@@ -27,7 +28,6 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { PatientSelectionModal } from "@/components/patients/PatientSelectionModal";
-import { QuickPatientEmptyState } from "@/components/patients/QuickPatientEmptyState";
 import { QuickPatientSummary } from "@/components/patients/QuickPatientSummary";
 import { SaveCreationModal } from "@/components/ui/SaveCreationModal";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
@@ -570,6 +570,7 @@ export default function QuickDeliverableClient() {
   const [quickHashtags, setQuickHashtags] = useState("");
   const [quickDescription, setQuickDescription] = useState("");
   const [planObjective, setPlanObjective] = useState("");
+  const [isNotesExpanded, setIsNotesExpanded] = useState(false);
   const [showPlanObjectiveInPdf, setShowPlanObjectiveInPdf] = useState(false);
   const [planMode, setPlanMode] = useState<QuickPlanMode>("single");
   const [tableMode, setTableMode] = useState<FastDeliverableTableMode>("simple");
@@ -2479,7 +2480,7 @@ export default function QuickDeliverableClient() {
       )}
       <FoodReferenceBook isOpen={isFoodReferenceBookOpen} onClose={() => setIsFoodReferenceBookOpen(false)} />
       <ModuleLayout
-        title="Entregable Rápido"
+        title="Rápido"
         description="Crea un entregable express de una sola hoja con horarios, indicaciones, alimentos a evitar, recursos y una guía breve de porciones."
         rightContent={<ModuleUsageBadges />}
         className="max-w-[68rem]"
@@ -2500,199 +2501,269 @@ export default function QuickDeliverableClient() {
           moduleLabel="Rápido"
         />
 
-        <div className="mt-6 xl:px-4 space-y-6">
-          <details className="group rounded-2xl border border-slate-200 bg-white [&[open]]:pb-6" open>
-            <summary className="flex cursor-pointer items-center gap-3 px-6 py-4 select-none">
-              <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Información general</p>
-              <ChevronDown className="ml-auto h-4 w-4 text-slate-400 transition-transform group-open:rotate-180" />
-            </summary>
-            <div className="px-6 space-y-3">
-              <div className="flex flex-col gap-3 md:flex-row md:items-start">
-                <div className="flex-1 space-y-1">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Título <span className="text-rose-500">*</span></p>
-                  <Input
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    className="h-11 rounded-xl border-slate-200 bg-slate-50 text-sm font-semibold"
-                    placeholder={DEFAULT_TITLE}
-                  />
-                </div>
-                <div className="w-36 space-y-1">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Fecha</p>
-                  <div aria-disabled="true" className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-slate-100 px-3 text-sm font-medium text-slate-500 cursor-not-allowed">
-                    <Lock className="h-3.5 w-3.5 text-slate-400" />
-                    <span>{deliveryDate.split("-").reverse().join("-")}</span>
+        <div className="mt-6 xl:px-4 space-y-4">
+          {/* Fila principal: Título, Paciente y Hashtags */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5 items-end">
+            {/* Título */}
+            <div className="md:col-span-5 space-y-1.5">
+              <label className="text-xs font-semibold text-[#20212B]">
+                Título <span className="text-rose-500">*</span>
+              </label>
+              <Input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="h-10 rounded-xl border-[#E9E5E7] bg-white text-sm text-[#20212B] placeholder:text-slate-400 focus:border-[#7842D4] focus:ring-1 focus:ring-[#7842D4]"
+                placeholder={DEFAULT_TITLE}
+              />
+            </div>
+
+            {/* Paciente */}
+            <div className="md:col-span-4 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-[#20212B]">Paciente</label>
+                {selectedPatient.fullName?.trim() && !isManualPatientExpanded && (
+                  <span className="text-[10px] text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded-full">
+                    {selectedPatient.fullName === "tú persona" ? "Modo general" : "Vinculado"}
+                  </span>
+                )}
+              </div>
+
+              {selectedPatient.fullName?.trim() ? (
+                <div className="h-10 px-3 flex items-center justify-between rounded-xl border border-[#E9E5E7] bg-[#F3ECFC]/40 text-xs">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <User className="h-3.5 w-3.5 text-[#7842D4] shrink-0" />
+                    <span className="font-semibold text-[#20212B] truncate">{selectedPatient.fullName}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                    <button
+                      type="button"
+                      onClick={() => void openPatientImportModal()}
+                      disabled={isLoadingPatients}
+                      className="text-[11px] font-semibold text-[#7842D4] hover:underline cursor-pointer"
+                    >
+                      Cambiar
+                    </button>
+                    <span className="text-slate-300">|</span>
+                    <button
+                      type="button"
+                      onClick={clearSelectedPatient}
+                      className="text-[11px] font-semibold text-rose-500 hover:underline cursor-pointer"
+                    >
+                      Quitar
+                    </button>
                   </div>
                 </div>
-                <div className="flex-1 space-y-1">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Hashtags</p>
-                  <TagInput
-                    value={quickHashtags.split(",").map((t) => t.trim()).filter(Boolean)}
-                    onChange={(tags) => setQuickHashtags(tags.join(", "))}
-                    fetchSuggestionsUrl={`${getApiUrl()}/tags`}
-                    helperText="Selecciona una sugerencia o presiona Enter para usar uno personalizado."
-                    placeholder="Ej: keto, hipertrofia"
+              ) : (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void openPatientImportModal()}
+                    disabled={isLoadingPatients}
+                    className="flex-1 h-10 px-3 inline-flex items-center justify-between rounded-xl border border-[#E9E5E7] bg-white hover:border-[#7842D4] hover:bg-[#F3ECFC]/20 text-xs font-medium text-[#626573] hover:text-[#7842D4] transition-all cursor-pointer group"
+                  >
+                    <span className="flex items-center gap-2 truncate">
+                      <User className="h-3.5 w-3.5 text-[#7842D4] shrink-0" />
+                      <span>{isLoadingPatients ? "Cargando..." : "Importar paciente"}</span>
+                    </span>
+                    <span className="text-[10px] text-slate-400 group-hover:text-[#7842D4] shrink-0">Buscar</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={startManualPatientEntry}
+                    title="Completar datos del paciente manualmente"
+                    className="h-10 px-2.5 rounded-xl border border-[#E9E5E7] bg-white hover:bg-slate-50 text-xs font-medium text-[#626573] hover:text-[#20212B] transition-colors cursor-pointer shrink-0"
+                  >
+                    Manual
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Hashtags */}
+            <div className="md:col-span-3 space-y-1.5">
+              <label className="text-xs font-semibold text-[#20212B]">Hashtags</label>
+              <TagInput
+                value={quickHashtags.split(",").map((t) => t.trim()).filter(Boolean)}
+                onChange={(tags) => setQuickHashtags(tags.join(", "))}
+                fetchSuggestionsUrl={`${getApiUrl()}/tags`}
+                helperText=""
+                placeholder="Ej: keto, hipertrofia"
+                className="h-10 rounded-xl border-[#E9E5E7] bg-white text-xs font-normal text-[#20212B] focus:border-[#7842D4] focus:ring-1 focus:ring-[#7842D4]"
+              />
+            </div>
+          </div>
+
+          {/* Opciones y notas secundarias (sin bordes) */}
+          <div className="flex items-center justify-between pt-1">
+            <div>
+              {!selectedPatient.fullName?.trim() && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedPatient({
+                      ...createEmptyQuickPatient(),
+                      fullName: "tú persona",
+                      nutritionalFocus: "General / Entregable Express",
+                    });
+                    setIsManualPatientExpanded(false);
+                    toast.info("Modo general activado.");
+                  }}
+                  className="text-xs text-[#626573] hover:text-[#20212B] transition-colors cursor-pointer"
+                >
+                  Continuar sin paciente (modo general)
+                </button>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsNotesExpanded((prev) => !prev)}
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-[#7842D4] hover:text-[#6835be] transition-colors cursor-pointer ml-auto"
+            >
+              <ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-200", isNotesExpanded && "rotate-180")} />
+              <span>{isNotesExpanded ? "Ocultar notas y objetivos" : "+ Agregar notas u objetivo"}</span>
+            </button>
+          </div>
+
+            {/* Panel colapsable de notas y objetivos */}
+            {isNotesExpanded && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-[#626573]">Descripción interna</label>
+                  <Textarea
+                    value={quickDescription}
+                    onChange={(e) => setQuickDescription(e.target.value)}
+                    className="min-h-[56px] rounded-xl border-[#E9E5E7] bg-white text-xs text-[#20212B] placeholder:text-slate-400 focus:border-[#7842D4]"
+                    placeholder="Notas internas sobre este entregable..."
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-[#626573]">Objetivo del plan (opcional)</label>
+                  <Textarea
+                    value={planObjective}
+                    onChange={(e) => setPlanObjective(e.target.value)}
+                    className="min-h-[56px] rounded-xl border-[#E9E5E7] bg-white text-xs text-[#20212B] placeholder:text-slate-400 focus:border-[#7842D4]"
+                    placeholder="Ej: Pérdida de grasa enfocada en alimentos simples"
                   />
                 </div>
               </div>
-            </div>
-            <div className="px-6 pt-3 space-y-1">
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Descripción</p>
-              <Textarea
-                value={quickDescription}
-                onChange={(e) => setQuickDescription(e.target.value)}
-                className="min-h-[60px] rounded-xl border-slate-200 bg-slate-50 text-sm"
-                placeholder="Notas internas sobre este entregable..."
-              />
-            </div>
-            <div className="px-6 pt-3 space-y-2">
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Objetivo del plan <span className="normal-case font-medium text-slate-400">(opcional)</span></p>
-              <Textarea
-                value={planObjective}
-                onChange={(e) => setPlanObjective(e.target.value)}
-                className="min-h-[60px] rounded-xl border-slate-200 bg-slate-50 text-sm"
-                placeholder="Ej: Pérdida de grasa enfocada en alimentos simples"
-              />
-            </div>
-          </details>
-
-          {/* Paciente */}
-          <details
-            className={cn(
-              "group rounded-2xl border border-slate-200 bg-white [&[open]]:pb-6"
             )}
-            open={(!selectedPatient.fullName?.trim() || isManualPatientExpanded) ? true : undefined}
-          >
-            {!selectedPatient.fullName?.trim() || isManualPatientExpanded ? (
-              <summary
-                className="flex select-none px-6 py-6 pointer-events-none"
-                onClick={(e) => {
-                  e.preventDefault();
-                }}
-              >
-                <div className="pointer-events-auto" onClick={(e) => e.stopPropagation()}>
-                  <QuickPatientEmptyState
-                    isLoading={isLoadingPatients}
-                    onImportPatient={() => void openPatientImportModal()}
-                    onManualPatient={startManualPatientEntry}
-                    onContinueWithoutPatient={() => {
-                      setSelectedPatient({
-                        ...createEmptyQuickPatient(),
-                        fullName: "tú persona",
-                        nutritionalFocus: "General / Entregable Express",
-                      });
-                      setIsManualPatientExpanded(false);
-                      toast.info("Modo pauta general activado. Puedes generar y configurar la IA sin vincular un paciente específico.");
-                    }}
+
+            {/* Formulario manual de paciente (si se activó) */}
+            {isManualPatientExpanded && (
+              <div className="rounded-xl border border-[#E9E5E7] bg-slate-50/50 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold text-[#20212B]">Datos manuales del paciente</p>
+                  <button
+                    type="button"
+                    onClick={() => setIsManualPatientExpanded(false)}
+                    className="text-xs text-slate-500 hover:text-slate-700 cursor-pointer"
+                  >
+                    Cerrar
+                  </button>
+                </div>
+                <div className="grid gap-3 md:grid-cols-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Nombre</label>
+                    <Input
+                      value={selectedPatient.fullName}
+                      onChange={(e) => setSelectedPatient((current) => ({ ...current, fullName: e.target.value, source: current.source || "manual" }))}
+                      placeholder="Nombre y apellido"
+                      className="h-9 rounded-xl border-[#E9E5E7] bg-white text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Edad</label>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={selectedPatient.ageYears ?? ""}
+                      onChange={(e) => setSelectedPatient((current) => ({ ...current, ageYears: e.target.value === "" ? null : Math.max(0, Math.round(Number(e.target.value) || 0)), source: current.source || "manual" }))}
+                      placeholder="Ej: 42"
+                      className="h-9 rounded-xl border-[#E9E5E7] bg-white text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Sexo</label>
+                    <select
+                      value={selectedPatient.gender || ""}
+                      onChange={(e) => setSelectedPatient((current) => ({ ...current, gender: e.target.value, source: current.source || "manual" }))}
+                      className="h-9 w-full rounded-xl border border-[#E9E5E7] bg-white px-3 text-xs font-normal text-[#20212B] focus:border-[#7842D4] focus:outline-hidden"
+                    >
+                      <option value="">Seleccionar</option>
+                      <option value="Femenino">Femenino</option>
+                      <option value="Masculino">Masculino</option>
+                      <option value="Otro">Otro</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Objetivo / enfoque</label>
+                    <Input
+                      value={selectedPatient.nutritionalFocus || ""}
+                      onChange={(e) => setSelectedPatient((current) => ({ ...current, nutritionalFocus: e.target.value, source: current.source || "manual" }))}
+                      placeholder="Ej: mejorar energía, ordenar horarios..."
+                      className="h-9 rounded-xl border-[#E9E5E7] bg-white text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Metas</label>
+                    <Input
+                      value={selectedPatient.fitnessGoals || ""}
+                      onChange={(e) => setSelectedPatient((current) => ({ ...current, fitnessGoals: e.target.value, source: current.source || "manual" }))}
+                      placeholder="Ej: bajar grasa, ganar masa muscular..."
+                      className="h-9 rounded-xl border-[#E9E5E7] bg-white text-xs"
+                    />
+                  </div>
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Restricciones</label>
+                    <Input
+                      value={(selectedPatient.restrictions || []).join(", ")}
+                      onChange={(e) => setSelectedPatient((current) => ({ ...current, restrictions: e.target.value.split(",").map((item) => item.trim()).filter(Boolean), source: current.source || "manual" }))}
+                      placeholder="Ej: sin gluten, evitar lactosa"
+                      className="h-9 rounded-xl border-[#E9E5E7] bg-white text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Gustos</label>
+                    <Input
+                      value={selectedPatient.likes || ""}
+                      onChange={(e) => setSelectedPatient((current) => ({ ...current, likes: e.target.value, source: current.source || "manual" }))}
+                      placeholder="Ej: preparaciones saladas, frutas, yogurt..."
+                      className="h-9 rounded-xl border-[#E9E5E7] bg-white text-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Resumen clínico del paciente vinculado */}
+            {selectedPatient.fullName?.trim() && selectedPatient.fullName !== "tú persona" && !isManualPatientExpanded && (
+              <details className="group pt-2">
+                <summary className="flex cursor-pointer items-center justify-between text-xs font-semibold text-[#626573] hover:text-[#20212B] select-none py-1">
+                  <span>Ver ficha clínica y métricas de {selectedPatient.fullName}</span>
+                  <ChevronDown className="h-3.5 w-3.5 text-slate-400 transition-transform group-open:rotate-180" />
+                </summary>
+                <div className="pt-3">
+                  <QuickPatientSummary
+                    fullName={selectedPatient.fullName}
+                    ageYears={quickPatientMetrics.ageYears}
+                    gender={selectedPatient.gender}
+                    weight={quickPatientMetrics.weight}
+                    height={quickPatientMetrics.height}
+                    activityLevel={quickPatientMetrics.activityLevel}
+                    restrictions={selectedPatient.restrictions}
+                    likes={selectedPatient.likes}
+                    nutritionalFocus={selectedPatient.nutritionalFocus}
+                    fitnessGoals={selectedPatient.fitnessGoals}
+                    clinicalSummary={selectedPatient.clinicalSummary}
+                    metrics={<CalculatedMetricsPanel imc={quickPatientMetrics.bmi} get={quickPatientMetrics.get} idealWeight={quickPatientMetrics.idealWeight} />}
                   />
                 </div>
-              </summary>
-            ) : (
-              <summary className="flex cursor-pointer items-center justify-between gap-3 px-6 py-4 select-none">
-                <div className="flex flex-wrap items-center justify-between gap-3 w-full mr-2">
-                  <p className="text-[11px] font-black uppercase tracking-[0.25em] text-slate-400">PACIENTE</p>
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5">
-                      <User className="h-4 w-4 text-emerald-600" />
-                      <span className="text-sm font-semibold text-emerald-900">{selectedPatient.fullName}</span>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        void openPatientImportModal();
-                      }}
-                      disabled={isLoadingPatients}
-                      className="h-9 rounded-xl border-emerald-200 bg-white px-3 text-sm text-emerald-700 font-semibold hover:bg-emerald-50 hover:border-emerald-300 transition-all"
-                    >
-                      {isLoadingPatients ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin text-emerald-600" />
-                      ) : null}
-                      {isLoadingPatients ? "Cargando..." : "Cambiar"}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        clearSelectedPatient();
-                      }}
-                      disabled={isLoadingPatients}
-                      className="h-9 rounded-xl border-rose-200 bg-white px-3 text-sm text-rose-700 font-semibold hover:bg-rose-50 hover:border-rose-300 transition-all"
-                    >
-                      Quitar
-                    </Button>
-                  </div>
-                </div>
-                <ChevronDown className="h-4 w-4 text-slate-400 transition-transform group-open:rotate-180 shrink-0" />
-              </summary>
+              </details>
             )}
-
-            <div className="px-6 mt-4 space-y-4">
-              {selectedPatient.fullName?.trim() && (
-                <QuickPatientSummary
-                  fullName={selectedPatient.fullName}
-                  ageYears={quickPatientMetrics.ageYears}
-                  gender={selectedPatient.gender}
-                  weight={quickPatientMetrics.weight}
-                  height={quickPatientMetrics.height}
-                  activityLevel={quickPatientMetrics.activityLevel}
-                  restrictions={selectedPatient.restrictions}
-                  likes={selectedPatient.likes}
-                  nutritionalFocus={selectedPatient.nutritionalFocus}
-                  fitnessGoals={selectedPatient.fitnessGoals}
-                  clinicalSummary={selectedPatient.clinicalSummary}
-                  metrics={<CalculatedMetricsPanel imc={quickPatientMetrics.bmi} get={quickPatientMetrics.get} idealWeight={quickPatientMetrics.idealWeight} />}
-                />
-              )}
-
-              {isManualPatientExpanded && (
-                <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-5">
-                  <div className="grid gap-4 md:grid-cols-3">
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Nombre</p>
-                      <Input value={selectedPatient.fullName} onChange={(e) => setSelectedPatient((current) => ({ ...current, fullName: e.target.value, source: current.source || "manual" }))} placeholder="Nombre y apellido" />
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Edad</p>
-                      <Input type="number" min={0} value={selectedPatient.ageYears ?? ""} onChange={(e) => setSelectedPatient((current) => ({ ...current, ageYears: e.target.value === "" ? null : Math.max(0, Math.round(Number(e.target.value) || 0)), source: current.source || "manual" }))} placeholder="Ej: 42" />
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Sexo</p>
-                      <select value={selectedPatient.gender || ""} onChange={(e) => setSelectedPatient((current) => ({ ...current, gender: e.target.value, source: current.source || "manual" }))} className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900">
-                        <option value="">Seleccionar</option>
-                        <option value="Femenino">Femenino</option>
-                        <option value="Masculino">Masculino</option>
-                        <option value="Otro">Otro</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div className="mt-4 grid gap-4 md:grid-cols-2">
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Objetivo / enfoque</p>
-                      <Input value={selectedPatient.nutritionalFocus || ""} onChange={(e) => setSelectedPatient((current) => ({ ...current, nutritionalFocus: e.target.value, source: current.source || "manual" }))} placeholder="Ej: mejorar energía, ordenar horarios..." />
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Metas</p>
-                      <Input value={selectedPatient.fitnessGoals || ""} onChange={(e) => setSelectedPatient((current) => ({ ...current, fitnessGoals: e.target.value, source: current.source || "manual" }))} placeholder="Ej: bajar grasa, ganar masa muscular..." />
-                    </div>
-                  </div>
-                  <div className="mt-4 grid gap-4 md:grid-cols-2">
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Restricciones</p>
-                      <Input value={(selectedPatient.restrictions || []).join(", ")} onChange={(e) => setSelectedPatient((current) => ({ ...current, restrictions: e.target.value.split(",").map((item) => item.trim()).filter(Boolean), source: current.source || "manual" }))} placeholder="Ej: sin gluten, evitar lactosa" />
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Gustos</p>
-                      <Input value={selectedPatient.likes || ""} onChange={(e) => setSelectedPatient((current) => ({ ...current, likes: e.target.value, source: current.source || "manual" }))} placeholder="Ej: preparaciones saladas, frutas, yogurt..." />
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </details>
-
         </div>
 
         <div className="mt-10 space-y-8 xl:px-4">
@@ -2716,16 +2787,14 @@ export default function QuickDeliverableClient() {
           >
             {currentStep === 0 && (
               <div className="space-y-6">
-                <div className="rounded-3xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
-                    <div>
-                      <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">
-                        Formato del entregable principal <span className="text-rose-500">*</span>
-                      </p>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        Elige cómo deseas presentar las preparaciones o porciones a tu paciente en este entregable.
-                      </p>
-                    </div>
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-xs font-semibold text-[#20212B]">
+                      Formato del entregable principal <span className="text-rose-500">*</span>
+                    </p>
+                    <p className="text-xs text-[#626573] mt-0.5">
+                      Elige cómo deseas presentar las preparaciones o porciones a tu paciente en este entregable.
+                    </p>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -2733,30 +2802,30 @@ export default function QuickDeliverableClient() {
                       type="button"
                       onClick={() => setContentMode("table")}
                       className={cn(
-                        "flex items-start gap-3.5 p-4 rounded-2xl border text-left transition-all cursor-pointer",
+                        "flex items-start gap-3 p-4 rounded-xl border text-left transition-all cursor-pointer",
                         contentMode === "table"
-                          ? "border-emerald-500 bg-emerald-50/40 shadow-md ring-2 ring-emerald-500/20"
-                          : "border-slate-200 bg-white hover:bg-slate-50 text-slate-600",
+                          ? "border-[#7842D4] bg-[#F3ECFC]/40 ring-1 ring-[#7842D4]/20 shadow-2xs"
+                          : "border-[#E9E5E7] bg-white hover:bg-slate-50/70 text-[#626573]",
                       )}
                     >
                       <div className={cn(
-                        "p-3 rounded-xl shrink-0 mt-0.5 transition-colors",
-                        contentMode === "table" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"
+                        "p-2.5 rounded-lg shrink-0 mt-0.5 transition-colors",
+                        contentMode === "table" ? "bg-[#7842D4]/10 text-[#7842D4]" : "bg-slate-100 text-slate-500"
                       )}>
-                        <FileText className="w-5 h-5" />
+                        <FileText className="w-4 h-4" />
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <p className="text-xs font-black uppercase tracking-wider text-slate-900">
+                          <p className="text-xs font-semibold text-[#20212B]">
                             Tabla de comidas
                           </p>
                           {contentMode === "table" && (
-                            <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                            <span className="text-[10px] font-semibold text-[#7842D4] bg-[#7842D4]/10 px-2 py-0.5 rounded-full">
                               Activo
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-slate-500 mt-1">
+                        <p className="text-xs text-[#626573] mt-1 leading-relaxed">
                           Plan organizado en tabla por horarios (Desayuno, Almuerzo, Cena, etc.).
                         </p>
                       </div>
@@ -2766,30 +2835,30 @@ export default function QuickDeliverableClient() {
                       type="button"
                       onClick={() => setContentMode("paragraphs")}
                       className={cn(
-                        "flex items-start gap-3.5 p-4 rounded-2xl border text-left transition-all cursor-pointer",
+                        "flex items-start gap-3 p-4 rounded-xl border text-left transition-all cursor-pointer",
                         contentMode === "paragraphs"
-                          ? "border-indigo-500 bg-indigo-50/40 shadow-md ring-2 ring-indigo-500/20"
-                          : "border-slate-200 bg-white hover:bg-slate-50 text-slate-600",
+                          ? "border-[#7842D4] bg-[#F3ECFC]/40 ring-1 ring-[#7842D4]/20 shadow-2xs"
+                          : "border-[#E9E5E7] bg-white hover:bg-slate-50/70 text-[#626573]",
                       )}
                     >
                       <div className={cn(
-                        "p-3 rounded-xl shrink-0 mt-0.5 transition-colors",
-                        contentMode === "paragraphs" ? "bg-indigo-100 text-indigo-700" : "bg-slate-100 text-slate-500"
+                        "p-2.5 rounded-lg shrink-0 mt-0.5 transition-colors",
+                        contentMode === "paragraphs" ? "bg-[#7842D4]/10 text-[#7842D4]" : "bg-slate-100 text-slate-500"
                       )}>
-                        <Sparkles className="w-5 h-5" />
+                        <Sparkles className="w-4 h-4" />
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <p className="text-xs font-black uppercase tracking-wider text-slate-900">
+                          <p className="text-xs font-semibold text-[#20212B]">
                             Imágenes por categoría
                           </p>
                           {contentMode === "paragraphs" && (
-                            <span className="text-[10px] font-extrabold text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded-full">
+                            <span className="text-[10px] font-semibold text-[#7842D4] bg-[#7842D4]/10 px-2 py-0.5 rounded-full">
                               Activo
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-slate-500 mt-1">
+                        <p className="text-xs text-[#626573] mt-1 leading-relaxed">
                           Porciones y equivalencias con imagen ilustrativa por grupo alimenticio.
                         </p>
                       </div>
@@ -2799,30 +2868,30 @@ export default function QuickDeliverableClient() {
                       type="button"
                       onClick={() => setContentMode("both")}
                       className={cn(
-                        "flex items-start gap-3.5 p-4 rounded-2xl border text-left transition-all cursor-pointer",
+                        "flex items-start gap-3 p-4 rounded-xl border text-left transition-all cursor-pointer",
                         contentMode === "both"
-                          ? "border-violet-500 bg-violet-50/40 shadow-md ring-2 ring-violet-500/20"
-                          : "border-slate-200 bg-white hover:bg-slate-50 text-slate-600",
+                          ? "border-[#7842D4] bg-[#F3ECFC]/40 ring-1 ring-[#7842D4]/20 shadow-2xs"
+                          : "border-[#E9E5E7] bg-white hover:bg-slate-50/70 text-[#626573]",
                       )}
                     >
                       <div className={cn(
-                        "p-3 rounded-xl shrink-0 mt-0.5 transition-colors",
-                        contentMode === "both" ? "bg-violet-100 text-violet-700" : "bg-slate-100 text-slate-500"
+                        "p-2.5 rounded-lg shrink-0 mt-0.5 transition-colors",
+                        contentMode === "both" ? "bg-[#7842D4]/10 text-[#7842D4]" : "bg-slate-100 text-slate-500"
                       )}>
-                        <Layers className="w-5 h-5" />
+                        <Layers className="w-4 h-4" />
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <p className="text-xs font-black uppercase tracking-wider text-slate-900">
+                          <p className="text-xs font-semibold text-[#20212B]">
                             Utilizar ambas
                           </p>
                           {contentMode === "both" && (
-                            <span className="text-[10px] font-extrabold text-violet-700 bg-violet-100 px-2 py-0.5 rounded-full">
+                            <span className="text-[10px] font-semibold text-[#7842D4] bg-[#7842D4]/10 px-2 py-0.5 rounded-full">
                               Activo
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-slate-500 mt-1">
+                        <p className="text-xs text-[#626573] mt-1 leading-relaxed">
                           Combina la tabla de comidas por horarios y la guía por categoría en el entregable.
                         </p>
                       </div>
@@ -2834,17 +2903,17 @@ export default function QuickDeliverableClient() {
                   <section
                     ref={mealsSectionRef}
                     className={cn(
-                      "rounded-3xl border border-slate-200 bg-white p-4 sm:p-10 shadow-sm space-y-6",
+                      "rounded-2xl border border-[#E9E5E7] bg-white p-5 sm:p-8 shadow-2xs space-y-6",
                       shouldHighlightMealsSection && "border-rose-400 ring-4 ring-rose-100",
                     )}
                   >
-                    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between border-b border-slate-100 pb-5">
+                    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between border-b border-[#E9E5E7]/70 pb-5">
                       <div>
-                        <h2 className="text-lg sm:text-xl font-black text-slate-900 flex items-center gap-2">
-                          <Sparkles className="w-5 h-5 text-indigo-600" />
-                          Imágenes por categoría <span className="text-rose-600">*</span>
+                        <h2 className="text-base sm:text-lg font-bold text-[#20212B] flex items-center gap-2">
+                          <Sparkles className="w-5 h-5 text-[#7842D4]" />
+                          Imágenes por categoría <span className="text-rose-500">*</span>
                         </h2>
-                        <p className="mt-1 text-xs sm:text-sm text-slate-500">
+                        <p className="mt-0.5 text-xs text-[#626573]">
                           Configura cada categoría de alimento, porción diaria e imagen representativa.
                         </p>
                       </div>
@@ -2854,15 +2923,15 @@ export default function QuickDeliverableClient() {
                           type="button"
                           variant="outline"
                           onClick={() => setIsAiModalOpen(true)}
-                          className="h-10 rounded-2xl border-indigo-200 bg-indigo-50 px-4 text-indigo-700 hover:bg-indigo-100 font-semibold text-xs transition-all"
+                          className="h-10 rounded-xl border border-[#7842D4]/30 bg-[#F3ECFC]/60 px-4 text-[#7842D4] hover:bg-[#F3ECFC] font-medium text-xs transition-all"
                         >
-                          <Sparkles className="mr-2 h-4 w-4 text-indigo-600" />
+                          <Sparkles className="mr-2 h-4 w-4 text-[#7842D4]" />
                           Generar con Naty
                         </Button>
                         <Button
                           type="button"
                           onClick={addParagraph}
-                          className="h-10 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition-all"
+                          className="h-10 rounded-xl bg-[#7842D4] hover:bg-[#6835be] text-white font-medium text-xs shadow-2xs transition-all"
                         >
                           <Plus className="mr-1.5 h-4 w-4" />
                           Agregar categoría
@@ -3012,96 +3081,107 @@ export default function QuickDeliverableClient() {
                   <section
                     ref={mealsSectionRef}
                     className={cn(
-                      "rounded-3xl border border-slate-200 bg-white p-4 sm:p-10 shadow-sm",
-                      shouldHighlightMealsSection && "border-rose-400 ring-4 ring-rose-100",
+                      "space-y-4",
+                      shouldHighlightMealsSection && "p-4 rounded-2xl border border-rose-300 ring-4 ring-rose-100",
                       !includeMeals && "opacity-55",
                     )}
                   >
-                    <div className="flex flex-col gap-5">
-                      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                    <div className="flex flex-col gap-4">
+                      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                         <div>
-                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                            <h2 className="text-lg sm:text-xl font-black text-slate-900">
-                              Tabla de comidas <span className="text-rose-600">*</span>
+                          <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
+                            <h2 className="text-base sm:text-lg font-bold text-[#20212B]">
+                              Tabla de comidas <span className="text-rose-500">*</span>
                             </h2>
                             <button
                               type="button"
                               onClick={() => setIncludeMeals((current) => !current)}
                               className={cn(
-                                "inline-flex items-center justify-center gap-2 rounded-full border px-4 py-2 text-[11px] font-black uppercase tracking-widest transition-colors w-fit",
+                                "inline-flex items-center justify-center gap-1.5 rounded-xl border px-3 py-1 text-xs font-semibold transition-colors w-fit cursor-pointer",
                                 includeMeals
-                                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                                  : "border-slate-200 bg-white text-slate-500",
+                                  ? "border-[#DDE7B8] bg-[#F0F5DF] text-[#668E20]"
+                                  : "border-[#E9E5E7] bg-white text-slate-500",
                               )}
                             >
                               <span
                                 className={cn(
-                                  "h-2.5 w-2.5 rounded-full",
-                                  includeMeals ? "bg-emerald-500" : "bg-slate-300",
+                                  "h-2 w-2 rounded-full",
+                                  includeMeals ? "bg-[#86A83C]" : "bg-slate-300",
                                 )}
                               />
                               {includeMeals ? "Ocultar sección" : "Incluir sección"}
                             </button>
                           </div>
-                          <p className="mt-1 text-xs sm:text-sm text-slate-500">
+                          <p className="mt-0.5 text-xs text-[#626573]">
                             {tableMode === "options"
                               ? "Crea alternativas completas por tiempo de comida. La tabla final mostrará las opciones en columnas."
                               : "Completa hora, indicación y porción para cada tiempo de comida."}
                           </p>
                         </div>
-                        <Button
+                        <button
                           type="button"
-                          variant="outline"
-                          className="h-11 rounded-2xl border-purple-200 bg-purple-50 px-4 text-purple-700 hover:bg-purple-100 hover:border-purple-300 hover:text-purple-800 transition-all font-semibold shadow-sm w-full md:w-auto md:self-start justify-center"
+                          className="h-10 rounded-xl border border-[#DDE7B8] bg-[#F0F5DF] px-4 text-[#668E20] hover:bg-[#E8EFCB] transition-all font-semibold text-xs flex items-center justify-center gap-2 w-full md:w-auto md:self-start cursor-pointer shadow-2xs"
                           onClick={() => setIsCreatedRecipesModalOpen(true)}
-                          title="Rellenar con platos creados"
+                          title="Rellenar con Naty"
                         >
                           {isGeneratingQuickAi ? (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin text-purple-600" />
+                            <Loader2 className="h-4 w-4 animate-spin text-[#86A83C]" />
                           ) : (
-                            <Sparkles className="mr-2 h-4 w-4 text-purple-600 fill-purple-600/10" />
+                            <Sparkles className="h-4 w-4 text-[#86A83C]" />
                           )}
-
-                          Rellenar con Naty
-                        </Button>
+                          <span>Rellenar con Naty</span>
+                        </button>
                       </div>
 
-                      <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3 sm:p-4">
-                        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                          <div className="flex rounded-xl border border-slate-200 bg-white p-1">
-                            <button
-                              type="button"
-                              onClick={() => setTableMode("simple")}
-                              className={cn("rounded-lg px-3 py-2 text-xs font-bold transition-colors", tableMode === "simple" ? "bg-emerald-600 text-white shadow-sm" : "text-slate-500 hover:bg-slate-100")}
-                            >
-                              Tabla simple
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setTableMode("options")}
-                              className={cn("rounded-lg px-3 py-2 text-xs font-bold transition-colors", tableMode === "options" ? "bg-violet-600 text-white shadow-sm" : "text-slate-500 hover:bg-slate-100")}
-                            >
-                              Tabla con opciones
-                            </button>
-                          </div>
-                          {tableMode === "options" && (
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Columnas</span>
-                              {[1, 2, 3].map((count) => (
-                                <button
-                                  key={count}
-                                  type="button"
-                                  onClick={() => requestOptionCount(count)}
-                                  disabled={!includeMeals || count === optionCount}
-                                  className={cn("h-8 min-w-8 rounded-lg border px-2 text-xs font-black transition-colors disabled:cursor-default", count === optionCount ? "border-violet-600 bg-violet-600 text-white" : "border-slate-200 bg-white text-slate-600 hover:border-violet-300 hover:text-violet-700")}
-                                >
-                                  {count}
-                                </button>
-                              ))}
-                              <span className="text-xs text-slate-500">{optionCount === 1 ? "opción" : "opciones"}</span>
-                            </div>
-                          )}
+                      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="inline-flex rounded-xl bg-slate-100 p-1 w-fit">
+                          <button
+                            type="button"
+                            onClick={() => setTableMode("simple")}
+                            className={cn(
+                              "rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all cursor-pointer",
+                              tableMode === "simple"
+                                ? "bg-white text-[#20212B] shadow-2xs"
+                                : "text-[#626573] hover:text-[#20212B]"
+                            )}
+                          >
+                            Tabla simple
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setTableMode("options")}
+                            className={cn(
+                              "rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all cursor-pointer",
+                              tableMode === "options"
+                                ? "bg-white text-[#20212B] shadow-2xs"
+                                : "text-[#626573] hover:text-[#20212B]"
+                            )}
+                          >
+                            Tabla con opciones
+                          </button>
                         </div>
+                        {tableMode === "options" && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-[#626573] font-medium">Columnas:</span>
+                            {[1, 2, 3].map((count) => (
+                              <button
+                                key={count}
+                                type="button"
+                                onClick={() => requestOptionCount(count)}
+                                disabled={!includeMeals || count === optionCount}
+                                className={cn(
+                                  "h-7 w-7 rounded-lg text-xs font-semibold transition-all flex items-center justify-center cursor-pointer",
+                                  count === optionCount
+                                    ? "bg-[#86A83C] text-white shadow-2xs"
+                                    : "bg-white border border-[#E9E5E7] text-[#626573] hover:border-slate-300"
+                                )}
+                              >
+                                {count}
+                              </button>
+                            ))}
+                            <span className="text-xs text-[#626573]">{optionCount === 1 ? "opción" : "opciones"}</span>
+                          </div>
+                        )}
                       </div>
 
                       {planMode === "weekly" && tableMode === "simple" && (
@@ -3204,25 +3284,25 @@ export default function QuickDeliverableClient() {
                       </div>
 
                       <div className={cn(
-                        "overflow-x-auto rounded-3xl border border-slate-200",
+                        "overflow-x-auto rounded-xl border border-[#E9E5E7]",
                         tableMode === "simple" && planMode !== "weekly" ? "hidden md:block" : "hidden",
                       )}>
                         <table className="w-full min-w-[860px] bg-white">
-                          <thead className="bg-slate-50">
-                            <tr className="border-b border-slate-200">
-                              <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
+                          <thead className="bg-slate-50/80">
+                            <tr className="border-b border-[#E9E5E7]">
+                              <th className="px-4 py-2.5 text-left text-xs font-semibold text-[#626573]">
                                 Categoría
                               </th>
-                              <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
+                              <th className="px-4 py-2.5 text-left text-xs font-semibold text-[#626573]">
                                 Alimentos
                               </th>
-                              <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 w-36">
+                              <th className="px-4 py-2.5 text-left text-xs font-semibold text-[#626573] w-36">
                                 Hora
                               </th>
-                              <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 w-44">
+                              <th className="px-4 py-2.5 text-left text-xs font-semibold text-[#626573] w-44">
                                 Porciones
                               </th>
-                              <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 w-20">
+                              <th className="px-4 py-2.5 text-left text-xs font-semibold text-[#626573] w-20">
                                 Acción
                               </th>
                             </tr>
@@ -3230,13 +3310,13 @@ export default function QuickDeliverableClient() {
                           <tbody>
                             {meals.map((meal) => (
                               <tr key={meal.id} className="border-b border-slate-100 last:border-b-0">
-                                <td className="px-4 py-3 align-top">
+                                <td className="px-4 py-2.5 align-top">
                                   <select
                                     value={meal.section}
                                     onChange={(e) =>
                                       updateMeal(meal.id, "section", e.target.value)
                                     }
-                                    className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900"
+                                    className="h-10 w-full rounded-xl border border-[#E9E5E7] bg-white px-3 text-xs font-normal text-[#20212B]"
                                     disabled={!includeMeals}
                                   >
                                     <option value="">Seleccionar</option>
@@ -3247,44 +3327,44 @@ export default function QuickDeliverableClient() {
                                     ))}
                                   </select>
                                 </td>
-                                <td className="px-4 py-3 align-top">
+                                <td className="px-4 py-2.5 align-top">
                                   <Input
                                     value={meal.mealText}
                                     onChange={(e) =>
                                       updateMeal(meal.id, "mealText", e.target.value)
                                     }
-                                    className="h-11 rounded-2xl border-slate-200 bg-white"
+                                    className="h-10 rounded-xl border-[#E9E5E7] bg-white text-xs text-[#20212B]"
                                     placeholder="Nombre del plato o preparacion"
                                     disabled={!includeMeals}
                                   />
                                 </td>
-                                <td className="px-4 py-3 align-top">
+                                <td className="px-4 py-2.5 align-top">
                                   <Input
                                     value={meal.time}
                                     onChange={(e) =>
                                       updateMeal(meal.id, "time", e.target.value)
                                     }
-                                    className="h-11 rounded-2xl border-slate-200 bg-white"
+                                    className="h-10 rounded-xl border-[#E9E5E7] bg-white text-xs text-[#20212B]"
                                     placeholder="07:30"
                                     disabled={!includeMeals}
                                   />
                                 </td>
-                                <td className="px-4 py-3 align-top">
+                                <td className="px-4 py-2.5 align-top">
                                   <Input
                                     value={meal.portion}
                                     onChange={(e) =>
                                       updateMeal(meal.id, "portion", e.target.value)
                                     }
-                                    className="h-11 rounded-2xl border-slate-200 bg-white"
+                                    className="h-10 rounded-xl border-[#E9E5E7] bg-white text-xs text-[#20212B]"
                                     placeholder="2 porciones"
                                     disabled={!includeMeals}
                                   />
                                 </td>
-                                <td className="px-4 py-3 align-top">
+                                <td className="px-4 py-2.5 align-top">
                                   <button
                                     type="button"
                                     onClick={() => removeMeal(meal.id)}
-                                    className="flex h-11 w-11 items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100"
+                                    className="flex h-10 w-10 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 cursor-pointer"
                                     disabled={!includeMeals}
                                   >
                                     <Trash2 className="h-4 w-4" />
@@ -3293,11 +3373,11 @@ export default function QuickDeliverableClient() {
                               </tr>
                             ))}
                             <tr>
-                              <td colSpan={5} className="px-4 py-4">
+                              <td colSpan={5} className="px-4 py-3">
                                 <button
                                   type="button"
                                   onClick={addMeal}
-                                  className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-600 transition-colors hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700"
+                                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-[#E9E5E7] bg-white px-4 py-2.5 text-xs font-semibold text-[#626573] transition-colors hover:border-[#86A83C] hover:bg-[#F0F5DF]/60 hover:text-[#668E20] cursor-pointer"
                                   disabled={!includeMeals}
                                 >
                                   <Plus className="h-4 w-4" />
@@ -3420,26 +3500,26 @@ export default function QuickDeliverableClient() {
                                 ))}
                               </div>
                             ))}
-                            <button type="button" onClick={addMeal} disabled={!includeMeals} className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-violet-300 bg-violet-50 px-4 py-3 text-xs font-bold text-violet-700"><Plus className="h-4 w-4" />Agregar comida</button>
+                            <button type="button" onClick={addMeal} disabled={!includeMeals} className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-[#E9E5E7] bg-white px-4 py-2.5 text-xs font-semibold text-[#626573] hover:border-[#86A83C] hover:bg-[#F0F5DF]/60 hover:text-[#668E20] cursor-pointer"><Plus className="h-4 w-4" />Agregar comida</button>
                           </div>
-                          <div className="hidden overflow-x-auto rounded-3xl border border-violet-200 md:block">
+                          <div className="hidden overflow-x-auto rounded-2xl border border-[#E9E5E7] shadow-2xs md:block">
                             <table className="w-full min-w-[760px] bg-white">
-                              <thead className="bg-violet-50">
-                                <tr className="border-b border-violet-100">
-                                  <th className="w-44 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">Tiempo de comida</th>
-                                  {Array.from({ length: optionCount }, (_, optionIndex) => <th key={optionIndex} className="min-w-56 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">Opción {optionIndex + 1}</th>)}
-                                  <th className="w-20 px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-violet-700">Acción</th>
+                              <thead className="bg-[#FAF9F9]">
+                                <tr className="border-b border-[#E9E5E7]">
+                                  <th className="w-44 px-4 py-2.5 text-left text-xs font-semibold text-[#626573]">Tiempo de comida</th>
+                                  {Array.from({ length: optionCount }, (_, optionIndex) => <th key={optionIndex} className="min-w-56 px-4 py-2.5 text-left text-xs font-semibold text-[#626573]">Opción {optionIndex + 1}</th>)}
+                                  <th className="w-20 px-4 py-2.5 text-left text-xs font-semibold text-[#626573]">Acción</th>
                                 </tr>
                               </thead>
                               <tbody>
                                 {meals.map((meal) => (
                                   <tr key={`options-${meal.id}`} className="border-b border-slate-100 last:border-b-0">
-                                    <td className="px-4 py-3 align-top"><select value={meal.section} onChange={(e) => updateMeal(meal.id, "section", e.target.value)} disabled={!includeMeals} className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900"><option value="">Seleccionar</option>{QUICK_SECTIONS.map((section) => <option key={section} value={section}>{section}</option>)}</select></td>
-                                    {Array.from({ length: optionCount }, (_, optionIndex) => <td key={optionIndex} className="px-3 py-3 align-top"><Textarea value={meal.optionTexts?.[optionIndex] || ""} onChange={(e) => updateMealOption(meal.id, optionIndex, e.target.value)} disabled={!includeMeals} placeholder="Preparación completa con cantidades" className="min-h-24 rounded-xl border-slate-200 bg-white text-xs leading-5" /></td>)}
-                                    <td className="px-4 py-3 align-top"><button type="button" onClick={() => removeMeal(meal.id)} disabled={!includeMeals} className="flex h-11 w-11 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100"><Trash2 className="h-4 w-4" /></button></td>
+                                    <td className="px-4 py-2.5 align-top"><select value={meal.section} onChange={(e) => updateMeal(meal.id, "section", e.target.value)} disabled={!includeMeals} className="h-10 w-full rounded-xl border border-[#E9E5E7] bg-white px-3 text-xs font-normal text-[#20212B]"><option value="">Seleccionar</option>{QUICK_SECTIONS.map((section) => <option key={section} value={section}>{section}</option>)}</select></td>
+                                    {Array.from({ length: optionCount }, (_, optionIndex) => <td key={optionIndex} className="px-3 py-2.5 align-top"><Textarea value={meal.optionTexts?.[optionIndex] || ""} onChange={(e) => updateMealOption(meal.id, optionIndex, e.target.value)} disabled={!includeMeals} placeholder="Preparación completa con cantidades" className="min-h-20 rounded-xl border-[#E9E5E7] bg-white text-xs leading-5 text-[#20212B]" /></td>)}
+                                    <td className="px-4 py-2.5 align-top"><button type="button" onClick={() => removeMeal(meal.id)} disabled={!includeMeals} className="flex h-10 w-10 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 cursor-pointer"><Trash2 className="h-4 w-4" /></button></td>
                                   </tr>
                                 ))}
-                                <tr><td colSpan={optionCount + 2} className="px-4 py-4"><button type="button" onClick={addMeal} disabled={!includeMeals} className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-violet-300 bg-violet-50 px-4 py-3 text-sm font-bold text-violet-700"><Plus className="h-4 w-4" />Agregar comida</button></td></tr>
+                                <tr><td colSpan={optionCount + 2} className="px-4 py-3"><button type="button" onClick={addMeal} disabled={!includeMeals} className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-[#E9E5E7] bg-white px-4 py-2.5 text-xs font-semibold text-[#626573] hover:border-[#86A83C] hover:bg-[#F0F5DF]/60 hover:text-[#668E20] transition-colors cursor-pointer"><Plus className="h-4 w-4" />Agregar comida</button></td></tr>
                               </tbody>
                             </table>
                           </div>
@@ -3452,42 +3532,41 @@ export default function QuickDeliverableClient() {
             )}
 
               {currentStep === 1 && (
-              <section ref={avoidFoodsSectionRef} className="rounded-3xl border border-slate-200 bg-white p-4 sm:p-10 shadow-sm">
+              <section ref={avoidFoodsSectionRef} className="rounded-2xl border border-[#E9E5E7] bg-white p-5 sm:p-8 shadow-2xs space-y-5">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
-                    <h2 className="text-lg font-black text-slate-900">
+                    <h2 className="text-base sm:text-lg font-bold text-[#20212B]">
                       Alimentos a evitar / Indicaciones
                     </h2>
                     <button
                       type="button"
                       onClick={() => setIncludeAvoidFoods((current) => !current)}
                       className={cn(
-                        "mt-2 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[11px] font-black uppercase tracking-widest transition-colors w-fit",
+                        "mt-2 inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-medium transition-colors w-fit cursor-pointer",
                         includeAvoidFoods
                           ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                          : "border-slate-200 bg-white text-slate-500",
+                          : "border-[#E9E5E7] bg-white text-slate-500",
                       )}
                     >
                       <span
                         className={cn(
-                          "h-2.5 w-2.5 rounded-full",
+                          "h-2 w-2 rounded-full",
                           includeAvoidFoods ? "bg-emerald-500" : "bg-slate-300",
                         )}
                       />
                       {includeAvoidFoods ? "Omitir sección" : "Incluir sección"}
                     </button>
-                    <p className="mt-1 text-xs sm:text-sm text-slate-500">
+                    <p className="mt-1 text-xs text-[#626573]">
                       Agrega filas simples para dejar restricciones o recordatorios rápidos.
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
                     <Button
-                      variant="outline"
-                      className="h-11 rounded-2xl border-slate-200 w-full sm:w-auto justify-center"
+                      className="h-10 rounded-xl bg-[#7842D4] hover:bg-[#6835be] text-white font-medium text-xs shadow-2xs w-full sm:w-auto justify-center cursor-pointer"
                       onClick={addAvoidFoodRow}
                       disabled={!includeAvoidFoods}
                     >
-                      <Plus className="mr-2 h-4 w-4" />
+                      <Plus className="mr-1.5 h-4 w-4" />
                       Agregar fila
                     </Button>
                   </div>
@@ -3500,14 +3579,14 @@ export default function QuickDeliverableClient() {
                       <Input
                         value={food.value}
                         onChange={(e) => updateAvoidFood(food.id, e.target.value)}
-                        className="h-10 flex-1 rounded-xl border-slate-200 bg-white text-xs font-medium"
+                        className="h-10 flex-1 rounded-xl border-[#E9E5E7] bg-white text-xs font-normal text-[#20212B]"
                         placeholder="Ej: bebidas azucaradas, frituras, alcohol..."
                         disabled={!includeAvoidFoods}
                       />
                       <button
                         type="button"
                         onClick={() => removeAvoidFood(food.id)}
-                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 text-rose-600"
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 cursor-pointer"
                         disabled={!includeAvoidFoods}
                       >
                         <Trash2 className="h-4 w-4" />
@@ -3517,14 +3596,14 @@ export default function QuickDeliverableClient() {
                 </div>
 
                 {/* Vista Desktop (>= 768px) */}
-                <div className="hidden md:block mt-6 overflow-x-auto rounded-3xl border border-slate-200">
+                <div className="hidden md:block mt-6 overflow-x-auto rounded-xl border border-[#E9E5E7]">
                   <table className="w-full min-w-[620px] bg-white">
-                    <thead className="bg-slate-50">
-                      <tr className="border-b border-slate-200">
-                        <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
+                    <thead className="bg-slate-50/80">
+                      <tr className="border-b border-[#E9E5E7]">
+                        <th className="px-4 py-2.5 text-left text-xs font-semibold text-[#626573]">
                           Alimento / restricción
                         </th>
-                        <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 w-20">
+                        <th className="px-4 py-2.5 text-left text-xs font-semibold text-[#626573] w-20">
                           Acción
                         </th>
                       </tr>
@@ -3532,22 +3611,22 @@ export default function QuickDeliverableClient() {
                     <tbody>
                       {avoidFoods.map((food) => (
                         <tr key={food.id} className="border-b border-slate-100 last:border-b-0">
-                          <td className="px-4 py-3">
+                          <td className="px-4 py-2.5">
                             <Input
                               value={food.value}
                               onChange={(e) =>
                                 updateAvoidFood(food.id, e.target.value)
                               }
-                              className="h-11 rounded-2xl border-slate-200 bg-white"
+                              className="h-10 rounded-xl border-[#E9E5E7] bg-white text-xs text-[#20212B]"
                               placeholder="Ej: bebidas azucaradas, frituras, alcohol..."
                               disabled={!includeAvoidFoods}
                             />
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="px-4 py-2.5">
                             <button
                               type="button"
                               onClick={() => removeAvoidFood(food.id)}
-                              className="flex h-11 w-11 items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100"
+                              className="flex h-10 w-10 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 cursor-pointer"
                               disabled={!includeAvoidFoods}
                             >
                               <Trash2 className="h-4 w-4" />
@@ -3565,68 +3644,67 @@ export default function QuickDeliverableClient() {
               <section
                 ref={resourcesSectionRef}
                 className={cn(
-                  "rounded-3xl border border-slate-200 bg-white p-4 sm:p-10 shadow-sm",
+                  "rounded-2xl border border-[#E9E5E7] bg-white p-5 sm:p-8 shadow-2xs space-y-5",
                   !includeResources && "opacity-55",
                 )}
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
-                    <h2 className="text-lg font-black text-slate-900">
+                    <h2 className="text-base sm:text-lg font-bold text-[#20212B]">
                       Recursos específicos
                     </h2>
                     <button
                       type="button"
                       onClick={() => setIncludeResources((current) => !current)}
                       className={cn(
-                        "mt-2 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[11px] font-black uppercase tracking-widest transition-colors w-fit",
+                        "mt-2 inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-medium transition-colors w-fit cursor-pointer",
                         includeResources
                           ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                          : "border-slate-200 bg-white text-slate-500",
+                          : "border-[#E9E5E7] bg-white text-slate-500",
                       )}
                     >
                       <span
                         className={cn(
-                          "h-2.5 w-2.5 rounded-full",
+                          "h-2 w-2 rounded-full",
                           includeResources ? "bg-emerald-500" : "bg-slate-300",
                         )}
                       />
                       {includeResources ? "Omitir sección" : "Incluir sección"}
                     </button>
-                    <p className="mt-1 text-xs sm:text-sm text-slate-500">
+                    <p className="mt-1 text-xs text-[#626573]">
                       Puedes sumar material breve adaptado al paciente.
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
                     <Button
-                      variant="outline"
-                      className="h-10 rounded-2xl border-slate-200 w-full sm:w-auto justify-center"
+                      className="h-10 rounded-xl bg-[#7842D4] hover:bg-[#6835be] text-white font-medium text-xs shadow-2xs w-full sm:w-auto justify-center cursor-pointer"
                       onClick={openResourceModal}
                       disabled={!includeResources || isLoadingResources}
                     >
                       {isLoadingResources ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin text-slate-600" />
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin text-white" />
                       ) : (
-                        <Plus className="mr-2 h-4 w-4" />
+                        <Plus className="mr-1.5 h-4 w-4" />
                       )}
-                      {isLoadingResources ? "Cargando..." : "Agregar"}
+                      {isLoadingResources ? "Cargando..." : "Agregar recurso"}
                     </Button>
                   </div>
                 </div>
 
-                <div className="mt-5 overflow-x-auto rounded-3xl border border-slate-200 hidden sm:block">
+                <div className="mt-5 overflow-x-auto rounded-xl border border-[#E9E5E7] hidden sm:block">
                   <table className="w-full min-w-[760px] bg-white">
-                    <thead className="bg-slate-50">
-                      <tr className="border-b border-slate-200">
-                        <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 w-20">
+                    <thead className="bg-slate-50/80">
+                      <tr className="border-b border-[#E9E5E7]">
+                        <th className="px-4 py-2.5 text-left text-xs font-semibold text-[#626573] w-20">
                           Incluir
                         </th>
-                        <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
+                        <th className="px-4 py-2.5 text-left text-xs font-semibold text-[#626573]">
                           Recurso
                         </th>
-                        <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
+                        <th className="px-4 py-2.5 text-left text-xs font-semibold text-[#626573]">
                           Vista previa
                         </th>
-                        <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 w-20">
+                        <th className="px-4 py-2.5 text-left text-xs font-semibold text-[#626573] w-20">
                           Acción
                         </th>
                       </tr>
@@ -3744,42 +3822,41 @@ export default function QuickDeliverableClient() {
               )}
 
               {currentStep === 3 && (
-              <section ref={portionsSectionRef} className="rounded-3xl border border-slate-200 bg-white p-4 sm:p-10 shadow-sm">
+              <section ref={portionsSectionRef} className="rounded-2xl border border-[#E9E5E7] bg-white p-5 sm:p-8 shadow-2xs space-y-5">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
-                    <h2 className="text-lg font-black text-slate-900">
+                    <h2 className="text-base sm:text-lg font-bold text-[#20212B]">
                       Guía resumida de porciones
                     </h2>
                     <button
                       type="button"
                       onClick={() => setIncludePortionGuide((current) => !current)}
                       className={cn(
-                        "mt-2 inline-flex items-center gap-2 rounded-full border px-4 py-2 text-[11px] font-black uppercase tracking-widest transition-colors w-fit",
+                        "mt-2 inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-medium transition-colors w-fit cursor-pointer",
                         includePortionGuide
                           ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                          : "border-slate-200 bg-white text-slate-500",
+                          : "border-[#E9E5E7] bg-white text-slate-500",
                       )}
                     >
                       <span
                         className={cn(
-                          "h-2.5 w-2.5 rounded-full",
+                          "h-2 w-2 rounded-full",
                           includePortionGuide ? "bg-emerald-500" : "bg-slate-300",
                         )}
                       />
                       {includePortionGuide ? "Ocultar sección" : "Incluir sección"}
                     </button>
-                    <p className="mt-1 text-xs sm:text-sm text-slate-500">
+                    <p className="mt-1 text-xs text-[#626573]">
                       Resumen profesional simple para que el paciente entienda referencias base.
                     </p>
                   </div>
                   <div className="flex justify-end">
                     <Button
-                      variant="outline"
-                      className="h-10 rounded-2xl border-slate-200 w-full sm:w-auto justify-center"
+                      className="h-10 rounded-xl bg-[#7842D4] hover:bg-[#6835be] text-white font-medium text-xs shadow-2xs w-full sm:w-auto justify-center cursor-pointer"
                       onClick={addPortionGuideRow}
                       disabled={!includePortionGuide}
                     >
-                      <Plus className="mr-2 h-4 w-4" />
+                      <Plus className="mr-1.5 h-4 w-4" />
                       Agregar fila
                     </Button>
                   </div>
@@ -3820,20 +3897,20 @@ export default function QuickDeliverableClient() {
                 {/* Vista Desktop (>= 768px) */}
                 <div
                   className={cn(
-                    "hidden md:block mt-4 overflow-x-auto rounded-2xl border border-slate-200",
+                    "hidden md:block mt-4 overflow-x-auto rounded-xl border border-[#E9E5E7]",
                     !includePortionGuide && "opacity-45",
                   )}
                 >
                   <table className="w-full min-w-[720px] bg-white">
-                    <thead className="bg-slate-50">
-                      <tr className="border-b border-slate-200">
-                        <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
+                    <thead className="bg-slate-50/80">
+                      <tr className="border-b border-[#E9E5E7]">
+                        <th className="px-4 py-2.5 text-left text-xs font-semibold text-[#626573]">
                           Categoría
                         </th>
-                        <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
+                        <th className="px-4 py-2.5 text-left text-xs font-semibold text-[#626573]">
                           Porción
                         </th>
-                        <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 w-20">
+                        <th className="px-4 py-2.5 text-left text-xs font-semibold text-[#626573] w-20">
                           Acción
                         </th>
                       </tr>
@@ -3841,33 +3918,33 @@ export default function QuickDeliverableClient() {
                     <tbody>
                       {portionGuideRows.map((row) => (
                         <tr key={row.id} className="border-b border-slate-100 last:border-b-0">
-                          <td className="px-4 py-3">
+                          <td className="px-4 py-2.5">
                             <Input
                               value={row.category}
                               onChange={(e) =>
                                 updatePortionGuideRow(row.id, "category", e.target.value)
                               }
-                              className="h-11 rounded-2xl border-slate-200 bg-white"
+                              className="h-10 rounded-xl border-[#E9E5E7] bg-white text-xs font-medium text-[#20212B]"
                               placeholder="Categoría"
                               disabled={!includePortionGuide}
                             />
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="px-4 py-2.5">
                             <Input
                               value={row.portion}
                               onChange={(e) =>
                                 updatePortionGuideRow(row.id, "portion", e.target.value)
                               }
-                              className="h-11 rounded-2xl border-slate-200 bg-white"
+                              className="h-10 rounded-xl border-[#E9E5E7] bg-white text-xs text-[#20212B]"
                               placeholder="Detalle de porción"
                               disabled={!includePortionGuide}
                             />
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="px-4 py-2.5">
                             <button
                               type="button"
                               onClick={() => removePortionGuideRow(row.id)}
-                              className="flex h-11 w-11 items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100"
+                              className="flex h-10 w-10 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 cursor-pointer"
                               disabled={!includePortionGuide || portionGuideRows.length === 1}
                             >
                               <Trash2 className="h-4 w-4" />
@@ -3882,10 +3959,10 @@ export default function QuickDeliverableClient() {
               )}
 
               {currentStep === 4 && (
-              <section ref={summarySectionRef} className="rounded-3xl border border-slate-200 bg-white p-10 shadow-sm space-y-5">
+              <section ref={summarySectionRef} className="rounded-2xl border border-[#E9E5E7] bg-white p-5 sm:p-8 shadow-2xs space-y-5">
                 <div>
-                  <h2 className="text-lg font-black text-slate-900">Resumen del entregable</h2>
-                  <p className="mt-1 text-sm text-slate-500">Revisa que todo esté listo antes de exportar.</p>
+                  <h2 className="text-base sm:text-lg font-bold text-[#20212B]">Resumen del entregable</h2>
+                  <p className="mt-0.5 text-xs text-[#626573]">Revisa que todo esté listo antes de exportar.</p>
                 </div>
 
                 <div className="grid gap-3 md:grid-cols-2">
@@ -4154,79 +4231,101 @@ export default function QuickDeliverableClient() {
       <Modal
         isOpen={isCreatedRecipesModalOpen}
         onClose={() => setIsCreatedRecipesModalOpen(false)}
-        title="Naty te ayuda con tu plan"
-        className="max-w-2xl"
+        title="Rellenar comidas con Naty"
+        description="Asistente clínico inteligente para sugerir y completar platos."
+        className="max-w-xl"
       >
         <div className="space-y-5">
-          <div className="flex border-b border-slate-200">
+          <div className="inline-flex rounded-xl bg-slate-100 p-1">
             <button
               type="button"
               onClick={() => setQuickAiMode("ai")}
               className={cn(
-                "border-b-2 px-1 pb-3 text-sm font-bold transition-colors",
+                "rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all cursor-pointer",
                 quickAiMode === "ai"
-                  ? "border-emerald-500 text-slate-900"
-                  : "border-transparent text-slate-500",
+                  ? "bg-white text-[#20212B] shadow-2xs"
+                  : "text-[#626573] hover:text-[#20212B]"
               )}
             >
-              Naty generará...
+              Generar con IA (Naty)
             </button>
             <button
               type="button"
               disabled
-              className={cn(
-                "ml-6 inline-flex cursor-not-allowed items-center gap-1.5 border-b-2 border-transparent px-1 pb-3 text-sm font-bold text-slate-400",
-              )}
+              className="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-semibold text-slate-400 cursor-not-allowed"
             >
-              Usar mis platos
-              <Lock className="h-3.5 w-3.5" aria-label="Bloqueado" />
+              <span>Usar mis platos</span>
+              <Lock className="h-3 w-3" aria-label="Bloqueado" />
             </button>
           </div>
           {quickAiMode === "ai" && (
             <div className="space-y-4">
-              <p className="text-sm leading-5 text-slate-600">
-                Naty recibe categorías, espacios vacíos y tus notas para completar solo la columna de alimentos. Puedes seguir editando mientras trabaja. Recuerda que tú debes aprobar finalmente el plan.
-              </p>
-              <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs leading-4 text-amber-800">
-                La sugerencia puede contener errores. Revisa y aprueba siempre el plan antes de entregarlo.
-              </p>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-500">
-                    Alimentos principales a utilizar
+              <div className="rounded-2xl bg-[#F0F5DF]/70 border border-[#DDE7B8] p-3.5 flex items-start gap-3">
+                <Sparkles className="h-4 w-4 text-[#86A83C] shrink-0 mt-0.5" />
+                <div className="space-y-0.5 text-xs">
+                  <p className="font-semibold text-[#668E20]">
+                    Llenado inteligente de comidas
+                  </p>
+                  <p className="text-[#626573] leading-relaxed">
+                    Naty completará la columna de alimentos para los tiempos de comida vacíos, basándose en tus notas y categorías.
+                  </p>
+                </div>
+              </div>
+              <div className="grid gap-3.5 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-[#20212B]">
+                    Alimentos preferidos
                   </label>
                   <Textarea
                     value={aiAllowedFoods}
                     onChange={(e) => setAiAllowedFoods(e.target.value)}
                     placeholder="Ej: avena, pollo, frutas, legumbres..."
-                    className="min-h-24 rounded-xl border-slate-200 bg-white"
+                    className="min-h-24 rounded-xl border border-[#E9E5E7] bg-white text-xs text-[#20212B] placeholder:text-[#848792] focus:border-[#86A83C] focus:ring-2 focus:ring-[#86A83C]/15"
                   />
+                  <span className="text-[11px] text-slate-400">Ingredientes clave a priorizar.</span>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-500">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-[#20212B]">
                     Notas adicionales
                   </label>
                   <Textarea
                     value={aiNotes}
                     onChange={(e) => setAiNotes(e.target.value)}
-                    placeholder="Ej: opciones rápidas, más salado, snacks simples..."
-                    className="min-h-24 rounded-xl border-slate-200 bg-white"
+                    placeholder="Ej: opciones prácticas, más salado, colaciones simples..."
+                    className="min-h-24 rounded-xl border border-[#E9E5E7] bg-white text-xs text-[#20212B] placeholder:text-[#848792] focus:border-[#86A83C] focus:ring-2 focus:ring-[#86A83C]/15"
                   />
+                  <span className="text-[11px] text-slate-400">Pautas de preparación o contexto.</span>
                 </div>
               </div>
-              <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-xs leading-4 text-slate-600">
-                Naty priorizará los alimentos principales ingresados, pero puede incluir ingredientes extra si son necesarios o si la lista es muy breve. Considerará alimentos comunes, como sal o mantequilla. Revisa siempre el resultado antes de aprobarlo.
+              <p className="text-[11px] text-slate-400 leading-normal">
+                Nota: Las preparaciones sugeridas son un borrador editable que podrás revisar y ajustar antes de guardar el plan.
               </p>
-              <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-                <Button
-                  variant="outline"
-                  className="rounded-2xl border-slate-200"
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[#F0ECEE]">
+                <button
+                  type="button"
                   onClick={() => setIsCreatedRecipesModalOpen(false)}
+                  className="h-10 px-4 rounded-xl border border-[#E9E5E7] bg-white text-xs font-semibold text-[#20212B] hover:bg-slate-50 transition-all cursor-pointer"
                 >
-                  <X className="mr-2 h-4 w-4" />
-                  Cerrar
-                </Button>
-                <NatyButton onClick={() => void generateMealsWithAi()} isLoading={isGeneratingQuickAi} disabled={quickAiMealTargets.length === 0} label="Generar con Naty" />
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void generateMealsWithAi()}
+                  disabled={isGeneratingQuickAi || quickAiMealTargets.length === 0}
+                  className="h-10 px-5 rounded-xl bg-[#86A83C] hover:bg-[#78A82F] text-white text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer shadow-sm shadow-[#86A83C]/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isGeneratingQuickAi ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Generando platos...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-4 w-4" />
+                      <span>Generar con Naty</span>
+                    </>
+                  )}
+                </button>
               </div>
             </div>
           )}

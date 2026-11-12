@@ -69,10 +69,10 @@ const groups: SidebarGroup[] = [
   {
     title: "Dietética",
     items: [
-      { name: "Dietas", href: "/dashboard/dietas", icon: Utensils, tutorialPath: "/dashboard/dietas" },
-      { name: "Entregable Rápido", href: "/dashboard/rapido", icon: NotebookText },
-      { name: "Recetas", href: "/dashboard/rapido/recetas", icon: ChefHat },
+      { name: "Rápido", href: "/dashboard/rapido", icon: NotebookText },
       { name: "Personalizado", href: "/dashboard/dieta", icon: Apple, tutorialPath: "/dashboard/dieta" },
+      { name: "Recetas", href: "/dashboard/rapido/recetas", icon: ChefHat },
+      { name: "Dietas", href: "/dashboard/dietas", icon: Utensils, tutorialPath: "/dashboard/dietas" },
     ],
   },
   {
@@ -174,7 +174,8 @@ export function Sidebar({ onItemClick, isMobile = false }: SidebarProps = {}) {
       >
         <Link
           href="/dashboard"
-          className="flex min-w-0 items-center rounded-xl transition-colors hover:opacity-90"
+          onClick={onItemClick}
+          className="flex min-w-0 items-center rounded-xl transition-colors hover:opacity-90 cursor-pointer"
           aria-label="Ir al dashboard"
           title="Ir al dashboard"
         >
@@ -183,7 +184,7 @@ export function Sidebar({ onItemClick, isMobile = false }: SidebarProps = {}) {
             alt="NutriNet"
             width={shouldCollapse ? 72 : 180}
             height={shouldCollapse ? 23 : 57}
-            className={cn("h-auto w-auto object-contain", shouldCollapse ? "max-w-[72px]" : "max-w-[180px]")}
+            className={cn("h-auto w-auto object-contain cursor-pointer", shouldCollapse ? "max-w-[72px]" : "max-w-[180px]")}
             style={{ height: "auto" }}
             priority
           />
@@ -229,8 +230,8 @@ export function Sidebar({ onItemClick, isMobile = false }: SidebarProps = {}) {
                   onItemClick ? (
                     <div
                       className={cn(
-                        "mb-1 pl-2 text-[0.7rem] font-bold uppercase tracking-wider",
-                        isDarkMode ? "text-indigo-100/55" : "text-slate-400",
+                        "mb-1.5 pl-2 text-xs font-bold uppercase tracking-wider",
+                        isDarkMode ? "text-indigo-200/70" : "text-slate-500",
                       )}
                     >
                       {group.title}
@@ -240,16 +241,16 @@ export function Sidebar({ onItemClick, isMobile = false }: SidebarProps = {}) {
                       type="button"
                       onClick={() => toggleGroup(group.title)}
                       className={cn(
-                        "flex w-full items-center justify-between mb-1 pl-2 text-[0.7rem] font-bold uppercase tracking-wider transition-colors",
-                        isDarkMode ? "text-indigo-100/55 hover:text-indigo-100/80" : "text-slate-400 hover:text-slate-600",
+                        "flex w-full items-center justify-between mb-1.5 pl-2 text-xs font-bold uppercase tracking-wider transition-colors",
+                        isDarkMode ? "text-indigo-200/70 hover:text-indigo-100" : "text-slate-500 hover:text-slate-800",
                       )}
                     >
                       <span>{group.title}</span>
                       <div className="flex items-center pr-1">
                         {isOpen ? (
-                          <ChevronDown className="h-3 w-3" />
+                          <ChevronDown className="h-3.5 w-3.5" />
                         ) : (
-                          <ChevronRight className="h-3 w-3" />
+                          <ChevronRight className="h-3.5 w-3.5" />
                         )}
                       </div>
                     </button>
@@ -263,8 +264,8 @@ export function Sidebar({ onItemClick, isMobile = false }: SidebarProps = {}) {
                         return (
                           <li key={item.name} className="mt-4 mb-1 px-3">
                             <div className={cn(
-                              "px-3 text-[10px] font-bold uppercase tracking-widest",
-                              isDarkMode ? "text-indigo-300/40" : "text-slate-400/80"
+                              "px-3 text-[11px] font-bold uppercase tracking-widest",
+                              isDarkMode ? "text-indigo-300/60" : "text-slate-500"
                             )}>
                               {item.name}
                             </div>
@@ -299,9 +300,9 @@ export function Sidebar({ onItemClick, isMobile = false }: SidebarProps = {}) {
                                   : "bg-[#f5effe] text-[#7c3aed] font-bold"
                                 : isDarkMode
                                   ? "text-slate-300 hover:bg-slate-800 hover:text-white font-medium"
-                                  : "text-slate-600 hover:text-[#7c3aed] hover:bg-[#f5effe]/50 font-medium",
+                                  : "text-slate-700 hover:text-[#7c3aed] hover:bg-[#f5effe]/60 font-medium",
                               isLocked && "cursor-not-allowed opacity-60",
-                              "group flex min-w-0 cursor-pointer items-center gap-x-2.5 rounded-xl p-2.5 leading-5 transition-all text-xs sm:text-sm",
+                              "group flex min-w-0 cursor-pointer items-center gap-x-3 rounded-xl px-3 py-2.5 min-h-[40px] leading-5 transition-all text-sm",
                               shouldCollapse && "justify-center",
                             )}
                             title={item.name}
@@ -316,15 +317,15 @@ export function Sidebar({ onItemClick, isMobile = false }: SidebarProps = {}) {
                                         : "text-[#7c3aed]"
                                       : isDarkMode
                                         ? "text-slate-400 group-hover:text-purple-300"
-                                        : "text-slate-400 group-hover:text-[#7c3aed]",
-                                    "h-4 w-4 shrink-0 transition-colors",
+                                        : "text-slate-500 group-hover:text-[#7c3aed]",
+                                    "h-4.5 w-4.5 shrink-0 transition-colors",
                                   )}
                                   aria-hidden="true"
                                 />
                               )}
                             </span>
                             {!shouldCollapse && <span className="min-w-0 flex-1 truncate">{item.name}</span>}
-                            {isLocked && <Lock className={cn("h-3 w-3 shrink-0 ml-auto", isDarkMode ? "text-slate-500" : "text-slate-300")} />}
+                            {isLocked && <Lock className={cn("h-3.5 w-3.5 shrink-0 ml-auto", isDarkMode ? "text-slate-400" : "text-slate-400")} />}
                           </Link>
                         </li>
                       );

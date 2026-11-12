@@ -204,14 +204,87 @@ export function saveLocalCreations(creations: any[]) {
   }
 }
 
+export const INITIAL_COMMUNITY_FOODS = [
+  {
+    id: "custom-001",
+    name: "Panqueques de Avena y Plátano Fit",
+    brand: { id: "b-1", name: "Receta Nutri" },
+    category: { id: "cat-cereales", name: "Cereales y Derivados" },
+    price: 0,
+    unit: "unidad",
+    amount: 1,
+    calories: 145,
+    proteins: 7.2,
+    carbs: 22.0,
+    lipids: 3.1,
+    sugars: 5.4,
+    fiber: 3.2,
+    sodium: 48,
+    tags: [{ id: "t-1", name: "FIT" }, { id: "t-2", name: "ALTO EN FIBRA" }],
+    isPublic: true,
+    verified: true,
+    isMine: false,
+    author: "Dra. M. González (Comunidad)",
+    createdAt: "2026-11-09T10:00:00.000Z",
+  },
+  {
+    id: "custom-002",
+    name: "Bowl de Yogur Griego con Chía y Frutos Rojos",
+    brand: { id: "b-2", name: "Casero" },
+    category: { id: "cat-lacteos", name: "Lácteos" },
+    price: 0,
+    unit: "porción",
+    amount: 200,
+    calories: 180,
+    proteins: 16.5,
+    carbs: 14.0,
+    lipids: 4.8,
+    sugars: 7.0,
+    fiber: 4.5,
+    sodium: 62,
+    tags: [{ id: "t-3", name: "PROTEICO" }, { id: "t-4", name: "ANTIOXIDANTE" }],
+    isPublic: true,
+    verified: true,
+    isMine: false,
+    author: "Nut. C. Herrera (Comunidad)",
+    createdAt: "2026-11-08T15:30:00.000Z",
+  },
+  {
+    id: "custom-003",
+    name: "Barra Proteica Casera de Maní y Semillas",
+    brand: { id: "b-3", name: "Snack Saludable" },
+    category: { id: "cat-semillas", name: "Semillas y Nueces" },
+    price: 0,
+    unit: "unidad",
+    amount: 60,
+    calories: 210,
+    proteins: 12.0,
+    carbs: 15.5,
+    lipids: 11.2,
+    sugars: 4.0,
+    fiber: 5.0,
+    sodium: 35,
+    tags: [{ id: "t-5", name: "SIN AZÚCAR" }, { id: "t-6", name: "ENERGÉTICO" }],
+    isPublic: true,
+    verified: true,
+    isMine: false,
+    author: "Nut. F. Soto (Comunidad)",
+    createdAt: "2026-11-07T18:00:00.000Z",
+  },
+];
+
 export function getLocalCustomFoods(): any[] {
-  if (typeof window === "undefined") return [];
+  if (typeof window === "undefined") return INITIAL_COMMUNITY_FOODS;
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.FOODS);
-    if (!raw) return [];
-    return JSON.parse(raw);
+    if (!raw) {
+      localStorage.setItem(STORAGE_KEYS.FOODS, JSON.stringify(INITIAL_COMMUNITY_FOODS));
+      return INITIAL_COMMUNITY_FOODS;
+    }
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : INITIAL_COMMUNITY_FOODS;
   } catch {
-    return [];
+    return INITIAL_COMMUNITY_FOODS;
   }
 }
 
@@ -487,7 +560,7 @@ export function handleDemoApi(path: string, init?: RequestInit): Response | null
 
     if (method === "GET") {
       let baseList = [];
-      if (tab === "mine") {
+      if (tab === "mine" || tab === "created" || tab === "community") {
         baseList = customFoods;
       } else {
         baseList = [...customFoods, ...OFFICIAL_INGREDIENTS];
@@ -518,7 +591,7 @@ export function handleDemoApi(path: string, init?: RequestInit): Response | null
           fiber: Number(body.fiber) || 0,
           sodium: Number(body.sodium) || 0,
           tags: Array.isArray(body.tags) ? body.tags : [],
-          isPublic: false,
+          isPublic: true,
           verified: false,
           isMine: true,
           isDraft: false,
@@ -569,6 +642,14 @@ export function handleDemoApi(path: string, init?: RequestInit): Response | null
 
   // 12. Preferencias de alimentos (/foods/:id/preferences)
   if (cleanPath.match(/^\/(?:foods|ingredients)\/[^/]+\/preferences$/)) {
+    return makeMockResponse({ success: true });
+  }
+
+  // 13. Calificación de app (/ratings/status, /ratings)
+  if (cleanPath === "/ratings/status" || cleanPath.endsWith("/ratings/status")) {
+    return makeMockResponse({ hasRated: false, eligibleForAutoPrompt: false });
+  }
+  if (cleanPath === "/ratings" || cleanPath.endsWith("/ratings")) {
     return makeMockResponse({ success: true });
   }
 

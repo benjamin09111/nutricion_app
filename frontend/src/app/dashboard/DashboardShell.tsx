@@ -88,7 +88,7 @@ function DashboardContent({ children, isDemo }: { children: React.ReactNode; isD
   }
 
   const dashboardShell = (
-    <div className={cn("dashboard-shell-bg relative h-full", isDashboardHome && "lg:h-screen lg:max-h-screen lg:overflow-hidden")}>
+    <div className="dashboard-shell-bg relative h-full">
       <MobileSidebar
         isOpen={sidebarOpen}
         isAdminView={isAdminView}
@@ -107,7 +107,6 @@ function DashboardContent({ children, isDemo }: { children: React.ReactNode; isD
         className={cn(
           "flex h-full min-h-screen min-w-0 flex-col transition-all duration-300",
           isSidebarCollapsed ? "lg:pl-20" : "lg:pl-[17rem]",
-          isDashboardHome && "lg:h-screen lg:max-h-screen lg:overflow-hidden",
         )}
       >
         <Navbar
@@ -117,24 +116,20 @@ function DashboardContent({ children, isDemo }: { children: React.ReactNode; isD
         <main
           className={cn(
             "min-w-0 flex-1",
-            isDashboardHome
-              ? "py-2 sm:py-3 lg:py-4 flex flex-col min-h-0 lg:overflow-hidden"
-              : isAdminView
-              ? "py-4 lg:py-4 xl:py-5"
-              : "py-6 lg:py-4 xl:py-8",
+            isAdminView
+              ? "py-3 lg:py-4 xl:py-5"
+              : "py-4 sm:py-6 lg:py-8",
             isAdminView && !isDarkMode && "bg-indigo-50/10",
           )}
         >
           <div
             className={cn(
               "mx-auto w-full min-w-0",
-              isDashboardHome
-                ? "max-w-[88rem] px-3 sm:px-4 lg:px-6 xl:px-8 flex-1 flex flex-col min-h-0 lg:overflow-hidden"
-                : isAdminView
-                ? "max-w-[96rem] px-3 sm:px-4 lg:px-4 xl:px-6"
+              isAdminView
+                ? "max-w-[1440px] px-3 sm:px-4 lg:px-4 xl:px-6"
                 : isRecipesModule
-                ? "max-w-[120rem] px-3 sm:px-5 lg:px-4 xl:px-6"
-                : "max-w-[88rem] px-3 sm:px-4 lg:px-6 xl:px-8",
+                ? "max-w-[1600px] px-3 sm:px-5 lg:px-4 xl:px-6"
+                : "max-w-[1440px] px-4 sm:px-6 lg:px-10 xl:px-12",
             )}
           >
             {children}

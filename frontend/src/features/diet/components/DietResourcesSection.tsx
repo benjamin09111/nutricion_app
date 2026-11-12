@@ -295,58 +295,46 @@ export function DietResourcesSection({
 
   return (
     <div className="space-y-6">
-      {/* Header Banner */}
-      <div className="flex flex-col gap-4 rounded-3xl border border-indigo-100 bg-gradient-to-r from-indigo-50/60 via-white to-purple-50/60 p-6 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-start gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-md shadow-indigo-200">
-            <Library className="h-6 w-6" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600">Paso 6</span>
-              <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-bold text-indigo-800">Recursos y Guías</span>
-            </div>
-            <h2 className="mt-1 text-xl font-black text-slate-900">Recursos y Material Educativo</h2>
-            <p className="mt-0.5 text-sm text-slate-600">
-              Selecciona o busca las guías clínicas y lecturas de apoyo que se adjuntarán a la pauta para {patientName || "el paciente"}.
-            </p>
-          </div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-base sm:text-lg font-bold text-slate-900">Recursos y Material Educativo</h2>
+          <p className="text-xs text-slate-500">
+            Selecciona las guías clínicas y lecturas de apoyo que se adjuntarán a la pauta para {patientName || "el paciente"}.
+          </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setIncludeResourcesSection(!includeResourcesSection)}
-            className={
-              "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-xs font-bold transition-all cursor-pointer " +
-              (includeResourcesSection
-                ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                : "border-slate-200 bg-slate-100 text-slate-500 hover:bg-slate-200")
-            }
-          >
-            <span className={"h-2.5 w-2.5 rounded-full " + (includeResourcesSection ? "bg-emerald-500" : "bg-slate-400")} />
-            {includeResourcesSection ? "Incluido en PDF" : "Excluido de PDF"}
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => setIncludeResourcesSection(!includeResourcesSection)}
+          className={
+            "inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-bold transition-colors cursor-pointer " +
+            (includeResourcesSection
+              ? "border-[#DDE7B8] bg-[#F0F5DF] text-[#668E20]"
+              : "border-[#E9E5E7] bg-white text-slate-500 hover:bg-slate-50")
+          }
+        >
+          <span className={"h-2 w-2 rounded-full " + (includeResourcesSection ? "bg-[#86A83C]" : "bg-slate-300")} />
+          {includeResourcesSection ? "Incluido en PDF" : "Excluido de PDF"}
+        </button>
       </div>
 
       {/* Restricciones Clínicas Detectadas del Paso 1 */}
       {allActiveConstraints.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2.5 rounded-3xl border border-indigo-100 bg-gradient-to-r from-indigo-50/80 via-white to-purple-50/80 p-5 shadow-sm">
-          <div className="flex items-center gap-2 text-xs font-black text-indigo-950 mr-1">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600 text-white">
+        <div className="flex flex-wrap items-center gap-2.5 rounded-2xl border border-[#E9E5E7] bg-white p-4 shadow-2xs">
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-800 mr-1">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#F0F5DF] text-[#668E20]">
               <ShieldAlert className="h-4 w-4" />
             </div>
-            <span>Restricciones clínicas seleccionadas en Paso 1 ({allActiveConstraints.length}):</span>
+            <span>Restricciones clínicas activas ({allActiveConstraints.length}):</span>
           </div>
 
           <div className="flex flex-wrap items-center gap-1.5">
             {allActiveConstraints.map((item) => (
               <span
                 key={item}
-                className="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-white px-3 py-1 text-xs font-extrabold text-indigo-900 shadow-2xs"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-[#DDE7B8] bg-[#F0F5DF] px-2.5 py-1 text-xs font-semibold text-[#668E20]"
               >
-                <span className="h-2 w-2 rounded-full bg-indigo-600" />
+                <span className="h-1.5 w-1.5 rounded-full bg-[#86A83C]" />
                 {formatConstraintLabel(item)}
               </span>
             ))}
@@ -356,15 +344,15 @@ export function DietResourcesSection({
 
       {/* Banner de Recomendación Automática por Restricción */}
       {recommendedResourceIds.length > 0 && (
-        <div className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4 text-xs text-emerald-900 shadow-sm">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-sm">
-            <Sparkles className="h-5 w-5" />
+        <div className="flex items-center gap-3 rounded-2xl border border-[#DDE7B8] bg-[#F0F5DF] p-4 text-xs text-[#668E20] shadow-2xs">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#86A83C] text-white">
+            <Sparkles className="h-4 w-4" />
           </div>
           <div className="flex-1">
-            <h4 className="font-bold text-emerald-950 text-sm">
+            <h4 className="font-bold text-slate-900 text-xs sm:text-sm">
               ✨ {recommendedResourceIds.length} Recurso(s) recomendado(s) automáticamente
             </h4>
-            <p className="mt-0.5 text-emerald-800">
+            <p className="mt-0.5 text-xs text-[#668E20]">
               El sistema identificó las restricciones activas en la pauta y pre-seleccionó las guías especializadas correspondientes.
             </p>
           </div>
@@ -372,7 +360,7 @@ export function DietResourcesSection({
       )}
 
       {/* Buscador de Recursos & Filtros de Categoría */}
-      <div className="space-y-3 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="space-y-3 rounded-2xl border border-[#E9E5E7] bg-white p-4 shadow-2xs">
         <div className="relative">
           <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <Input
@@ -380,7 +368,7 @@ export function DietResourcesSection({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Buscar recurso por título, patología (ej: celíaco, diabetes, hipertensión, lactosa)..."
-            className="h-11 pl-10 pr-4 rounded-xl border-slate-200 text-sm focus:border-indigo-500 focus:ring-indigo-500"
+            className="h-10 pl-10 pr-4 rounded-xl border-[#E9E5E7] text-xs text-[#20212B]"
           />
           {searchQuery && (
             <button
@@ -401,8 +389,8 @@ export function DietResourcesSection({
             className={
               "rounded-xl px-3 py-1.5 text-xs font-bold transition-all cursor-pointer " +
               (selectedCategory === "all"
-                ? "bg-indigo-600 text-white shadow-sm"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200")
+                ? "bg-slate-900 text-white shadow-2xs"
+                : "bg-slate-100 text-slate-600 hover:bg-slate-200/70")
             }
           >
             Todos ({DIET_RESOURCES_CATALOG.length})
@@ -415,8 +403,8 @@ export function DietResourcesSection({
               className={
                 "rounded-xl px-3 py-1.5 text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 " +
                 (selectedCategory === "recommended"
-                  ? "bg-emerald-600 text-white shadow-sm"
-                  : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200")
+                  ? "bg-[#86A83C] text-white shadow-2xs"
+                  : "bg-[#F0F5DF] text-[#668E20] hover:bg-[#E8EFCB] border border-[#DDE7B8]")
               }
             >
               <Sparkles className="h-3.5 w-3.5" />
@@ -434,8 +422,8 @@ export function DietResourcesSection({
                 className={
                   "rounded-xl px-3 py-1.5 text-xs font-bold transition-all cursor-pointer " +
                   (selectedCategory === cat
-                    ? "bg-slate-900 text-white shadow-sm"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200")
+                    ? "bg-slate-900 text-white shadow-2xs"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200/70")
                 }
               >
                 {cat}
@@ -453,14 +441,14 @@ export function DietResourcesSection({
         </div>
 
         <div className="flex items-center gap-2.5 text-xs font-bold">
-          <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-indigo-700 font-extrabold border border-indigo-100">
+          <span className="rounded-full bg-[#F0F5DF] px-2.5 py-0.5 text-[#668E20] font-bold border border-[#DDE7B8]">
             {selectedResourceIds.length} seleccionados
           </span>
           <span className="text-slate-300">•</span>
           <button
             type="button"
             onClick={selectAll}
-            className="text-indigo-600 hover:text-indigo-800 transition-colors cursor-pointer"
+            className="text-[#668E20] hover:text-[#86A83C] transition-colors cursor-pointer"
           >
             Seleccionar todos
           </button>
@@ -506,12 +494,12 @@ export function DietResourcesSection({
                 key={resource.id}
                 onClick={() => toggleResource(resource.id)}
                 className={
-                  "group relative cursor-pointer rounded-3xl border p-5 transition-all shadow-sm flex flex-col justify-between select-none " +
+                  "group relative cursor-pointer rounded-2xl border p-4.5 transition-all shadow-2xs flex flex-col justify-between select-none " +
                   (isRecommended && isSelected
-                    ? "border-emerald-300 bg-gradient-to-b from-emerald-50/60 to-white ring-2 ring-emerald-500/20"
+                    ? "border-[#DDE7B8] bg-[#F0F5DF]/70 ring-1 ring-[#86A83C]/30"
                     : isSelected
-                    ? "border-indigo-300 bg-gradient-to-b from-indigo-50/40 to-white ring-2 ring-indigo-500/20"
-                    : "border-slate-200 bg-white hover:border-slate-300 opacity-75 hover:opacity-100")
+                    ? "border-[#DDE7B8] bg-[#F0F5DF]/50 ring-1 ring-[#86A83C]/20"
+                    : "border-[#E9E5E7] bg-white hover:border-[#86A83C]/40 opacity-80 hover:opacity-100")
                 }
               >
                 <div>
@@ -519,10 +507,8 @@ export function DietResourcesSection({
                     <div
                       className={
                         "flex h-9 w-9 items-center justify-center rounded-xl transition-colors " +
-                        (isRecommended
-                          ? "bg-emerald-100 text-emerald-700"
-                          : isSelected
-                          ? "bg-indigo-100 text-indigo-700"
+                        (isSelected || isRecommended
+                          ? "bg-[#F0F5DF] text-[#668E20]"
                           : "bg-slate-100 text-slate-500")
                       }
                     >
@@ -533,9 +519,7 @@ export function DietResourcesSection({
                       className={
                         "flex h-6 w-6 items-center justify-center rounded-full transition-all " +
                         (isSelected
-                          ? isRecommended
-                            ? "bg-emerald-600 text-white"
-                            : "bg-indigo-600 text-white"
+                          ? "bg-[#86A83C] text-white shadow-2xs"
                           : "border border-slate-300 bg-white text-transparent group-hover:border-slate-400")
                       }
                     >
@@ -545,8 +529,8 @@ export function DietResourcesSection({
 
                   {/* Recommendations Badge */}
                   {isRecommended && (
-                    <div className="mb-2 inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-100 px-2.5 py-0.5 text-[10px] font-black text-emerald-800">
-                      <Sparkles className="h-3 w-3 text-emerald-600" />
+                    <div className="mb-2 inline-flex items-center gap-1 rounded-full border border-[#DDE7B8] bg-[#F0F5DF] px-2.5 py-0.5 text-[10px] font-bold text-[#668E20]">
+                      <Sparkles className="h-3 w-3 text-[#86A83C]" />
                       <span>{resource.recommendationReason}</span>
                     </div>
                   )}

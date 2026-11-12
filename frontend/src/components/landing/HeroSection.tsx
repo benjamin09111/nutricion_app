@@ -1,14 +1,14 @@
 "use client";
 
-import { Sparkles, ShieldCheck, Zap, Check, ArrowRight, Clock, Quote } from "lucide-react";
+import Link from "next/link";
+import { Sparkles, ShieldCheck, Check, Clock, Quote } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 
 interface HeroSectionProps {
-  onCtaClick: () => void;
-  onExploreFeaturesClick: () => void;
+  onExploreFeaturesClick?: () => void;
 }
 
-export function HeroSection({ onCtaClick, onExploreFeaturesClick }: HeroSectionProps) {
+export function HeroSection({ onExploreFeaturesClick }: HeroSectionProps) {
   return (
     <section className="relative overflow-hidden pt-28 pb-16 sm:pt-32 sm:pb-20 lg:pt-40 lg:pb-24">
       <div className="mx-auto max-w-5xl px-4 sm:px-6">
@@ -69,26 +69,24 @@ export function HeroSection({ onCtaClick, onExploreFeaturesClick }: HeroSectionP
 
           {/* Botones de Acción Minimalistas NutriNet */}
           <div className="flex flex-col items-center justify-center gap-4 pt-4 sm:flex-row">
-            <Button
-              onClick={onCtaClick}
-              className="w-full sm:w-auto rounded-full h-14 px-8 text-sm font-bold uppercase tracking-wider bg-[#a88aed] hover:bg-[#8f70d8] text-white transition-all duration-300 hover:scale-105 hover:shadow-xl shadow-indigo-100"
-            >
-              Obtener Acceso Beta con 50% Dcto.
-            </Button>
+            <Link href="/dashboard" className="w-full sm:w-auto">
+              <Button
+                className="w-full sm:w-auto rounded-full h-14 px-9 text-sm font-bold uppercase tracking-wider bg-[#a88aed] hover:bg-[#8f70d8] text-white transition-all duration-300 hover:scale-105 hover:shadow-xl shadow-indigo-100 cursor-pointer"
+              >
+                PROBAR NUTRINET
+              </Button>
+            </Link>
 
-            <Button
-              variant="outline"
-              onClick={onExploreFeaturesClick}
-              className="w-full sm:w-auto rounded-full h-14 px-8 text-sm font-bold text-[#a88aed] border-2 border-[#a88aed]/30 hover:border-[#a88aed] hover:bg-[#a88aed]/10 transition-all duration-300"
-            >
-              Conocer Funcionalidades
-            </Button>
+            <a href="#planes" className="w-full sm:w-auto">
+              <Button
+                variant="outline"
+                onClick={onExploreFeaturesClick}
+                className="w-full sm:w-auto rounded-full h-14 px-8 text-sm font-bold text-[#a88aed] border-2 border-[#a88aed]/30 hover:border-[#a88aed] hover:bg-[#a88aed]/10 transition-all duration-300 cursor-pointer"
+              >
+                Conocer Funcionalidades
+              </Button>
+            </a>
           </div>
-
-          {/* Micro-copy de Confianza */}
-          <p className="text-xs sm:text-sm font-semibold text-slate-500 pt-1">
-            Sin tarjeta de crédito • Registro en 30 segundos • Válido para los primeros 50 nutricionistas
-          </p>
 
           {/* Badges de Confianza */}
           <div className="pt-8 flex flex-wrap items-center justify-center gap-6 text-xs font-semibold text-slate-500">

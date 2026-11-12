@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   BookOpen,
@@ -13,7 +13,10 @@ import {
   Lock,
   Pencil,
   Plus,
+  Search,
   ShieldCheck,
+  Sparkles,
+  BarChart2,
   Trash2,
   User as UserIcon,
 } from "lucide-react";
@@ -21,12 +24,11 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
 import { TagInput } from "@/components/ui/TagInput";
 import { Modal } from "@/components/ui/Modal";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
-import { Navbar_B, NavbarSection } from "@/components/ui/Navbar_B";
-import { Filtros_B } from "@/components/ui/Filtros_B";
 import { useAdmin } from "@/context/AdminContext";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { cn } from "@/lib/utils";
@@ -39,7 +41,7 @@ import systemResources from "./data/system-resources.json";
 type MainTab = "library" | "coverIntro" | "mine" | "restrictions";
 type LibrarySource = "system" | "community";
 
-const RESOURCE_TABS: NavbarSection[] = [
+const RESOURCE_TABS = [
   { id: "library", label: "Biblioteca", icon: BookOpen },
   { id: "mine", label: "Mis recursos", icon: UserIcon },
   { id: "coverIntro", label: "Portada e introducción", icon: BookOpen },
@@ -179,12 +181,14 @@ export function ResourcesClient() {
   const groupedLibrary = useMemo(() => LIBRARY_CATEGORIES.filter((c) => c.id !== "all").map((category) => ({ category, resources: filteredLibrary.filter((r) => r.category === category.id).slice(0, 12) })).filter((x) => x.resources.length), [filteredLibrary]);
 
   const [openCategoryIds, setOpenCategoryIds] = useState<string[]>([]);
+  const hasInitializedAccordionRef = useRef(false);
 
   useEffect(() => {
-    if (groupedLibrary.length > 0 && openCategoryIds.length === 0) {
+    if (!hasInitializedAccordionRef.current && groupedLibrary.length > 0) {
       setOpenCategoryIds([groupedLibrary[0].category.id]);
+      hasInitializedAccordionRef.current = true;
     }
-  }, [groupedLibrary, openCategoryIds.length]);
+  }, [groupedLibrary]);
 
   const toggleCategory = (catId: string) => {
     setOpenCategoryIds((prev) =>
@@ -265,59 +269,70 @@ export function ResourcesClient() {
   const Card = ({ resource }: { resource: Resource }) => {
     const cover = coverCfg(resource.category);
     return (
-      <article className="border border-slate-100 bg-slate-50 hover:shadow-md transition-all group flex flex-col h-full overflow-hidden rounded-2xl">
+      <article className="border border-[#E9E5E7] bg-white hover:border-[#7842D4]/40 hover:shadow-md transition-all group flex flex-col h-full overflow-hidden rounded-2xl shadow-2xs">
         <div className="h-1 w-full" style={{ background: `linear-gradient(135deg, ${cover.gradientFrom}, ${cover.gradientTo})` }} />
-        <div className="p-4 flex flex-col h-full bg-white">
-          <div className="flex items-start justify-between gap-3 mb-3">
+        <div className="p-4 sm:p-5 flex flex-col h-full">
+          <div className="flex items-start justify-between gap-3 mb-2.5">
             <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                <span className="rounded-full bg-slate-50 px-2.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-slate-500 border border-slate-100">
+              <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
+                <span className="rounded-full bg-[#F8F9FB] px-2.5 py-0.5 text-[10px] font-semibold text-[#626573] border border-[#E9E5E7]">
                   {CATEGORIES.find((x) => x.id === resource.category)?.label || "Otro"}
                 </span>
                 <span
                   className={cn(
-                    "rounded-full px-2.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider",
+                    "rounded-full px-2.5 py-0.5 text-[10px] font-semibold",
                     resource.isMine
-                      ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
+                      ? "bg-[#F0F5DF] text-[#668E20] border border-[#DDE7B8]"
                       : resource.nutritionistId === null
-                      ? "bg-slate-900 text-white"
-                      : "bg-indigo-50 text-indigo-700 border border-indigo-100",
+                      ? "bg-[#F3ECFC] text-[#7842D4] border border-[#E4D5FA]"
+                      : "bg-blue-50 text-blue-700 border border-blue-100",
                   )}
                 >
                   {resource.isMine ? "Mi recurso" : resource.nutritionistId === null ? "Sistema" : "Comunidad"}
                 </span>
               </div>
-              <h3 className="line-clamp-1 text-base font-semibold text-slate-900">
+              <h3 className="line-clamp-1 text-sm sm:text-[15px] font-semibold text-[#20212B] group-hover:text-[#7842D4] transition-colors">
                 {resource.title}
               </h3>
             </div>
             {resource.isMine && canEditResources && (
-              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full shrink-0 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50" onClick={() => openEdit(resource)}>
+              <button
+                type="button"
+                className="h-7 w-7 rounded-lg shrink-0 flex items-center justify-center text-[#848792] hover:text-[#7842D4] hover:bg-purple-50 transition-colors cursor-pointer"
+                onClick={() => openEdit(resource)}
+                title="Editar recurso"
+              >
                 <Pencil className="h-3.5 w-3.5" />
-              </Button>
+              </button>
             )}
           </div>
 
-          <p className="text-xs leading-5 text-slate-500 line-clamp-2 flex-grow">
+          <p className="text-xs leading-relaxed text-[#626573] line-clamp-2 flex-grow font-normal">
             {short(plain(resource.content || ""), 120)}
           </p>
 
-          <div className="flex flex-wrap gap-1.5 pt-2">
-            {resource.tags.slice(0, 2).map((tag) => {
-              const cleanTag = tag.replace(/^#+/, "");
-              return (
-                <span key={tag} className="inline-flex items-center text-[10px] font-medium text-indigo-500">
-                  #{cleanTag}
-                </span>
-              );
-            })}
-          </div>
+          {resource.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 pt-2">
+              {resource.tags.slice(0, 3).map((tag) => {
+                const cleanTag = tag.replace(/^#+/, "");
+                return (
+                  <span key={tag} className="inline-flex items-center text-[11px] font-medium text-[#7842D4]">
+                    #{cleanTag}
+                  </span>
+                );
+              })}
+            </div>
+          )}
 
-          <div className="flex items-center justify-between gap-3 pt-4 mt-auto border-t border-slate-50">
-            <span className="text-[10px] font-medium text-slate-400">{fmtDate(resource.updatedAt || resource.createdAt)}</span>
-            <Button variant="ghost" size="sm" className="h-8 rounded-full px-4 text-xs font-semibold hover:bg-indigo-50 text-indigo-600" onClick={() => setResourceToPreview(resource)}>
+          <div className="flex items-center justify-between gap-3 pt-3.5 mt-auto border-t border-[#F0ECEE]">
+            <span className="text-[11px] font-medium text-[#848792]">{fmtDate(resource.updatedAt || resource.createdAt)}</span>
+            <button
+              type="button"
+              className="text-xs font-semibold text-[#7842D4] hover:bg-[#F3ECFC] px-3 py-1.5 rounded-xl transition-all cursor-pointer"
+              onClick={() => setResourceToPreview(resource)}
+            >
               Ver recurso
-            </Button>
+            </button>
           </div>
         </div>
       </article>
@@ -326,422 +341,579 @@ export function ResourcesClient() {
 
   return (
     <ModuleLayout
-      title="Biblioteca"
-      description="Gestiona los contenidos educativos para tus pacientes. Por defecto, el Entregable usa recursos de la plataforma, pero aquí puedes explorar la comunidad y crear los tuyos para tu selección automática."
-      className="max-w-7xl"
-      rightContent={
-        <div className="relative group shrink-0">
-          <button
-            type="button"
-            disabled
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-[#00C4CC] to-[#7D2AE8] shadow-sm cursor-not-allowed transition-all opacity-95"
-          >
-            <span className="font-extrabold text-sm tracking-tighter leading-none italic font-serif">C</span>
-            <span>Conectar con Canva</span>
-            <Lock className="w-3.5 h-3.5 ml-0.5 text-white/80" />
-          </button>
-          <div className="absolute right-0 top-full mt-2 hidden group-hover:block z-50 whitespace-nowrap rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-xl animate-in fade-in zoom-in-95">
-            Vendrá en futuras actualizaciones
+      title="Biblioteca de Recursos"
+      description={
+        <div className="space-y-1">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-[#668E20] -mt-0.5 mb-0.5">
+            <BookOpen className="w-4 h-4 text-[#86A83C]" />
+            <span className="tracking-wider uppercase text-[10px] font-bold">Material Educativo y Entregable</span>
           </div>
+          <p className="text-sm sm:text-[15px] text-[#626573] leading-relaxed">
+            Gestiona los contenidos educativos para tus pacientes. Explora recursos del sistema, la comunidad y crea tus propios contenidos para entregables.
+          </p>
         </div>
       }
+      rightContent={
+        <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
+          <button
+            type="button"
+            onClick={() => openCreate("general")}
+            disabled={resourcesLocked}
+            className="h-11 px-5 rounded-xl bg-[#7842D4] hover:bg-[#6936C8] text-white text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 shrink-0 shadow-2xs active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+          >
+            <Plus className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>Nuevo Recurso</span>
+          </button>
+        </div>
+      }
+      className="pb-16 relative"
     >
-      <div className="space-y-6 pb-20">
-        <Navbar_B
-           sections={resourceTabs}
-           activeTab={mainTab}
-           onTabChange={(id) => {
-             if (id === "mine" && resourcesLocked) {
-               showResourcesUpgrade("La gestión de recursos propios está disponible en los planes de pago.");
-               return;
-             }
-             setMainTab(id as MainTab);
-           }}
-          activeColor="text-indigo-600"
-        />
+      <div className="space-y-6">
+        {/* Barra de Indicadores — Idéntica a Pacientes, Consultas y Alimentos con 3 columnas */}
+        <div className="relative overflow-hidden bg-white border border-[#E9E5E7] rounded-[18px] p-5 sm:p-6 min-h-[110px] shadow-2xs">
+          <svg
+            className="absolute left-0 top-0 h-full w-36 text-[#B0C76F] pointer-events-none select-none opacity-15"
+            viewBox="0 0 120 100"
+            preserveAspectRatio="none"
+            fill="currentColor"
+          >
+            <path d="M0 0 C 45 15, 65 55, 25 100 L 0 100 Z" />
+            <path d="M0 20 C 35 35, 45 75, 10 100 L 0 100 Z" opacity="0.6" />
+          </svg>
 
-         {isLoading ? (
-           <div className="flex min-h-[20rem] flex-col items-center justify-center rounded-2xl border border-slate-100 bg-white shadow-sm">
-             <Loader2 className="mb-4 h-10 w-10 animate-spin text-indigo-500" />
-             <p className="text-sm font-medium text-slate-400">Cargando recursos...</p>
-           </div>
-         ) : (
-           <>
-         {mainTab === "library" && (
-            <>
-            <Filtros_B
-              searchValue={librarySearch}
-              onSearchChange={setLibrarySearch}
-              searchPlaceholder="Buscar por nombre, contenido o hashtag..."
-              leftContent={
-                <div className="inline-flex items-center rounded-xl bg-slate-100 p-1">
-                  <button
-                    type="button"
-                    onClick={() => setLibrarySource("system")}
-                    className={cn(
-                      "rounded-lg px-4 py-1.5 text-xs font-semibold uppercase tracking-wider transition-all",
-                      librarySource === "system" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
-                    )}
-                  >
-                    Sistema
-                  </button>
-                  <button
-                    type="button"
-                    disabled
-                    className="cursor-not-allowed rounded-lg px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5"
-                  >
-                    <Lock className="h-3 w-3" />
-                    Comunidad
-                  </button>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 divide-y md:divide-y-0 md:divide-x divide-[#F0ECEE] relative z-10">
+            {/* 1. Biblioteca base */}
+            <div className="flex items-center justify-between sm:px-3">
+              <div className="flex items-center gap-3.5">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#F0F5DF] text-[#668E20]">
+                  <BookOpen className="h-5 w-5" />
                 </div>
-              }
-              rightContent={
-                <>
-                  <div className="w-full sm:w-[12rem] lg:w-[14rem]">
-                    <TagInput
-                      value={libraryTags}
-                      onChange={setLibraryTags}
-                      suggestions={availableTags}
-                      placeholder="Hashtags"
-                      className="h-10"
-                    />
-                  </div>
-                  <select
-                    value={sectionFilter}
-                    onChange={(e) => setSectionFilter(e.target.value)}
-                    className="h-10 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-600 outline-none focus:border-indigo-500 transition-all cursor-pointer w-full sm:w-auto"
-                  >
-                    {LIBRARY_CATEGORIES.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.label}
-                      </option>
-                    ))}
-                  </select>
-                </>
-              }
-            />
-
-            {sectionFilter === "all" && !librarySearch.trim() && libraryTags.length === 0 ? (
-              <div className="space-y-4">
-                <div className="flex items-center justify-end pb-1">
-                  <button
-                    type="button"
-                    onClick={toggleAllCategories}
-                    className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors cursor-pointer"
-                  >
-                    {openCategoryIds.length === groupedLibrary.length
-                      ? "Contraer todas las secciones"
-                      : "Expandir todas las secciones"}
-                  </button>
+                <div>
+                  <p className="text-xs font-medium text-[#626573]">Biblioteca base</p>
+                  <h3 className="text-3xl font-semibold text-[#20212B] tracking-tight leading-none mt-1">
+                    {systemResources.length}
+                  </h3>
                 </div>
-                {groupedLibrary.map(({ category, resources }) => {
-                  const isOpen = openCategoryIds.includes(category.id);
-                  const cover = coverCfg(category.id);
+              </div>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#F0F5DF] text-[#668E20] border border-[#DDE7B8]">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#86A83C] animate-pulse" />
+                <span>Oficiales</span>
+              </span>
+            </div>
 
-                  return (
-                    <div
-                      key={category.id}
-                      className="rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden transition-all"
-                    >
+            {/* 2. Mis recursos */}
+            <div className="flex items-center justify-between pt-4 md:pt-0 md:px-6">
+              <div className="flex items-center gap-3.5">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-purple-50 text-[#7842D4]">
+                  <Sparkles className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-[#626573]">Mis recursos</p>
+                  <h3 className="text-3xl font-semibold text-[#20212B] tracking-tight leading-none mt-1">
+                    {myResources.length}
+                  </h3>
+                </div>
+              </div>
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-50 text-[#7842D4] border border-purple-200">
+                Personalizados
+              </span>
+            </div>
+
+            {/* 3. Total disponibles */}
+            <div className="flex items-center justify-between pt-4 md:pt-0 md:px-6">
+              <div className="flex items-center gap-3.5">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#F3ECFC] text-[#7842D4]">
+                  <BarChart2 className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-[#626573]">Total disponibles</p>
+                  <h3 className="text-3xl font-semibold text-[#20212B] tracking-tight leading-none mt-1">
+                    {resources.length}
+                  </h3>
+                </div>
+              </div>
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#F3ECFC] text-[#7842D4] border border-[#E4D5FA]">
+                100% disponibles
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Pestañas de Navegación — Minimalistas y unificadas */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+          {resourceTabs.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => {
+                if (tab.id === "mine" && resourcesLocked) {
+                  showResourcesUpgrade("La gestión de recursos propios está disponible en los planes de pago.");
+                  return;
+                }
+                setMainTab(tab.id as MainTab);
+              }}
+              className={cn(
+                "h-10 px-4 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer flex items-center gap-2 shrink-0",
+                mainTab === tab.id
+                  ? "bg-[#7842D4] text-white shadow-2xs"
+                  : "bg-white text-[#626573] border border-[#E9E5E7] hover:bg-slate-50"
+              )}
+            >
+              <tab.icon className="h-4 w-4 shrink-0" />
+              <span>{tab.label}</span>
+              {tab.id === "mine" && resourcesLocked && (
+                <Lock className="h-3 w-3 text-amber-500" />
+              )}
+            </button>
+          ))}
+        </div>
+
+        {isLoading ? (
+          <div className="flex min-h-[20rem] flex-col items-center justify-center rounded-2xl border border-[#E9E5E7] bg-white shadow-2xs">
+            <Loader2 className="mb-4 h-10 w-10 animate-spin text-[#7842D4]" />
+            <p className="text-sm font-medium text-[#626573]">Cargando recursos...</p>
+          </div>
+        ) : (
+          <>
+            {mainTab === "library" && (
+              <>
+                {/* Filtros Biblioteca */}
+                <div className="space-y-2">
+                  <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
+                    <div className="inline-flex items-center rounded-xl bg-[#F0ECEE] p-1 shrink-0 h-11">
                       <button
                         type="button"
-                        onClick={() => toggleCategory(category.id)}
-                        className="w-full flex items-center justify-between p-4 sm:p-5 text-left hover:bg-slate-50/80 transition-colors cursor-pointer select-none group"
+                        onClick={() => setLibrarySource("system")}
+                        className={cn(
+                          "rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all cursor-pointer h-9 flex items-center",
+                          librarySource === "system"
+                            ? "bg-white text-[#7842D4] shadow-2xs font-bold"
+                            : "text-[#626573] hover:text-[#20212B]"
+                        )}
                       >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div
-                            className="h-7 w-1.5 rounded-full shrink-0"
-                            style={{
-                              background: `linear-gradient(135deg, ${cover.gradientFrom}, ${cover.gradientTo})`,
-                            }}
-                          />
-                          <div className="min-w-0">
-                            <h3 className="text-lg sm:text-xl font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
-                              {category.label}
-                            </h3>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-3 shrink-0">
-                          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                            {resources.length} {resources.length === 1 ? "recurso" : "recursos"}
-                          </span>
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-500 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors">
-                            <ChevronDown
-                              className={cn(
-                                "h-4 w-4 transition-transform duration-300",
-                                isOpen && "rotate-180",
-                              )}
-                            />
-                          </div>
-                        </div>
+                        Sistema
                       </button>
+                      <button
+                        type="button"
+                        disabled
+                        className="cursor-not-allowed rounded-lg px-3 py-1.5 text-xs font-medium text-[#848792] flex items-center gap-1.5 h-9"
+                      >
+                        <Lock className="h-3 w-3" />
+                        Comunidad
+                      </button>
+                    </div>
 
-                      {isOpen && (
-                        <div className="border-t border-slate-100 p-4 sm:p-5 bg-slate-50/40 animate-in fade-in slide-in-from-top-2 duration-300">
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                            {resources.map((resource) => (
-                              <Card key={resource.id} resource={resource} />
-                            ))}
+                    <div className="relative flex-1 min-w-0">
+                      <Search className="pointer-events-none absolute left-3.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[#848792]" />
+                      <input
+                        type="search"
+                        value={librarySearch}
+                        onChange={(e) => setLibrarySearch(e.target.value)}
+                        placeholder="Buscar por nombre, contenido o hashtag..."
+                        className="h-11 w-full rounded-xl border border-[#E9E5E7] bg-white pl-10 pr-4 text-sm font-medium text-[#20212B] placeholder:text-[#848792] focus:outline-none focus:ring-2 focus:ring-[#7842D4]/15 focus:border-[#7842D4] transition-all shadow-2xs"
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+                      <div className="w-full sm:w-48">
+                        <TagInput
+                          value={libraryTags}
+                          onChange={setLibraryTags}
+                          suggestions={availableTags}
+                          placeholder="Hashtags"
+                          className="h-11"
+                        />
+                      </div>
+                      <div className="w-full sm:w-56">
+                        <Select
+                          value={sectionFilter}
+                          onChange={setSectionFilter}
+                          options={LIBRARY_CATEGORIES.map((c) => ({
+                            value: c.id,
+                            label: c.label,
+                          }))}
+                          triggerClassName="h-11 rounded-xl border-[#E9E5E7] bg-white text-sm font-medium text-[#20212B] shadow-2xs"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {sectionFilter === "all" && !librarySearch.trim() && libraryTags.length === 0 ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-end pb-1">
+                      <button
+                        type="button"
+                        onClick={toggleAllCategories}
+                        className="text-xs font-semibold text-[#7842D4] hover:text-[#6936C8] transition-colors cursor-pointer"
+                      >
+                        {openCategoryIds.length === groupedLibrary.length
+                          ? "Contraer todas las secciones"
+                          : "Expandir todas las secciones"}
+                      </button>
+                    </div>
+                    {groupedLibrary.map(({ category, resources }) => {
+                      const isOpen = openCategoryIds.includes(category.id);
+                      const cover = coverCfg(category.id);
+
+                      return (
+                        <div
+                          key={category.id}
+                          className="rounded-2xl border border-[#E9E5E7] bg-white shadow-2xs overflow-hidden transition-all"
+                        >
+                          <button
+                            type="button"
+                            onClick={() => toggleCategory(category.id)}
+                            className="w-full flex items-center justify-between p-4 sm:p-5 text-left hover:bg-[#F8F9FB] transition-colors cursor-pointer select-none group"
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div
+                                className="h-6 w-1.5 rounded-full shrink-0"
+                                style={{
+                                  background: `linear-gradient(135deg, ${cover.gradientFrom}, ${cover.gradientTo})`,
+                                }}
+                              />
+                              <div className="min-w-0">
+                                <h3 className="text-base sm:text-lg font-bold text-[#20212B] group-hover:text-[#7842D4] transition-colors">
+                                  {category.label}
+                                </h3>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2.5 shrink-0">
+                              <span className="rounded-full bg-[#F0ECEE] px-2.5 py-0.5 text-xs font-semibold text-[#626573]">
+                                {resources.length} {resources.length === 1 ? "recurso" : "recursos"}
+                              </span>
+                              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100 text-[#848792] group-hover:bg-purple-50 group-hover:text-[#7842D4] transition-colors">
+                                <ChevronDown
+                                  className={cn(
+                                    "h-4 w-4 transition-transform duration-300",
+                                    isOpen && "rotate-180",
+                                  )}
+                                />
+                              </div>
+                            </div>
+                          </button>
+
+                          {isOpen && (
+                            <div className="border-t border-[#F0ECEE] p-4 sm:p-5 bg-[#F8F9FB]/40 animate-in fade-in slide-in-from-top-1 duration-200">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                {resources.map((resource) => (
+                                  <Card key={resource.id} resource={resource} />
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {filteredLibrary.length ? (
+                      filteredLibrary.map((resource) => (
+                        <Card key={resource.id} resource={resource} />
+                      ))
+                    ) : (
+                      <div className="col-span-full rounded-2xl border border-dashed border-[#E9E5E7] bg-white py-20 text-center shadow-2xs">
+                        <BookOpen className="mx-auto h-10 w-10 text-slate-300 mb-3" />
+                        <p className="text-[#626573] font-medium text-sm">No encontramos recursos con esos filtros.</p>
+                      </div>
+                    )}
+                  </section>
+                )}
+              </>
+            )}
+
+            {mainTab === "coverIntro" && (
+              <div className="space-y-8">
+                {[{ title: "Portadas", list: coverResources, kind: "cover" as const }, { title: "Introducciones", list: introResources, kind: "intro" as const }].map((block) => (
+                  <div key={block.title}>
+                    <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+                      <div className="flex items-center gap-4">
+                        <h3 className="text-lg font-bold text-[#20212B]">{block.title}</h3>
+                        <label className="inline-flex items-center gap-2 cursor-pointer select-none rounded-xl bg-white border border-[#E9E5E7] px-3 py-1.5 text-xs font-semibold text-[#626573] shadow-2xs hover:border-[#7842D4]/40 transition-all">
+                          <input
+                            type="checkbox"
+                            checked={block.kind === "cover" ? onlyMineCovers : onlyMineIntros}
+                            onChange={(e) =>
+                              block.kind === "cover"
+                                ? setOnlyMineCovers(e.target.checked)
+                                : setOnlyMineIntros(e.target.checked)
+                            }
+                            className="h-3.5 w-3.5 rounded border-slate-300 text-[#7842D4] focus:ring-[#7842D4] accent-[#7842D4] cursor-pointer"
+                          />
+                          <span>Ver solo creados por mí</span>
+                        </label>
+                      </div>
+                      {block.kind === "cover" ? (
+                        <div className="relative group">
+                          <button
+                            type="button"
+                            disabled
+                            className="h-10 px-4 rounded-xl border border-[#E9E5E7] bg-slate-50 text-slate-400 font-semibold text-xs flex items-center gap-1.5 cursor-not-allowed"
+                          >
+                            <Lock className="h-3.5 w-3.5" />
+                            <span>Crear portada</span>
+                          </button>
+                          <div className="absolute right-0 top-full mt-2 hidden group-hover:block z-50 whitespace-nowrap rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-xl animate-in fade-in zoom-in-95">
+                            Vendrá en futuras actualizaciones
                           </div>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          className="h-10 px-4 rounded-xl bg-[#7842D4] hover:bg-[#6936C8] text-white text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer"
+                          onClick={() => openCreate(block.kind)}
+                          disabled={resourcesLocked}
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          <span>Crear introducción</span>
+                        </button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                      {block.list.length ? block.list.map((resource) => (
+                        <article
+                          key={resource.id}
+                          className={cn(
+                            "flex h-full flex-col rounded-2xl bg-white p-5 transition-all hover:shadow-md shadow-2xs",
+                            resource.isMine
+                              ? "border-2 border-[#7842D4]"
+                              : "border border-[#E9E5E7]"
+                          )}
+                        >
+                          <div className="flex items-start justify-between gap-4">
+                            <div>
+                              <div className="flex items-center gap-2 mb-1.5">
+                                <span
+                                  className={cn(
+                                    "rounded-full px-2.5 py-0.5 text-[10px] font-semibold",
+                                    resource.isMine
+                                      ? "bg-[#F3ECFC] text-[#7842D4] border border-[#E4D5FA]"
+                                      : "bg-[#F8F9FB] text-[#626573] border border-[#E9E5E7]"
+                                  )}
+                                >
+                                  {resource.isMine ? "Creado por mí" : "Base plataforma"}
+                                </span>
+                              </div>
+                              <h4 className="text-sm sm:text-base font-semibold text-[#20212B]">{resource.title}</h4>
+                            </div>
+                          </div>
+                          <p className="mt-3 line-clamp-3 text-xs leading-relaxed text-[#626573] font-normal">{short(plain(resource.content || ""), 150)}</p>
+                          <div className="mt-auto flex items-center justify-between pt-4 border-t border-[#F0ECEE]">
+                            <button
+                              type="button"
+                              className="text-xs font-semibold text-[#7842D4] hover:bg-[#F3ECFC] px-3 py-1.5 rounded-xl transition-all cursor-pointer"
+                              onClick={() => setResourceToPreview(resource)}
+                            >
+                              Ver recurso
+                            </button>
+                            {resource.isMine && canEditResources && (
+                              <button
+                                type="button"
+                                className="h-7 w-7 rounded-lg flex items-center justify-center text-[#848792] hover:text-[#7842D4] hover:bg-purple-50 transition-colors cursor-pointer"
+                                onClick={() => openEdit(resource)}
+                                title="Editar"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        </article>
+                      )) : (
+                        <div className="col-span-full rounded-2xl border border-dashed border-[#E9E5E7] bg-white p-10 text-center text-sm font-medium text-[#626573] shadow-2xs">
+                          No hay recursos cargados todavía.
                         </div>
                       )}
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
               </div>
-            ) : (
-              <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {filteredLibrary.length ? (
-                  filteredLibrary.map((resource) => (
-                    <Card key={resource.id} resource={resource} />
-                  ))
+            )}
+
+            {mainTab === "restrictions" && (
+              <>
+                <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
+                  <div className="inline-flex items-center rounded-xl bg-[#F0ECEE] p-1 shrink-0 h-11">
+                    <button
+                      type="button"
+                      onClick={() => setRestrictionSource("system")}
+                      className={cn(
+                        "rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all cursor-pointer h-9 flex items-center",
+                        restrictionSource === "system"
+                          ? "bg-white text-[#7842D4] shadow-2xs font-bold"
+                          : "text-[#626573] hover:text-[#20212B]"
+                      )}
+                    >
+                      Sistema
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (resourcesLocked) {
+                          showResourcesUpgrade("La gestión de recursos propios está disponible en los planes de pago.");
+                          return;
+                        }
+                        setRestrictionSource("mine");
+                      }}
+                      disabled={resourcesLocked}
+                      className={cn(
+                        "rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all cursor-pointer h-9 flex items-center",
+                        restrictionSource === "mine"
+                          ? "bg-white text-[#7842D4] shadow-2xs font-bold"
+                          : "text-[#626573] hover:text-[#20212B]"
+                      )}
+                    >
+                      Mis recursos
+                    </button>
+                  </div>
+
+                  <div className="relative flex-1 min-w-0">
+                    <Search className="pointer-events-none absolute left-3.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[#848792]" />
+                    <input
+                      type="search"
+                      value={restrictionSearch}
+                      onChange={(e) => setRestrictionSearch(e.target.value)}
+                      placeholder="Buscar por nombre, contenido o hashtag..."
+                      className="h-11 w-full rounded-xl border border-[#E9E5E7] bg-white pl-10 pr-4 text-sm font-medium text-[#20212B] placeholder:text-[#848792] focus:outline-none focus:ring-2 focus:ring-[#7842D4]/15 focus:border-[#7842D4] transition-all shadow-2xs"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+                    <div className="w-full sm:w-48">
+                      <TagInput
+                        value={restrictionTags}
+                        onChange={setRestrictionTags}
+                        suggestions={availableTags}
+                        placeholder="Hashtags"
+                        className="h-11"
+                      />
+                    </div>
+                    {restrictionSource === "mine" && (
+                      <button
+                        type="button"
+                        className="h-11 px-5 rounded-xl bg-[#7842D4] hover:bg-[#6936C8] text-white text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 shrink-0 shadow-2xs cursor-pointer"
+                        onClick={() => openCreate("restriction")}
+                        disabled={resourcesLocked}
+                      >
+                        <Plus className="h-4 w-4 shrink-0" />
+                        <span>Nuevo recurso</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {filteredRestrictionResources.length > 0 ? (
+                  <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {filteredRestrictionResources.map((resource) => (
+                      <Card key={resource.id} resource={resource} />
+                    ))}
+                  </section>
                 ) : (
-                  <div className="col-span-full rounded-2xl border border-dashed border-slate-200 bg-white py-20 text-center">
-                    <BookOpen className="mx-auto h-10 w-10 text-slate-200 mb-4" />
-                    <p className="text-slate-400 font-medium">No encontramos recursos con esos filtros.</p>
+                  <div className="flex min-h-[20rem] flex-col items-center justify-center rounded-2xl border border-dashed border-[#E9E5E7] bg-white px-6 text-center shadow-2xs">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#F0F5DF] text-[#668E20]">
+                      <ShieldCheck className="h-7 w-7" />
+                    </div>
+                    <p className="mt-4 text-base font-semibold text-[#20212B]">No hay recursos para estos filtros</p>
+                    <p className="mt-1 max-w-sm text-sm text-[#626573]">
+                      {restrictionSource === "system"
+                        ? "No hay recursos de sistema para esta búsqueda."
+                        : "Crea un recurso para una restricción alimenticia o ajusta la búsqueda."}
+                    </p>
+                    {restrictionSource === "mine" && (
+                      <button
+                        type="button"
+                        className="mt-5 h-11 px-5 rounded-xl bg-[#7842D4] hover:bg-[#6936C8] text-white text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 shrink-0 shadow-2xs cursor-pointer"
+                        onClick={() => openCreate("restriction")}
+                        disabled={resourcesLocked}
+                      >
+                        <Plus className="h-4 w-4 shrink-0" />
+                        <span>Crear recurso</span>
+                      </button>
+                    )}
                   </div>
                 )}
-              </section>
+              </>
+            )}
+
+            {mainTab === "mine" && (
+              <>
+                <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
+                  <div className="relative flex-1 min-w-0">
+                    <Search className="pointer-events-none absolute left-3.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[#848792]" />
+                    <input
+                      type="search"
+                      value={mineSearch}
+                      onChange={(e) => setMineSearch(e.target.value)}
+                      placeholder="Buscar por título, contenido o fuente..."
+                      className="h-11 w-full rounded-xl border border-[#E9E5E7] bg-white pl-10 pr-4 text-sm font-medium text-[#20212B] placeholder:text-[#848792] focus:outline-none focus:ring-2 focus:ring-[#7842D4]/15 focus:border-[#7842D4] transition-all shadow-2xs"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+                    <div className="w-full sm:w-48">
+                      <TagInput
+                        value={mineTags}
+                        onChange={setMineTags}
+                        suggestions={availableTags}
+                        placeholder="Hashtags"
+                        className="h-11"
+                      />
+                    </div>
+                    <div className="w-full sm:w-56">
+                      <Select
+                        value={mineSection}
+                        onChange={setMineSection}
+                        options={CATEGORIES.map((c) => ({
+                          value: c.id,
+                          label: c.label,
+                        }))}
+                        triggerClassName="h-11 rounded-xl border-[#E9E5E7] bg-white text-sm font-medium text-[#20212B] shadow-2xs"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      className="h-11 px-5 rounded-xl bg-[#7842D4] hover:bg-[#6936C8] text-white text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 shrink-0 shadow-2xs cursor-pointer"
+                      onClick={() => openCreate("general")}
+                      disabled={resourcesLocked}
+                    >
+                      <Plus className="h-4 w-4 shrink-0" />
+                      <span>Nuevo</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {filteredMine.length > 0 ? (
+                    filteredMine.map((resource) => (
+                      <Card key={resource.id} resource={resource} />
+                    ))
+                  ) : (
+                    <div className="col-span-full flex flex-col items-center justify-center py-20 text-center rounded-2xl border border-dashed border-[#E9E5E7] bg-white shadow-2xs">
+                      <div className="rounded-2xl bg-purple-50 p-5 mb-4 text-[#7842D4]">
+                        <FileText className="h-10 w-10" />
+                      </div>
+                      <p className="text-base font-semibold text-[#20212B]">No tienes recursos todavía</p>
+                      <p className="mt-1 text-sm text-[#626573] max-w-xs">
+                        Crea tu primer recurso para comenzar a construir tu biblioteca personal.
+                      </p>
+                      <button
+                        type="button"
+                        className="mt-5 h-11 px-6 rounded-xl bg-[#7842D4] hover:bg-[#6936C8] text-white text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 shadow-2xs cursor-pointer"
+                        onClick={() => openCreate("general")}
+                        disabled={resourcesLocked}
+                      >
+                        <Plus className="h-4 w-4 shrink-0" />
+                        <span>Crear recurso</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </>
             )}
           </>
         )}
-         {mainTab === "coverIntro" && (
-          <div className="space-y-8">
-            {[{ title: "Portadas", list: coverResources, kind: "cover" as const }, { title: "Introducciones", list: introResources, kind: "intro" as const }].map((block) => (
-              <div key={block.title}>
-                <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
-                  <div className="flex items-center gap-4">
-                    <h3 className="text-xl font-bold text-slate-900">{block.title}</h3>
-                    <label className="inline-flex items-center gap-2 cursor-pointer select-none rounded-xl bg-white border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm hover:border-indigo-300 transition-all">
-                      <input
-                        type="checkbox"
-                        checked={block.kind === "cover" ? onlyMineCovers : onlyMineIntros}
-                        onChange={(e) =>
-                          block.kind === "cover"
-                            ? setOnlyMineCovers(e.target.checked)
-                            : setOnlyMineIntros(e.target.checked)
-                        }
-                        className="h-3.5 w-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 accent-indigo-600 cursor-pointer"
-                      />
-                      <span>Ver solo creados por mí</span>
-                    </label>
-                  </div>
-                  {block.kind === "cover" ? (
-                    <div className="relative group">
-                      <Button
-                        disabled
-                        className="rounded-xl px-4 h-10 font-semibold cursor-not-allowed opacity-75"
-                      >
-                        <Lock className="mr-2 h-4 w-4" />
-                        Crear portada
-                      </Button>
-                      <div className="absolute right-0 top-full mt-2 hidden group-hover:block z-50 whitespace-nowrap rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-semibold text-white shadow-xl animate-in fade-in zoom-in-95">
-                        Vendrá en futuras actualizaciones
-                      </div>
-                    </div>
-                  ) : (
-                    <Button className="rounded-xl px-4 h-10 font-semibold" onClick={() => openCreate(block.kind)} disabled={resourcesLocked}>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Crear introducción
-                    </Button>
-                  )}
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {block.list.length ? block.list.map((resource) => (
-                    <article
-                      key={resource.id}
-                      className={cn(
-                        "flex h-full flex-col rounded-2xl bg-white p-6 transition-all hover:shadow-md",
-                        resource.isMine
-                          ? "border-2 border-indigo-500 shadow-sm"
-                          : "border border-slate-100"
-                      )}
-                    >
-                      <div className="flex items-start justify-between gap-4">
-                        <div>
-                          <div className="flex items-center gap-2 mb-1.5">
-                            <span
-                              className={cn(
-                                "rounded-full px-2.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider",
-                                resource.isMine
-                                  ? "bg-indigo-50 text-indigo-700 border border-indigo-200"
-                                  : "bg-slate-100 text-slate-500 border border-slate-200"
-                              )}
-                            >
-                              {resource.isMine ? "Creado por mí" : "Base plataforma"}
-                            </span>
-                          </div>
-                          <h4 className="text-base font-semibold text-slate-900">{resource.title}</h4>
-                        </div>
-                      </div>
-                      <p className="mt-4 line-clamp-3 text-sm leading-6 text-slate-500 font-medium">{short(plain(resource.content || ""), 150)}</p>
-                      <div className="mt-auto flex items-center justify-between pt-6 border-t border-slate-100/50">
-                        <Button variant="ghost" className="rounded-full px-0 text-xs font-semibold text-indigo-600 hover:bg-transparent" onClick={() => setResourceToPreview(resource)}>Ver recurso</Button>
-                        {resource.isMine && canEditResources && (
-                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-slate-400 hover:text-emerald-700 hover:bg-emerald-100/50" onClick={() => openEdit(resource)}>
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
-                        )}
-                      </div>
-                    </article>
-                  )) : <div className="col-span-full rounded-2xl border border-dashed border-slate-200 bg-white p-10 text-center text-sm font-medium text-slate-400">No hay recursos cargados todavía.</div>}
-                </div>
-              </div>
-            ))}
-          </div>
-         )}
-
-         {mainTab === "restrictions" && (
-          <>
-            <Filtros_B
-              searchValue={restrictionSearch}
-              onSearchChange={setRestrictionSearch}
-              searchPlaceholder="Buscar por nombre, contenido o hashtag..."
-              leftContent={
-                <div className="inline-flex items-center rounded-xl bg-slate-100 p-1">
-                  <button
-                    type="button"
-                    onClick={() => setRestrictionSource("system")}
-                    className={cn(
-                      "rounded-lg px-4 py-1.5 text-xs font-semibold uppercase tracking-wider transition-all",
-                      restrictionSource === "system"
-                        ? "bg-white text-emerald-700 shadow-sm"
-                        : "text-slate-500 hover:text-slate-700",
-                    )}
-                  >
-                    Sistema
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (resourcesLocked) {
-                        showResourcesUpgrade("La gestión de recursos propios está disponible en los planes de pago.");
-                        return;
-                      }
-                      setRestrictionSource("mine");
-                    }}
-                    disabled={resourcesLocked}
-                    className={cn(
-                      "rounded-lg px-4 py-1.5 text-xs font-semibold uppercase tracking-wider transition-all",
-                      restrictionSource === "mine"
-                        ? "bg-white text-emerald-700 shadow-sm"
-                        : "text-slate-500 hover:text-slate-700",
-                    )}
-                  >
-                    Mis recursos
-                  </button>
-                </div>
-              }
-              rightContent={
-                <>
-                  <div className="w-full sm:w-52">
-                    <TagInput
-                      value={restrictionTags}
-                      onChange={setRestrictionTags}
-                      suggestions={availableTags}
-                      placeholder="Hashtags"
-                      className="h-10"
-                    />
-                  </div>
-                   {restrictionSource === "mine" && (
-                     <Button className="h-10 rounded-xl px-4 font-semibold w-full sm:w-auto" onClick={() => openCreate("restriction")} disabled={resourcesLocked}>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Nuevo recurso
-                    </Button>
-                  )}
-                </>
-              }
-            />
-
-             {filteredRestrictionResources.length > 0 ? (
-              <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {filteredRestrictionResources.map((resource) => (
-                  <Card key={resource.id} resource={resource} />
-                ))}
-              </section>
-            ) : (
-              <div className="flex min-h-[20rem] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white px-6 text-center">
-                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-slate-100">
-                  <ShieldCheck className="h-7 w-7 text-slate-400" />
-                </div>
-                <p className="mt-4 text-base font-semibold text-slate-700">No hay recursos para estos filtros</p>
-                <p className="mt-1 max-w-sm text-sm text-slate-400">
-                  {restrictionSource === "system"
-                    ? "No hay recursos de sistema para esta búsqueda."
-                    : "Crea un recurso para una restricción alimenticia o ajusta la búsqueda."}
-                </p>
-                {restrictionSource === "mine" && (
-                   <Button className="mt-5 h-10 rounded-xl px-4 font-semibold w-full sm:w-auto" onClick={() => openCreate("restriction")} disabled={resourcesLocked}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Crear recurso
-                  </Button>
-                )}
-              </div>
-            )}
-          </>
-         )}
-
-         {mainTab === "mine" && (
-          <>
-            <Filtros_B
-              searchValue={mineSearch}
-              onSearchChange={setMineSearch}
-              searchPlaceholder="Buscar por título, contenido o fuente..."
-              rightContent={
-                <>
-                  <div className="w-full sm:w-48">
-                    <TagInput
-                      value={mineTags}
-                      onChange={setMineTags}
-                      suggestions={availableTags}
-                      placeholder="Hashtags"
-                      className="h-10"
-                    />
-                  </div>
-                  <select
-                    value={mineSection}
-                    onChange={(e) => setMineSection(e.target.value)}
-                    className="h-10 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-600 outline-none focus:border-indigo-500 transition-all cursor-pointer w-full sm:w-auto"
-                  >
-                    {CATEGORIES.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.label}
-                      </option>
-                    ))}
-                  </select>
-                  <Button className="rounded-xl px-4 h-10 font-semibold w-full sm:w-auto" onClick={() => openCreate("general")} disabled={resourcesLocked}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Nuevo
-                  </Button>
-                </>
-              }
-            />
-
-             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {filteredMine.length > 0 ? filteredMine.map((resource) => (
-                  <Card key={resource.id} resource={resource} />
-                )) : (
-                  <div className="col-span-full flex flex-col items-center justify-center py-20 text-center">
-                    <div className="rounded-full bg-slate-100 p-6 mb-4">
-                      <FileText className="h-12 w-12 text-slate-300" />
-                    </div>
-                    <p className="text-lg font-semibold text-slate-600">No tienes recursos todavía</p>
-                    <p className="mt-1 text-sm text-slate-400 max-w-xs">
-                      Crea tu primer recurso para comenzar a construir tu biblioteca personal.
-                    </p>
-                    <Button className="mt-6 rounded-xl px-6 h-11 font-semibold" onClick={() => openCreate("general")} disabled={resourcesLocked}>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Crear recurso
-                    </Button>
-                  </div>
-            )}
-             </div>
-           </>
-         )}
-           </>
-         )}
-
       </div>
 
       <Modal isOpen={!!resourceToPreview} onClose={() => setResourceToPreview(null)} title={resourceToPreview?.title || "Vista previa"} className="max-w-4xl"><div className="space-y-6">{resourceToPreview?.tags?.length ? <div className="flex flex-wrap gap-2">{resourceToPreview.tags.map((tag) => <span key={tag} className="inline-flex items-center rounded-full bg-slate-50 border border-slate-100 px-3 py-1 text-[10px] font-semibold text-slate-500"><Hash className="mr-1 h-3 w-3" />{tag}</span>)}</div> : null}{resourceToPreview?.format === "PDF" ? <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-12 text-center"><FileText className="mx-auto mb-4 h-16 w-16 text-slate-200" />{resourceToPreview.fileUrl ? <a href={resourceToPreview.fileUrl} target="_blank" rel="noreferrer" className="inline-flex items-center rounded-full bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-lg hover:bg-indigo-700 transition-colors">Abrir PDF<ExternalLink className="ml-2 h-4 w-4" /></a> : null}</div> : <div className="prose prose-slate max-w-none text-slate-600 prose-p:leading-relaxed prose-headings:text-slate-900 prose-headings:font-semibold prose-h1:text-3xl prose-h2:text-2xl prose-h3:text-xl" dangerouslySetInnerHTML={{ __html: resourceToPreview?.content || "" }} />}</div></Modal>

@@ -275,14 +275,6 @@ export function TagInput({
                 className
               )}
             />
-            {isLoading && (
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 bg-white/90 px-2 py-0.5 rounded-full border border-emerald-100 shadow-2xs">
-                <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-600" />
-                <span className="text-[10px] font-bold text-emerald-700">
-                  {itemTypeName === "alimento" ? "Buscando..." : "Cargando..."}
-                </span>
-              </div>
-            )}
           </div>
         </div>
 
@@ -335,7 +327,7 @@ export function TagInput({
                   <Plus className="w-4 h-4" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="truncate font-bold text-xs">
+                  <div className="truncate font-medium text-xs">
                     {itemTypeName === "alimento"
                       ? `Agregar "${inputValue.trim()}"`
                       : `Crear etiqueta "${inputValue.trim()}"`}
@@ -395,7 +387,7 @@ export function TagInput({
                       )}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className={cn("truncate font-semibold text-slate-700", isDarkMode && "text-emerald-50")}>
+                      <div className={cn("truncate font-medium text-[#20212B]", isDarkMode && "text-emerald-50")}>
                         {suggestion}
                       </div>
                       <div className={cn("mt-0.5 flex items-center gap-1.5 text-[11px] text-slate-400", isDarkMode && "text-emerald-100/45")}>

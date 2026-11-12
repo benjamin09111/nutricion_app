@@ -57,11 +57,11 @@ export const DietConstraintSection: React.FC<DietConstraintSectionProps> = ({
   showClinicalRestriction = true,
 }) => {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
+    <div className="space-y-6">
       {showGeneralInfo && <>
-      <div className="grid gap-4 md:grid-cols-[1fr_9rem_1fr]">
-        <div className="space-y-3">
-          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Título <span className="text-rose-500">*</span></p>
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-[#20212B]">Título <span className="text-rose-500">*</span></p>
           <Input
             placeholder="Nombre de la creación"
             value={dietName}
@@ -69,18 +69,11 @@ export const DietConstraintSection: React.FC<DietConstraintSectionProps> = ({
               setDietName(e.target.value);
               saveDraft({ dietName: e.target.value });
             }}
-            className="h-11 rounded-xl border-slate-200 bg-slate-50 text-sm font-semibold"
+            className="h-10 rounded-xl border-[#E9E5E7] bg-white text-sm font-normal text-[#20212B]"
           />
         </div>
-        <div className="space-y-3">
-          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Fecha</p>
-          <div aria-disabled="true" className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-slate-100 px-3 text-sm font-medium text-slate-500 cursor-not-allowed">
-            {dateIcon}
-            <span>{deliveryDate}</span>
-          </div>
-        </div>
-        <div className="space-y-3">
-          <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Hashtags</p>
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-[#20212B]">Hashtags</p>
           <TagInput
             value={dietTags}
             onChange={(newTags) => {
@@ -90,14 +83,14 @@ export const DietConstraintSection: React.FC<DietConstraintSectionProps> = ({
             placeholder="Ej: keto, hipertrofia"
             suggestions={availableClassificationTags}
             includeSystemSuggestions={false}
-            helperText="Selecciona una sugerencia o presiona Enter para usar uno personalizado."
-            className="min-h-[44px] rounded-xl border-slate-200 bg-slate-50 shadow-sm"
+            helperText=""
+            className="h-10 rounded-xl border-[#E9E5E7] bg-white text-xs font-normal text-[#20212B]"
           />
         </div>
       </div>
 
       <div className="space-y-2">
-        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Descripción</p>
+        <p className="text-xs font-semibold text-[#20212B]">Descripción</p>
         <Textarea
           value={description}
           onChange={(event) => {
@@ -105,11 +98,11 @@ export const DietConstraintSection: React.FC<DietConstraintSectionProps> = ({
             saveDraft({ creationDescription: event.target.value });
           }}
           placeholder="Notas internas sobre este plan..."
-          className="min-h-[72px] rounded-xl border-slate-200 bg-slate-50 text-sm"
+          className="min-h-[72px] rounded-xl border-[#E9E5E7] bg-white text-xs font-normal text-[#20212B] placeholder:text-[#848792]"
         />
       </div>
       <div className="space-y-2">
-        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Objetivo del plan <span className="normal-case font-medium text-slate-400">(opcional)</span></p>
+        <p className="text-xs font-semibold text-[#20212B]">Objetivo del plan <span className="normal-case font-normal text-[#626573]">(opcional)</span></p>
         <Textarea
           value={planObjective}
           onChange={(event) => {
@@ -117,15 +110,15 @@ export const DietConstraintSection: React.FC<DietConstraintSectionProps> = ({
             saveDraft({ planObjective: event.target.value });
           }}
           placeholder="Ej: Pérdida de grasa enfocada en alimentos simples"
-          className="min-h-[72px] rounded-xl border-slate-200 bg-slate-50 text-sm"
+          className="min-h-[72px] rounded-xl border-[#E9E5E7] bg-white text-xs font-normal text-[#20212B] placeholder:text-[#848792]"
         />
       </div>
       </>}
 
-      {showClinicalRestriction && <div className="space-y-6 border-t border-slate-100 pt-6">
+      {showClinicalRestriction && <div className="space-y-4 border-t border-[#F0ECEE] pt-5">
         <div className="flex items-center justify-between">
-          <label className="text-xs font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
-            <AlertCircle className="h-5 w-5 text-rose-500" />
+          <label className="text-xs font-semibold text-[#20212B] flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 text-rose-500" />
             Restricción clínica
           </label>
         </div>

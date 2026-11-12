@@ -1,8 +1,31 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #1f2937;
+  --nutri-purple: #b096ed;
+  --nutri-green: #b0c76f;
+  --purple-action: #7842d4;
+  --purple-soft: #f3ecfc;
+  --purple-text: #6936c8;
+  --green-text: #668e20;
+  --green-soft: #f0f5df;
+  --green-indicator: #86a83c;
+  --background: #fdfbfa;
+  --surface: #ffffff;
+  --surface-warm: #fffcfa;
+  --text-primary: #20212b;
+  --text-secondary: #626573;
+  --text-muted: #848792;
+  --border: #e9e5e7;
+  --border-soft: #f0ecee;
+
+  --foreground: #20212b;
+  --brand-purple: #b096ed;
+  --brand-green: #b0c76f;
+  --purple-strong: #7842d4;
+  --green-strong: #668e20;
+  --bg-app: #fdfbfa;
+  --surface-subtle: #f3ecfc;
+  --border-subtle: #e9e5e7;
   --brand-green-50: #f7fbe8;
   --brand-green-100: #edf4d3;
   --brand-green-200: #dde8ad;
@@ -42,6 +65,26 @@
 }
 
 @theme inline {
+  --color-nutri-purple: var(--nutri-purple);
+  --color-nutri-green: var(--nutri-green);
+  --color-purple-action: var(--purple-action);
+  --color-purple-soft: var(--purple-soft);
+  --color-purple-text: var(--purple-text);
+  --color-green-text: var(--green-text);
+  --color-green-soft: var(--green-soft);
+  --color-green-indicator: var(--green-indicator);
+  --color-surface-warm: var(--surface-warm);
+  --color-text-muted: var(--text-muted);
+  --color-border-soft: var(--border-soft);
+  --color-brand-purple: var(--brand-purple);
+  --color-brand-green: var(--brand-green);
+  --color-purple-strong: var(--purple-strong);
+  --color-green-strong: var(--green-strong);
+  --color-bg-app: var(--bg-app);
+  --color-surface-subtle: var(--surface-subtle);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-border-subtle: var(--border-subtle);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-portal);
@@ -689,12 +732,13 @@ input[type="password"] {
   appearance: none;
 }
 
-/* Smooth scroll for anchor links */
+/* Smooth scroll for anchor links and standard web 16px base font scale */
 html {
-  font-size: 17px;
+  font-size: 16px;
   scroll-behavior: smooth;
-  scroll-padding-top: 80px;
+  scroll-padding-top: 60px;
 }
+
 
 /* Sidebar scrollbar - suave, elegante y ultra-clarito */
 .sidebar-scroll {

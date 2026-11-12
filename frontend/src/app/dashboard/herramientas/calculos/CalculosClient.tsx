@@ -26,6 +26,7 @@ import {
 import { Button } from "@/components/ui/Button";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { useSubscription } from "@/context/SubscriptionContext";
@@ -436,13 +437,22 @@ export default function CalculosClient() {
 
   return (
     <ModuleLayout
-      title="Calculadora Clínica NutriNet"
-      description="Evaluación nutricional rápida y módulos avanzados a pantalla completa para el cálculo de requerimientos, antropometría y composición."
+      title="Calculadora Clínica"
+      description={
+        <div className="space-y-1">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-[#668E20] -mt-0.5 mb-0.5">
+            <Calculator className="w-4 h-4 text-[#86A83C]" />
+            <span className="tracking-wider uppercase text-[10px] font-bold">Evaluación y Requerimientos Energéticos</span>
+          </div>
+          <p className="text-sm sm:text-[15px] text-[#626573] leading-relaxed">
+            Evaluación nutricional rápida y módulos avanzados a pantalla completa para el cálculo de requerimientos, antropometría y composición.
+          </p>
+        </div>
+      }
       rightContent={
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
+        <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
+          <button
+            type="button"
             onClick={() => {
               if (patientImportLocked) {
                 window.dispatchEvent(
@@ -458,35 +468,33 @@ export default function CalculosClient() {
               }
               void openPatientImportModal();
             }}
-            className="text-xs border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 font-semibold h-8 rounded-xl flex-1 sm:flex-none justify-center gap-1 cursor-pointer"
+            className="h-11 px-4 rounded-xl bg-[#7842D4] hover:bg-[#6936C8] text-white text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 shadow-2xs cursor-pointer transition-all shrink-0"
           >
             {patientImportLocked ? (
-              <Lock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <Lock className="w-4 h-4 text-white/80 shrink-0" />
             ) : (
-              <UserRound className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <UserRound className="w-4 h-4 text-white shrink-0" />
             )}
             <span>{selectedPatient ? "Cambiar paciente" : "Importar paciente"}</span>
-          </Button>
+          </button>
 
           <Link href="/dashboard/herramientas/tests">
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-xs border-indigo-200 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 font-semibold h-8 rounded-xl flex-1 sm:flex-none justify-center gap-1 cursor-pointer"
+            <button
+              type="button"
+              className="h-11 px-4 rounded-xl border border-[#E9E5E7] bg-white text-[#20212B] hover:bg-slate-50 text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 shadow-2xs cursor-pointer transition-all shrink-0"
             >
-              <FileText className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-              <span>Ir a Tests de Tamizaje</span>
-            </Button>
+              <FileText className="w-4 h-4 text-[#7842D4] shrink-0" />
+              <span>Tests de Tamizaje</span>
+            </button>
           </Link>
 
-          <Button
-            variant="outline"
-            size="sm"
+          <button
+            type="button"
             onClick={handleQuickValues}
-            className="text-xs border-slate-200 text-slate-600 bg-white hover:bg-slate-50 h-8 rounded-xl flex-1 sm:flex-none justify-center cursor-pointer"
+            className="h-11 px-4 rounded-xl border border-[#E9E5E7] bg-white text-[#626573] hover:bg-slate-50 text-xs sm:text-sm font-medium flex items-center justify-center gap-2 shadow-2xs cursor-pointer transition-all shrink-0"
           >
-            <span>Cargar Caso Ejemplo</span>
-          </Button>
+            <span>Caso Ejemplo</span>
+          </button>
         </div>
       }
     >
@@ -829,15 +837,12 @@ export default function CalculosClient() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Fórmula TMB</label>
-                <select
+                <Select
                   value={tmbFormula}
-                  onChange={(e) => setTmbFormula(e.target.value)}
-                  className="w-full h-9 rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 cursor-pointer outline-none"
-                >
-                  {FORMULA_OPTIONS.map((f) => (
-                    <option key={f.value} value={f.value}>{f.label}</option>
-                  ))}
-                </select>
+                  onChange={(val) => setTmbFormula(val)}
+                  options={FORMULA_OPTIONS}
+                  triggerClassName="h-9 rounded-xl border-slate-200 bg-white text-xs font-medium text-slate-700 shadow-2xs"
+                />
               </div>
 
               <div>

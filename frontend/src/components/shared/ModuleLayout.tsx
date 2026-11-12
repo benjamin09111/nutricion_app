@@ -39,10 +39,10 @@ export function ModuleLayout({
 
   return (
     <div
-      className={cn("w-full space-y-6 lg:space-y-8 pb-32 relative", className)}
+      className={cn("w-full space-y-4 sm:space-y-5 pb-16 relative", className)}
     >
-      <div className="space-y-4">
-        <div className="space-y-2">
+      <div className="space-y-3">
+        <div className="space-y-1.5">
           {step && (
             <div
               className={`flex items-center gap-2 text-[10px] bg-white w-fit px-2 py-1 rounded-full border border-slate-100 shadow-sm uppercase tracking-wider font-semibold ${step.color ? step.color : "text-indigo-600"}`}
@@ -57,12 +57,12 @@ export function ModuleLayout({
             </div>
           )}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
-            <h1 className="text-2xl sm:text-3xl font-semibold text-slate-900 tracking-tight leading-tight">
+            <h1 className="text-3xl sm:text-[36px] font-semibold text-[#20212B] tracking-tight leading-tight">
               {title}
             </h1>
             {rightContent}
           </div>
-          <div className="text-xs sm:text-sm text-slate-500 font-medium leading-relaxed max-w-4xl">
+          <div className="text-sm sm:text-[15px] text-[#626573] font-normal leading-relaxed max-w-4xl">
             {description}
           </div>
         </div>
@@ -72,6 +72,7 @@ export function ModuleLayout({
           <ModuleRightNav items={rightNavItems} desktopBreakpoint={rightNavDesktopBreakpoint} />
         )}
       </div>
+
 
       {/* Main Content */}
       {children}

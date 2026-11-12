@@ -29,7 +29,7 @@ export function RecordsTable<T>({
   loadingColumns = 5,
   emptyState,
   onRowClick,
-  rowClassName = "hover:bg-slate-50/60 transition-colors group",
+  rowClassName = "hover:bg-[#F8F9FB] transition-colors group",
   footer,
 }: RecordsTableProps<T>) {
   const colSpan = columns.length;
@@ -39,19 +39,19 @@ export function RecordsTable<T>({
       <div className="overflow-x-auto">
         <table className="min-w-full border-collapse">
           <thead>
-            <tr className="border-b border-slate-200/80">
+            <tr className="border-b border-[#E8EBF0]">
               {columns.map((col) => (
                 <th
                   key={col.header}
                   scope="col"
-                  className={`py-3 px-4 text-left text-[11px] font-bold text-slate-400 uppercase tracking-wider ${col.className ?? ""}`}
+                  className={`py-3 px-4 text-left text-xs font-medium text-[#667085] uppercase tracking-wider ${col.className ?? ""}`}
                 >
                   {col.header}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-[#E8EBF0]">
             {isLoading ? (
               <TableLoadingRows rows={loadingRows} columns={loadingColumns} />
             ) : data.length > 0 ? (
@@ -64,7 +64,7 @@ export function RecordsTable<T>({
                   {columns.map((col) => (
                     <td
                       key={col.header}
-                      className={`py-3.5 px-4 ${col.className ?? ""}`}
+                      className={`py-3.5 px-4 text-sm text-[#20283B] ${col.className ?? ""}`}
                     >
                       {col.render(item)}
                     </td>
@@ -73,11 +73,14 @@ export function RecordsTable<T>({
               ))
             ) : (
               <tr>
-                <td colSpan={colSpan} className="text-center py-20">
+                <td colSpan={colSpan} className="text-center py-16">
                   {emptyState ?? (
-                    <div className="flex flex-col items-center justify-center space-y-3">
-                      <p className="text-sm font-semibold text-slate-500">
+                    <div className="flex flex-col items-center justify-center space-y-2">
+                      <p className="text-sm font-medium text-[#20283B]">
                         Sin resultados
+                      </p>
+                      <p className="text-xs text-[#667085]">
+                        No se encontraron registros para mostrar.
                       </p>
                     </div>
                   )}
@@ -88,7 +91,7 @@ export function RecordsTable<T>({
         </table>
       </div>
       {footer && (
-        <div className="pt-4 flex items-center justify-between">
+        <div className="pt-4 flex items-center justify-between text-xs text-[#667085]">
           {footer}
         </div>
       )}
