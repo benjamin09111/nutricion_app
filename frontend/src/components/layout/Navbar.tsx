@@ -5,6 +5,7 @@ import Image from "next/image";
 import {
   User,
   LogOut,
+  Loader2,
   ChevronDown,
   Settings,
   Bell,
@@ -97,6 +98,7 @@ export function Navbar({
   const notificationRef = useRef<HTMLDivElement>(null);
 
   const [isGuest, setIsGuest] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isSecureSubModalOpen, setIsSecureSubModalOpen] = useState(false);
   const [isSecuringSub, setIsSecuringSub] = useState(false);
   const [isPlanLimitsModalOpen, setIsPlanLimitsModalOpen] = useState(false);
@@ -171,9 +173,17 @@ export function Navbar({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleLogout = () => {
-    authService.signOut();
-    router.replace("/login");
+  const handleLogout = async () => {
+    if (isLoggingOut) return;
+    setIsLoggingOut(true);
+    setIsProfileOpen(false);
+    try {
+      await authService.signOut();
+    } catch (error) {
+      console.error("Error al cerrar sesión:", error);
+    } finally {
+      window.location.href = "/login";
+    }
   };
 
   return (
@@ -209,19 +219,38 @@ export function Navbar({
         />
       </button>
 
-        <div className="flex min-w-0 flex-1 items-center justify-between gap-x-2 sm:gap-x-4 lg:gap-x-6">
+        <div className="flex min-w-0 flex-1 items-center justify-between gap-x-1.5 sm:gap-x-4 lg:gap-x-6">
           {/* Workspace Context — Clean, quiet & clinical */}
           <Link
             href="/dashboard"
-            className="flex items-center gap-2 min-w-0 hover:opacity-80 transition-opacity cursor-pointer select-none"
+            className="flex items-center gap-1 sm:gap-2 min-w-0 hover:opacity-80 transition-opacity cursor-pointer select-none shrink-0"
             title="Ir al panel principal"
           >
-            <span className="text-xs font-semibold text-[#7842D4]">NutriNet</span>
-            <span className="text-xs text-slate-300">/</span>
-            <span className="text-xs font-medium text-slate-600">Espacio Clínico</span>
+            <span className="text-xs font-bold text-[#668E20]">NutriNet</span>
+            <span className="text-xs text-slate-300 hidden sm:inline">/</span>
+            <span className="text-xs font-medium text-slate-600 hidden sm:inline">Espacio Clínico</span>
+            {!isAdminView && (
+              <>
+                <span className="text-xs text-slate-300">/</span>
+                <span className="text-[10px] sm:text-xs font-bold text-[#668E20] bg-[#F0F5DF] px-1.5 sm:px-2 py-0.5 rounded-md border border-[#86A83C]/30 tracking-wider">
+                  DEMO
+                </span>
+              </>
+            )}
           </Link>
 
-          <div className="flex min-w-0 items-center justify-end gap-x-1.5 sm:gap-x-4 lg:gap-x-8">
+          <div className="flex min-w-0 items-center justify-end gap-x-1.5 sm:gap-x-3 lg:gap-x-4">
+            {!isAdminView && (
+              <button
+                type="button"
+                onClick={() => setIsDemoInterestModalOpen(true)}
+                className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-xl px-2.5 sm:px-3.5 py-1.5 text-xs font-bold shadow-xs transition-all duration-200 active:scale-95 bg-[#86A83C] hover:bg-[#78A82F] text-white hover:shadow-md shrink-0"
+              >
+                <Sparkles className="h-3.5 w-3.5 text-white shrink-0" />
+                <span className="hidden sm:inline">Me interesa NutriNet</span>
+                <span className="sm:hidden">Me interesa</span>
+              </button>
+            )}
             {process.env.NODE_ENV === "development" && false && userEmail === "benjaminmoralespizarro763@gmail.com" && (
               <>
                 <button
@@ -807,13 +836,19 @@ export function Navbar({
                     isDarkMode
                       ? "text-rose-300 hover:bg-rose-500/8"
                       : "text-red-600 hover:bg-slate-50",
+                    isLoggingOut && "opacity-50 cursor-not-allowed",
                   )}
                   role="menuitem"
                   tabIndex={-1}
+                  disabled={isLoggingOut}
                   onClick={handleLogout}
                 >
-                  <LogOut className="h-4 w-4" />
-                  Cerrar sesión
+                  {isLoggingOut ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <LogOut className="h-4 w-4" />
+                  )}
+                  {isLoggingOut ? "Cerrando sesión..." : "Cerrar sesión"}
                 </button>
               </div>
             )}

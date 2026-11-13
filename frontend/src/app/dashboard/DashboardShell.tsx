@@ -45,19 +45,20 @@ function DashboardContent({ children, isDemo }: { children: React.ReactNode; isD
     setSidebarOpen(false);
   }, [pathname]);
 
-  useEffect(() => {
-    const isPlanRoute =
-      pathname.startsWith("/dashboard/rapido") ||
-      pathname.startsWith("/dashboard/dieta") ||
-      pathname.startsWith("/dashboard/pautas") ||
-      pathname.startsWith("/dashboard/entregable");
+  const isPlanRoute =
+    pathname.startsWith("/dashboard/rapido") ||
+    pathname.startsWith("/dashboard/dieta") ||
+    pathname.startsWith("/dashboard/pautas") ||
+    pathname.startsWith("/dashboard/entregable") ||
+    pathname.startsWith("/dashboard/dietas");
 
+  useEffect(() => {
     if (isPlanRoute) {
       setSidebarCollapsed(true);
     } else {
       setSidebarCollapsed(false);
     }
-  }, [pathname, setSidebarCollapsed]);
+  }, [isPlanRoute, setSidebarCollapsed]);
 
   const [freemiumModalData, setFreemiumModalData] = useState<{
     isOpen: boolean;
@@ -118,7 +119,7 @@ function DashboardContent({ children, isDemo }: { children: React.ReactNode; isD
             "min-w-0 flex-1",
             isAdminView
               ? "py-3 lg:py-4 xl:py-5"
-              : "py-4 sm:py-6 lg:py-8",
+              : "py-4 pb-24 sm:py-6 lg:py-8 lg:pb-8",
             isAdminView && !isDarkMode && "bg-indigo-50/10",
           )}
         >
@@ -129,7 +130,7 @@ function DashboardContent({ children, isDemo }: { children: React.ReactNode; isD
                 ? "max-w-[1440px] px-3 sm:px-4 lg:px-4 xl:px-6"
                 : isRecipesModule
                 ? "max-w-[1600px] px-3 sm:px-5 lg:px-4 xl:px-6"
-                : "max-w-[1440px] px-4 sm:px-6 lg:px-10 xl:px-12",
+                : "max-w-[1440px] px-3 sm:px-6 lg:px-10 xl:px-12",
             )}
           >
             {children}
@@ -143,7 +144,7 @@ function DashboardContent({ children, isDemo }: { children: React.ReactNode; isD
           <ReturnToConsultationWidget />
           <NotesAgendaWidget />
           <WelcomeOverlay />
-          <MobileBottomNav />
+          {!isPlanRoute && <MobileBottomNav />}
           <AppRatingModal />
         </>
       )}

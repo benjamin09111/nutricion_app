@@ -19,7 +19,6 @@ import {
   AlertCircle,
   Apple,
 } from "lucide-react";
-import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { TagInput } from "@/components/ui/TagInput";
 import { ActionDockItem } from "@/components/ui/ActionDock";

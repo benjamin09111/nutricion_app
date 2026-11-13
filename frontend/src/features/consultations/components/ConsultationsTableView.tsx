@@ -34,11 +34,11 @@ export function ConsultationsTableView({
             header: "Paciente",
             render: (item: Consultation) => (
               <div className="flex items-center gap-3">
-                <div className="h-9 w-9 rounded-xl bg-purple-100 flex items-center justify-center text-[#7c3aed] font-bold text-sm shrink-0">
+                <div className="h-9 w-9 rounded-xl bg-[#F0F5DF] flex items-center justify-center text-[#668E20] font-bold text-sm shrink-0 border border-[#DDE7B8]">
                   {item.patientName?.charAt(0) || "P"}
                 </div>
                 <div className="min-w-0">
-                  <div className="text-sm font-semibold text-slate-900 leading-tight mb-0.5 truncate group-hover:text-[#7c3aed] transition-colors">
+                  <div className="text-sm font-semibold text-slate-900 leading-tight mb-0.5 truncate group-hover:text-[#668E20] transition-colors">
                     {item.patientName}
                   </div>
                   {onViewPatient && (
@@ -47,7 +47,7 @@ export function ConsultationsTableView({
                         e.stopPropagation();
                         onViewPatient(item.patientId);
                       }}
-                      className="text-xs text-slate-500 font-normal hover:text-[#7c3aed] transition-colors text-left cursor-pointer"
+                      className="text-xs text-slate-500 font-normal hover:text-[#668E20] transition-colors text-left cursor-pointer"
                     >
                       Ver ficha del paciente
                     </button>
@@ -61,7 +61,7 @@ export function ConsultationsTableView({
       header: "Fecha",
       render: (item: Consultation) => (
         <div className="flex items-center gap-2 text-slate-700 font-medium text-sm">
-          <CalendarDays className="w-4 h-4 text-purple-600 shrink-0" />
+          <CalendarDays className="w-4 h-4 text-[#86A83C] shrink-0" />
           {formatDateOnlyForLocale(item.date, {
             day: "numeric",
             month: "short",
@@ -89,7 +89,7 @@ export function ConsultationsTableView({
           {!isInsidePatient && onViewPatient && (
             <button
               onClick={() => onViewPatient(item.patientId)}
-              className="p-1.5 text-slate-400 hover:text-[#7c3aed] hover:bg-purple-50/70 rounded-lg transition-colors cursor-pointer"
+              className="p-1.5 text-slate-400 hover:text-[#668E20] hover:bg-[#F0F5DF] rounded-lg transition-colors cursor-pointer"
               title="Ver Paciente"
             >
               <User className="w-4 h-4" />
@@ -98,7 +98,7 @@ export function ConsultationsTableView({
           {onEdit && (
             <button
               onClick={() => onEdit(item.id)}
-              className="p-1.5 text-slate-400 hover:text-[#7c3aed] hover:bg-purple-50/70 rounded-lg transition-colors cursor-pointer"
+              className="p-1.5 text-slate-400 hover:text-[#668E20] hover:bg-[#F0F5DF] rounded-lg transition-colors cursor-pointer"
               title="Editar Consulta"
             >
               <Edit2 className="w-4 h-4" />
@@ -106,7 +106,7 @@ export function ConsultationsTableView({
           )}
           <button
             onClick={() => onViewConsultation(item.id)}
-            className="p-1.5 text-slate-400 hover:text-[#7c3aed] hover:bg-purple-50/70 rounded-lg transition-colors cursor-pointer"
+            className="p-1.5 text-slate-400 hover:text-[#668E20] hover:bg-[#F0F5DF] rounded-lg transition-colors cursor-pointer"
             title="Ver Consulta"
           >
             <Eye className="w-4 h-4" />
@@ -162,7 +162,7 @@ export function ConsultationsTableView({
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="h-10 w-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold border border-indigo-100 shrink-0">
+                  <div className="h-10 w-10 rounded-xl bg-[#F0F5DF] flex items-center justify-center text-[#668E20] font-bold border border-[#DDE7B8] shrink-0">
                     {item.patientName?.charAt(0) || "P"}
                   </div>
                   <div className="min-w-0">
@@ -170,7 +170,7 @@ export function ConsultationsTableView({
                       {item.patientName || "Paciente"}
                     </h3>
                     <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium mt-0.5">
-                      <CalendarDays className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                      <CalendarDays className="w-3.5 h-3.5 text-[#86A83C] shrink-0" />
                       <span>
                         {formatDateOnlyForLocale(item.date, {
                           day: "numeric",
@@ -193,7 +193,7 @@ export function ConsultationsTableView({
                 {!isInsidePatient && onViewPatient ? (
                   <button
                     onClick={() => onViewPatient(item.patientId)}
-                    className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 cursor-pointer"
+                    className="text-xs font-bold text-[#668E20] hover:text-[#527518] flex items-center gap-1 cursor-pointer"
                   >
                     Ver Ficha <User className="w-3.5 h-3.5" />
                   </button>
@@ -203,7 +203,7 @@ export function ConsultationsTableView({
                   {onEdit && (
                     <button
                       onClick={() => onEdit(item.id)}
-                      className="p-2 text-slate-400 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 rounded-xl transition-all"
+                      className="p-2 text-slate-400 hover:text-[#668E20] bg-slate-50 hover:bg-[#F0F5DF] rounded-xl transition-all"
                       title="Editar"
                     >
                       <Edit2 className="w-4 h-4" />
@@ -211,7 +211,7 @@ export function ConsultationsTableView({
                   )}
                   <button
                     onClick={() => onViewConsultation(item.id)}
-                    className="p-2 text-slate-400 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 rounded-xl transition-all"
+                    className="p-2 text-slate-400 hover:text-[#668E20] bg-slate-50 hover:bg-[#F0F5DF] rounded-xl transition-all"
                     title="Ver"
                   >
                     <Eye className="w-4 h-4" />

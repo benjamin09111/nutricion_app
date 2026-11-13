@@ -186,7 +186,7 @@ export default function ConsultationsClient() {
               router.push("/dashboard/consultas/nueva");
             }}
             disabled={consultationCreationBlocked || isConsultationLimitReached}
-            className="h-11 px-5 rounded-xl bg-[#7842D4] hover:bg-[#6936C8] text-white text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 shrink-0 shadow-2xs active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            className="h-11 px-5 rounded-xl bg-[#86A83C] hover:bg-[#78A82F] text-white text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 shrink-0 shadow-2xs active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-sm shadow-[#86A83C]/20"
           >
             <Plus className="h-4 w-4 shrink-0" aria-hidden="true" />
             <span>
@@ -266,7 +266,7 @@ export default function ConsultationsClient() {
             {/* 3. Total registradas */}
             <div className="flex items-center justify-between pt-4 md:pt-0 md:px-6">
               <div className="flex items-center gap-3.5">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#F3ECFC] text-[#7842D4]">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#F0F5DF] text-[#668E20]">
                   <BarChart2 className="h-5 w-5" />
                 </div>
                 <div>
@@ -276,7 +276,7 @@ export default function ConsultationsClient() {
                   </h3>
                 </div>
               </div>
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#F3ECFC] text-[#7842D4] border border-[#E4D5FA]">
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#F0F5DF] text-[#668E20] border border-[#DDE7B8]">
                 100% archivadas
               </span>
             </div>
@@ -291,7 +291,7 @@ export default function ConsultationsClient() {
               <input
                 type="search"
                 placeholder="Buscar por RUT o nombre del paciente..."
-                className="h-11 w-full rounded-xl border border-[#E9E5E7] bg-white pl-10 pr-4 text-sm font-medium text-[#20212B] placeholder:text-[#848792] focus:outline-none focus:ring-2 focus:ring-[#7842D4]/15 focus:border-[#7842D4] transition-all shadow-2xs"
+                className="h-11 w-full rounded-xl border border-[#E9E5E7] bg-white pl-10 pr-4 text-sm font-medium text-[#20212B] placeholder:text-[#848792] focus:outline-none focus:ring-2 focus:ring-[#86A83C]/15 focus:border-[#86A83C] transition-all shadow-2xs"
                 value={searchTerm}
                 onChange={(e) => {
                   setSearchTerm(e.target.value);

@@ -142,7 +142,7 @@ export default function DashboardHomeClient({
           <button
             type="button"
             onClick={() => router.push("/dashboard/pacientes/new")}
-            className="h-11 px-5 rounded-xl bg-[#7842D4] hover:bg-[#6936C8] text-white text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 shrink-0 shadow-2xs active:scale-[0.99] cursor-pointer"
+            className="h-11 px-5 rounded-xl bg-[#86A83C] hover:bg-[#78A82F] text-white text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 shrink-0 shadow-2xs active:scale-[0.99] cursor-pointer shadow-sm shadow-[#86A83C]/20"
           >
             <Plus className="h-4 w-4 shrink-0" aria-hidden="true" />
             <span>Crear paciente</span>
@@ -206,7 +206,7 @@ export default function DashboardHomeClient({
             {/* 3. Documentos y Entregables */}
             <div className="flex items-center justify-between pt-4 md:pt-0 md:px-6">
               <div className="flex items-center gap-3.5">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#F3ECFC] text-[#7842D4]">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#F0F5DF] text-[#668E20]">
                   <BarChart2 className="h-5 w-5" />
                 </div>
                 <div>
@@ -216,7 +216,7 @@ export default function DashboardHomeClient({
                   </h3>
                 </div>
               </div>
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#F3ECFC] text-[#7842D4] border border-[#E4D5FA]">
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#F0F5DF] text-[#668E20] border border-[#DDE7B8]">
                 100% disponibles
               </span>
             </div>
@@ -228,13 +228,13 @@ export default function DashboardHomeClient({
           <button
             type="button"
             onClick={() => router.push("/dashboard/pacientes")}
-            className="flex items-center gap-3 p-3.5 rounded-xl border border-[#E9E5E7] bg-white hover:bg-[#FDFBFA] hover:border-[#B096ED] transition-all shadow-2xs text-left cursor-pointer group"
+            className="flex items-center gap-3 p-3.5 rounded-xl border border-[#E9E5E7] bg-white hover:bg-[#FDFBFA] hover:border-[#86A83C] transition-all shadow-2xs text-left cursor-pointer group"
           >
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#F3ECFC] text-[#7842D4] group-hover:scale-105 transition-transform">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#F0F5DF] text-[#668E20] group-hover:scale-105 transition-transform">
               <Users className="h-5 w-5" />
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-semibold text-[#20212B] truncate">Mis Pacientes</p>
+              <p className="text-xs font-semibold text-[#20212B] truncate group-hover:text-[#668E20] transition-colors">Mis Pacientes</p>
               <p className="text-[11px] text-[#626573] truncate">{patients.total} registrados</p>
             </div>
           </button>
@@ -242,13 +242,13 @@ export default function DashboardHomeClient({
           <button
             type="button"
             onClick={() => router.push("/dashboard/consultas")}
-            className="flex items-center gap-3 p-3.5 rounded-xl border border-[#E9E5E7] bg-white hover:bg-[#FDFBFA] hover:border-[#B096ED] transition-all shadow-2xs text-left cursor-pointer group"
+            className="flex items-center gap-3 p-3.5 rounded-xl border border-[#E9E5E7] bg-white hover:bg-[#FDFBFA] hover:border-[#86A83C] transition-all shadow-2xs text-left cursor-pointer group"
           >
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#F0F5DF] text-[#668E20] group-hover:scale-105 transition-transform">
               <CalendarDays className="h-5 w-5" />
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-semibold text-[#20212B] truncate">Consultas</p>
+              <p className="text-xs font-semibold text-[#20212B] truncate group-hover:text-[#668E20] transition-colors">Consultas</p>
               <p className="text-[11px] text-[#626573] truncate">{consultations.total} sesiones</p>
             </div>
           </button>
@@ -256,13 +256,13 @@ export default function DashboardHomeClient({
           <button
             type="button"
             onClick={() => router.push("/dashboard/rapido")}
-            className="flex items-center gap-3 p-3.5 rounded-xl border border-[#E9E5E7] bg-white hover:bg-[#FDFBFA] hover:border-[#B096ED] transition-all shadow-2xs text-left cursor-pointer group"
+            className="flex items-center gap-3 p-3.5 rounded-xl border border-[#E9E5E7] bg-white hover:bg-[#FDFBFA] hover:border-[#86A83C] transition-all shadow-2xs text-left cursor-pointer group"
           >
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#F3ECFC] text-[#7842D4] group-hover:scale-105 transition-transform">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#F0F5DF] text-[#668E20] group-hover:scale-105 transition-transform">
               <Utensils className="h-5 w-5" />
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-semibold text-[#20212B] truncate">Rápido</p>
+              <p className="text-xs font-semibold text-[#20212B] truncate group-hover:text-[#668E20] transition-colors">Rápido</p>
               <p className="text-[11px] text-[#626573] truncate">Pautas y minutas</p>
             </div>
           </button>
@@ -270,13 +270,13 @@ export default function DashboardHomeClient({
           <button
             type="button"
             onClick={() => router.push("/dashboard/alimentos")}
-            className="flex items-center gap-3 p-3.5 rounded-xl border border-[#E9E5E7] bg-white hover:bg-[#FDFBFA] hover:border-[#B096ED] transition-all shadow-2xs text-left cursor-pointer group"
+            className="flex items-center gap-3 p-3.5 rounded-xl border border-[#E9E5E7] bg-white hover:bg-[#FDFBFA] hover:border-[#86A83C] transition-all shadow-2xs text-left cursor-pointer group"
           >
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#F0F5DF] text-[#668E20] group-hover:scale-105 transition-transform">
               <Apple className="h-5 w-5" />
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-semibold text-[#20212B] truncate">Composición</p>
+              <p className="text-xs font-semibold text-[#20212B] truncate group-hover:text-[#668E20] transition-colors">Composición</p>
               <p className="text-[11px] text-[#626573] truncate">Catálogo oficial</p>
             </div>
           </button>
@@ -289,7 +289,7 @@ export default function DashboardHomeClient({
             <div>
               <div className="flex items-center justify-between pb-3 border-b border-[#F0ECEE]">
                 <div className="flex items-center gap-2">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#F3ECFC] text-[#7842D4]">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#F0F5DF] text-[#668E20]">
                     <FileText className="h-4 w-4" />
                   </div>
                   <h2 className="text-sm font-semibold text-[#20212B]">Creaciones recientes</h2>
@@ -297,7 +297,7 @@ export default function DashboardHomeClient({
                 <button
                   type="button"
                   onClick={() => router.push("/dashboard/creaciones")}
-                  className="text-xs font-semibold text-[#7842D4] hover:text-[#6936C8] cursor-pointer"
+                  className="text-xs font-semibold text-[#668E20] hover:underline cursor-pointer"
                 >
                   Ver todas
                 </button>
@@ -317,14 +317,14 @@ export default function DashboardHomeClient({
                       className="py-3 flex items-center justify-between group cursor-pointer hover:bg-slate-50/50 -mx-2 px-2 rounded-xl transition-colors"
                     >
                       <div className="min-w-0 flex-1 pr-2">
-                        <h4 className="text-xs font-semibold text-[#20212B] truncate group-hover:text-[#7842D4] transition-colors">
+                        <h4 className="text-xs font-semibold text-[#20212B] truncate group-hover:text-[#668E20] transition-colors">
                           {creation.name}
                         </h4>
                         <p className="text-[11px] text-[#626573] truncate mt-0.5">
                           {creation.patientName || creation.type} · {formatDateOnlyForLocale(creation.createdAt, { day: "2-digit", month: "short" })}
                         </p>
                       </div>
-                      <ChevronRight className="h-4 w-4 text-[#848792] group-hover:text-[#7842D4] group-hover:translate-x-0.5 transition-all shrink-0" />
+                      <ChevronRight className="h-4 w-4 text-[#848792] group-hover:text-[#668E20] group-hover:translate-x-0.5 transition-all shrink-0" />
                     </div>
                   ))}
                 </div>
@@ -354,7 +354,7 @@ export default function DashboardHomeClient({
                 <button
                   type="button"
                   onClick={() => router.push("/dashboard/pacientes")}
-                  className="text-xs font-semibold text-[#7842D4] hover:text-[#6936C8] cursor-pointer"
+                  className="text-xs font-semibold text-[#668E20] hover:underline cursor-pointer"
                 >
                   Ver todos
                 </button>
@@ -374,11 +374,11 @@ export default function DashboardHomeClient({
                       className="py-3 flex items-center justify-between group cursor-pointer hover:bg-slate-50/50 -mx-2 px-2 rounded-xl transition-colors"
                     >
                       <div className="flex items-center gap-2.5 min-w-0 flex-1 pr-2">
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#F3ECFC] text-[#7842D4] font-bold text-xs">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#F0F5DF] text-[#668E20] font-bold text-xs border border-[#DDE7B8]">
                           {patient.fullName.charAt(0)}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <h4 className="text-xs font-semibold text-[#20212B] truncate group-hover:text-[#7842D4] transition-colors">
+                          <h4 className="text-xs font-semibold text-[#20212B] truncate group-hover:text-[#668E20] transition-colors">
                             {patient.fullName}
                           </h4>
                           <p className="text-[11px] text-[#626573] truncate mt-0.5">
@@ -386,7 +386,7 @@ export default function DashboardHomeClient({
                           </p>
                         </div>
                       </div>
-                      <ChevronRight className="h-4 w-4 text-[#848792] group-hover:text-[#7842D4] group-hover:translate-x-0.5 transition-all shrink-0" />
+                      <ChevronRight className="h-4 w-4 text-[#848792] group-hover:text-[#668E20] group-hover:translate-x-0.5 transition-all shrink-0" />
                     </div>
                   ))}
                 </div>
@@ -416,7 +416,7 @@ export default function DashboardHomeClient({
                 <button
                   type="button"
                   onClick={() => router.push("/dashboard/consultas")}
-                  className="text-xs font-semibold text-[#7842D4] hover:text-[#6936C8] cursor-pointer"
+                  className="text-xs font-semibold text-[#668E20] hover:underline cursor-pointer"
                 >
                   Ver todas
                 </button>
@@ -436,14 +436,14 @@ export default function DashboardHomeClient({
                       className="py-3 flex items-center justify-between group cursor-pointer hover:bg-slate-50/50 -mx-2 px-2 rounded-xl transition-colors"
                     >
                       <div className="min-w-0 flex-1 pr-2">
-                        <h4 className="text-xs font-semibold text-[#20212B] truncate group-hover:text-[#7842D4] transition-colors">
+                        <h4 className="text-xs font-semibold text-[#20212B] truncate group-hover:text-[#668E20] transition-colors">
                           {consultation.title}
                         </h4>
                         <p className="text-[11px] text-[#626573] truncate mt-0.5">
                           {consultation.patient?.fullName || "Paciente general"} · {formatDateOnlyForLocale(consultation.date, { day: "2-digit", month: "short" })}
                         </p>
                       </div>
-                      <ChevronRight className="h-4 w-4 text-[#848792] group-hover:text-[#7842D4] group-hover:translate-x-0.5 transition-all shrink-0" />
+                      <ChevronRight className="h-4 w-4 text-[#848792] group-hover:text-[#668E20] group-hover:translate-x-0.5 transition-all shrink-0" />
                     </div>
                   ))}
                 </div>

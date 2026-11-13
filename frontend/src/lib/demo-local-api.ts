@@ -50,29 +50,135 @@ const INITIAL_CONSULTATIONS = [
   {
     id: "con-1",
     patientId: "pat-1",
+    patientName: "Valentina Miranda",
     title: "Control mensual de resistencia a la insulina",
     date: "2026-11-10T12:00:00.000Z",
     patient: { id: "pat-1", fullName: "Valentina Miranda" },
-    metrics: { weight: 82.0, body_fat: 33.8, muscle_mass: 26.9 },
-    notes: "Buena adherencia a la distribución de porciones INTA sin lácteos.",
+    description: "Buena adherencia a la distribución de porciones INTA sin lácteos. Glicemia en ayunas disminuyó de 108 a 94 mg/dL. Se ajustan colaciones previas a actividad física vespertina.",
+    notes: "Buena adherencia a la distribución de porciones INTA sin lácteos. Glicemia en ayunas disminuyó de 108 a 94 mg/dL. Se ajustan colaciones previas a actividad física vespertina.",
+    metrics: [
+      { key: "weight", label: "Peso", value: 82.0, unit: "kg" },
+      { key: "body_fat", label: "% Grasa", value: 33.8, unit: "%" },
+      { key: "muscle_mass", label: "Masa Muscular", value: 26.9, unit: "kg" },
+      { key: "visceral_fat", label: "Grasa Visceral", value: 7, unit: "lvl" },
+      { key: "waist", label: "Cintura", value: 84.5, unit: "cm" },
+    ],
   },
   {
     id: "con-2",
     patientId: "pat-2",
+    patientName: "Don Luis Mansilla",
     title: "Revisión de plan hipocalórico y curva glicémica",
-    date: "2026-11-08T12:00:00.000Z",
+    date: "2026-11-08T15:30:00.000Z",
     patient: { id: "pat-2", fullName: "Don Luis Mansilla" },
-    metrics: { weight: 79.0, body_fat: 27.5, muscle_mass: 31.0 },
-    notes: "Presión arterial controlada (125/80). Cumple restricción de sodio.",
+    description: "Presión arterial controlada (125/80 mmHg). Cumple restricción de sodio y consumo de 2L diarios de agua. Se felicita por constancia en caminatas matutinas de 30 minutos.",
+    notes: "Presión arterial controlada (125/80 mmHg). Cumple restricción de sodio y consumo de 2L diarios de agua. Se felicita por constancia en caminatas matutinas de 30 minutos.",
+    metrics: [
+      { key: "weight", label: "Peso", value: 79.0, unit: "kg" },
+      { key: "body_fat", label: "% Grasa", value: 27.5, unit: "%" },
+      { key: "muscle_mass", label: "Masa Muscular", value: 31.0, unit: "kg" },
+      { key: "visceral_fat", label: "Grasa Visceral", value: 9, unit: "lvl" },
+      { key: "waist", label: "Cintura", value: 96.0, unit: "cm" },
+    ],
   },
   {
     id: "con-3",
     patientId: "pat-3",
+    patientName: "Martín Silva",
     title: "Evaluación antropométrica y aumento masa muscular",
-    date: "2026-11-07T12:00:00.000Z",
+    date: "2026-11-07T10:00:00.000Z",
     patient: { id: "pat-3", fullName: "Martín Silva" },
-    metrics: { weight: 74.5, body_fat: 14.2, muscle_mass: 38.5 },
-    notes: "Aumento de 800g de masa muscular magra. Aumentar porción de proteína en merienda.",
+    description: "Aumento de 800g de masa muscular magra respecto al mes anterior. Se optimiza el timing de ingesta proteica post-entrenamiento (30g de proteína de suero o claras de huevo).",
+    notes: "Aumento de 800g de masa muscular magra respecto al mes anterior. Se optimiza el timing de ingesta proteica post-entrenamiento (30g de proteína de suero o claras de huevo).",
+    metrics: [
+      { key: "weight", label: "Peso", value: 74.5, unit: "kg" },
+      { key: "body_fat", label: "% Grasa", value: 14.2, unit: "%" },
+      { key: "muscle_mass", label: "Masa Muscular", value: 38.5, unit: "kg" },
+      { key: "visceral_fat", label: "Grasa Visceral", value: 3, unit: "lvl" },
+      { key: "waist", label: "Cintura", value: 78.0, unit: "cm" },
+    ],
+  },
+  {
+    id: "con-4",
+    patientId: "1",
+    patientName: "Ana Silva",
+    title: "Control de déficit calórico y alimentación vegetariana",
+    date: "2026-11-05T11:00:00.000Z",
+    patient: { id: "1", fullName: "Ana Silva" },
+    description: "Excelente energía y digestión. Logró -1.8 kg en 4 semanas. Se refuerza suplementación de Vitamina B12 y combinación de legumbres con cereales integrales para perfil de aminoácidos completo.",
+    notes: "Excelente energía y digestión. Logró -1.8 kg en 4 semanas. Se refuerza suplementación de Vitamina B12 y combinación de legumbres con cereales integrales para perfil de aminoácidos completo.",
+    metrics: [
+      { key: "weight", label: "Peso", value: 65.5, unit: "kg" },
+      { key: "body_fat", label: "% Grasa", value: 24.1, unit: "%" },
+      { key: "muscle_mass", label: "Masa Muscular", value: 25.3, unit: "kg" },
+      { key: "waist", label: "Cintura", value: 72.0, unit: "cm" },
+    ],
+  },
+  {
+    id: "con-5",
+    patientId: "2",
+    patientName: "Carlos Ruiz",
+    title: "Seguimiento nutricional celiaquía & fase de volumen",
+    date: "2026-11-03T16:00:00.000Z",
+    patient: { id: "2", fullName: "Carlos Ruiz" },
+    description: "Sin episodios de contaminación cruzada. Peso subió 1.2 kg manteniendo porcentaje graso. Tolera adecuadamente avena certificada libre de gluten y harinas de legumbres.",
+    notes: "Sin episodios de contaminación cruzada. Peso subió 1.2 kg manteniendo porcentaje graso. Tolera adecuadamente avena certificada libre de gluten y harinas de legumbres.",
+    metrics: [
+      { key: "weight", label: "Peso", value: 85.0, unit: "kg" },
+      { key: "body_fat", label: "% Grasa", value: 16.8, unit: "%" },
+      { key: "muscle_mass", label: "Masa Muscular", value: 41.2, unit: "kg" },
+      { key: "waist", label: "Cintura", value: 82.5, unit: "cm" },
+    ],
+  },
+  {
+    id: "con-6",
+    patientId: "3",
+    patientName: "Maria Gonzalez",
+    title: "Estrategia de hidratación y carbohidratos para media maratón",
+    date: "2026-10-28T09:30:00.000Z",
+    patient: { id: "3", fullName: "Maria Gonzalez" },
+    description: "Plan de carga de carbohidratos 48h pre-carrera (7g CHO/kg). Pauta de geles isotónicos cada 45 minutos durante fondo largo de 18k sin molestias gastrointestinales.",
+    notes: "Plan de carga de carbohidratos 48h pre-carrera (7g CHO/kg). Pauta de geles isotónicos cada 45 minutos durante fondo largo de 18k sin molestias gastrointestinales.",
+    metrics: [
+      { key: "weight", label: "Peso", value: 58.2, unit: "kg" },
+      { key: "body_fat", label: "% Grasa", value: 18.5, unit: "%" },
+      { key: "muscle_mass", label: "Masa Muscular", value: 28.0, unit: "kg" },
+      { key: "waist", label: "Cintura", value: 66.0, unit: "cm" },
+    ],
+  },
+  {
+    id: "con-7",
+    patientId: "pat-1",
+    patientName: "Valentina Miranda",
+    title: "Consulta inicial de anamnesis alimentaria y curva HOMA",
+    date: "2026-10-12T11:00:00.000Z",
+    patient: { id: "pat-1", fullName: "Valentina Miranda" },
+    description: "Anamnesis completa. Exámenes de laboratorio revelan HOMA-IR 3.4. Se establece meta inicial de 1.750 kcal con distribución baja en azúcares libres y alta en fibra soluble.",
+    notes: "Anamnesis completa. Exámenes de laboratorio revelan HOMA-IR 3.4. Se establece meta inicial de 1.750 kcal con distribución baja en azúcares libres y alta en fibra soluble.",
+    metrics: [
+      { key: "weight", label: "Peso", value: 84.4, unit: "kg" },
+      { key: "body_fat", label: "% Grasa", value: 35.6, unit: "%" },
+      { key: "muscle_mass", label: "Masa Muscular", value: 26.2, unit: "kg" },
+      { key: "visceral_fat", label: "Grasa Visceral", value: 8, unit: "lvl" },
+      { key: "waist", label: "Cintura", value: 88.0, unit: "cm" },
+    ],
+  },
+  {
+    id: "con-8",
+    patientId: "pat-3",
+    patientName: "Martín Silva",
+    title: "Control de rendimiento y prueba de suplementación con creatina",
+    date: "2026-10-05T17:00:00.000Z",
+    patient: { id: "pat-3", fullName: "Martín Silva" },
+    description: "Inicia protocolo de carga de monohidrato de creatina (5g diarios constantes). Reporta mejora en fuerza máxima y reducción de fatiga entre series pesadas.",
+    notes: "Inicia protocolo de carga de monohidrato de creatina (5g diarios constantes). Reporta mejora en fuerza máxima y reducción de fatiga entre series pesadas.",
+    metrics: [
+      { key: "weight", label: "Peso", value: 73.7, unit: "kg" },
+      { key: "body_fat", label: "% Grasa", value: 14.8, unit: "%" },
+      { key: "muscle_mass", label: "Masa Muscular", value: 37.7, unit: "kg" },
+      { key: "visceral_fat", label: "Grasa Visceral", value: 3, unit: "lvl" },
+      { key: "waist", label: "Cintura", value: 78.5, unit: "cm" },
+    ],
   },
 ];
 
@@ -103,6 +209,51 @@ const INITIAL_CREATIONS = [
     patientName: "Martín Silva",
     patientId: "pat-3",
     metadata: { patientName: "Martín Silva" },
+  },
+  {
+    id: "cr-4",
+    name: "Pauta Déficit Calórico Vegetariana (1.500 kcal)",
+    type: "Pauta Alimentaria",
+    createdAt: "2026-11-05T14:00:00.000Z",
+    patientName: "Ana Silva",
+    patientId: "1",
+    metadata: { patientName: "Ana Silva" },
+  },
+  {
+    id: "cr-5",
+    name: "Plan de Hipertrofia Libre de Gluten (2.400 kcal)",
+    type: "Pauta Alimentaria",
+    createdAt: "2026-11-03T18:00:00.000Z",
+    patientName: "Carlos Ruiz",
+    patientId: "2",
+    metadata: { patientName: "Carlos Ruiz" },
+  },
+  {
+    id: "cr-6",
+    name: "Guía de Hidratación y Carga de Carbohidratos 21K",
+    type: "Dieta",
+    createdAt: "2026-10-28T11:00:00.000Z",
+    patientName: "Maria Gonzalez",
+    patientId: "3",
+    metadata: { patientName: "Maria Gonzalez" },
+  },
+  {
+    id: "cr-7",
+    name: "Lista de Compras Inteligente - Supermercado Líder",
+    type: "Lista de Compras",
+    createdAt: "2026-10-25T16:00:00.000Z",
+    patientName: "Valentina Miranda",
+    patientId: "pat-1",
+    metadata: { patientName: "Valentina Miranda" },
+  },
+  {
+    id: "cr-8",
+    name: "Test de Adherencia y Hábitos Alimentarios (SNAQ)",
+    type: "Screening Test",
+    createdAt: "2026-10-20T10:00:00.000Z",
+    patientName: "Don Luis Mansilla",
+    patientId: "pat-2",
+    metadata: { patientName: "Don Luis Mansilla" },
   },
 ];
 
@@ -166,7 +317,12 @@ export function getLocalConsultations(): any[] {
       localStorage.setItem(STORAGE_KEYS.CONSULTATIONS, JSON.stringify(INITIAL_CONSULTATIONS));
       return INITIAL_CONSULTATIONS;
     }
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed) || parsed.length < INITIAL_CONSULTATIONS.length || !parsed[0]?.patientName) {
+      localStorage.setItem(STORAGE_KEYS.CONSULTATIONS, JSON.stringify(INITIAL_CONSULTATIONS));
+      return INITIAL_CONSULTATIONS;
+    }
+    return parsed;
   } catch {
     return INITIAL_CONSULTATIONS;
   }
@@ -189,7 +345,12 @@ export function getLocalCreations(): any[] {
       localStorage.setItem(STORAGE_KEYS.CREATIONS, JSON.stringify(INITIAL_CREATIONS));
       return INITIAL_CREATIONS;
     }
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed) || parsed.length < INITIAL_CREATIONS.length) {
+      localStorage.setItem(STORAGE_KEYS.CREATIONS, JSON.stringify(INITIAL_CREATIONS));
+      return INITIAL_CREATIONS;
+    }
+    return parsed;
   } catch {
     return INITIAL_CREATIONS;
   }
@@ -350,6 +511,11 @@ export function getLocalDashboardStats() {
 export function isGuestMode(): boolean {
   if (typeof window === "undefined") return false;
 
+  try {
+    if (localStorage.getItem("nutrinet_guest_session") === "true") return true;
+    if (sessionStorage.getItem("guest_mode") === "nutritionist") return true;
+  } catch {}
+
   const hasSession = document.cookie
     .split(";")
     .some((item) => item.trim().startsWith("auth_session_present="));
@@ -490,22 +656,152 @@ export function handleDemoApi(path: string, init?: RequestInit): Response | null
   if (cleanPath === "/consultations") {
     const consultations = getLocalConsultations();
     if (method === "GET") {
-      return makeMockResponse(consultations);
+      const urlParams = new URLSearchParams(path.includes("?") ? path.split("?")[1] : "");
+      const patientId = urlParams.get("patientId");
+      const search = (urlParams.get("search") || urlParams.get("q") || "").toLowerCase().trim();
+
+      let filtered = [...consultations];
+      if (patientId) {
+        filtered = filtered.filter((c) => c.patientId === patientId);
+      }
+      if (search) {
+        filtered = filtered.filter(
+          (c) =>
+            c.title?.toLowerCase().includes(search) ||
+            c.patientName?.toLowerCase().includes(search) ||
+            c.patient?.fullName?.toLowerCase().includes(search)
+        );
+      }
+
+      return makeMockResponse({
+        data: filtered,
+        meta: {
+          total: filtered.length,
+          page: 1,
+          lastPage: 1,
+        },
+      });
     }
+
     if (method === "POST" && init?.body) {
       try {
         const body = JSON.parse(init.body as string);
+        const patients = getLocalPatients();
+        const patient = patients.find((p) => p.id === body.patientId) || { fullName: "Paciente" };
         const newConsultation = {
           id: `con-${Date.now()}`,
-          date: new Date().toISOString(),
+          date: body.date || new Date().toISOString(),
+          patientId: body.patientId || "pat-1",
+          patientName: body.patientName || patient.fullName,
+          patient: { id: body.patientId, fullName: patient.fullName },
+          title: body.title || "Control de seguimiento nutricional",
+          description: body.description || body.notes || "",
+          notes: body.notes || body.description || "",
+          metrics: Array.isArray(body.metrics)
+            ? body.metrics
+            : [
+                { key: "weight", label: "Peso", value: body.weight || 70, unit: "kg" },
+              ],
           ...body,
         };
-        saveLocalConsultations([newConsultation, ...consultations]);
+        const updated = [newConsultation, ...consultations];
+        saveLocalConsultations(updated);
         return makeMockResponse(newConsultation, 201);
       } catch {
         return makeMockResponse({ error: "Invalid consultation" }, 400);
       }
     }
+  }
+
+  // 5b. Detalle / Mutación Consulta /consultations/:id
+  const consultationIdMatch = cleanPath.match(/^\/consultations\/([^/]+)$/);
+  if (consultationIdMatch) {
+    const consultationId = consultationIdMatch[1];
+    const consultations = getLocalConsultations();
+    const existing = consultations.find((c) => c.id === consultationId);
+
+    if (method === "GET") {
+      return makeMockResponse(existing || consultations[0]);
+    }
+    if (method === "PATCH" || method === "PUT") {
+      try {
+        const body = JSON.parse((init?.body as string) || "{}");
+        const updated = consultations.map((c) =>
+          c.id === consultationId ? { ...c, ...body } : c
+        );
+        saveLocalConsultations(updated);
+        return makeMockResponse({ ...existing, ...body });
+      } catch {
+        return makeMockResponse({ error: "Error updating consultation" }, 400);
+      }
+    }
+    if (method === "DELETE") {
+      const remaining = consultations.filter((c) => c.id !== consultationId);
+      saveLocalConsultations(remaining);
+      return makeMockResponse({ success: true });
+    }
+  }
+
+  // 5c. Consultas por Paciente /patients/:id/consultations
+  const patientConsultationsMatch = cleanPath.match(/^\/patients\/([^/]+)\/consultations$/);
+  if (patientConsultationsMatch) {
+    const patientId = patientConsultationsMatch[1];
+    const consultations = getLocalConsultations().filter((c) => c.patientId === patientId);
+    return makeMockResponse({
+      data: consultations,
+      meta: { total: consultations.length, page: 1, lastPage: 1 },
+    });
+  }
+
+  // 5d. Ficha Clínica /patients/:id/clinical-record
+  const clinicalRecordMatch = cleanPath.match(/^\/patients\/([^/]+)\/clinical-record$/);
+  if (clinicalRecordMatch) {
+    const patientId = clinicalRecordMatch[1];
+    const patients = getLocalPatients();
+    const patient = patients.find((p) => p.id === patientId) || patients[0];
+    return makeMockResponse({
+      anamnesis: patient.clinicalSummary || "Paciente en control y evolución nutricional.",
+      diagnosis: patient.clinicalDiagnosis || "Control nutricional y hábitos saludables.",
+      allergies: patient.dietRestrictions || [],
+      medicalHistory: "Sin antecedentes mórbidos de relevancia.",
+      familyHistory: "Resistencia a la insulina en línea materna.",
+      treatments: "Suplementación con omega 3 y probióticos.",
+      notes: "Buena adherencia y tolerancia digestiva.",
+    });
+  }
+
+  // 5e. Contexto IA /patients/:id/ai-context
+  const aiContextMatch = cleanPath.match(/^\/patients\/([^/]+)\/ai-context$/);
+  if (aiContextMatch) {
+    return makeMockResponse({
+      context: "Paciente en seguimiento de recomposición corporal y adherencia a pauta INTA.",
+    });
+  }
+
+  // 5f. Etiquetas /tags
+  if (cleanPath === "/tags") {
+    return makeMockResponse({
+      data: [
+        { id: "tag-1", name: "Resistencia Insulina", color: "#86A83C" },
+        { id: "tag-2", name: "Vegetariano", color: "#10B981" },
+        { id: "tag-3", name: "Celíaco", color: "#F59E0B" },
+        { id: "tag-4", name: "Hipertrofia", color: "#6366F1" },
+        { id: "tag-5", name: "Déficit Calórico", color: "#EC4899" },
+        { id: "tag-6", name: "Hipertensión", color: "#EF4444" },
+      ],
+      meta: { total: 6, page: 1, limit: 50 },
+    });
+  }
+
+  // 5g. Métricas Clínicas /metrics
+  if (cleanPath === "/metrics") {
+    return makeMockResponse([
+      { key: "weight", label: "Peso Corporal", unit: "kg" },
+      { key: "body_fat", label: "% Grasa Corporal", unit: "%" },
+      { key: "muscle_mass", label: "Masa Muscular", unit: "kg" },
+      { key: "visceral_fat", label: "Grasa Visceral", unit: "lvl" },
+      { key: "waist", label: "Circunferencia Cintura", unit: "cm" },
+    ]);
   }
 
   // 6. Auth & Sesión

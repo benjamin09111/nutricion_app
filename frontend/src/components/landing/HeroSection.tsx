@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/Button";
 
 interface HeroSectionProps {
   onExploreFeaturesClick?: () => void;
+  onProbarNutriNetClick?: () => void;
 }
 
-export function HeroSection({ onExploreFeaturesClick }: HeroSectionProps) {
+export function HeroSection({ onExploreFeaturesClick, onProbarNutriNetClick }: HeroSectionProps) {
   return (
     <section className="relative overflow-hidden pt-28 pb-16 sm:pt-32 sm:pb-20 lg:pt-40 lg:pb-24">
       <div className="mx-auto max-w-5xl px-4 sm:px-6">
@@ -69,13 +70,22 @@ export function HeroSection({ onExploreFeaturesClick }: HeroSectionProps) {
 
           {/* Botones de Acción Minimalistas NutriNet */}
           <div className="flex flex-col items-center justify-center gap-4 pt-4 sm:flex-row">
-            <Link href="/dashboard" className="w-full sm:w-auto">
+            {onProbarNutriNetClick ? (
               <Button
-                className="w-full sm:w-auto rounded-full h-14 px-9 text-sm font-bold uppercase tracking-wider bg-[#a88aed] hover:bg-[#8f70d8] text-white transition-all duration-300 hover:scale-105 hover:shadow-xl shadow-indigo-100 cursor-pointer"
+                onClick={onProbarNutriNetClick}
+                className="w-full sm:w-auto rounded-full h-14 px-9 text-sm font-bold uppercase tracking-wider bg-[#86A83C] hover:bg-[#78A82F] text-white transition-all duration-300 hover:scale-105 hover:shadow-xl shadow-[#86A83C]/20 cursor-pointer"
               >
                 PROBAR NUTRINET
               </Button>
-            </Link>
+            ) : (
+              <Link href="/dashboard" className="w-full sm:w-auto">
+                <Button
+                  className="w-full sm:w-auto rounded-full h-14 px-9 text-sm font-bold uppercase tracking-wider bg-[#86A83C] hover:bg-[#78A82F] text-white transition-all duration-300 hover:scale-105 hover:shadow-xl shadow-[#86A83C]/20 cursor-pointer"
+                >
+                  PROBAR NUTRINET
+                </Button>
+              </Link>
+            )}
 
             <a href="#planes" className="w-full sm:w-auto">
               <Button

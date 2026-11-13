@@ -245,7 +245,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
           number: currentStep + 1,
           label: wizardSteps[currentStep],
           icon: GraduationCap,
-          color: "text-[#7842D4]",
+          color: "text-[#86A83C]",
         }}
         rightContent={<ModuleUsageBadges />}
         rightNavItems={state.isHydrating ? [] : actionItems}

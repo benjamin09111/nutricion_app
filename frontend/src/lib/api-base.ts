@@ -87,10 +87,14 @@ export async function fetchApi(
           (window as any)._isRedirectingToLogin = true;
           import("js-cookie").then((m) => {
             // Clear presence indicator – httpOnly JWT cleared by backend /logout
+            m.default.remove("auth_session_present", { path: "/" });
             m.default.remove("auth_session_present");
             // Clean up legacy cookies from old sessions
+            m.default.remove("auth_token", { path: "/" });
             m.default.remove("auth_token");
+            m.default.remove("auth_token_http", { path: "/" });
             m.default.remove("auth_token_http");
+            m.default.remove("user", { path: "/" });
             m.default.remove("user");
           });
           try { localStorage.removeItem("auth_token"); } catch { /* ignore */ }

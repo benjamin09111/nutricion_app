@@ -2512,7 +2512,7 @@ export default function QuickDeliverableClient() {
               <Input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="h-10 rounded-xl border-[#E9E5E7] bg-white text-sm text-[#20212B] placeholder:text-slate-400 focus:border-[#7842D4] focus:ring-1 focus:ring-[#7842D4]"
+                className="h-10 rounded-xl border-[#E9E5E7] bg-white text-sm text-[#20212B] placeholder:text-slate-400 focus:border-[#86A83C] focus:ring-1 focus:ring-[#86A83C]"
                 placeholder={DEFAULT_TITLE}
               />
             </div>
@@ -2529,9 +2529,9 @@ export default function QuickDeliverableClient() {
               </div>
 
               {selectedPatient.fullName?.trim() ? (
-                <div className="h-10 px-3 flex items-center justify-between rounded-xl border border-[#E9E5E7] bg-[#F3ECFC]/40 text-xs">
+                <div className="h-10 px-3 flex items-center justify-between rounded-xl border border-[#E9E5E7] bg-[#F0F5DF]/40 text-xs">
                   <div className="flex items-center gap-2 min-w-0">
-                    <User className="h-3.5 w-3.5 text-[#7842D4] shrink-0" />
+                    <User className="h-3.5 w-3.5 text-[#86A83C] shrink-0" />
                     <span className="font-semibold text-[#20212B] truncate">{selectedPatient.fullName}</span>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0 ml-2">
@@ -2539,7 +2539,7 @@ export default function QuickDeliverableClient() {
                       type="button"
                       onClick={() => void openPatientImportModal()}
                       disabled={isLoadingPatients}
-                      className="text-[11px] font-semibold text-[#7842D4] hover:underline cursor-pointer"
+                      className="text-[11px] font-semibold text-[#668E20] hover:underline cursor-pointer"
                     >
                       Cambiar
                     </button>
@@ -2559,13 +2559,13 @@ export default function QuickDeliverableClient() {
                     type="button"
                     onClick={() => void openPatientImportModal()}
                     disabled={isLoadingPatients}
-                    className="flex-1 h-10 px-3 inline-flex items-center justify-between rounded-xl border border-[#E9E5E7] bg-white hover:border-[#7842D4] hover:bg-[#F3ECFC]/20 text-xs font-medium text-[#626573] hover:text-[#7842D4] transition-all cursor-pointer group"
+                    className="flex-1 h-10 px-3 inline-flex items-center justify-between rounded-xl border border-[#E9E5E7] bg-white hover:border-[#86A83C] hover:bg-[#F0F5DF]/30 text-xs font-medium text-[#626573] hover:text-[#668E20] transition-all cursor-pointer group"
                   >
                     <span className="flex items-center gap-2 truncate">
-                      <User className="h-3.5 w-3.5 text-[#7842D4] shrink-0" />
+                      <User className="h-3.5 w-3.5 text-[#86A83C] shrink-0" />
                       <span>{isLoadingPatients ? "Cargando..." : "Importar paciente"}</span>
                     </span>
-                    <span className="text-[10px] text-slate-400 group-hover:text-[#7842D4] shrink-0">Buscar</span>
+                    <span className="text-[10px] text-slate-400 group-hover:text-[#668E20] shrink-0">Buscar</span>
                   </button>
                   <button
                     type="button"
@@ -2588,7 +2588,7 @@ export default function QuickDeliverableClient() {
                 fetchSuggestionsUrl={`${getApiUrl()}/tags`}
                 helperText=""
                 placeholder="Ej: keto, hipertrofia"
-                className="h-10 rounded-xl border-[#E9E5E7] bg-white text-xs font-normal text-[#20212B] focus:border-[#7842D4] focus:ring-1 focus:ring-[#7842D4]"
+                className="h-10 rounded-xl border-[#E9E5E7] bg-white text-xs font-normal text-[#20212B] focus:border-[#86A83C] focus:ring-1 focus:ring-[#86A83C]"
               />
             </div>
           </div>
@@ -2617,7 +2617,7 @@ export default function QuickDeliverableClient() {
             <button
               type="button"
               onClick={() => setIsNotesExpanded((prev) => !prev)}
-              className="inline-flex items-center gap-1.5 text-xs font-medium text-[#7842D4] hover:text-[#6835be] transition-colors cursor-pointer ml-auto"
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-[#668E20] hover:text-[#527518] transition-colors cursor-pointer ml-auto"
             >
               <ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-200", isNotesExpanded && "rotate-180")} />
               <span>{isNotesExpanded ? "Ocultar notas y objetivos" : "+ Agregar notas u objetivo"}</span>
@@ -2632,7 +2632,7 @@ export default function QuickDeliverableClient() {
                   <Textarea
                     value={quickDescription}
                     onChange={(e) => setQuickDescription(e.target.value)}
-                    className="min-h-[56px] rounded-xl border-[#E9E5E7] bg-white text-xs text-[#20212B] placeholder:text-slate-400 focus:border-[#7842D4]"
+                    className="min-h-[56px] rounded-xl border-[#E9E5E7] bg-white text-xs text-[#20212B] placeholder:text-slate-400 focus:border-[#86A83C]"
                     placeholder="Notas internas sobre este entregable..."
                   />
                 </div>
@@ -2641,7 +2641,7 @@ export default function QuickDeliverableClient() {
                   <Textarea
                     value={planObjective}
                     onChange={(e) => setPlanObjective(e.target.value)}
-                    className="min-h-[56px] rounded-xl border-[#E9E5E7] bg-white text-xs text-[#20212B] placeholder:text-slate-400 focus:border-[#7842D4]"
+                    className="min-h-[56px] rounded-xl border-[#E9E5E7] bg-white text-xs text-[#20212B] placeholder:text-slate-400 focus:border-[#86A83C]"
                     placeholder="Ej: Pérdida de grasa enfocada en alimentos simples"
                   />
                 </div>
@@ -2687,7 +2687,7 @@ export default function QuickDeliverableClient() {
                     <select
                       value={selectedPatient.gender || ""}
                       onChange={(e) => setSelectedPatient((current) => ({ ...current, gender: e.target.value, source: current.source || "manual" }))}
-                      className="h-9 w-full rounded-xl border border-[#E9E5E7] bg-white px-3 text-xs font-normal text-[#20212B] focus:border-[#7842D4] focus:outline-hidden"
+                      className="h-9 w-full rounded-xl border border-[#E9E5E7] bg-white px-3 text-xs font-normal text-[#20212B] focus:border-[#86A83C] focus:outline-hidden"
                     >
                       <option value="">Seleccionar</option>
                       <option value="Femenino">Femenino</option>
@@ -2804,13 +2804,13 @@ export default function QuickDeliverableClient() {
                       className={cn(
                         "flex items-start gap-3 p-4 rounded-xl border text-left transition-all cursor-pointer",
                         contentMode === "table"
-                          ? "border-[#7842D4] bg-[#F3ECFC]/40 ring-1 ring-[#7842D4]/20 shadow-2xs"
+                          ? "border-[#86A83C] bg-[#F0F5DF]/50 ring-1 ring-[#86A83C]/20 shadow-2xs"
                           : "border-[#E9E5E7] bg-white hover:bg-slate-50/70 text-[#626573]",
                       )}
                     >
                       <div className={cn(
                         "p-2.5 rounded-lg shrink-0 mt-0.5 transition-colors",
-                        contentMode === "table" ? "bg-[#7842D4]/10 text-[#7842D4]" : "bg-slate-100 text-slate-500"
+                        contentMode === "table" ? "bg-[#86A83C]/10 text-[#668E20]" : "bg-slate-100 text-slate-500"
                       )}>
                         <FileText className="w-4 h-4" />
                       </div>
@@ -2820,7 +2820,7 @@ export default function QuickDeliverableClient() {
                             Tabla de comidas
                           </p>
                           {contentMode === "table" && (
-                            <span className="text-[10px] font-semibold text-[#7842D4] bg-[#7842D4]/10 px-2 py-0.5 rounded-full">
+                            <span className="text-[10px] font-semibold text-[#668E20] bg-[#86A83C]/10 px-2 py-0.5 rounded-full">
                               Activo
                             </span>
                           )}
@@ -2837,13 +2837,13 @@ export default function QuickDeliverableClient() {
                       className={cn(
                         "flex items-start gap-3 p-4 rounded-xl border text-left transition-all cursor-pointer",
                         contentMode === "paragraphs"
-                          ? "border-[#7842D4] bg-[#F3ECFC]/40 ring-1 ring-[#7842D4]/20 shadow-2xs"
+                          ? "border-[#86A83C] bg-[#F0F5DF]/50 ring-1 ring-[#86A83C]/20 shadow-2xs"
                           : "border-[#E9E5E7] bg-white hover:bg-slate-50/70 text-[#626573]",
                       )}
                     >
                       <div className={cn(
                         "p-2.5 rounded-lg shrink-0 mt-0.5 transition-colors",
-                        contentMode === "paragraphs" ? "bg-[#7842D4]/10 text-[#7842D4]" : "bg-slate-100 text-slate-500"
+                        contentMode === "paragraphs" ? "bg-[#86A83C]/10 text-[#668E20]" : "bg-slate-100 text-slate-500"
                       )}>
                         <Sparkles className="w-4 h-4" />
                       </div>
@@ -2853,7 +2853,7 @@ export default function QuickDeliverableClient() {
                             Imágenes por categoría
                           </p>
                           {contentMode === "paragraphs" && (
-                            <span className="text-[10px] font-semibold text-[#7842D4] bg-[#7842D4]/10 px-2 py-0.5 rounded-full">
+                            <span className="text-[10px] font-semibold text-[#668E20] bg-[#86A83C]/10 px-2 py-0.5 rounded-full">
                               Activo
                             </span>
                           )}
@@ -2870,13 +2870,13 @@ export default function QuickDeliverableClient() {
                       className={cn(
                         "flex items-start gap-3 p-4 rounded-xl border text-left transition-all cursor-pointer",
                         contentMode === "both"
-                          ? "border-[#7842D4] bg-[#F3ECFC]/40 ring-1 ring-[#7842D4]/20 shadow-2xs"
+                          ? "border-[#86A83C] bg-[#F0F5DF]/50 ring-1 ring-[#86A83C]/20 shadow-2xs"
                           : "border-[#E9E5E7] bg-white hover:bg-slate-50/70 text-[#626573]",
                       )}
                     >
                       <div className={cn(
                         "p-2.5 rounded-lg shrink-0 mt-0.5 transition-colors",
-                        contentMode === "both" ? "bg-[#7842D4]/10 text-[#7842D4]" : "bg-slate-100 text-slate-500"
+                        contentMode === "both" ? "bg-[#86A83C]/10 text-[#668E20]" : "bg-slate-100 text-slate-500"
                       )}>
                         <Layers className="w-4 h-4" />
                       </div>
@@ -2886,7 +2886,7 @@ export default function QuickDeliverableClient() {
                             Utilizar ambas
                           </p>
                           {contentMode === "both" && (
-                            <span className="text-[10px] font-semibold text-[#7842D4] bg-[#7842D4]/10 px-2 py-0.5 rounded-full">
+                            <span className="text-[10px] font-semibold text-[#668E20] bg-[#86A83C]/10 px-2 py-0.5 rounded-full">
                               Activo
                             </span>
                           )}
@@ -2910,7 +2910,7 @@ export default function QuickDeliverableClient() {
                     <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between border-b border-[#E9E5E7]/70 pb-5">
                       <div>
                         <h2 className="text-base sm:text-lg font-bold text-[#20212B] flex items-center gap-2">
-                          <Sparkles className="w-5 h-5 text-[#7842D4]" />
+                          <Sparkles className="w-5 h-5 text-[#86A83C]" />
                           Imágenes por categoría <span className="text-rose-500">*</span>
                         </h2>
                         <p className="mt-0.5 text-xs text-[#626573]">
@@ -2923,15 +2923,15 @@ export default function QuickDeliverableClient() {
                           type="button"
                           variant="outline"
                           onClick={() => setIsAiModalOpen(true)}
-                          className="h-10 rounded-xl border border-[#7842D4]/30 bg-[#F3ECFC]/60 px-4 text-[#7842D4] hover:bg-[#F3ECFC] font-medium text-xs transition-all"
+                          className="h-10 rounded-xl border border-[#86A83C]/30 bg-[#F0F5DF]/60 px-4 text-[#668E20] hover:bg-[#F0F5DF] font-medium text-xs transition-all"
                         >
-                          <Sparkles className="mr-2 h-4 w-4 text-[#7842D4]" />
+                          <Sparkles className="mr-2 h-4 w-4 text-[#86A83C]" />
                           Generar con Naty
                         </Button>
                         <Button
                           type="button"
                           onClick={addParagraph}
-                          className="h-10 rounded-xl bg-[#7842D4] hover:bg-[#6835be] text-white font-medium text-xs shadow-2xs transition-all"
+                          className="h-10 rounded-xl bg-[#86A83C] hover:bg-[#78A82F] text-white font-medium text-xs shadow-2xs transition-all"
                         >
                           <Plus className="mr-1.5 h-4 w-4" />
                           Agregar categoría
@@ -3562,7 +3562,7 @@ export default function QuickDeliverableClient() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Button
-                      className="h-10 rounded-xl bg-[#7842D4] hover:bg-[#6835be] text-white font-medium text-xs shadow-2xs w-full sm:w-auto justify-center cursor-pointer"
+                      className="h-10 rounded-xl bg-[#86A83C] hover:bg-[#78A82F] text-white font-medium text-xs shadow-2xs w-full sm:w-auto justify-center cursor-pointer shadow-sm shadow-[#86A83C]/20"
                       onClick={addAvoidFoodRow}
                       disabled={!includeAvoidFoods}
                     >
@@ -3677,7 +3677,7 @@ export default function QuickDeliverableClient() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Button
-                      className="h-10 rounded-xl bg-[#7842D4] hover:bg-[#6835be] text-white font-medium text-xs shadow-2xs w-full sm:w-auto justify-center cursor-pointer"
+                      className="h-10 rounded-xl bg-[#86A83C] hover:bg-[#78A82F] text-white font-medium text-xs shadow-2xs w-full sm:w-auto justify-center cursor-pointer shadow-sm shadow-[#86A83C]/20"
                       onClick={openResourceModal}
                       disabled={!includeResources || isLoadingResources}
                     >
@@ -3852,7 +3852,7 @@ export default function QuickDeliverableClient() {
                   </div>
                   <div className="flex justify-end">
                     <Button
-                      className="h-10 rounded-xl bg-[#7842D4] hover:bg-[#6835be] text-white font-medium text-xs shadow-2xs w-full sm:w-auto justify-center cursor-pointer"
+                      className="h-10 rounded-xl bg-[#86A83C] hover:bg-[#78A82F] text-white font-medium text-xs shadow-2xs w-full sm:w-auto justify-center cursor-pointer shadow-sm shadow-[#86A83C]/20"
                       onClick={addPortionGuideRow}
                       disabled={!includePortionGuide}
                     >

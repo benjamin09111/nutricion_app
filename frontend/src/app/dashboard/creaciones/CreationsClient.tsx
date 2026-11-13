@@ -428,7 +428,7 @@ export default function CreationsClient({
       case CreationType.RECIPE:
         return <ChefHat className="w-4 h-4 text-amber-500" />;
       case CreationType.FAST_DELIVERABLE:
-        return <NotebookText className="w-4 h-4 text-[#7842D4]" />;
+        return <NotebookText className="w-4 h-4 text-[#86A83C]" />;
       case CreationType.PAUTAS:
         return <NotebookText className="w-4 h-4 text-[#668E20]" />;
       default:
@@ -445,7 +445,7 @@ export default function CreationsClient({
       case CreationType.RECIPE:
         return "bg-amber-50 text-amber-700 border border-amber-200/80";
       case CreationType.FAST_DELIVERABLE:
-        return "bg-purple-50 text-[#7842D4] border border-purple-200/80";
+        return "bg-[#F0F5DF] text-[#668E20] border border-[#DDE7B8]";
       case CreationType.PAUTAS:
         return "bg-[#F0F5DF] text-[#668E20] border border-[#DDE7B8]";
       default:
@@ -532,11 +532,11 @@ export default function CreationsClient({
             item.type === CreationType.DIET && "group-hover:bg-blue-50/60",
             item.type === CreationType.SHOPPING_LIST && "group-hover:bg-emerald-50/60",
             item.type === CreationType.RECIPE && "group-hover:bg-amber-50/60",
-            item.type === CreationType.FAST_DELIVERABLE && "group-hover:bg-purple-50/60",
+            item.type === CreationType.FAST_DELIVERABLE && "group-hover:bg-[#F0F5DF]/60",
           )}>
             {getTypeIcon(item.type)}
           </div>
-          <span className="text-sm font-semibold text-[#20212B] group-hover:text-[#7842D4] transition-colors">
+          <span className="text-sm font-semibold text-[#20212B] group-hover:text-[#668E20] transition-colors">
             {item.name}
           </span>
         </div>
@@ -546,7 +546,7 @@ export default function CreationsClient({
       header: "Paciente",
       render: (item) => (
         (item as any).patientName ? (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-purple-50 text-[#7842D4] text-xs font-semibold border border-purple-200/80">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#F0F5DF] text-[#668E20] text-xs font-semibold border border-[#DDE7B8]">
             <User className="w-3 h-3" />
             {(item as any).patientName}
           </span>
@@ -604,7 +604,7 @@ export default function CreationsClient({
         <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
           <button
             onClick={() => handleInfoClick(item)}
-            className="p-1.5 text-[#848792] hover:text-[#7842D4] hover:bg-purple-50 rounded-lg transition-all cursor-pointer"
+            className="p-1.5 text-[#848792] hover:text-[#668E20] hover:bg-[#F0F5DF] rounded-lg transition-all cursor-pointer"
             title="Más info"
           >
             <Info className="h-4 w-4" />
@@ -612,7 +612,7 @@ export default function CreationsClient({
           {item.type !== CreationType.FAST_DELIVERABLE && (
             <button
               onClick={() => handleViewClick(item)}
-              className="p-1.5 text-[#848792] hover:text-[#7842D4] hover:bg-purple-50 rounded-lg transition-all cursor-pointer"
+              className="p-1.5 text-[#848792] hover:text-[#668E20] hover:bg-[#F0F5DF] rounded-lg transition-all cursor-pointer"
               title="Previsualizar"
             >
               <Eye className="h-4 w-4" />
@@ -620,7 +620,7 @@ export default function CreationsClient({
           )}
           <button
             onClick={() => handleEdit(item)}
-            className="p-1.5 text-[#848792] hover:text-[#7842D4] hover:bg-purple-50 rounded-lg transition-all cursor-pointer"
+            className="p-1.5 text-[#848792] hover:text-[#668E20] hover:bg-[#F0F5DF] rounded-lg transition-all cursor-pointer"
             title="Editar"
           >
             <Edit className="h-4 w-4" />
@@ -640,7 +640,7 @@ export default function CreationsClient({
                 "p-1.5 rounded-lg transition-all cursor-pointer",
                 sharedCreationIdSet.has(item.id)
                   ? "text-[#668E20] bg-[#F0F5DF] animate-pulse hover:bg-[#E4ECC8]"
-                  : "text-[#848792] hover:text-[#7842D4] hover:bg-purple-50",
+                  : "text-[#848792] hover:text-[#668E20] hover:bg-[#F0F5DF]",
                 isSharing === item.id && "cursor-not-allowed"
               )}
               title="Compartir con el paciente"
@@ -704,7 +704,7 @@ export default function CreationsClient({
               {/* 2. Pacientes con pautas */}
               <div className="flex items-center justify-between pt-4 md:pt-0 md:px-6">
                 <div className="flex items-center gap-3.5">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-purple-50 text-[#7842D4]">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-[#626573]">
                     <User className="h-5 w-5" />
                   </div>
                   <div>
@@ -714,7 +714,7 @@ export default function CreationsClient({
                     </h3>
                   </div>
                 </div>
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-50 text-[#7842D4] border border-purple-200">
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-[#626573] border border-slate-200">
                   En seguimiento
                 </span>
               </div>
@@ -722,7 +722,7 @@ export default function CreationsClient({
               {/* 3. Módulo Rápido */}
               <div className="flex items-center justify-between pt-4 md:pt-0 md:px-6">
                 <div className="flex items-center gap-3.5">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#F3ECFC] text-[#7842D4]">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#F0F5DF] text-[#668E20]">
                     <NotebookText className="h-5 w-5" />
                   </div>
                   <div>
@@ -732,7 +732,7 @@ export default function CreationsClient({
                     </h3>
                   </div>
                 </div>
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#F3ECFC] text-[#7842D4] border border-[#E4D5FA]">
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#F0F5DF] text-[#668E20] border border-[#DDE7B8]">
                   100% disponibles
                 </span>
               </div>
@@ -741,7 +741,7 @@ export default function CreationsClient({
 
           {/* Recomendación de uso */}
           <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-[#F8F9FB] border border-[#E9E5E7] text-[#626573] text-xs font-medium">
-            <Info className="w-4 h-4 text-[#7842D4] shrink-0" />
+            <Info className="w-4 h-4 text-[#86A83C] shrink-0" />
             <span>
               <strong className="text-[#20212B]">Recomendación de uso:</strong> puedes crear plantillas generales en el módulo Rápido para reutilizarlas con tus pacientes.
             </span>
@@ -757,7 +757,7 @@ export default function CreationsClient({
             <input
               type="search"
               placeholder="Buscar por nombre..."
-              className="h-11 w-full rounded-xl border border-[#E9E5E7] bg-white pl-10 pr-4 text-sm font-medium text-[#20212B] placeholder:text-[#848792] focus:outline-none focus:ring-2 focus:ring-[#7842D4]/15 focus:border-[#7842D4] transition-all shadow-2xs"
+              className="h-11 w-full rounded-xl border border-[#E9E5E7] bg-white pl-10 pr-4 text-sm font-medium text-[#20212B] placeholder:text-[#848792] focus:outline-none focus:ring-2 focus:ring-[#86A83C]/15 focus:border-[#86A83C] transition-all shadow-2xs"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -772,7 +772,7 @@ export default function CreationsClient({
                 <input
                   type="search"
                   placeholder="Filtrar por paciente..."
-                  className="h-11 w-full rounded-xl border border-[#E9E5E7] bg-white pl-10 pr-8 text-sm font-medium text-[#20212B] placeholder:text-[#848792] focus:outline-none focus:ring-2 focus:ring-[#7842D4]/15 focus:border-[#7842D4] transition-all shadow-2xs"
+                  className="h-11 w-full rounded-xl border border-[#E9E5E7] bg-white pl-10 pr-8 text-sm font-medium text-[#20212B] placeholder:text-[#848792] focus:outline-none focus:ring-2 focus:ring-[#86A83C]/15 focus:border-[#86A83C] transition-all shadow-2xs"
                   value={patientFilter}
                   onChange={(e) => setPatientFilter(e.target.value)}
                 />
@@ -819,7 +819,7 @@ export default function CreationsClient({
 
         <div className="px-1 pt-1">
           <p className="text-xs font-semibold text-[#626573]">
-            <span className="font-bold text-[#7842D4]">{filteredData.length}</span> creaciones encontradas
+            <span className="font-bold text-[#668E20]">{filteredData.length}</span> creaciones encontradas
           </p>
         </div>
       </div>
@@ -1268,7 +1268,7 @@ export default function CreationsClient({
             <button
               type="button"
               onClick={() => router.push("/dashboard/rapido")}
-              className="h-11 px-5 rounded-xl bg-[#7842D4] hover:bg-[#6936C8] text-white text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 shrink-0 shadow-2xs active:scale-[0.99] cursor-pointer"
+              className="h-11 px-5 rounded-xl bg-[#86A83C] hover:bg-[#78A82F] text-white text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 shrink-0 shadow-sm shadow-[#86A83C]/20 active:scale-[0.99] cursor-pointer"
             >
               <NotebookText className="h-4 w-4 shrink-0" aria-hidden="true" />
               <span>Nuevo en Rápido</span>

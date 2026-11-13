@@ -36,6 +36,7 @@ import { AboutNutriNetNavExtension } from "@/components/landing/AboutNutriNetNav
 import { useLandingTracker } from "@/hooks/useLandingTracker";
 import { HeroSection } from "@/components/landing/HeroSection";
 import { BetaLeadCaptureSection } from "@/components/landing/BetaLeadCaptureSection";
+import { DemoRoleSelectorModal } from "@/components/landing/DemoRoleSelectorModal";
 
 const toMembershipPlanArray = (value: unknown): MembershipPlan[] => {
   let list: MembershipPlan[] = [];
@@ -54,6 +55,7 @@ export default function LandingPage() {
   const router = useRouter();
   const { sessionId, trackEvent } = useLandingTracker();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
   const [plans, setPlans] = useState<MembershipPlan[]>([]);
   const [isAboutDropdownOpen, setIsAboutDropdownOpen] = useState(false);
   const headerRef = useRef<HTMLElement>(null);
@@ -224,11 +226,13 @@ export default function LandingPage() {
             >
               Iniciar sesión
             </Link>
-            <Link href="/dashboard">
-              <Button className="rounded-full h-10 px-5 text-xs font-bold uppercase tracking-wider bg-[#a88aed] hover:bg-[#8f70d8] text-white transition-all duration-300 hover:scale-105 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a88aed] focus-visible:ring-offset-2 cursor-pointer">
-                PROBAR NUTRINET
-              </Button>
-            </Link>
+            <button
+              type="button"
+              onClick={() => setIsDemoModalOpen(true)}
+              className="rounded-full h-10 px-5 text-xs font-bold uppercase tracking-wider bg-[#86A83C] hover:bg-[#78A82F] text-white transition-all duration-300 hover:scale-105 hover:shadow-lg shadow-[#86A83C]/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#86A83C] focus-visible:ring-offset-2 cursor-pointer flex items-center justify-center"
+            >
+              PROBAR NUTRINET
+            </button>
           </nav>
 
           <button
@@ -299,13 +303,16 @@ export default function LandingPage() {
               >
                 Iniciar sesión
               </Link>
-              <Link
-                href="/dashboard"
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="inline-flex items-center justify-center rounded-full bg-[#a88aed] hover:bg-[#8f70d8] px-4 py-3 text-sm font-bold uppercase tracking-wider text-white shadow-sm transition"
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  setIsDemoModalOpen(true);
+                }}
+                className="inline-flex items-center justify-center rounded-full bg-[#86A83C] hover:bg-[#78A82F] px-4 py-3 text-sm font-bold uppercase tracking-wider text-white shadow-sm shadow-[#86A83C]/25 transition cursor-pointer"
               >
                 PROBAR NUTRINET
-              </Link>
+              </button>
             </div>
           </div>
         )}
@@ -315,6 +322,7 @@ export default function LandingPage() {
         {/* 1. HERO SECTION */}
         <HeroSection
           onExploreFeaturesClick={handleExploreFeaturesClick}
+          onProbarNutriNetClick={() => setIsDemoModalOpen(true)}
         />
 
         {/* 2. PLANES (Pricing Section) */}
@@ -543,6 +551,10 @@ export default function LandingPage() {
 
       {/* Banners & Widgets */}
       <CookieBanner />
+      <DemoRoleSelectorModal
+        isOpen={isDemoModalOpen}
+        onClose={() => setIsDemoModalOpen(false)}
+      />
     </div>
   );
 }
