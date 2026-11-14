@@ -6,6 +6,7 @@ import {
   PatientResourceItem,
   PatientNotification,
   PatientProfileState,
+  PatientConsumedFood,
 } from "./types";
 
 export const INITIAL_PATIENT_PROFILE: PatientProfileState = {
@@ -267,27 +268,36 @@ export const INITIAL_RESOURCES: PatientResourceItem[] = [
 export const INITIAL_NOTIFICATIONS: PatientNotification[] = [
   {
     id: "notif-1",
-    title: "Nueva pauta actualizada",
-    message: "Nutri. Valentina Soto ajustó tus porciones para la fase de tonificación.",
-    timeAgo: "Hace 2 horas",
+    title: "Pauta actualizada",
+    message: "Tu nutri ajustó tus porciones para esta semana.",
+    timeAgo: "Hace 2h",
     type: "plan",
     isRead: false,
   },
   {
     id: "notif-2",
-    title: "Racha de 6 días completada",
-    message: "Estás a solo 1 día de completar tu meta semanal. Mantén la constancia.",
-    timeAgo: "Hace 5 horas",
+    title: "Racha de 6 días",
+    message: "¡Vas invicta! A 1 día de tu meta semanal.",
+    timeAgo: "Hace 5h",
     type: "streak",
     isRead: false,
   },
   {
     id: "notif-3",
-    title: "Recordatorio de hidratación",
-    message: "Llevas 1.5L hoy. Toma un vaso de agua para alcanzar tu meta de 2.0L.",
-    timeAgo: "Hace 10 minutos",
+    title: "Meta de agua",
+    message: "Llevas 1.5L, te faltan 2 vasos para completar.",
+    timeAgo: "Hace 10m",
     type: "water",
     isRead: true,
+  },
+];
+
+export const INITIAL_CONSUMED_FOODS: PatientConsumedFood[] = [
+  {
+    id: "cf-1",
+    name: "1 trozo de torta de cumpleaños en la oficina",
+    time: "16:30",
+    portion: "1 porción pequeña",
   },
 ];
 
@@ -297,6 +307,7 @@ const STORAGE_KEYS = {
   DIARY: "nutrinet_patient_demo_diary",
   QNA: "nutrinet_patient_demo_qna",
   NOTIFS: "nutrinet_patient_demo_notifs",
+  CONSUMED_FOODS: "nutrinet_patient_demo_consumed_foods",
 };
 
 export function loadPatientDemoState() {
@@ -307,6 +318,7 @@ export function loadPatientDemoState() {
       diary: INITIAL_DIARY_ENTRIES,
       qna: INITIAL_QNA,
       notifications: INITIAL_NOTIFICATIONS,
+      consumedFoods: INITIAL_CONSUMED_FOODS,
     };
   }
 
@@ -316,6 +328,7 @@ export function loadPatientDemoState() {
     const d = localStorage.getItem(STORAGE_KEYS.DIARY);
     const q = localStorage.getItem(STORAGE_KEYS.QNA);
     const n = localStorage.getItem(STORAGE_KEYS.NOTIFS);
+    const cf = localStorage.getItem(STORAGE_KEYS.CONSUMED_FOODS);
 
     return {
       profile: p ? JSON.parse(p) : INITIAL_PATIENT_PROFILE,
@@ -323,6 +336,7 @@ export function loadPatientDemoState() {
       diary: d ? JSON.parse(d) : INITIAL_DIARY_ENTRIES,
       qna: q ? JSON.parse(q) : INITIAL_QNA,
       notifications: n ? JSON.parse(n) : INITIAL_NOTIFICATIONS,
+      consumedFoods: cf ? JSON.parse(cf) : INITIAL_CONSUMED_FOODS,
     };
   } catch {
     return {
@@ -331,6 +345,7 @@ export function loadPatientDemoState() {
       diary: INITIAL_DIARY_ENTRIES,
       qna: INITIAL_QNA,
       notifications: INITIAL_NOTIFICATIONS,
+      consumedFoods: INITIAL_CONSUMED_FOODS,
     };
   }
 }
@@ -341,6 +356,7 @@ export function savePatientDemoState(data: {
   diary?: PatientDiaryEntry[];
   qna?: PatientQnAItem[];
   notifications?: PatientNotification[];
+  consumedFoods?: PatientConsumedFood[];
 }) {
   if (typeof window === "undefined") return;
   try {
@@ -349,6 +365,7 @@ export function savePatientDemoState(data: {
     if (data.diary) localStorage.setItem(STORAGE_KEYS.DIARY, JSON.stringify(data.diary));
     if (data.qna) localStorage.setItem(STORAGE_KEYS.QNA, JSON.stringify(data.qna));
     if (data.notifications) localStorage.setItem(STORAGE_KEYS.NOTIFS, JSON.stringify(data.notifications));
+    if (data.consumedFoods) localStorage.setItem(STORAGE_KEYS.CONSUMED_FOODS, JSON.stringify(data.consumedFoods));
   } catch {
     // ignore quota errors
   }

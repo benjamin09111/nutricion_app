@@ -1,12 +1,15 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import {
-  TrendingDown,
-  Droplets,
+  Utensils,
+  GlassWater,
+  Scale,
   CheckCircle2,
-  Plus,
   Award,
+  ChevronRight,
+  Lightbulb,
+  RefreshCw,
 } from "lucide-react";
 import { PatientProfileState, PatientMeal } from "../types";
 import { toast } from "sonner";
@@ -17,28 +20,65 @@ interface PatientSummaryTabProps {
   meals: PatientMeal[];
   onAddWater: (amountMl: number) => void;
   onNavigateToMeals: () => void;
+  onNavigateToGoals?: () => void;
 }
+
+// Mitos y realidades nutricionales verificados que rotan diariamente
+const NUTRITION_MYTHS = [
+  {
+    myth: "Comer carbohidratos de noche engorda más que de día.",
+    fact: "El cuerpo aprovecha la energía según tus necesidades totales, sin importar la hora del reloj. Lo determinante es el balance calórico del día.",
+  },
+  {
+    myth: "Tomar agua tibia con limón en ayunas quema grasa corporal.",
+    fact: "El limón aporta vitamina C y antioxidantes, pero ningún alimento por sí solo quema o disuelve grasa de forma mágica.",
+  },
+  {
+    myth: "Para perder peso hay que eliminar todas las grasas de la dieta.",
+    fact: "Las grasas saludables (palta, oliva, frutos secos) son indispensables para tus hormonas, absorción de vitaminas y saciedad.",
+  },
+  {
+    myth: "Comer fruta como postre después del almuerzo fermenta y engorda.",
+    fact: "La fruta aporta exactamente las mismas calorías y fibra consumida antes, durante o después de tu plato principal.",
+  },
+  {
+    myth: "El huevo entero eleva peligrosamente el colesterol en sangre.",
+    fact: "Es rico en colina y proteína de alta biodisponibilidad. En la gran mayoría de personas, el colesterol dietético tiene un impacto mínimo.",
+  },
+  {
+    myth: "Saltarse comidas ayuda a acelerar la pérdida de peso.",
+    fact: "Provoca acumulación de hambre para la siguiente comida, mayor ansiedad y puede comprometer tu masa muscular activa.",
+  },
+  {
+    myth: "Los productos 'light' o 'sin azúcar' se pueden consumir sin límite.",
+    fact: "'Light' solo significa una reducción frente al original, pero igualmente aportan calorías y requieren moderación.",
+  },
+];
 
 export function PatientSummaryTab({
   profile,
   meals,
   onAddWater,
   onNavigateToMeals,
+  onNavigateToGoals,
 }: PatientSummaryTabProps) {
   const consumedMealsCount = meals.filter((m) => m.isConsumed).length;
   const totalMealsCount = meals.length;
-  const mealsAdherencePercent = Math.round((consumedMealsCount / (totalMealsCount || 1)) * 100);
-  const pendingMealsCount = Math.max(0, totalMealsCount - consumedMealsCount);
-
-  const waterPercent = Math.min(100, Math.round((profile.waterIntakeMl / profile.waterGoalMl) * 100));
   const currentGlasses = Math.round(profile.waterIntakeMl / 250);
   const totalGlasses = Math.round(profile.waterGoalMl / 250);
   const weightLost = (profile.startingWeightKg - profile.currentWeightKg).toFixed(1);
 
-  // SVG Progress Ring calculations (radius = 26, perimeter = 2 * PI * 26 ≈ 163.36)
-  const ringRadius = 26;
-  const ringCircumference = 2 * Math.PI * ringRadius;
-  const ringOffset = ringCircumference - (mealsAdherencePercent / 100) * ringCircumference;
+  // Mito nutricional diario rotativo según el día del año (o seleccionable con botón)
+  const [currentMythIndex, setCurrentMythIndex] = useState(() => {
+    const today = new Date();
+    const dayOfYear = Math.floor(
+      (Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()) -
+        Date.UTC(today.getFullYear(), 0, 0)) /
+        (24 * 60 * 60 * 1000)
+    );
+    return Math.abs(dayOfYear) % NUTRITION_MYTHS.length;
+  });
+  const activeMyth = NUTRITION_MYTHS[currentMythIndex];
 
   const daysOfWeek = [
     { day: "L", full: "Lun", done: true },
@@ -50,8 +90,8 @@ export function PatientSummaryTab({
     { day: "D", full: "Dom", done: false, isToday: true },
   ];
 
-  const handleAddGlass = () => {
-    // Soft haptic feedback
+  const handleAddGlass = (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (typeof window !== "undefined" && "vibrate" in navigator) {
       try {
         navigator.vibrate(15);
@@ -64,197 +104,142 @@ export function PatientSummaryTab({
   return (
     <div className="space-y-4">
       {/* 
-        1. GRID DE MÉTRICAS REDUCIDO A 2 TARJETAS (Sin duplicados de agua ni racha)
-        Prioriza lo que cambia cada día. Padding 16-20px, gap 16px.
-        Tipografía estricta: títulos 16px/600, números grandes 28-32px/700 tabular-nums whitespace-nowrap, secundario 13px/400.
+        1. TIRA DE 3 COLUMNAS SIN BORDES NI CARDS (Cero ruido visual, información directa)
+        Columna 1: Comidas de hoy
+        Columna 2: Vasos de agua
+        Columna 3: Evolución de peso
       */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {/* Tarjeta 1: Comidas de hoy (con anillo de progreso) */}
-        <div className="bg-white rounded-2xl border border-[#E9E5E7] p-4 sm:p-5 shadow-2xs flex flex-col justify-between gap-3">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <h2 className="text-base font-semibold text-[#20212B]">Comidas de hoy</h2>
-              <p className="text-[13px] font-normal text-[#626573] leading-relaxed mt-0.5 whitespace-nowrap">
-                {consumedMealsCount} de {totalMealsCount} comidas listas
-              </p>
+      <div className="py-1">
+        <div className="grid grid-cols-3 gap-2 sm:gap-4 divide-x divide-slate-200/80 py-1">
+          {/* Columna 1: Comidas (Servicios) */}
+          <div
+            onClick={onNavigateToMeals}
+            className="flex flex-col items-center justify-center text-center px-1 sm:px-3 cursor-pointer group active:scale-95 transition-transform"
+            title="Comidas de hoy"
+          >
+            <div className="w-10 h-10 rounded-xl bg-[#F0F5DF] text-[#5A781E] flex items-center justify-center shrink-0 mb-1.5 group-hover:scale-105 transition-transform">
+              <Utensils className="w-5 h-5 stroke-[2.2]" />
             </div>
-
-            {/* Anillo de Progreso Circular */}
-            <div className="relative w-14 h-14 shrink-0 flex items-center justify-center">
-              <svg className="w-14 h-14 -rotate-90" viewBox="0 0 64 64">
-                <circle
-                  cx="32"
-                  cy="32"
-                  r={ringRadius}
-                  stroke="#F0ECEE"
-                  strokeWidth="5"
-                  fill="transparent"
-                />
-                <circle
-                  cx="32"
-                  cy="32"
-                  r={ringRadius}
-                  stroke="#86A83C"
-                  strokeWidth="5"
-                  strokeDasharray={ringCircumference}
-                  strokeDashoffset={ringOffset}
-                  strokeLinecap="round"
-                  fill="transparent"
-                  className="transition-all duration-500 ease-out"
-                />
-              </svg>
-              <span className="absolute text-xs font-bold text-[#20212B] tabular-nums">
-                {mealsAdherencePercent}%
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-baseline gap-2 pt-1 border-t border-[#F0ECEE]">
-            <span className="text-[28px] sm:text-[32px] font-bold text-[#20212B] tabular-nums whitespace-nowrap leading-none">
-              {mealsAdherencePercent}%
-            </span>
-            <span className="text-[13px] font-normal text-[#626573] whitespace-nowrap">
-              adherencia diaria
+            <span className="text-[22px] sm:text-[28px] font-bold text-[#20212B] tabular-nums whitespace-nowrap leading-none">
+              {consumedMealsCount}/{totalMealsCount}
             </span>
           </div>
 
-          {/* Objetivo Diario Explícito con retroalimentación al tocar */}
-          <div className="pt-0.5">
-            <span
-              onClick={onNavigateToMeals}
-              className={cn(
-                "inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg cursor-pointer transition-all active:scale-95",
-                pendingMealsCount === 0
-                  ? "bg-[#F0F5DF] text-[#5A781E]"
-                  : "bg-[#F0F5DF] text-[#5A781E] hover:bg-[#E5ECCF]"
-              )}
-            >
-              <CheckCircle2 className="w-3.5 h-3.5 text-[#86A83C]" />
-              <span>
-                {pendingMealsCount === 0
-                  ? "¡Completaste todas tus comidas hoy!"
-                  : `Te faltan ${pendingMealsCount} comida${pendingMealsCount > 1 ? "s" : ""} hoy`}
+          {/* Columna 2: Vaso de agua (Interactivo al tocar) */}
+          <div
+            onClick={handleAddGlass}
+            className="flex flex-col items-center justify-center text-center px-1 sm:px-3 cursor-pointer group active:scale-95 transition-transform"
+            title="Toca para registrar +1 vaso de agua"
+          >
+            <div className="w-10 h-10 rounded-xl bg-sky-50 text-sky-500 flex items-center justify-center shrink-0 mb-1.5 group-hover:scale-105 transition-transform relative">
+              <GlassWater className="w-5 h-5 stroke-[2.2]" />
+              <span className="absolute -top-1 -right-1 flex h-4 w-4 rounded-full bg-sky-500 text-white items-center justify-center text-[10px] font-bold">
+                +
               </span>
+            </div>
+            <span className="text-[22px] sm:text-[28px] font-bold text-[#20212B] tabular-nums whitespace-nowrap leading-none">
+              {currentGlasses}/{totalGlasses}
+            </span>
+          </div>
+
+          {/* Columna 3: Peso / Evolución (Báscula de peso) */}
+          <div
+            onClick={onNavigateToGoals}
+            className="flex flex-col items-center justify-center text-center px-1 sm:px-3 cursor-pointer group active:scale-95 transition-transform"
+            title="Evolución de peso"
+          >
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-[#668E20] flex items-center justify-center shrink-0 mb-1.5 group-hover:scale-105 transition-transform">
+              <Scale className="w-5 h-5 stroke-[2.2]" />
+            </div>
+            <span className="text-[22px] sm:text-[28px] font-bold text-[#20212B] tabular-nums whitespace-nowrap leading-none">
+              -{weightLost} kg
             </span>
           </div>
         </div>
 
-        {/* Tarjeta 2: Evolución Peso (Limpia y sin saltos de línea) */}
-        <div className="bg-white rounded-2xl border border-[#E9E5E7] p-4 sm:p-5 shadow-2xs flex flex-col justify-between gap-3">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <h2 className="text-base font-semibold text-[#20212B]">Evolución Peso</h2>
-              <p className="text-[13px] font-normal text-[#626573] leading-relaxed mt-0.5 whitespace-nowrap">
-                Actual: {profile.currentWeightKg} kg · Meta: {profile.goalWeightKg} kg
-              </p>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-[#F0F5DF] text-[#668E20] flex items-center justify-center shrink-0">
-              <TrendingDown className="w-5 h-5" />
-            </div>
-          </div>
-
-          <div className="flex items-baseline gap-2 pt-1 border-t border-[#F0ECEE]">
-            <span className="text-[28px] sm:text-[32px] font-bold text-[#20212B] tabular-nums whitespace-nowrap leading-none">
-              -{weightLost} kg
-            </span>
-            <span className="text-[13px] font-normal text-[#626573] whitespace-nowrap">
-              desde el inicio
-            </span>
-          </div>
-
-          <div className="pt-0.5">
-            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#5A781E] bg-[#F0F5DF] px-2.5 py-1 rounded-lg">
-              <span>Ritmo saludable (-0.4 kg/sem)</span>
-            </span>
-          </div>
+        {/* Enlace sutil Ver más detalles */}
+        <div className="mt-3 pt-2.5 border-t border-slate-200/60 flex items-center justify-between text-xs text-slate-500 px-1">
+          <span>Progreso general de tu tratamiento</span>
+          {onNavigateToGoals && (
+            <button
+              type="button"
+              onClick={onNavigateToGoals}
+              className="font-semibold text-[#5A781E] hover:underline flex items-center gap-1 active:scale-95 transition-transform cursor-pointer"
+            >
+              <span>Ver más detalles</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       </div>
 
       {/* 
-        2. CONSTANCIA SEMANAL Y CONTROL DE AGUA (Separación 16px, padding 16-20px)
+        2. CONSTANCIA SEMANAL (Se mantiene igual a petición del usuario)
       */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Constancia Semanal (Tira de 7 días limpia) */}
-        <div className="bg-white rounded-2xl border border-[#E9E5E7] p-4 sm:p-5 shadow-2xs space-y-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-semibold text-[#20212B]">Constancia Semanal</h2>
-              <p className="text-[13px] font-normal text-[#626573] leading-relaxed mt-0.5">
-                6 de 7 días cumplidos con tu pauta
-              </p>
-            </div>
-            <Award className="w-5 h-5 text-[#86A83C]" />
+      <div className="bg-white rounded-2xl border border-[#E9E5E7] p-4 sm:p-5 shadow-2xs space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-base font-semibold text-[#20212B]">Constancia Semanal</h2>
+            <p className="text-[13px] font-normal text-[#626573] leading-relaxed mt-0.5">
+              6 de 7 días cumplidos con tu pauta
+            </p>
           </div>
-
-          <div className="grid grid-cols-7 gap-1.5 pt-1">
-            {daysOfWeek.map((d, i) => (
-              <div
-                key={i}
-                className={cn(
-                  "flex flex-col items-center justify-center py-2 min-h-[44px] rounded-xl text-center transition-all hover:scale-105 active:scale-95 select-none",
-                  d.done
-                    ? "bg-[#F0F5DF] text-[#5A781E]"
-                    : d.isToday
-                    ? "bg-slate-100 text-slate-800"
-                    : "bg-slate-50 text-slate-400"
-                )}
-              >
-                <span className="text-[10px] uppercase font-semibold text-slate-400">{d.full}</span>
-                <span className="text-xs font-bold my-0.5">{d.day}</span>
-                {d.done ? (
-                  <CheckCircle2 className="w-3.5 h-3.5 text-[#668E20]" />
-                ) : (
-                  <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
-                )}
-              </div>
-            ))}
-          </div>
+          <Award className="w-5 h-5 text-[#86A83C]" />
         </div>
 
-        {/* Control de Agua (Única tarjeta de agua, interactiva y con touch target >= 44px) */}
-        <div className="bg-white rounded-2xl border border-[#E9E5E7] p-4 sm:p-5 shadow-2xs space-y-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-base font-semibold text-[#20212B]">Control de Agua</h2>
-              <p className="text-[13px] font-normal text-[#626573] leading-relaxed mt-0.5">
-                Meta: {totalGlasses} vasos al día ({(profile.waterGoalMl / 1000).toFixed(1)} L)
-              </p>
-            </div>
-            <Droplets className="w-5 h-5 text-sky-500" />
-          </div>
-
-          <div className="space-y-2 pt-0.5">
-            <div className="flex items-baseline justify-between text-xs">
-              <span className="text-[28px] sm:text-[32px] font-bold text-[#20212B] tabular-nums whitespace-nowrap leading-none">
-                {(profile.waterIntakeMl / 1000).toFixed(2)} L
-              </span>
-              <span className="text-[13px] font-normal text-[#626573] whitespace-nowrap">
-                {currentGlasses} de {totalGlasses} vasos ({waterPercent}%)
-              </span>
-            </div>
-            <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
-              <div
-                className="h-full rounded-full bg-sky-500 transition-all duration-300 ease-out"
-                style={{ width: `${waterPercent}%` }}
-              />
-            </div>
-          </div>
-
-          <div className="pt-1 flex items-center justify-between gap-3">
-            <span className="text-[13px] font-normal text-[#626573]">
-              {profile.waterIntakeMl >= profile.waterGoalMl
-                ? "¡Meta de hidratación alcanzada!"
-                : `Faltan ${Math.max(0, totalGlasses - currentGlasses)} vasos para tu meta`}
-            </span>
-            <button
-              type="button"
-              onClick={handleAddGlass}
-              className="h-11 min-h-[44px] px-4 rounded-xl bg-sky-500 hover:bg-sky-600 active:scale-95 text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 shadow-2xs"
+        <div className="grid grid-cols-7 gap-1.5 pt-1">
+          {daysOfWeek.map((d, i) => (
+            <div
+              key={i}
+              className={cn(
+                "flex flex-col items-center justify-center py-2 min-h-[44px] rounded-xl text-center transition-all hover:scale-105 active:scale-95 select-none",
+                d.done
+                  ? "bg-[#F0F5DF] text-[#5A781E]"
+                  : d.isToday
+                  ? "bg-slate-100 text-slate-800"
+                  : "bg-slate-50 text-slate-400"
+              )}
             >
-              <Plus className="w-3.5 h-3.5" />
-              <span>+1 Vaso (250 ml)</span>
-            </button>
+              <span className="text-[10px] uppercase font-semibold text-slate-400">{d.full}</span>
+              <span className="text-xs font-bold my-0.5">{d.day}</span>
+              {d.done ? (
+                <CheckCircle2 className="w-3.5 h-3.5 text-[#668E20]" />
+              ) : (
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 
+        3. DATO CURIOSO / MITO DEL DÍA (Sin border, sin card - 100% minimalista)
+      */}
+      <div className="pt-1 pb-2 space-y-1.5 select-none px-1">
+        <div className="flex items-center justify-between text-xs">
+          <div className="flex items-center gap-1.5 text-[#5A781E] font-semibold">
+            <Lightbulb className="w-4 h-4 text-[#86A83C]" />
+            <span>Mito Nutricional del Día</span>
           </div>
+          <button
+            type="button"
+            onClick={() => setCurrentMythIndex((prev) => (prev + 1) % NUTRITION_MYTHS.length)}
+            className="text-[11px] text-slate-400 hover:text-[#5A781E] flex items-center gap-1 active:scale-95 transition-all cursor-pointer"
+            title="Ver otro mito nutricional"
+          >
+            <span>Ver otro</span>
+            <RefreshCw className="w-3 h-3" />
+          </button>
+        </div>
+
+        <div className="space-y-1">
+          <p className="text-sm font-semibold text-[#20212B] leading-snug">
+            &ldquo;{activeMyth.myth}&rdquo;
+          </p>
+          <p className="text-[13px] font-normal text-[#626573] leading-relaxed">
+            <span className="font-semibold text-[#5A781E]">Realidad: </span>
+            {activeMyth.fact}
+          </p>
         </div>
       </div>
     </div>

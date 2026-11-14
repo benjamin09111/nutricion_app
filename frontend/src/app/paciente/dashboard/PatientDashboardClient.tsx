@@ -13,6 +13,7 @@ import {
   PatientDiaryEntry,
   PatientQnAItem,
   PatientNotification,
+  PatientConsumedFood,
 } from "@/features/patient-portal-demo/types";
 import { PatientHeader } from "@/features/patient-portal-demo/components/PatientHeader";
 import {
@@ -21,6 +22,7 @@ import {
 } from "@/features/patient-portal-demo/components/PatientMobileNavDrawer";
 import { NatyWelcomeBanner } from "@/features/patient-portal-demo/components/NatyWelcomeBanner";
 import { PatientSummaryTab } from "@/features/patient-portal-demo/components/PatientSummaryTab";
+import { PatientGoalsTab } from "@/features/patient-portal-demo/components/PatientGoalsTab";
 import { PatientMealsTab } from "@/features/patient-portal-demo/components/PatientMealsTab";
 import { PatientDiaryTab } from "@/features/patient-portal-demo/components/PatientDiaryTab";
 import { PatientFilesTab } from "@/features/patient-portal-demo/components/PatientFilesTab";
@@ -29,6 +31,8 @@ import { PatientResourcesTab } from "@/features/patient-portal-demo/components/P
 import { PatientInstagramFooter } from "@/features/patient-portal-demo/components/PatientInstagramFooter";
 import { PatientLevelModal } from "@/features/patient-portal-demo/components/PatientLevelModal";
 import { PatientNotificationsModal } from "@/features/patient-portal-demo/components/PatientNotificationsModal";
+import { PatientConsumedFoodsModal } from "@/features/patient-portal-demo/components/PatientConsumedFoodsModal";
+import { NutriAdviceModal } from "@/features/patient-portal-demo/components/NutriAdviceModal";
 import { NatyPatientChatFloating } from "@/features/patient-portal-demo/components/NatyPatientChatFloating";
 
 export function PatientDashboardClient() {
@@ -37,11 +41,14 @@ export function PatientDashboardClient() {
   const [diaryEntries, setDiaryEntries] = useState<PatientDiaryEntry[]>([]);
   const [qnaItems, setQnaItems] = useState<PatientQnAItem[]>([]);
   const [notifications, setNotifications] = useState<PatientNotification[]>([]);
+  const [consumedFoods, setConsumedFoods] = useState<PatientConsumedFood[]>([]);
   const [activeTab, setActiveTab] = useState<PatientNavTabId>("resumen");
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isConsumedFoodsOpen, setIsConsumedFoodsOpen] = useState(false);
   const [isLevelModalOpen, setIsLevelModalOpen] = useState(false);
   const [isNatyChatOpen, setIsNatyChatOpen] = useState(false);
+  const [isNutriAdviceOpen, setIsNutriAdviceOpen] = useState(false);
 
   // Load state from localStorage / defaults on mount
   useEffect(() => {
@@ -51,6 +58,9 @@ export function PatientDashboardClient() {
     setDiaryEntries(data.diary);
     setQnaItems(data.qna);
     setNotifications(data.notifications);
+    if (data.consumedFoods) {
+      setConsumedFoods(data.consumedFoods);
+    }
   }, []);
 
   if (!profile) {
@@ -144,12 +154,35 @@ export function PatientDashboardClient() {
     savePatientDemoState({ notifications: updated });
   };
 
+  // Add extra consumed food (fuera de pauta)
+  const handleAddConsumedFood = (item: { name: string; time: string; portion?: string }) => {
+    const newEntry: PatientConsumedFood = {
+      id: `cf-${Date.now()}`,
+      name: item.name,
+      time: item.time,
+      portion: item.portion,
+    };
+    const updated = [newEntry, ...consumedFoods];
+    setConsumedFoods(updated);
+    savePatientDemoState({ consumedFoods: updated });
+  };
+
+  // Delete consumed food
+  const handleDeleteConsumedFood = (id: string) => {
+    const updated = consumedFoods.filter((f) => f.id !== id);
+    setConsumedFoods(updated);
+    savePatientDemoState({ consumedFoods: updated });
+  };
+
   return (
     <div className="min-h-screen bg-[#FAFAFB] text-[#20212B] flex flex-col justify-between selection:bg-[#F0F5DF] selection:text-[#5A781E]">
-      {/* 1. Header Minimalista: Logo a la izquierda, Hamburger a la derecha */}
+      {/* 1. Header Minimalista: Logo, Consejo de Nutri, Notificaciones y Hamburger */}
       <PatientHeader
         onOpenMobileNav={() => setIsMobileNavOpen(true)}
         onLogoClick={() => setActiveTab("resumen")}
+        onOpenNutriAdvice={() => setIsNutriAdviceOpen(true)}
+        onOpenNotifications={() => setIsNotificationsOpen(true)}
+        unreadNotificationsCount={notifications.filter((n) => !n.isRead).length}
       />
 
       {/* 2. Drawer Desplegable Hamburger con Perfil y Módulos */}
@@ -188,7 +221,12 @@ export function PatientDashboardClient() {
               meals={meals}
               onAddWater={handleAddWater}
               onNavigateToMeals={() => setActiveTab("comidas")}
+              onNavigateToGoals={() => setActiveTab("objetivos")}
             />
+          )}
+
+          {activeTab === "objetivos" && (
+            <PatientGoalsTab profile={profile} />
           )}
 
           {activeTab === "comidas" && (
@@ -215,16 +253,16 @@ export function PatientDashboardClient() {
         </div>
       </main>
 
-      {/* 4. Footer Estilo Instagram: Notificaciones (Izq), Nutria Naty (Centro), Mi Nivel / Trofeo (Der) */}
+      {/* 4. Footer Estilo Instagram: Alimentos Consumidos (Izq), Nutria Naty (Centro), Mi Nivel / Trofeo (Der) */}
       <PatientInstagramFooter
         profile={profile}
-        unreadNotificationsCount={notifications.filter((n) => !n.isRead).length}
-        onOpenNotifications={() => setIsNotificationsOpen(true)}
+        consumedFoodsCount={consumedFoods.length}
+        onOpenConsumedFoods={() => setIsConsumedFoodsOpen(true)}
         onOpenNatyChat={() => setIsNatyChatOpen(true)}
         onOpenLevelModal={() => setIsLevelModalOpen(true)}
       />
 
-      {/* 5. Modales flotantes interactivos accionados desde el Footer */}
+      {/* 5. Modales flotantes interactivos accionados desde Header y Footer */}
       <PatientNotificationsModal
         isOpen={isNotificationsOpen}
         onClose={() => setIsNotificationsOpen(false)}
@@ -232,10 +270,26 @@ export function PatientDashboardClient() {
         onMarkAllAsRead={handleMarkAllNotificationsAsRead}
       />
 
+      <PatientConsumedFoodsModal
+        isOpen={isConsumedFoodsOpen}
+        onClose={() => setIsConsumedFoodsOpen(false)}
+        foods={consumedFoods}
+        onAddFood={handleAddConsumedFood}
+        onDeleteFood={handleDeleteConsumedFood}
+        nutriName={profile.nutriName}
+      />
+
       <PatientLevelModal
         isOpen={isLevelModalOpen}
         onClose={() => setIsLevelModalOpen(false)}
         profile={profile}
+      />
+
+      <NutriAdviceModal
+        isOpen={isNutriAdviceOpen}
+        onClose={() => setIsNutriAdviceOpen(false)}
+        nutriName={profile.nutriName}
+        nutriSpecialty={profile.nutriSpecialty}
       />
 
       <NatyPatientChatFloating

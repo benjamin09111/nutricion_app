@@ -61,6 +61,14 @@ export interface PatientNotification {
   isRead: boolean;
 }
 
+export interface PatientConsumedFood {
+  id: string;
+  name: string;
+  time: string;
+  portion?: string;
+  createdAt?: string;
+}
+
 export interface PatientProfileState {
   fullName: string;
   nutriName: string;

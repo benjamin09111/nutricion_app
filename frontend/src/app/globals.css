@@ -830,3 +830,31 @@ html {
 .animate-spring-pop {
   animation: spring-pop 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+
+@keyframes slide-drawer-left {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.animate-drawer-left {
+  animation: slide-drawer-left 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slide-down-sheet {
+  0% {
+    transform: translateY(-60px);
+    opacity: 0.2;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-sheet-down {
+  animation: slide-down-sheet 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}

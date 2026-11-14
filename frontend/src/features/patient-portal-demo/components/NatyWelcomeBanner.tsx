@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import Image from "next/image";
-import { Clock, CheckCircle2, ChevronRight, Flame, Sparkles } from "lucide-react";
+import { Clock, CheckCircle2, Flame, Sparkles, Utensils } from "lucide-react";
 import { PatientMeal } from "../types";
 import { NutriAdviceAccordion } from "./NutriAdviceAccordion";
 import { toast } from "sonner";
@@ -72,15 +72,12 @@ export function NatyWelcomeBanner({
     toast.success("¡Comida registrada! +10 puntos para tu nivel");
   };
 
-  const pendingMealsCount = Math.max(0, totalMealsCount - completedMealsCount);
-
   return (
     <div className="space-y-3 sm:space-y-4">
       {/* 
-        1. SALUDO COMPACTO (1-2 Líneas) + BARRA DE XP DE NIVEL
-        Tipografía estricta: 22px/700 saludo, 13px/400 texto secundario, 600 etiquetas
+        1. SALUDO DIRECTO Y ELEGANTE (Sin card, sin bordes, estilo app moderna/red social)
       */}
-      <div className="bg-white rounded-2xl border border-[#E9E5E7] p-4 sm:p-5 shadow-2xs space-y-3.5">
+      <div className="pt-1 pb-0.5 space-y-2.5">
         <div className="flex items-center justify-between gap-3">
           {/* Avatar de Naty reactivo y saludo */}
           <div className="flex items-center gap-3 min-w-0">
@@ -90,7 +87,7 @@ export function NatyWelcomeBanner({
                 setTimeout(() => setIsBouncing(false), 700);
               }}
               className={cn(
-                "relative w-11 h-11 sm:w-12 sm:h-12 rounded-full overflow-hidden shrink-0 border border-[#E9E5E7] bg-[#F0F5DF] transition-transform duration-300 cursor-pointer hover:scale-105 active:scale-90",
+                "relative w-12 h-12 rounded-full overflow-hidden shrink-0 border border-[#D5E3B3] bg-[#F0F5DF] shadow-2xs transition-transform duration-300 cursor-pointer hover:scale-105 active:scale-90",
                 isBouncing && "scale-110 -rotate-6 animate-pulse"
               )}
               title="¡Hola! Soy Naty"
@@ -106,24 +103,36 @@ export function NatyWelcomeBanner({
             </div>
 
             <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-[22px] font-bold text-[#20212B] leading-tight tracking-tight">
-                  ¡Hola, {firstName}!
-                </h1>
-                <span className="inline-flex items-center gap-1 text-xs font-semibold text-[#5A781E] bg-[#F0F5DF] px-2.5 py-0.5 rounded-full whitespace-nowrap">
-                  <Flame className="w-3.5 h-3.5 text-[#86A83C]" />
-                  <span>{currentStreakDays} días en racha</span>
-                </span>
-              </div>
+              <h1 className="text-[22px] font-bold text-[#20212B] leading-tight tracking-tight">
+                ¡Hola, {firstName}!
+              </h1>
               <p className="text-[13px] font-normal text-[#626573] leading-snug mt-0.5 whitespace-nowrap">
                 {getContextualMessage()}
               </p>
             </div>
           </div>
+
+          {/* RACHA LIMPIA SIN BACKGROUND (Solo icono de llama y texto con personalidad) */}
+          <div className="shrink-0 select-none">
+            <div
+              className="flex items-center gap-1.5 cursor-pointer active:scale-95 transition-transform"
+              title={`${currentStreakDays} días consecutivos cumpliendo tu pauta nutricional`}
+            >
+              <Flame className="w-5 h-5 sm:w-6 sm:h-6 fill-orange-500 text-orange-500 shrink-0 animate-pulse" />
+              <div className="flex items-baseline gap-1">
+                <span className="text-xl sm:text-2xl font-black text-orange-600 tabular-nums tracking-tight leading-none">
+                  {currentStreakDays}
+                </span>
+                <span className="text-xs font-extrabold text-[#20212B] uppercase tracking-wider leading-none">
+                  días
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Barra de XP visible en Home hacia el siguiente nivel */}
-        <div className="pt-1 border-t border-[#F0ECEE] space-y-1.5">
+        {/* Barra de XP sutil y limpia */}
+        <div className="pt-0.5 space-y-1">
           <div className="flex items-center justify-between text-xs">
             <span className="font-semibold text-[#626573] flex items-center gap-1">
               <Sparkles className="w-3.5 h-3.5 text-[#86A83C]" />
@@ -133,7 +142,7 @@ export function NatyWelcomeBanner({
               {totalStars} / 300 pts
             </span>
           </div>
-          <div className="w-full h-1.5 rounded-full bg-[#F0ECEE] overflow-hidden">
+          <div className="w-full h-1.5 rounded-full bg-slate-200/80 overflow-hidden">
             <div
               className="h-full rounded-full bg-[#86A83C] transition-all duration-500 ease-out"
               style={{ width: `${Math.max(15, xpPercent)}%` }}
@@ -143,41 +152,10 @@ export function NatyWelcomeBanner({
       </div>
 
       {/* 
-        2. CONSEJO DE TU NUTRI (Acordeón desplegable justo abajo de ¡Hola, Camila! y arriba de Completa tu...)
-      */}
-      <NutriAdviceAccordion
-        nutriName={nutriName}
-        nutriSpecialty={nutriSpecialty}
-      />
-
-      {/* 
-        3. ESTADO DE RACHA EN RIESGO (Acento suave, tono positivo y motivacional)
-        Se muestra si quedan comidas pendientes en el día
-      */}
-      {pendingMealsCount > 0 && (
-        <div className="bg-amber-50/90 border border-amber-200/70 rounded-xl px-3.5 py-2.5 flex items-center justify-between gap-2.5">
-          <div className="flex items-center gap-2 min-w-0">
-            <Flame className="w-4 h-4 text-amber-600 shrink-0" />
-            <p className="text-[13px] font-normal text-amber-900 leading-snug">
-              Completa tu próxima comida para asegurar tu racha de{" "}
-              <span className="font-semibold text-amber-950 whitespace-nowrap">
-                {currentStreakDays} días
-              </span>{" "}
-              hoy.
-            </p>
-          </div>
-          <span className="text-xs font-semibold text-amber-800 bg-amber-100/80 px-2 py-0.5 rounded-md whitespace-nowrap shrink-0">
-            En juego
-          </span>
-        </div>
-      )}
-
-      {/* 
-        3. TARJETA HERO: PRÓXIMA COMIDA (Elemento Principal de Jerarquía)
-        Más grande, comida en 18px/600, hora clara y botón prominente (área táctil >= 44px)
+        2. TARJETA HERO: PRÓXIMA COMIDA (Simple, con icono de comida y botón Listo)
       */}
       {nextMeal ? (
-        <div className="relative bg-[#F8FAF2] border border-[#E2EBC8] rounded-2xl p-4 sm:p-5 shadow-2xs space-y-3.5">
+        <div className="relative bg-[#F8FAF2] border border-[#E2EBC8] rounded-2xl p-4 sm:p-5 shadow-2xs space-y-3">
           {/* Float visual de +10 pts al tocar "Listo" */}
           {showPointsPop && (
             <div className="absolute top-3 right-5 z-20 animate-in fade-in slide-in-from-bottom-2 duration-300 pointer-events-none">
@@ -187,48 +165,43 @@ export function NatyWelcomeBanner({
             </div>
           )}
 
-          <div className="flex items-start justify-between gap-3">
-            <div className="space-y-1 min-w-0">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[#F0F5DF] text-[#5A781E] flex items-center justify-center shrink-0">
+              <Utensils className="w-5 h-5 stroke-[2.2]" />
+            </div>
+            <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-semibold text-[#5A781E] uppercase tracking-wider">
                   Próxima comida
                 </span>
-                <span className="inline-flex items-center gap-1 text-xs font-semibold text-[#5A781E] bg-white border border-[#D5E3B3] px-2 py-0.5 rounded-md whitespace-nowrap">
+                <span className="text-xs text-slate-300">·</span>
+                <span className="inline-flex items-center gap-1 text-xs font-semibold text-[#5A781E]">
                   <Clock className="w-3.5 h-3.5 text-[#86A83C]" />
                   <span>{nextMeal.time} hrs</span>
                 </span>
               </div>
-              <h2 className="text-lg font-semibold text-[#20212B] leading-snug">
+              <h2 className="text-base sm:text-lg font-semibold text-[#20212B] truncate mt-0.5">
                 {nextMeal.name}
               </h2>
             </div>
           </div>
 
           {/* Detalle o ingredientes principales */}
-          <p className="text-[13px] font-normal text-[#626573] leading-relaxed line-clamp-2">
+          <p className="text-[13px] font-normal text-[#626573] leading-relaxed">
             {nextMeal.foods.length > 0
               ? nextMeal.foods.join(" · ")
               : nextMeal.subtitle || "Porción balanceada según tu pauta nutricional"}
           </p>
 
-          {/* Botones de acción con touch targets >= 44px y animaciones táctiles */}
-          <div className="flex items-center gap-2.5 pt-1">
+          {/* Botón de acción: Únicamente "Listo", sin redirigir */}
+          <div className="pt-0.5">
             <button
               type="button"
               onClick={handleMarkAsDone}
-              className="flex-1 h-12 min-h-[44px] px-5 rounded-xl bg-[#86A83C] hover:bg-[#78A82F] hover:scale-[1.01] active:scale-95 text-white text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-2xs hover:shadow-sm"
+              className="w-full h-11 min-h-[44px] px-5 rounded-xl bg-[#86A83C] hover:bg-[#78A82F] hover:scale-[1.01] active:scale-95 text-white text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-2xs hover:shadow-sm"
             >
               <CheckCircle2 className="w-4 h-4 shrink-0" />
               <span>Listo (+10 pts)</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={onViewMealsTab}
-              className="h-12 w-12 min-h-[44px] min-w-[44px] rounded-xl border border-[#D5E3B3] bg-white hover:bg-[#F0F5DF] hover:scale-105 active:scale-90 flex items-center justify-center text-[#5A781E] transition-all cursor-pointer shrink-0"
-              title="Ver horario completo de comidas"
-            >
-              <ChevronRight className="w-5 h-5" />
             </button>
           </div>
         </div>

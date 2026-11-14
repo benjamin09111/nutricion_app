@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   X,
   LayoutDashboard,
+  Target,
   Utensils,
   BookOpen,
   FolderOpen,
@@ -22,7 +23,7 @@ import {
 import { cn } from "@/lib/utils";
 import { PatientProfileState } from "../types";
 
-export type PatientNavTabId = "resumen" | "comidas" | "diario" | "archivos" | "preguntas" | "recursos";
+export type PatientNavTabId = "resumen" | "objetivos" | "comidas" | "diario" | "archivos" | "preguntas" | "recursos";
 
 interface PatientMobileNavDrawerProps {
   isOpen: boolean;
@@ -85,52 +86,50 @@ export function PatientMobileNavDrawer({
   const navItems: {
     id: PatientNavTabId;
     label: string;
-    description: string;
     icon: React.ElementType;
     badge?: string;
   }[] = [
     {
       id: "resumen",
-      label: "Resumen General",
-      description: "Constancia, hidratación y peso",
+      label: "Resumen",
       icon: LayoutDashboard,
+    },
+    {
+      id: "objetivos",
+      label: "Objetivos y metas",
+      icon: Target,
     },
     {
       id: "comidas",
       label: "Horario & Comidas",
-      description: "Pauta diaria y alimentos sugeridos",
       icon: Utensils,
       badge: `${completedMealsCount}/${totalMealsCount}`,
     },
     {
       id: "diario",
-      label: "Diario de Hábitos",
-      description: "Reflexiones, sensaciones y energía",
+      label: "Diario de Vida",
       icon: BookOpen,
     },
     {
       id: "archivos",
       label: "Pautas & Archivos",
-      description: "PDFs y material descargable",
       icon: FolderOpen,
       badge: `${filesCount}`,
     },
     {
       id: "preguntas",
       label: "Consultas al Nutri",
-      description: "Dudas resueltas y nuevo mensaje",
       icon: HelpCircle,
     },
     {
       id: "recursos",
       label: "Educación & Guías",
-      description: "Lecturas y sellos nutricionales",
       icon: Compass,
     },
   ];
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-end sm:items-stretch animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[200] flex animate-in fade-in duration-200">
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
@@ -138,11 +137,8 @@ export function PatientMobileNavDrawer({
         aria-hidden="true"
       />
 
-      {/* Slide Drawer Content (Arrastre de abajo hacia arriba en móvil con animate-sheet-up) */}
-      <div className="relative w-full sm:w-[85vw] sm:max-w-xs h-[88vh] sm:h-full mt-auto sm:mt-0 rounded-t-3xl sm:rounded-none bg-white shadow-2xl flex flex-col justify-between z-10 animate-sheet-up overflow-hidden">
-        {/* Barra táctil para deslizar en móviles */}
-        <div className="w-12 h-1.5 rounded-full bg-slate-300/80 mx-auto mt-2.5 mb-1 shrink-0 sm:hidden" />
-
+      {/* Drawer de Navegación Lateral: Se abre de IZQUIERDA a DERECHA con animación suave */}
+      <div className="relative w-[85vw] max-w-xs h-full bg-white shadow-2xl flex flex-col justify-between z-10 animate-drawer-left overflow-hidden">
         <div className="flex flex-col h-full overflow-y-auto no-scrollbar">
           {/* Header del Drawer */}
           <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/60">
@@ -227,41 +223,33 @@ export function PatientMobileNavDrawer({
                     onClose();
                   }}
                   className={cn(
-                    "w-full flex items-center justify-between p-3 rounded-2xl text-left transition-all cursor-pointer group active:scale-[0.98]",
+                    "w-full flex items-center justify-between px-3.5 py-3 rounded-xl text-left transition-all cursor-pointer group active:scale-[0.98]",
                     isActive
-                      ? "bg-[#86A83C] text-white shadow-xs shadow-[#86A83C]/20"
+                      ? "bg-[#86A83C] text-white shadow-xs"
                       : "text-slate-700 hover:bg-slate-50 hover:text-[#20212B]"
                   )}
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <div
+                    <Icon
                       className={cn(
-                        "w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors",
+                        "w-5 h-5 shrink-0 transition-colors",
                         isActive
-                          ? "bg-white/20 text-white"
-                          : "bg-slate-100 text-slate-500 group-hover:bg-[#F0F5DF] group-hover:text-[#5A781E]"
+                          ? "text-white"
+                          : "text-slate-500 group-hover:text-[#5A781E]"
                       )}
-                    >
-                      <Icon className="w-4 h-4" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-bold leading-tight truncate">{item.label}</p>
-                      <p
-                        className={cn(
-                          "text-[10px] truncate mt-0.5",
-                          isActive ? "text-white/80" : "text-slate-400"
-                        )}
-                      >
-                        {item.description}
-                      </p>
-                    </div>
+                    />
+                    <span className="text-sm font-semibold truncate leading-none">
+                      {item.label}
+                    </span>
                   </div>
 
                   {item.badge ? (
                     <span
                       className={cn(
-                        "text-[10px] font-black px-2 py-0.5 rounded-full shrink-0 ml-2",
-                        isActive ? "bg-white text-[#5A781E]" : "bg-slate-100 text-slate-600"
+                        "text-[11px] font-bold px-2 py-0.5 rounded-full shrink-0 ml-2",
+                        isActive
+                          ? "bg-white text-[#5A781E]"
+                          : "bg-slate-100 text-slate-600"
                       )}
                     >
                       {item.badge}
@@ -270,7 +258,7 @@ export function PatientMobileNavDrawer({
                     <ChevronRight
                       className={cn(
                         "w-4 h-4 shrink-0 transition-transform group-hover:translate-x-0.5",
-                        isActive ? "text-white" : "text-slate-300"
+                        isActive ? "text-white/70" : "text-slate-300"
                       )}
                     />
                   )}
