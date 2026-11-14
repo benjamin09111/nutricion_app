@@ -63,17 +63,18 @@ export function PatientNotificationsPopover({
 
   return (
     <div className="relative" ref={dropdownRef}>
-      {/* Botón Campana */}
+      {/* Botón Campana (Solo icono, sin borde) */}
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className="relative p-2 sm:p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition-colors cursor-pointer"
+        className="relative p-2 rounded-full text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer outline-none"
         aria-label="Notificaciones importantes"
       >
-        <Bell className="w-4 h-4 sm:w-5 sm:h-5 text-slate-600" />
+        <Bell className="w-5 h-5" />
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 flex h-4 w-4 sm:h-5 sm:w-5 items-center justify-center rounded-full bg-rose-500 text-[9px] sm:text-[10px] font-bold text-white shadow-sm ring-2 ring-white">
-            {unreadCount}
+          <span className="absolute top-1.5 right-1.5 flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-400 opacity-75" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-rose-500" />
           </span>
         )}
       </button>

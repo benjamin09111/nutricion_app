@@ -130,7 +130,7 @@ export function PatientMobileNavDrawer({
   ];
 
   return (
-    <div className="fixed inset-0 z-[200] flex animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[200] flex items-end sm:items-stretch animate-in fade-in duration-200">
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
@@ -138,8 +138,11 @@ export function PatientMobileNavDrawer({
         aria-hidden="true"
       />
 
-      {/* Slide Drawer Content */}
-      <div className="relative w-[85vw] max-w-xs h-full bg-white shadow-2xl flex flex-col justify-between z-10 animate-in slide-in-from-left duration-250">
+      {/* Slide Drawer Content (Arrastre de abajo hacia arriba en móvil con animate-sheet-up) */}
+      <div className="relative w-full sm:w-[85vw] sm:max-w-xs h-[88vh] sm:h-full mt-auto sm:mt-0 rounded-t-3xl sm:rounded-none bg-white shadow-2xl flex flex-col justify-between z-10 animate-sheet-up overflow-hidden">
+        {/* Barra táctil para deslizar en móviles */}
+        <div className="w-12 h-1.5 rounded-full bg-slate-300/80 mx-auto mt-2.5 mb-1 shrink-0 sm:hidden" />
+
         <div className="flex flex-col h-full overflow-y-auto no-scrollbar">
           {/* Header del Drawer */}
           <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/60">
@@ -149,46 +152,49 @@ export function PatientMobileNavDrawer({
                 onSelectTab("resumen");
                 onClose();
               }}
-              className="flex items-center gap-2.5 text-left cursor-pointer group"
+              className="flex items-center cursor-pointer group active:scale-95 transition-transform"
+              title="Ir a Resumen"
             >
-              <div className="relative w-8 h-8 rounded-xl overflow-hidden bg-[#F0F5DF] border border-[#DDE7B8] flex items-center justify-center shadow-2xs group-hover:scale-105 transition-transform">
-                <Image
-                  src="/nutria.webp"
-                  alt="NutriNet"
-                  width={32}
-                  height={32}
-                  className="object-cover"
-                />
-              </div>
-              <div className="flex flex-col">
-                <span className="font-extrabold text-sm tracking-tight text-[#20212B]">
-                  Nutri<span className="text-[#668E20]">Net</span>
-                </span>
-                <span className="text-[10px] font-bold text-[#5A781E]">
-                  Portal del Paciente
-                </span>
-              </div>
+              <Image
+                src="/logo_2_cropped.webp"
+                alt="NutriNet"
+                width={140}
+                height={44}
+                className="h-8 w-auto object-contain cursor-pointer"
+                priority
+              />
             </button>
 
             <button
               type="button"
               onClick={onClose}
-              className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-200/50 transition-colors cursor-pointer"
+              className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-200/50 active:scale-90 transition-all cursor-pointer"
               aria-label="Cerrar menú"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
 
-          {/* Tarjeta del Paciente en el Menú */}
-          <div className="p-4 border-b border-slate-100 bg-[#F0F5DF]/30 space-y-2">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#86A83C] to-[#668E20] text-white flex items-center justify-center text-xs font-black shadow-2xs">
-                CG
+          {/* Tarjeta del Paciente en el Menú con badge DEMO */}
+          <div className="p-4 border-b border-slate-100 bg-[#F0F5DF]/35 space-y-2.5">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full overflow-hidden border border-slate-200/80 shadow-xs relative bg-slate-100 flex items-center justify-center shrink-0">
+                <Image
+                  src="/demo-avatar.svg"
+                  alt="Perfil invitado"
+                  width={40}
+                  height={40}
+                  className="w-full h-full object-cover"
+                />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-bold text-[#20212B] truncate">{profile.fullName}</p>
-                <p className="text-[10px] text-slate-500 truncate">{profile.nutriName}</p>
+                <div className="flex items-center gap-1.5">
+                  <p className="text-xs font-bold text-[#20212B] truncate">{profile.fullName}</p>
+                  <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.2 rounded-full bg-[#E4ECC8] text-[#5A781E] border border-[#DDE7B8]">
+                    DEMO
+                  </span>
+                </div>
+                <p className="text-[11px] text-[#626573] truncate">{profile.nutriName}</p>
               </div>
             </div>
 
@@ -221,7 +227,7 @@ export function PatientMobileNavDrawer({
                     onClose();
                   }}
                   className={cn(
-                    "w-full flex items-center justify-between p-3 rounded-2xl text-left transition-all cursor-pointer group",
+                    "w-full flex items-center justify-between p-3 rounded-2xl text-left transition-all cursor-pointer group active:scale-[0.98]",
                     isActive
                       ? "bg-[#86A83C] text-white shadow-xs shadow-[#86A83C]/20"
                       : "text-slate-700 hover:bg-slate-50 hover:text-[#20212B]"
@@ -278,7 +284,7 @@ export function PatientMobileNavDrawer({
             <button
               type="button"
               onClick={handleSwitchToNutri}
-              className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold text-slate-700 hover:bg-[#F0F5DF] hover:text-[#5A781E] transition-colors cursor-pointer"
+              className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold text-slate-700 hover:bg-[#F0F5DF] hover:text-[#5A781E] active:scale-95 transition-all cursor-pointer"
             >
               <Stethoscope className="w-4 h-4 text-[#86A83C]" />
               <span>Ir a Vista Nutricionista</span>
@@ -286,7 +292,7 @@ export function PatientMobileNavDrawer({
             <button
               type="button"
               onClick={handleExitDemo}
-              className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+              className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 active:scale-95 transition-all cursor-pointer"
             >
               <LogOut className="w-4 h-4" />
               <span>Salir de la DEMO</span>

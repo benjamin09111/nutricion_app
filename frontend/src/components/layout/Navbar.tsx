@@ -223,10 +223,17 @@ export function Navbar({
           {/* Workspace Context — Clean, quiet & clinical */}
           <Link
             href="/dashboard"
-            className="flex items-center gap-1 sm:gap-2 min-w-0 hover:opacity-80 transition-opacity cursor-pointer select-none shrink-0"
+            className="flex items-center gap-1.5 sm:gap-2 min-w-0 hover:opacity-80 transition-opacity cursor-pointer select-none shrink-0"
             title="Ir al panel principal"
           >
-            <span className="text-xs font-bold text-[#668E20]">NutriNet</span>
+            <Image
+              src="/logo_2_cropped.webp"
+              alt="NutriNet"
+              width={140}
+              height={33}
+              className="h-6 sm:h-7 w-auto object-contain"
+              priority
+            />
             <span className="text-xs text-slate-300 hidden sm:inline">/</span>
             <span className="text-xs font-medium text-slate-600 hidden sm:inline">Espacio Clínico</span>
             {!isAdminView && (

@@ -2,15 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 import {
-  LayoutDashboard,
-  Utensils,
-  BookOpen,
-  FolderOpen,
-  HelpCircle,
-  Compass,
-  Menu,
-} from "lucide-react";
-import {
   loadPatientDemoState,
   savePatientDemoState,
   INITIAL_FILES,
@@ -35,9 +26,10 @@ import { PatientDiaryTab } from "@/features/patient-portal-demo/components/Patie
 import { PatientFilesTab } from "@/features/patient-portal-demo/components/PatientFilesTab";
 import { PatientQnATab } from "@/features/patient-portal-demo/components/PatientQnATab";
 import { PatientResourcesTab } from "@/features/patient-portal-demo/components/PatientResourcesTab";
-import { PatientGamificationFooter } from "@/features/patient-portal-demo/components/PatientGamificationFooter";
+import { PatientInstagramFooter } from "@/features/patient-portal-demo/components/PatientInstagramFooter";
+import { PatientLevelModal } from "@/features/patient-portal-demo/components/PatientLevelModal";
+import { PatientNotificationsModal } from "@/features/patient-portal-demo/components/PatientNotificationsModal";
 import { NatyPatientChatFloating } from "@/features/patient-portal-demo/components/NatyPatientChatFloating";
-import { cn } from "@/lib/utils";
 
 export function PatientDashboardClient() {
   const [profile, setProfile] = useState<PatientProfileState | null>(null);
@@ -47,6 +39,9 @@ export function PatientDashboardClient() {
   const [notifications, setNotifications] = useState<PatientNotification[]>([]);
   const [activeTab, setActiveTab] = useState<PatientNavTabId>("resumen");
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isLevelModalOpen, setIsLevelModalOpen] = useState(false);
+  const [isNatyChatOpen, setIsNatyChatOpen] = useState(false);
 
   // Load state from localStorage / defaults on mount
   useEffect(() => {
@@ -149,46 +144,15 @@ export function PatientDashboardClient() {
     savePatientDemoState({ notifications: updated });
   };
 
-  const navTabs: {
-    id: PatientNavTabId;
-    label: string;
-    icon: React.ElementType;
-    badge?: string;
-  }[] = [
-    { id: "resumen", label: "Resumen", icon: LayoutDashboard },
-    {
-      id: "comidas",
-      label: "Horario & Comidas",
-      icon: Utensils,
-      badge: `${meals.filter((m) => m.isConsumed).length}/${meals.length}`,
-    },
-    { id: "diario", label: "Diario de Vida", icon: BookOpen },
-    {
-      id: "archivos",
-      label: "Pautas & Archivos",
-      icon: FolderOpen,
-      badge: `${INITIAL_FILES.length}`,
-    },
-    { id: "preguntas", label: "Consultas al Nutri", icon: HelpCircle },
-    { id: "recursos", label: "Educación & Guías", icon: Compass },
-  ];
-
-  const currentTabConfig = navTabs.find((t) => t.id === activeTab) || navTabs[0];
-  const CurrentTabIcon = currentTabConfig.icon;
-
   return (
     <div className="min-h-screen bg-[#FAFAFB] text-[#20212B] flex flex-col justify-between selection:bg-[#F0F5DF] selection:text-[#5A781E]">
-      {/* 1. Header con botón Hamburger, logo, notificaciones y avatar */}
+      {/* 1. Header Minimalista: Logo a la izquierda, Hamburger a la derecha */}
       <PatientHeader
-        patientName={profile.fullName}
-        nutriName={profile.nutriName}
-        notifications={notifications}
-        onMarkAllNotificationsAsRead={handleMarkAllNotificationsAsRead}
         onOpenMobileNav={() => setIsMobileNavOpen(true)}
         onLogoClick={() => setActiveTab("resumen")}
       />
 
-      {/* 2. Drawer Desplegable Hamburger para Móviles */}
+      {/* 2. Drawer Desplegable Hamburger con Perfil y Módulos */}
       <PatientMobileNavDrawer
         isOpen={isMobileNavOpen}
         onClose={() => setIsMobileNavOpen(false)}
@@ -200,84 +164,24 @@ export function PatientDashboardClient() {
         filesCount={INITIAL_FILES.length}
       />
 
-      {/* 3. Contenido Principal */}
-      <main className="flex-1 max-w-6xl w-full mx-auto px-3 sm:px-6 py-3 sm:py-6 space-y-4 sm:space-y-6 pb-24 sm:pb-28">
-        {/* Banner de Bienvenida con Naty y recordatorio de siguiente comida */}
+      {/* 3. Contenido Principal (Flujo directo sin barra de pestañas intermedia) */}
+      <main className="flex-1 max-w-6xl w-full mx-auto px-3 sm:px-6 py-3 sm:py-6 space-y-4 sm:space-y-6 pb-32 sm:pb-36">
+        {/* Banner con Naty, Saludo, Consejo de la Nutri en acordeón y recordatorio de comida */}
         <NatyWelcomeBanner
           patientName={profile.fullName}
           nextMeal={nextMeal}
           currentStreakDays={profile.currentStreakDays}
+          totalStars={profile.totalStars}
+          completedMealsCount={meals.filter((m) => m.isConsumed).length}
+          totalMealsCount={meals.length}
+          nutriName={profile.nutriName}
+          nutriSpecialty={profile.nutriSpecialty}
           onConsumeMeal={handleToggleMeal}
           onViewMealsTab={() => setActiveTab("comidas")}
         />
 
-        {/* 
-          Barra Móvil Compacta: Indicador del módulo activo con botón para abrir el hamburger
-          (Reemplaza la tira de scroll incómoda en móviles)
-        */}
-        <div className="md:hidden flex items-center justify-between p-2.5 rounded-2xl bg-white border border-[#E9E5E7] shadow-2xs">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-[#F0F5DF] text-[#5A781E] flex items-center justify-center">
-              <CurrentTabIcon className="w-4 h-4" />
-            </div>
-            <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block leading-none">
-                Módulo actual
-              </span>
-              <span className="text-xs font-black text-[#20212B]">
-                {currentTabConfig.label}
-              </span>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setIsMobileNavOpen(true)}
-            className="h-8 px-3 rounded-xl bg-[#F0F5DF] hover:bg-[#E4ECC8] text-[#5A781E] text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
-          >
-            <Menu className="w-3.5 h-3.5" />
-            <span>Módulos</span>
-          </button>
-        </div>
-
-        {/* Barra de Pestañas para Pantallas Medianas y Grandes (Desktop) */}
-        <div className="hidden md:block sticky top-14 sm:top-16 z-20 bg-[#FAFAFB]/95 backdrop-blur-md py-2">
-          <div className="flex items-center gap-1.5 p-1 bg-white rounded-2xl border border-[#E9E5E7] shadow-2xs">
-            {navTabs.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setActiveTab(tab.id)}
-                  className={cn(
-                    "flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer",
-                    isActive
-                      ? "bg-[#86A83C] text-white shadow-xs shadow-[#86A83C]/20"
-                      : "text-slate-600 hover:text-[#20212B] hover:bg-slate-50 active:scale-95"
-                  )}
-                >
-                  <Icon className={cn("w-4 h-4", isActive ? "text-white" : "text-slate-400")} />
-                  <span>{tab.label}</span>
-                  {tab.badge && (
-                    <span
-                      className={cn(
-                        "text-[10px] font-black px-1.5 py-0.2 rounded-full",
-                        isActive ? "bg-white/25 text-white" : "bg-slate-100 text-slate-500"
-                      )}
-                    >
-                      {tab.badge}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Contenido de la pestaña activa */}
-        <div className="w-full animate-in fade-in duration-150">
+        {/* Contenido del Módulo Activo con animación fluida al cambiar de tab */}
+        <div key={activeTab} className="w-full animate-in fade-in-50 slide-in-from-bottom-2 duration-250 ease-out">
           {activeTab === "resumen" && (
             <PatientSummaryTab
               profile={profile}
@@ -311,11 +215,33 @@ export function PatientDashboardClient() {
         </div>
       </main>
 
-      {/* 4. Footer Gamificado con Estrellas y Racha (Compacto, pb-safe) */}
-      <PatientGamificationFooter profile={profile} />
+      {/* 4. Footer Estilo Instagram: Notificaciones (Izq), Nutria Naty (Centro), Mi Nivel / Trofeo (Der) */}
+      <PatientInstagramFooter
+        profile={profile}
+        unreadNotificationsCount={notifications.filter((n) => !n.isRead).length}
+        onOpenNotifications={() => setIsNotificationsOpen(true)}
+        onOpenNatyChat={() => setIsNatyChatOpen(true)}
+        onOpenLevelModal={() => setIsLevelModalOpen(true)}
+      />
 
-      {/* 5. Chat Flotante con Naty la nutria */}
-      <NatyPatientChatFloating />
+      {/* 5. Modales flotantes interactivos accionados desde el Footer */}
+      <PatientNotificationsModal
+        isOpen={isNotificationsOpen}
+        onClose={() => setIsNotificationsOpen(false)}
+        notifications={notifications}
+        onMarkAllAsRead={handleMarkAllNotificationsAsRead}
+      />
+
+      <PatientLevelModal
+        isOpen={isLevelModalOpen}
+        onClose={() => setIsLevelModalOpen(false)}
+        profile={profile}
+      />
+
+      <NatyPatientChatFloating
+        isOpen={isNatyChatOpen}
+        onClose={() => setIsNatyChatOpen(false)}
+      />
     </div>
   );
 }

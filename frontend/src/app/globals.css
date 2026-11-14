@@ -795,3 +795,38 @@ html {
   scrollbar-width: none !important;
 }
 
+
+/* Patient Mobile Fluid Sheet & Spring Animations */
+@keyframes slide-up-sheet {
+  0% {
+    transform: translateY(100%);
+    opacity: 0.5;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes spring-pop {
+  0% {
+    transform: scale(0.92) translateY(8px);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.02) translateY(-2px);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-sheet-up {
+  animation: slide-up-sheet 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-spring-pop {
+  animation: spring-pop 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}

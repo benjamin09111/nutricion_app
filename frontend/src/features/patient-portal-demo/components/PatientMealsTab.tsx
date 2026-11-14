@@ -66,7 +66,7 @@ export function PatientMealsTab({ meals, onToggleMeal }: PatientMealsTabProps) {
                   type="button"
                   onClick={() => handleToggle(meal)}
                   className={cn(
-                    "w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer shrink-0 mt-0.5",
+                    "w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-90 hover:scale-105 cursor-pointer shrink-0 mt-0.5",
                     meal.isConsumed
                       ? "bg-[#86A83C] text-white shadow-2xs"
                       : "bg-slate-100 hover:bg-[#F0F5DF] text-slate-400 hover:text-[#5A781E]"
