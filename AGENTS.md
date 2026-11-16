@@ -63,6 +63,13 @@ Guidelines aligned with the feedback received on the project presentation (`feed
   - **Compliance Icons**: Include a prominent "privacy & information" icon in the patients section detailing compliance with data laws, and keep Terms & Conditions updated.
 - **Client Acquisition Integration**: Plan for public profiles to list nutritionists' specialties and funnel patients from gyms and other physical points.
 
+## Product Analytics & CI/CD Rules
+
+22. **Privacy-first product analytics**: Product events may contain only normalized routes, event names, durations, roles, and pseudonymous account/session identifiers. Never send patient names, RUT, clinical metrics, consultation content, diet/recipe content, tokens, query strings, or secrets to PostHog or any analytics provider.
+23. **Admin visibility**: Usage summaries belong in `/dashboard/admin/analitica` and must be protected by backend staff authorization; frontend visibility checks are not sufficient.
+24. **Optional PostHog**: PostHog is disabled unless `POSTHOG_API_KEY` and `POSTHOG_HOST` are configured in the backend environment. The API key must never be exposed to the frontend.
+25. **CI/CD gate**: Pull requests and pushes to `staging`/`main` must pass backend Prisma generation, backend tests/build, frontend lint, and frontend build. Production migrations are applied only through the documented migration gate.
+
 ## On-Demand Knowledge
 Detailed documentation and playbooks are loaded automatically on matching:
 - Playbooks: `.agents/skills/<skill-name>/SKILL.md` (e.g. `nestjs-module`, `prisma-migration`, `test-jest`).

@@ -31,6 +31,7 @@ const WORKER_ALLOWED_ADMIN_PATHS = [
   "/dashboard/admin/mensajes",
   "/dashboard/admin/feedback",
   "/dashboard/admin/cupones",
+  "/dashboard/admin/analitica",
 ];
 
 const isAllowedWorkerAdminPath = (pathname: string) =>

@@ -20,6 +20,7 @@ import {
   Star,
   Trash2,
   TrendingUp,
+  BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDashboardShell } from "@/context/DashboardShellContext";
@@ -55,6 +56,11 @@ const groups: SidebarGroup[] = [
         name: "Métricas Landing",
         href: "/dashboard/admin/metricas-landing",
         icon: TrendingUp,
+      },
+      {
+        name: "Analítica de uso",
+        href: "/dashboard/admin/analitica",
+        icon: BarChart3,
       },
     ],
   },
@@ -138,6 +144,7 @@ const groups: SidebarGroup[] = [
 const WORKER_ALLOWED_PATHS = new Set([
   "/dashboard/admin",
   "/dashboard/admin/metricas-landing",
+  "/dashboard/admin/analitica",
   "/dashboard/admin/nutricionistas",
   "/dashboard/admin/mensajes",
   "/dashboard/admin/feedback",
