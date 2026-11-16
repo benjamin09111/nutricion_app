@@ -7,6 +7,10 @@
     "dev": "node scripts/dev.js",
     "dev:backend": "npm --prefix backend run start:dev",
     "dev:frontend": "npm --prefix frontend run dev",
-    "install:all": "npm --prefix backend install && npm --prefix frontend install"
+    "install:all": "npm --prefix backend install && npm --prefix frontend install",
+    "security:bla:doctor": "npx --yes bla-agents@3.4.1 doctor",
+    "security:bla:inspect": "npx --yes bla-agents@3.4.1 inspect-release",
+    "security:bla:lint": "npx --yes bla-agents@3.4.1 lint",
+    "security:bla:harden": "npx --yes bla-agents@3.4.1 harden"
   }
 }
