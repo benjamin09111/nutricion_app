@@ -17,6 +17,7 @@ import {
   Search,
   Share2,
   User,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -109,6 +110,10 @@ export default function CreationsClient({
   // Modal State
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [infoModalOpen, setInfoModalOpen] = useState(false);
+  const [previewPdfModalOpen, setPreviewPdfModalOpen] = useState(false);
+  const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
+  const [previewPdfName, setPreviewPdfName] = useState<string>("");
+  const [isLoadingPdfPreview, setIsLoadingPdfPreview] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<Creation | null>(null);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
@@ -197,6 +202,8 @@ export default function CreationsClient({
       });
     }
 
+    const rawMeals = Array.isArray(raw.content?.meals) ? raw.content.meals : [];
+
     return {
       dietName: raw.name || "Dieta Base",
       dietTags: raw.tags || raw.content?.dietTags || [],
@@ -205,6 +212,9 @@ export default function CreationsClient({
       activeConstraints: raw.content?.activeConstraints || [],
       patientName: raw.metadata?.patientName || raw.content?.patientMeta?.fullName || raw.content?.patientName,
       foods,
+      meals: rawMeals,
+      includeMealsSection: rawMeals.length > 0,
+      includeFoodTableSection: foods.length > 0,
     };
   };
 
@@ -230,7 +240,7 @@ export default function CreationsClient({
       : (rawResource && rawResource.title ? [{ resourceId: "hist", title: rawResource.title, content: rawResource.content || "" }] : []);
 
     const rawMeals = Array.isArray(rawContent.meals) ? rawContent.meals : [];
-    const normalizedMeals = rawMeals.map((m: any, index: number) => ({
+    let normalizedMeals = rawMeals.map((m: any, index: number) => ({
       id: m.id || `meal-${index}`,
       section: m.section || m.name || `Comida ${index + 1}`,
       time: m.time || "",
@@ -238,6 +248,17 @@ export default function CreationsClient({
       portion: m.portion || "",
       optionTexts: Array.isArray(m.optionTexts) ? m.optionTexts : [],
     }));
+
+    if (normalizedMeals.length === 0 && paragraphsFormatted.length > 0) {
+      normalizedMeals = paragraphsFormatted.map((p: any, idx: number) => ({
+        id: `synth-meal-${idx}`,
+        section: p.title || `Comida ${idx + 1}`,
+        time: p.subtitle || "",
+        mealText: Array.isArray(p.foods) ? p.foods.join("\n") : "",
+        portion: "1 porción",
+        optionTexts: [],
+      }));
+    }
 
     return {
       name:
@@ -256,10 +277,7 @@ export default function CreationsClient({
             : (typeof rawContent.restriction === "string" ? rawContent.restriction : null),
       planObjective: typeof rawContent.planObjective === "string" ? rawContent.planObjective : undefined,
       showPlanObjectiveInPdf: rawContent.showPlanObjectiveInPdf === true,
-      contentMode:
-        (rawContent.contentMode as any) ||
-        (rawContent.pautaEditorMode as any) ||
-        (paragraphsFormatted.length > 0 ? "paragraphs" : "table"),
+      contentMode: "table" as const,
       paragraphs: paragraphsFormatted,
       tableMode: getFastDeliverableTableMode(rawContent.tableMode),
       meals: normalizedMeals.length > 0
@@ -289,6 +307,89 @@ export default function CreationsClient({
       ? new Date(raw.content.updatedAt).toLocaleDateString("es-CL")
       : new Date().toLocaleDateString("es-CL"),
   });
+
+  const generatePdfBlob = async (
+    type: CreationType,
+    raw: any,
+  ): Promise<{ blob: Blob; safeName: string }> => {
+    const [{ pdf }, React] = await Promise.all([
+      import("@react-pdf/renderer"),
+      import("react"),
+    ]);
+
+    if (type === CreationType.DIET) {
+      const { DietPdfDocument } = await import("@/features/pdf/DietPdfDocument");
+      const data = buildDietData(raw);
+      const doc = React.createElement(DietPdfDocument, { data });
+      const blob = await pdf(doc as any).toBlob();
+      const safeName =
+        (data.dietName || "dieta").replace(/\s+/g, "_").replace(/[^\w-]/g, "") || "dieta";
+      return { blob, safeName };
+    }
+
+    if (type === CreationType.RECIPE) {
+      const { QuickRecipesPdfDocument } = await import("@/features/pdf/QuickRecipesPdfDocument");
+      const data = buildQuickRecipesData(raw);
+      const doc = React.createElement(QuickRecipesPdfDocument, { data });
+      const blob = await pdf(doc as any).toBlob();
+      const safeName =
+        (data.title || "recetas").replace(/\s+/g, "_").replace(/[^\w-]/g, "") || "recetas";
+      return { blob, safeName };
+    }
+
+    if (type === CreationType.SCREENING_TEST) {
+      const { ScreeningTestPdfDocument } = await import("@/features/pdf/ScreeningTestPdfDocument");
+      const pdfData = {
+        name: raw.name || raw.content?.testType || "Test_Tamizaje",
+        content: raw.content,
+      };
+      const doc = React.createElement(ScreeningTestPdfDocument, { data: pdfData });
+      const blob = await pdf(doc as unknown as Parameters<typeof pdf>[0]).toBlob();
+      const safeName =
+        (raw.name || "test_tamizaje").replace(/\s+/g, "_").replace(/[^\w-]/g, "") || "test_tamizaje";
+      return { blob, safeName };
+    }
+
+    // Default to FastDeliverable (FAST_DELIVERABLE or PAUTAS)
+    const { FastDeliverablePdfDocument } = await import("@/features/pdf/FastDeliverablePdfDocument");
+    const data = buildFastDeliverableData(raw);
+    const doc = React.createElement(FastDeliverablePdfDocument, { data });
+    const blob = await pdf(doc as unknown as Parameters<typeof pdf>[0]).toBlob();
+    const safeName =
+      (data.name || "pauta_rapida").replace(/\s+/g, "_").replace(/[^\w-]/g, "") || "pauta_rapida";
+    return { blob, safeName };
+  };
+
+  const handlePreviewPdf = async (item: Creation) => {
+    setSelectedItem(item);
+    setIsLoadingPdfPreview(true);
+    setPreviewPdfModalOpen(true);
+    try {
+      const raw = await fetchFullData(item.id);
+      if (!raw) {
+        toast.error("No se pudo obtener los datos de la creación.");
+        setPreviewPdfModalOpen(false);
+        return;
+      }
+      const { blob, safeName } = await generatePdfBlob(item.type, raw);
+      const url = URL.createObjectURL(blob);
+      setPreviewPdfUrl(url);
+      setPreviewPdfName(safeName);
+    } catch (e) {
+      console.error("Error al generar vista previa:", e);
+      toast.error("Error al generar la vista previa del PDF.");
+    } finally {
+      setIsLoadingPdfPreview(false);
+    }
+  };
+
+  const closePreviewPdfModal = () => {
+    setPreviewPdfModalOpen(false);
+    if (previewPdfUrl) {
+      URL.revokeObjectURL(previewPdfUrl);
+      setPreviewPdfUrl(null);
+    }
+  };
 
   const handleDownloadClick = async (item: Creation) => {
     setSelectedItem(item);
@@ -601,65 +702,22 @@ export default function CreationsClient({
       header: "Acciones",
       className: "text-right",
       render: (item) => (
-        <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+          <button
+            onClick={() => handlePreviewPdf(item)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#668E20] bg-[#F0F5DF] hover:bg-[#E4ECC8] rounded-xl transition-all cursor-pointer shadow-2xs"
+            title="Vista previa del documento PDF"
+          >
+            <Eye className="h-3.5 w-3.5" />
+            <span>Vista previa</span>
+          </button>
           <button
             onClick={() => handleInfoClick(item)}
-            className="p-1.5 text-[#848792] hover:text-[#668E20] hover:bg-[#F0F5DF] rounded-lg transition-all cursor-pointer"
-            title="Más info"
+            className="p-1.5 text-[#848792] hover:text-[#20212B] hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
+            title="Más información"
           >
             <Info className="h-4 w-4" />
           </button>
-          {item.type !== CreationType.FAST_DELIVERABLE && (
-            <button
-              onClick={() => handleViewClick(item)}
-              className="p-1.5 text-[#848792] hover:text-[#668E20] hover:bg-[#F0F5DF] rounded-lg transition-all cursor-pointer"
-              title="Previsualizar"
-            >
-              <Eye className="h-4 w-4" />
-            </button>
-          )}
-          <button
-            onClick={() => handleEdit(item)}
-            className="p-1.5 text-[#848792] hover:text-[#668E20] hover:bg-[#F0F5DF] rounded-lg transition-all cursor-pointer"
-            title="Editar"
-          >
-            <Edit className="h-4 w-4" />
-          </button>
-          <button
-            onClick={() => handleDownloadClick(item)}
-            className="p-1.5 text-[#848792] hover:text-[#668E20] hover:bg-[#F0F5DF] rounded-lg transition-all cursor-pointer"
-            title="Descargar / Exportar"
-          >
-            <Download className="h-4 w-4" />
-          </button>
-          {isInsidePatientDetail && (
-            <button
-              onClick={() => handleShareClick(item)}
-              disabled={isSharing === item.id}
-              className={cn(
-                "p-1.5 rounded-lg transition-all cursor-pointer",
-                sharedCreationIdSet.has(item.id)
-                  ? "text-[#668E20] bg-[#F0F5DF] animate-pulse hover:bg-[#E4ECC8]"
-                  : "text-[#848792] hover:text-[#668E20] hover:bg-[#F0F5DF]",
-                isSharing === item.id && "cursor-not-allowed"
-              )}
-              title="Compartir con el paciente"
-            >
-              <Share2 className="h-4 w-4" />
-            </button>
-          )}
-          {(item.type !== CreationType.SCREENING_TEST || canDeleteScreeningTests) && (
-            <>
-              <div className="w-px h-3.5 bg-[#E9E5E7] mx-0.5" />
-              <button
-                onClick={() => handleDelete(item.id)}
-                className="p-1.5 text-[#848792] hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all cursor-pointer"
-                title="Eliminar"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            </>
-          )}
         </div>
       ),
     },
@@ -669,82 +727,25 @@ export default function CreationsClient({
     <div className="space-y-6">
       {!isInsidePatientDetail && (
         <>
-          {/* Barra de Indicadores — Idéntica a Pacientes, Consultas y Alimentos con 3 columnas */}
-          <div className="relative overflow-hidden bg-white border border-[#E9E5E7] rounded-[18px] p-5 sm:p-6 min-h-[110px] shadow-2xs">
-            <svg
-              className="absolute left-0 top-0 h-full w-36 text-[#B0C76F] pointer-events-none select-none opacity-15"
-              viewBox="0 0 120 100"
-              preserveAspectRatio="none"
-              fill="currentColor"
-            >
-              <path d="M0 0 C 45 15, 65 55, 25 100 L 0 100 Z" />
-              <path d="M0 20 C 35 35, 45 75, 10 100 L 0 100 Z" opacity="0.6" />
-            </svg>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 divide-y md:divide-y-0 md:divide-x divide-[#F0ECEE] relative z-10">
-              {/* 1. Creaciones totales */}
-              <div className="flex items-center justify-between sm:px-3">
-                <div className="flex items-center gap-3.5">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#F0F5DF] text-[#668E20]">
-                    <Folder className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-[#626573]">Total creaciones</p>
-                    <h3 className="text-3xl font-semibold text-[#20212B] tracking-tight leading-none mt-1">
-                      {localCreations.length}
-                    </h3>
-                  </div>
-                </div>
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#F0F5DF] text-[#668E20] border border-[#DDE7B8]">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#86A83C] animate-pulse" />
-                  <span>Historial</span>
-                </span>
-              </div>
-
-              {/* 2. Pacientes con pautas */}
-              <div className="flex items-center justify-between pt-4 md:pt-0 md:px-6">
-                <div className="flex items-center gap-3.5">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-[#626573]">
-                    <User className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-[#626573]">Pacientes con pautas</p>
-                    <h3 className="text-3xl font-semibold text-[#20212B] tracking-tight leading-none mt-1">
-                      {new Set(localCreations.map((c: any) => c.patientName).filter(Boolean)).size}
-                    </h3>
-                  </div>
-                </div>
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-[#626573] border border-slate-200">
-                  En seguimiento
-                </span>
-              </div>
-
-              {/* 3. Módulo Rápido */}
-              <div className="flex items-center justify-between pt-4 md:pt-0 md:px-6">
-                <div className="flex items-center gap-3.5">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#F0F5DF] text-[#668E20]">
-                    <NotebookText className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-[#626573]">Módulo Rápido</p>
-                    <h3 className="text-3xl font-semibold text-[#20212B] tracking-tight leading-none mt-1">
-                      {localCreations.filter((c) => c.type === CreationType.FAST_DELIVERABLE || c.type === CreationType.PAUTAS).length}
-                    </h3>
-                  </div>
-                </div>
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#F0F5DF] text-[#668E20] border border-[#DDE7B8]">
-                  100% disponibles
-                </span>
-              </div>
+          {/* Resumen simple y compacto (reemplaza banner masivo para móviles) */}
+          <div className="flex flex-wrap items-center justify-between sm:justify-start gap-2.5 sm:gap-6 bg-white border border-[#E9E5E7] rounded-xl px-4 py-2.5 shadow-2xs text-xs">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#86A83C]" />
+              <span className="text-[#626573] font-medium">Creaciones:</span>
+              <strong className="text-[#20212B] font-bold">{localCreations.length}</strong>
             </div>
-          </div>
-
-          {/* Recomendación de uso */}
-          <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-[#F8F9FB] border border-[#E9E5E7] text-[#626573] text-xs font-medium">
-            <Info className="w-4 h-4 text-[#86A83C] shrink-0" />
-            <span>
-              <strong className="text-[#20212B]">Recomendación de uso:</strong> puedes crear plantillas generales en el módulo Rápido para reutilizarlas con tus pacientes.
-            </span>
+            <div className="h-3.5 w-px bg-[#E9E5E7]" />
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#668E20]" />
+              <span className="text-[#626573] font-medium">Pacientes con pautas:</span>
+              <strong className="text-[#20212B] font-bold">{new Set(localCreations.map((c: any) => c.patientName).filter(Boolean)).size}</strong>
+            </div>
+            <div className="hidden sm:block h-3.5 w-px bg-[#E9E5E7]" />
+            <div className="hidden sm:flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-slate-400" />
+              <span className="text-[#626573] font-medium">Historial:</span>
+              <strong className="text-[#20212B] font-bold">100% disponibles</strong>
+            </div>
           </div>
         </>
       )}
@@ -793,10 +794,10 @@ export default function CreationsClient({
                 onChange={(val) => setSelectedType(val as any)}
                 options={[
                   { value: "Todos", label: "Todos los Tipos" },
-                  { value: CreationType.DIET, label: "Dietas" },
-                  { value: CreationType.SHOPPING_LIST, label: "Listas de Compra" },
-                  { value: CreationType.RECIPE, label: "Recetas" },
                   { value: CreationType.FAST_DELIVERABLE, label: "Rápido" },
+                  { value: CreationType.RECIPE, label: "Recetas" },
+                  { value: CreationType.PAUTAS, label: "Personalizado" },
+                  { value: CreationType.DIET, label: "Dietas" },
                 ]}
                 triggerClassName="h-11 rounded-xl border-[#E9E5E7] bg-white text-sm font-medium text-[#20212B] shadow-2xs"
               />
@@ -817,62 +818,50 @@ export default function CreationsClient({
           </div>
         </div>
 
-        <div className="px-1 pt-1">
-          <p className="text-xs font-semibold text-[#626573]">
-            <span className="font-bold text-[#668E20]">{filteredData.length}</span> creaciones encontradas
-          </p>
+        <div className="px-1 text-xs text-[#626573] flex items-center gap-1.5">
+          <span>
+            Mostrando <strong className="font-semibold text-[#20212B]">{filteredData.length}</strong> creaciones encontradas
+          </span>
         </div>
       </div>
 
-      {/* Desktop Table View */}
-      <div className="hidden lg:block bg-white rounded-2xl border border-[#E9E5E7] shadow-2xs overflow-hidden">
-        <RecordsTable
-          columns={creationColumns}
-          data={paginatedData}
-          keyExtractor={(item) => item.id}
-          isLoading={isLoading}
-          loadingRows={5}
-          loadingColumns={6}
-          emptyState={
-            <div className="flex flex-col items-center justify-center space-y-3">
-              <div className="p-4 bg-slate-50 rounded-full">
-                <Folder className="h-8 w-8 text-slate-300" />
-              </div>
-              <div className="space-y-1">
-                <p className="text-base font-bold text-slate-600">
-                  No se encontraron creaciones
+      {/* Tabla de Creaciones — Sin contenedor de borde, idéntico a Pacientes y Consultas */}
+      <div className="space-y-4">
+        {/* Desktop Table View */}
+        <div className="hidden md:block">
+          <RecordsTable
+            columns={creationColumns}
+            data={paginatedData}
+            keyExtractor={(item) => item.id}
+            isLoading={isLoading}
+            loadingRows={5}
+            loadingColumns={6}
+            onRowClick={(item) => handleInfoClick(item)}
+            emptyState={
+              <div className="flex flex-col items-center gap-4 py-8">
+                <div className="h-16 w-16 bg-slate-50 rounded-2xl flex items-center justify-center border border-slate-100">
+                  <Folder className="h-8 w-8 text-slate-300" />
+                </div>
+                <p className="text-slate-500 font-medium">
+                  Sin creaciones registradas
                 </p>
-                <p className="text-sm text-slate-400">
-                  Intenta ajustar los filtros de búsqueda.
-                </p>
               </div>
-            </div>
-          }
-          rowClassName="hover:bg-[#F8F9FB] transition-colors group cursor-pointer"
-          footer={
-            <div className="flex items-center justify-between px-4 py-3 border-t border-[#E8EBF0]">
-              <p className="text-xs font-semibold text-[#626573]">
-                Mostrando{" "}
-                <span className="font-bold text-[#20212B]">{paginatedData.length}</span> de{" "}
-                <span className="font-bold text-[#20212B]">{filteredData.length}</span>{" "}
-                resultados
-              </p>
-              <div className="flex items-center gap-2">
-                {totalPages > 1 && (
-                  <Pagination
-                    currentPage={currentPage}
-                    totalPages={totalPages}
-                    onPageChange={setCurrentPage}
-                  />
-                )}
-              </div>
-            </div>
-          }
-        />
-      </div>
+            }
+            rowClassName="hover:bg-slate-50 transition-colors group cursor-pointer"
+            footer={
+              totalPages > 1 ? (
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+                />
+              ) : undefined
+            }
+          />
+        </div>
 
-      {/* Mobile Cards View */}
-      <div className="lg:hidden space-y-3">
+        {/* Mobile Cards View */}
+        <div className="md:hidden space-y-3">
         {isLoading ? (
           <MobileCardLoadingList rows={3} />
         ) : paginatedData.length > 0 ? (
@@ -880,7 +869,7 @@ export default function CreationsClient({
             <div
               key={item.id}
               onClick={() => handleInfoClick(item)}
-              className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3 cursor-pointer active:scale-[0.99] transition-all"
+              className="bg-white p-4 rounded-2xl border border-[#E9E5E7] shadow-2xs space-y-3 cursor-pointer active:scale-[0.99] transition-all"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
@@ -893,9 +882,9 @@ export default function CreationsClient({
                     {getTypeIcon(item.type)}
                   </div>
                   <div className="min-w-0">
-                    <h3 className="font-bold text-slate-900 text-sm truncate">{item.name}</h3>
+                    <h3 className="font-bold text-[#20212B] text-sm truncate">{item.name}</h3>
                     <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                      <span className="text-xs text-slate-500 font-medium">{item.createdAt}</span>
+                      <span className="text-xs text-[#626573] font-medium">{item.createdAt}</span>
                       <span className={cn("inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-bold ring-1 ring-inset", getTypeStyles(item.type))}>
                         {item.type}
                       </span>
@@ -907,7 +896,7 @@ export default function CreationsClient({
               {((item as any).patientName || (item.tags && item.tags.length > 0)) && (
                 <div className="flex items-center justify-between gap-2 flex-wrap text-xs pt-1">
                   {(item as any).patientName ? (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-bold border border-indigo-100">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-[#F0F5DF] text-[#668E20] text-xs font-semibold border border-[#DDE7B8]">
                       <User className="w-3 h-3" />
                       {(item as any).patientName}
                     </span>
@@ -917,7 +906,7 @@ export default function CreationsClient({
 
                   <div className="flex flex-wrap gap-1">
                     {item.tags?.slice(0, 2).map((tag) => (
-                      <span key={tag} className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                      <span key={tag} className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-[#626573]">
                         #{tag}
                       </span>
                     ))}
@@ -926,61 +915,20 @@ export default function CreationsClient({
               )}
 
               {/* Card Footer Actions */}
-              <div className="flex items-center justify-between pt-2 border-t border-slate-100" onClick={(e) => e.stopPropagation()}>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => handleInfoClick(item)}
-                    className="p-2 text-slate-400 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 rounded-xl transition-all"
-                    title="Más info"
-                  >
-                    <Info className="h-4 w-4" />
-                  </button>
-                  {item.type !== CreationType.FAST_DELIVERABLE && (
-                    <button
-                      onClick={() => handleViewClick(item)}
-                      className="p-2 text-slate-400 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 rounded-xl transition-all"
-                      title="Previsualizar"
-                    >
-                      <Eye className="h-4 w-4" />
-                    </button>
-                  )}
-                  <button
-                    onClick={() => handleEdit(item)}
-                    className="p-2 text-slate-400 hover:text-blue-600 bg-slate-50 hover:bg-blue-50 rounded-xl transition-all"
-                    title="Editar"
-                  >
-                    <Edit className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDownloadClick(item)}
-                    className="p-2 text-slate-400 hover:text-emerald-600 bg-slate-50 hover:bg-emerald-50 rounded-xl transition-all"
-                    title="Descargar / Exportar"
-                  >
-                    <Download className="h-4 w-4" />
-                  </button>
-                  {isInsidePatientDetail && (
-                    <button
-                      onClick={() => handleShareClick(item)}
-                      disabled={isSharing === item.id}
-                      className={cn(
-                        "p-2 rounded-xl transition-all",
-                        sharedCreationIdSet.has(item.id)
-                          ? "text-emerald-600 bg-emerald-50 animate-pulse"
-                          : "text-slate-400 hover:text-indigo-600 bg-slate-50",
-                      )}
-                      title="Compartir con paciente"
-                    >
-                      <Share2 className="h-4 w-4" />
-                    </button>
-                  )}
-                </div>
-
+              <div className="flex items-center justify-between pt-3 border-t border-slate-100" onClick={(e) => e.stopPropagation()}>
                 <button
-                  onClick={() => handleDelete(item.id)}
-                  className="p-2 text-slate-400 hover:text-rose-600 bg-slate-50 hover:bg-rose-50 rounded-xl transition-all"
-                  title="Eliminar"
+                  onClick={() => handleInfoClick(item)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#626573] hover:text-[#20212B] bg-slate-50 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
                 >
-                  <Trash2 className="h-4 w-4 text-rose-500" />
+                  <Info className="h-3.5 w-3.5" />
+                  <span>Más info</span>
+                </button>
+                <button
+                  onClick={() => handlePreviewPdf(item)}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-[#668E20] bg-[#F0F5DF] hover:bg-[#E4ECC8] rounded-xl transition-all shadow-2xs cursor-pointer"
+                >
+                  <Eye className="h-3.5 w-3.5" />
+                  <span>Vista previa</span>
                 </button>
               </div>
             </div>
@@ -1005,65 +953,102 @@ export default function CreationsClient({
           )}
         </div>
       </div>
+    </div>
 
+      {/* Modal: Más información (Visual Minimalista sin bordes pesados) */}
       <Modal
         isOpen={infoModalOpen}
         onClose={() => {
           setInfoModalOpen(false);
           setSelectedItem(null);
         }}
-        title="Información de la creación"
+        title="Información de la Creación"
       >
-        <div className="space-y-4">
+        <div className="space-y-5">
           {selectedItem ? (
             <>
+              {/* Header con título y badges limpios */}
               <div className="space-y-2">
-                <p className="text-lg font-semibold text-slate-900">
+                <h3 className="text-lg sm:text-xl font-bold text-[#20212B] tracking-tight leading-snug">
                   {selectedItem.name}
-                </p>
-                <div className="flex flex-wrap gap-2">
+                </h3>
+                <div className="flex flex-wrap items-center gap-2">
                   <span
                     className={cn(
-                      "inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset",
+                      "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold",
                       getTypeStyles(selectedItem.type),
                     )}
                   >
                     {selectedItem.type}
                   </span>
                   {selectedItem.patientName ? (
-                    <span className="inline-flex items-center rounded-md bg-indigo-50 px-2 py-1 text-xs font-bold text-indigo-700 ring-1 ring-inset ring-indigo-200">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F0F5DF] px-2.5 py-0.5 text-xs font-semibold text-[#668E20] border border-[#DDE7B8]">
+                      <User className="w-3 h-3" />
                       {selectedItem.patientName}
                     </span>
                   ) : null}
+                  {selectedItem.tags?.map((tag) => (
+                    <span
+                      key={tag}
+                      className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-[#626573]"
+                    >
+                      #{tag}
+                    </span>
+                  ))}
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">
-                  Descripción
-                </p>
-                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">
-                  {selectedItem.description?.trim() ||
-                    "Esta creación no tiene descripción guardada."}
-                </p>
+              {/* Lista limpia de metadatos tipográficos con divisor sutil */}
+              <div className="divide-y divide-[#F0ECEE] text-sm">
+                <div className="py-3 space-y-1">
+                  <span className="text-[11px] font-bold text-[#848792] uppercase tracking-wider">
+                    Descripción del plan
+                  </span>
+                  <p className="text-sm text-[#20212B] leading-relaxed">
+                    {selectedItem.description?.trim() ||
+                      "Pauta nutricional personalizada y estructurada para el cumplimiento de objetivos clínicos."}
+                  </p>
+                </div>
+
+                <div className="py-3 flex items-center justify-between gap-4">
+                  <span className="text-[11px] font-bold text-[#848792] uppercase tracking-wider">
+                    Fecha de elaboración
+                  </span>
+                  <span className="text-sm font-medium text-[#20212B]">
+                    {selectedItem.createdAt}
+                  </span>
+                </div>
+
+                <div className="py-3 flex items-center justify-between gap-4">
+                  <span className="text-[11px] font-bold text-[#848792] uppercase tracking-wider">
+                    Formato de exportación
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#626573]">
+                    <FileText className="w-3.5 h-3.5 text-[#86A83C]" />
+                    Documento Clínico PDF
+                  </span>
+                </div>
               </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">
-                  Fecha
-                </p>
-                <p className="mt-2 text-sm font-medium text-slate-700">
-                  {selectedItem.createdAt}
-                </p>
-              </div>
-
-              <div className="flex justify-end">
+              {/* Acciones de pie: Ver vista previa y Cerrar */}
+              <div className="flex items-center justify-between gap-3 pt-2">
                 <Button
                   variant="outline"
-                  className="rounded-xl border-slate-200 text-slate-600"
+                  className="rounded-xl border-[#E9E5E7] text-[#626573] hover:text-[#20212B] text-xs h-10 px-4 font-semibold"
                   onClick={() => setInfoModalOpen(false)}
                 >
                   Cerrar
+                </Button>
+                <Button
+                  className="rounded-xl bg-[#86A83C] hover:bg-[#78A82F] text-white text-xs h-10 px-5 font-semibold flex items-center gap-2 shadow-2xs"
+                  onClick={() => {
+                    const item = selectedItem;
+                    setInfoModalOpen(false);
+                    if (item) handlePreviewPdf(item);
+                  }}
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  <span>Ver vista previa PDF</span>
                 </Button>
               </div>
             </>
@@ -1071,157 +1056,50 @@ export default function CreationsClient({
         </div>
       </Modal>
 
+      {/* Modal: Vista previa de Documento PDF */}
       <Modal
-        isOpen={viewModalOpen}
-        onClose={() => {
-          setViewModalOpen(false);
-          setFullCreationData(null);
-        }}
-        title="Detalles de la Creación"
+        isOpen={previewPdfModalOpen}
+        onClose={closePreviewPdfModal}
+        title="Vista Previa del Documento"
+        className="max-w-4xl"
       >
-        <div className="space-y-6">
-          {isLoadingDetails ? (
-            <div className="flex flex-col items-center justify-center py-12 space-y-3">
-              <Loader2 className="h-10 w-10 text-emerald-500 animate-spin" />
-              <p className="text-sm font-bold text-slate-500">
-                Cargando detalles...
+        <div className="space-y-4">
+          {isLoadingPdfPreview ? (
+            <div className="flex flex-col items-center justify-center py-20 space-y-3">
+              <Loader2 className="h-10 w-10 text-[#86A83C] animate-spin" />
+              <p className="text-sm font-semibold text-[#626573]">
+                Generando vista previa del PDF...
               </p>
             </div>
-          ) : fullCreationData ? (
-            <div className="space-y-6">
-              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex items-start gap-4">
-                <div
-                  className={cn(
-                    "p-3 rounded-xl bg-white shadow-sm border border-slate-200",
-                    getTypeStyles(
-                      mapBackendTypeToFrontend(fullCreationData.type),
-                    ),
-                  )}
-                >
-                  {getTypeIcon(mapBackendTypeToFrontend(fullCreationData.type))}
-                </div>
-                <div className="space-y-1">
-                  <h3 className="text-lg font-black text-slate-900 leading-tight">
-                    {fullCreationData.name}
-                  </h3>
-                  {typeof fullCreationData.metadata?.description === "string" &&
-                  fullCreationData.metadata.description.trim() ? (
-                    <p className="max-w-2xl text-sm leading-6 text-slate-600">
-                      {fullCreationData.metadata.description}
-                    </p>
-                  ) : null}
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {fullCreationData.tags?.map((tag: string) => (
-                      <span
-                        key={tag}
-                        className="px-2 py-0.5 bg-white text-slate-500 border border-slate-200 rounded text-[10px] font-bold uppercase tracking-wider"
-                      >
-                        #{tag}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                    <FileText className="h-4 w-4" />
-                    Alimentos Incluidos
+          ) : previewPdfUrl ? (
+            <div className="space-y-3">
+              {/* Barra de cabecera con información del documento */}
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100 flex-wrap gap-2">
+                <div className="min-w-0">
+                  <h4 className="text-sm font-bold text-[#20212B] truncate">
+                    {selectedItem?.name}
                   </h4>
-                  <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-tight">
-                    {fullCreationData.metadata?.foodCount || 0} ITEMS
-                  </span>
-                </div>
-
-                <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-200">
-                  {fullCreationData.type === "DIET" && (
-                    <div className="space-y-4">
-                      {(() => {
-                        const foodMap: Record<string, string[]> = {};
-                        if (fullCreationData.metadata?.foodSummary) {
-                          fullCreationData.metadata.foodSummary.forEach(
-                            (f: any) => {
-                              if (!foodMap[f.group]) foodMap[f.group] = [];
-                              foodMap[f.group].push(f.name);
-                            },
-                          );
-                        } else if (fullCreationData.content?.manualAdditions) {
-                          fullCreationData.content.manualAdditions.forEach(
-                            (ma: any) => {
-                              if (!foodMap[ma.grupo]) foodMap[ma.grupo] = [];
-                              foodMap[ma.grupo].push(ma.producto);
-                            },
-                          );
-                        }
-
-                        if (Object.keys(foodMap).length === 0) {
-                          return (
-                            <div className="py-4 text-center">
-                              <p className="text-sm text-slate-400 italic">
-                                No hay detalles específicos guardados para los
-                                alimentos en este resumen.
-                              </p>
-                            </div>
-                          );
-                        }
-
-                        return Object.entries(foodMap).map(
-                          ([group, products]) => (
-                            <div key={group} className="space-y-2">
-                              <h5 className="text-[10px] font-black text-slate-500 uppercase bg-slate-100 px-2 py-1 rounded inline-block">
-                                {group}
-                              </h5>
-                              <ul className="grid grid-cols-1 gap-1 pl-1">
-                                {products.map((p, idx) => (
-                                  <li
-                                    key={idx}
-                                    className="text-sm font-medium text-slate-700 flex items-center gap-2"
-                                  >
-                                    <div className="h-1 w-1 bg-emerald-400 rounded-full" />
-                                    {p}
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          ),
-                        );
-                      })()}
-                    </div>
-                  )}
-
-                  {fullCreationData.type !== "DIET" && (
-                    <div className="py-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                      <p className="text-sm text-slate-400">
-                        Resumen detallado próximamente para este tipo de
-                        creación.
-                      </p>
-                    </div>
-                  )}
+                  <p className="text-xs text-[#626573]">
+                    {selectedItem?.patientName
+                      ? `Paciente: ${selectedItem.patientName}`
+                      : "Sin paciente asignado"}
+                  </p>
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-slate-100 flex gap-3">
-                <Button
-                  className="flex-1 bg-slate-900 hover:bg-slate-800 h-11 text-white font-black rounded-xl"
-                  onClick={() => handleEdit(selectedItem!)}
-                >
-                  <Edit className="h-4 w-4 mr-2" />
-                  Cargar en Diseñador
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-11 border-slate-200 text-slate-600 font-bold px-4 rounded-xl"
-                  onClick={() => setViewModalOpen(false)}
-                >
-                  Cerrar
-                </Button>
+              {/* Visor PDF embebido */}
+              <div className="relative w-full h-[65vh] sm:h-[70vh] rounded-2xl overflow-hidden bg-slate-50 border border-slate-200">
+                <iframe
+                  src={`${previewPdfUrl}#toolbar=1&navpanes=0`}
+                  className="w-full h-full border-0"
+                  title="Vista previa del documento PDF"
+                />
               </div>
             </div>
           ) : (
             <div className="text-center py-12">
-              <p className="text-slate-500 font-medium text-sm">
-                No se pudieron cargar los datos de la creación.
+              <p className="text-sm text-[#626573]">
+                No se pudo cargar la vista previa del documento.
               </p>
             </div>
           )}
@@ -1257,23 +1135,15 @@ export default function CreationsClient({
           </div>
         }
         rightContent={
-          <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
-            {hasResolvedCreationUsage ? (
+          hasResolvedCreationUsage ? (
+            <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
               <UsageLimitBadge
                 label="Creaciones"
                 usage={creationsUsed}
                 limit={creationsLimit}
               />
-            ) : null}
-            <button
-              type="button"
-              onClick={() => router.push("/dashboard/rapido")}
-              className="h-11 px-5 rounded-xl bg-[#86A83C] hover:bg-[#78A82F] text-white text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 shrink-0 shadow-sm shadow-[#86A83C]/20 active:scale-[0.99] cursor-pointer"
-            >
-              <NotebookText className="h-4 w-4 shrink-0" aria-hidden="true" />
-              <span>Nuevo en Rápido</span>
-            </button>
-          </div>
+            </div>
+          ) : undefined
         }
         className="pb-16 relative"
       >

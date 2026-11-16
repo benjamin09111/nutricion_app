@@ -33,12 +33,17 @@ import {
   Sparkles,
   Star,
   FlaskConical,
+  User,
+  NotebookPen,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useDashboardShell } from "@/context/DashboardShellContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useAdmin } from "@/context/AdminContext";
+import { useNotifications } from "@/context/NotificationsContext";
+import { isGuestMode } from "@/lib/demo-local-api";
+import { getCurrentUser } from "@/lib/current-user";
 import { useState, useEffect } from "react";
 
 interface SidebarItem {
@@ -106,7 +111,16 @@ export function Sidebar({ onItemClick, isMobile = false }: SidebarProps = {}) {
   const { isSidebarCollapsed, toggleSidebarCollapsed, isSidebarToggleHighlighted } = useDashboardShell();
   const { isDarkMode } = useTheme();
   const { isAdmin, toggleViewMode } = useAdmin();
+  const { unreadCount } = useNotifications();
+  const [isGuest, setIsGuest] = useState(true);
+  const [userEmail, setUserEmail] = useState<string>("usuario@demo.com");
   const shouldCollapse = !isMobile && isSidebarCollapsed && !onItemClick;
+
+  useEffect(() => {
+    setIsGuest(isGuestMode());
+    const stored = getCurrentUser();
+    if (stored?.email) setUserEmail(stored.email);
+  }, []);
 
   const SIDEBAR_GROUPS_STORAGE_KEY = "nutri_dashboard_sidebar_open_groups";
 
@@ -196,9 +210,9 @@ export function Sidebar({ onItemClick, isMobile = false }: SidebarProps = {}) {
           className={cn(
             "hidden lg:inline-flex items-center justify-center rounded-xl p-2 transition-all transition-colors",
             isDarkMode
-              ? "text-indigo-100/50 hover:text-indigo-50 hover:bg-indigo-500/10"
-              : "text-slate-400 hover:text-indigo-600 hover:bg-slate-50",
-            isSidebarToggleHighlighted && "animate-pulse ring-2 ring-indigo-500/20",
+              ? "text-slate-400 hover:text-emerald-300 hover:bg-emerald-500/10"
+              : "text-slate-400 hover:text-[#668E20] hover:bg-[#F0F5DF]/60",
+            isSidebarToggleHighlighted && "animate-pulse ring-2 ring-[#86A83C]/30",
           )}
           title={isSidebarCollapsed ? "Mostrar menú" : "Contraer menú"}
         >
@@ -216,6 +230,64 @@ export function Sidebar({ onItemClick, isMobile = false }: SidebarProps = {}) {
           <span>Ir a Vista Administrador</span>
           <span>⚙️</span>
         </button>
+      )}
+
+      {/* Mobile Top Actions: Iniciar sesión / Perfil, Mis notas, Notificaciones (Minimalista) */}
+      {isMobile && (
+        <div className="space-y-2 pb-3 mb-2 border-b border-[#F0ECEE] px-1">
+          {/* Iniciar sesión o Perfil */}
+          {isGuest ? (
+            <Link
+              href="/login"
+              onClick={onItemClick}
+              className="flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-[#86A83C] hover:bg-[#78A82F] text-white text-xs font-semibold shadow-2xs cursor-pointer w-full transition-all active:scale-98"
+            >
+              <User className="w-4 h-4 text-white shrink-0" />
+              <span>Iniciar sesión</span>
+            </Link>
+          ) : (
+            <Link
+              href="/dashboard/configuraciones"
+              onClick={onItemClick}
+              className="flex items-center justify-between px-3.5 py-2.5 rounded-xl border border-[#E9E5E7] bg-slate-50 text-[#20212B] text-xs font-semibold cursor-pointer w-full transition-all hover:bg-slate-100"
+            >
+              <div className="flex items-center gap-2 truncate min-w-0">
+                <User className="w-4 h-4 text-[#86A83C] shrink-0" />
+                <span className="truncate">{userEmail || "Mi Perfil y Configuración"}</span>
+              </div>
+              <Settings className="w-4 h-4 text-[#848792] shrink-0" />
+            </Link>
+          )}
+
+          {/* Fila: Mis Notas + Notificaciones (Estilo minimalista blanco con borde #E9E5E7) */}
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                onItemClick?.();
+                window.dispatchEvent(new CustomEvent("toggle-notes-agenda"));
+              }}
+              className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border border-[#E9E5E7] bg-white text-[#20212B] text-xs font-medium cursor-pointer transition-all hover:bg-slate-50 hover:border-[#86A83C] shadow-2xs active:scale-98"
+            >
+              <NotebookPen className="w-4 h-4 text-[#86A83C] shrink-0" />
+              <span>Mis notas</span>
+            </button>
+
+            <Link
+              href="/dashboard/ajustes/notificaciones"
+              onClick={onItemClick}
+              className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border border-[#E9E5E7] bg-white text-[#20212B] text-xs font-medium cursor-pointer transition-all hover:bg-slate-50 hover:border-[#86A83C] shadow-2xs active:scale-98"
+            >
+              <Bell className="w-4 h-4 text-[#848792] shrink-0" />
+              <span>Notificaciones</span>
+              {unreadCount > 0 && (
+                <span className="ml-1 px-1.5 py-0.5 rounded-full bg-rose-500 text-white text-[10px] font-bold leading-none">
+                  {unreadCount}
+                </span>
+              )}
+            </Link>
+          </div>
+        </div>
       )}
 
       <nav className="flex flex-1 flex-col mt-2">
@@ -296,11 +368,11 @@ export function Sidebar({ onItemClick, isMobile = false }: SidebarProps = {}) {
                             className={cn(
                               isActive
                                 ? isDarkMode
-                                  ? "bg-[#7c3aed]/20 text-purple-300 font-bold"
-                                  : "bg-[#f5effe] text-[#7c3aed] font-bold"
+                                  ? "bg-emerald-500/15 text-emerald-300 font-bold"
+                                  : "bg-[#F0F5DF] text-[#668E20] font-bold"
                                 : isDarkMode
                                   ? "text-slate-300 hover:bg-slate-800 hover:text-white font-medium"
-                                  : "text-slate-700 hover:text-[#7c3aed] hover:bg-[#f5effe]/60 font-medium",
+                                  : "text-slate-700 hover:text-[#668E20] hover:bg-[#F0F5DF]/60 font-medium",
                               isLocked && "cursor-not-allowed opacity-60",
                               "group flex min-w-0 cursor-pointer items-center gap-x-3 rounded-xl px-3 py-2.5 min-h-[40px] leading-5 transition-all text-sm",
                               shouldCollapse && "justify-center",
@@ -313,11 +385,11 @@ export function Sidebar({ onItemClick, isMobile = false }: SidebarProps = {}) {
                                   className={cn(
                                     isActive
                                       ? isDarkMode
-                                        ? "text-purple-300"
-                                        : "text-[#7c3aed]"
+                                        ? "text-emerald-300"
+                                        : "text-[#668E20]"
                                       : isDarkMode
-                                        ? "text-slate-400 group-hover:text-purple-300"
-                                        : "text-slate-500 group-hover:text-[#7c3aed]",
+                                        ? "text-slate-400 group-hover:text-emerald-300"
+                                        : "text-slate-500 group-hover:text-[#668E20]",
                                     "h-4.5 w-4.5 shrink-0 transition-colors",
                                   )}
                                   aria-hidden="true"

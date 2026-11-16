@@ -54,7 +54,8 @@ export function mapRawCreationToFrontend(item: any): Creation {
     format: "PDF",
     tags: item.tags || [],
     filterTags: allFilterTags,
-    patientName: item.patient?.name || item.metadata?.patientName || null,
+    patientName: item.patient?.name || item.metadata?.patientName || item.patientName || null,
+    description: item.description || item.metadata?.description || null,
   };
 }
 

@@ -11,7 +11,7 @@ interface ConsultationsTableViewProps {
   onViewConsultation: (id: string) => void;
   onViewPatient?: (patientId: string) => void;
   onEdit?: (id: string) => void;
-  onDelete: (id: string) => void;
+  onDelete?: (id: string) => void;
   isInsidePatient?: boolean;
   footer?: React.ReactNode;
 }
@@ -111,13 +111,15 @@ export function ConsultationsTableView({
           >
             <Eye className="w-4 h-4" />
           </button>
-          <button
-            onClick={() => onDelete(item.id)}
-            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50/70 rounded-lg transition-colors cursor-pointer"
-            title="Eliminar"
-          >
-            <Trash2 className="w-4 h-4 text-slate-400 hover:text-rose-500" />
-          </button>
+          {onDelete && (
+            <button
+              onClick={() => onDelete(item.id)}
+              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50/70 rounded-lg transition-colors cursor-pointer"
+              title="Eliminar"
+            >
+              <Trash2 className="w-4 h-4 text-slate-400 hover:text-rose-500" />
+            </button>
+          )}
         </div>
       ),
     },
@@ -158,7 +160,7 @@ export function ConsultationsTableView({
             <div
               key={item.id}
               onClick={() => onViewConsultation(item.id)}
-              className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm active:scale-[0.99] transition-all space-y-3 cursor-pointer"
+              className="bg-white p-4 rounded-2xl border border-[#E9E5E7] shadow-2xs active:scale-[0.99] transition-all space-y-3 cursor-pointer"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3 min-w-0">
@@ -166,10 +168,10 @@ export function ConsultationsTableView({
                     {item.patientName?.charAt(0) || "P"}
                   </div>
                   <div className="min-w-0">
-                    <h3 className="font-bold text-slate-900 text-sm truncate">
+                    <h3 className="font-bold text-[#20212B] text-sm truncate">
                       {item.patientName || "Paciente"}
                     </h3>
-                    <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium mt-0.5">
+                    <div className="flex items-center gap-1.5 text-xs text-[#626573] font-medium mt-0.5">
                       <CalendarDays className="w-3.5 h-3.5 text-[#86A83C] shrink-0" />
                       <span>
                         {formatDateOnlyForLocale(item.date, {
@@ -184,26 +186,27 @@ export function ConsultationsTableView({
               </div>
 
               {item.title && (
-                <div className="rounded-xl bg-slate-50 border border-slate-100 px-3 py-2 text-xs font-semibold text-slate-700">
+                <div className="rounded-xl bg-slate-50 border border-[#E9E5E7] px-3 py-1.5 text-xs font-semibold text-slate-700">
                   {item.title}
                 </div>
               )}
 
-              <div className="flex items-center justify-between pt-2 border-t border-slate-100" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between pt-2 border-t border-[#F0ECEE]" onClick={(e) => e.stopPropagation()}>
                 {!isInsidePatient && onViewPatient ? (
                   <button
                     onClick={() => onViewPatient(item.patientId)}
-                    className="text-xs font-bold text-[#668E20] hover:text-[#527518] flex items-center gap-1 cursor-pointer"
+                    className="text-xs font-bold text-[#668E20] hover:text-[#527518] flex items-center gap-1.5 cursor-pointer py-1 px-2 rounded-lg hover:bg-[#F0F5DF] transition-colors"
                   >
-                    Ver Ficha <User className="w-3.5 h-3.5" />
+                    <span>Ver Ficha</span>
+                    <User className="w-3.5 h-3.5" />
                   </button>
                 ) : <div />}
 
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1.5">
                   {onEdit && (
                     <button
                       onClick={() => onEdit(item.id)}
-                      className="p-2 text-slate-400 hover:text-[#668E20] bg-slate-50 hover:bg-[#F0F5DF] rounded-xl transition-all"
+                      className="p-2 text-[#848792] hover:text-[#668E20] bg-slate-50 hover:bg-[#F0F5DF] rounded-xl transition-all cursor-pointer"
                       title="Editar"
                     >
                       <Edit2 className="w-4 h-4" />
@@ -211,30 +214,33 @@ export function ConsultationsTableView({
                   )}
                   <button
                     onClick={() => onViewConsultation(item.id)}
-                    className="p-2 text-slate-400 hover:text-[#668E20] bg-slate-50 hover:bg-[#F0F5DF] rounded-xl transition-all"
-                    title="Ver"
+                    className="p-2 text-[#848792] hover:text-[#668E20] bg-slate-50 hover:bg-[#F0F5DF] rounded-xl transition-all cursor-pointer flex items-center gap-1.5 text-xs font-semibold"
+                    title="Ver Consulta"
                   >
-                    <Eye className="w-4 h-4" />
+                    <Eye className="w-4 h-4 text-[#86A83C]" />
+                    <span>Ver consulta</span>
                   </button>
-                  <button
-                    onClick={() => onDelete(item.id)}
-                    className="p-2 text-slate-400 hover:text-rose-600 bg-slate-50 hover:bg-rose-50 rounded-xl transition-all"
-                    title="Eliminar"
-                  >
-                    <Trash2 className="w-4 h-4 text-rose-500" />
-                  </button>
+                  {onDelete && (
+                    <button
+                      onClick={() => onDelete(item.id)}
+                      className="p-2 text-[#848792] hover:text-rose-600 bg-slate-50 hover:bg-rose-50 rounded-xl transition-all cursor-pointer"
+                      title="Eliminar"
+                    >
+                      <Trash2 className="w-4 h-4 text-rose-500" />
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
           ))
         ) : (
-          <div className="bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 p-8 text-center">
+          <div className="bg-slate-50 rounded-2xl border-2 border-dashed border-[#E9E5E7] p-8 text-center">
             <CalendarDays className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-            <p className="text-slate-500 text-sm font-medium">Sin consultas registradas</p>
+            <p className="text-[#626573] text-sm font-medium">Sin consultas registradas</p>
           </div>
         )}
 
-        {footer && <div className="pt-2">{footer}</div>}
+        {footer && <div className="pt-3 flex justify-center">{footer}</div>}
       </div>
     </div>
   );

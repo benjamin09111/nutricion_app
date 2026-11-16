@@ -99,6 +99,7 @@ export const viewport = {
 
 import { Toaster } from "sonner";
 import Providers from "./providers";
+import { SecurityShield } from "@/components/shared/SecurityShield";
 
 export default function RootLayout({
   children,
@@ -114,6 +115,7 @@ export default function RootLayout({
     >
       <body className="antialiased">
         <Providers>
+          <SecurityShield />
           {children}
           <Toaster position="top-right" richColors closeButton />
         </Providers>

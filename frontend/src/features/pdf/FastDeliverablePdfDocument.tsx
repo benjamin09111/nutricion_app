@@ -412,9 +412,7 @@ export function FastDeliverablePdfDocument({
     data.patient?.bmi ? { label: "IMC", value: `${data.patient.bmi}` } : null,
   ].filter(Boolean) as Array<{ label: string; value: string }>;
 
-  const showTable =
-    (data.contentMode === "table" || data.contentMode === "both" || !data.contentMode) &&
-    (data.meals?.length || 0) > 0;
+  const showTable = (data.meals?.length || 0) > 0;
 
   // Helper to pick a category image for meal
   const getMealAvatar = (section: string) => {
@@ -537,6 +535,67 @@ export function FastDeliverablePdfDocument({
                   </View>
                 );
               })}
+            </View>
+          </View>
+        )}
+
+        {/* Párrafos estructurados / Tiempos de comida alternativos si no hay tabla */}
+        {data.paragraphs && data.paragraphs.length > 0 && !showTable && (
+          <View style={styles.section}>
+            <PdfSectionHeader title="Estructura de la Pauta" icon="cutlery" />
+            {data.paragraphs.map((p, pIdx) => (
+              <View
+                key={pIdx}
+                style={{
+                  marginBottom: 6,
+                  padding: 8,
+                  backgroundColor: colors.slate50,
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  borderColor: colors.slate200,
+                }}
+              >
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
+                  <Text style={{ fontSize: 9.5, fontFamily: "Helvetica-Bold", color: colors.slate900 }}>{p.title}</Text>
+                  {p.subtitle && (
+                    <Text style={{ fontSize: 8, color: colors.primaryDark, fontFamily: "Helvetica-Bold" }}>{p.subtitle}</Text>
+                  )}
+                </View>
+                {p.foods.map((food, fIdx) => (
+                  <Text key={fIdx} style={{ fontSize: 8, color: colors.slate700, marginLeft: 4, lineHeight: 1.35 }}>
+                    • {food}
+                  </Text>
+                ))}
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Guía de porciones */}
+        {data.portionGuide && data.portionGuide.length > 0 && (
+          <View style={styles.section}>
+            <PdfSectionHeader title="Guía práctica de porciones" icon="cutlery" />
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+              {data.portionGuide.map((pg: any, idx: number) => (
+                <View
+                  key={idx}
+                  style={{
+                    width: "48%",
+                    padding: 6,
+                    backgroundColor: colors.slate50,
+                    borderRadius: 8,
+                    borderWidth: 1,
+                    borderColor: colors.slate200,
+                  }}
+                >
+                  <Text style={{ fontSize: 8.5, fontFamily: "Helvetica-Bold", color: colors.slate800 }}>
+                    {pg.grupo || pg.category || "Grupo"}
+                  </Text>
+                  <Text style={{ fontSize: 7.5, color: colors.primaryDark, marginTop: 1 }}>
+                    {pg.porcion || pg.portion || ""}
+                  </Text>
+                </View>
+              ))}
             </View>
           </View>
         )}

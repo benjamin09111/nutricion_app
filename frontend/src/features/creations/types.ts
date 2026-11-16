@@ -3,7 +3,7 @@ export enum CreationType {
   SHOPPING_LIST = "Lista de Compras",
   RECIPE = "Receta",
   FAST_DELIVERABLE = "Rápido",
-  PAUTAS = "Pauta de Alimentación",
+  PAUTAS = "Personalizado",
   SCREENING_TEST = "Test de Tamizaje",
   OTHER = "Otro",
 }

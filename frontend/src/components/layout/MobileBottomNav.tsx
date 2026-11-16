@@ -1,16 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Sparkles, Activity, NotebookPen, Crown } from "lucide-react";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { PlanLimitsModal } from "@/components/memberships/PlanLimitsModal";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/context/ThemeContext";
+import { isGuestMode } from "@/lib/demo-local-api";
 
 export function MobileBottomNav() {
   const { isDarkMode } = useTheme();
   const { isDeveloper, plan, currentPlan } = useSubscription();
   const [isPlanLimitsOpen, setIsPlanLimitsOpen] = useState(false);
+  const [isGuest, setIsGuest] = useState(true);
+
+  useEffect(() => {
+    setIsGuest(isGuestMode());
+  }, []);
 
   const currentPrice = Number(currentPlan?.price || 0);
   const isFreemium =
@@ -56,18 +62,20 @@ export function MobileBottomNav() {
           <span className="text-[10px] font-extrabold tracking-tight">Chat Nutria</span>
         </button>
 
-        <button
-          type="button"
-          onClick={handleOpenPlan}
-          className="flex flex-col items-center justify-center gap-1 px-3 py-1 text-xs font-bold transition-all active:scale-95 text-amber-600 dark:text-amber-400 hover:text-amber-800 cursor-pointer"
-        >
-          {isFreemium ? (
-            <Activity className="h-5 w-5 text-amber-500" />
-          ) : (
-            <Crown className="h-5 w-5 text-amber-500" />
-          )}
-          <span className="text-[10px] font-extrabold tracking-tight">Mi Plan</span>
-        </button>
+        {!isGuest && (
+          <button
+            type="button"
+            onClick={handleOpenPlan}
+            className="flex flex-col items-center justify-center gap-1 px-3 py-1 text-xs font-bold transition-all active:scale-95 text-amber-600 dark:text-amber-400 hover:text-amber-800 cursor-pointer"
+          >
+            {isFreemium ? (
+              <Activity className="h-5 w-5 text-amber-500" />
+            ) : (
+              <Crown className="h-5 w-5 text-amber-500" />
+            )}
+            <span className="text-[10px] font-extrabold tracking-tight">Mi Plan</span>
+          </button>
+        )}
 
         <button
           type="button"

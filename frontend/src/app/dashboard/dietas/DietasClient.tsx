@@ -282,7 +282,7 @@ export default function DietasClient({ initialFoods }: DietasClientProps) {
           <div className="space-y-6">
             {/* Header: Title, Constraints & Actions (Unboxed Layout) */}
             <div className="space-y-4">
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-end">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-start">
                 {/* Diet Name */}
                 <div className="lg:col-span-5 space-y-1.5">
                   <label className="text-xs font-semibold text-[#20212B] flex items-center gap-1">
@@ -314,7 +314,7 @@ export default function DietasClient({ initialFoods }: DietasClientProps) {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="lg:col-span-3 flex items-center gap-2 justify-end">
+                <div className="lg:col-span-3 flex items-center gap-2 justify-end lg:pt-[22px]">
                   <button
                     type="button"
                     onClick={state.applyBaseFoods}

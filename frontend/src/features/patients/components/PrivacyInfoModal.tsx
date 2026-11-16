@@ -1,14 +1,7 @@
 "use client";
 
 import { Modal } from "@/components/ui/Modal";
-import {
-  ShieldCheck,
-  Lock,
-  Eye,
-  AlertCircle,
-  CheckCircle2,
-} from "lucide-react";
-import { Button } from "@/components/ui/Button";
+import { ShieldCheck, Lock, EyeOff, CheckCircle2 } from "lucide-react";
 
 interface PrivacyInfoModalProps {
   isOpen: boolean;
@@ -18,27 +11,23 @@ interface PrivacyInfoModalProps {
 const sections = [
   {
     icon: Lock,
-    iconClass: "text-indigo-600 bg-indigo-50",
-    title: "Acceso exclusivo del nutricionista",
-    body: "Toda la información de tus pacientes — nombre, datos de contacto, historial clínico y planes nutricionales — solo es visible para ti como nutricionista a cargo. Ningún otro profesional, ni siquiera el equipo de NutriNet, puede ver o acceder a estos datos.",
+    title: "Acceso exclusivo del profesional",
+    body: "Toda la información clínica, fichas y pautas son visibles únicamente para ti como nutricionista a cargo. Ningún otro profesional ni personal de NutriNet tiene acceso a tus pacientes.",
   },
   {
     icon: ShieldCheck,
-    iconClass: "text-emerald-600 bg-emerald-50",
-    title: "Seguridad y privacidad técnica",
-    body: "Los administradores de la plataforma están bloqueados por diseño a nivel de sistema para acceder a los endpoints de pacientes. Esto no es solo una política: es una restricción técnica implementada en el código y verificada en cada solicitud.",
+    title: "Aislamiento técnico por diseño",
+    body: "Los administradores de la plataforma están bloqueados a nivel de sistema y base de datos para consultar fichas o registros de salud de pacientes.",
   },
   {
-    icon: Eye,
-    iconClass: "text-violet-600 bg-violet-50",
-    title: "Uso de los datos",
-    body: "Los datos de tus pacientes se utilizan exclusivamente para prestarte el servicio como nutricionista: crear planes, hacer seguimiento y gestionar consultas. No se comparten con terceros, no se usan con fines publicitarios ni se ceden a ninguna otra entidad.",
+    icon: EyeOff,
+    title: "Uso 100% clínico y confidencial",
+    body: "Los datos se emplean estrictamente para tu atención nutricional. Nunca se comparten con terceros, no se venden ni se usan con fines comerciales o publicitarios.",
   },
   {
-    icon: AlertCircle,
-    iconClass: "text-amber-600 bg-amber-50",
+    icon: CheckCircle2,
     title: "Ley N° 21.719 — Chile",
-    body: "NutriNet cumple con la nueva Ley de Protección de Datos Personales de Chile (Ley N° 21.719), publicada en diciembre de 2024 y con entrada en vigor plena en 2026. Esta ley otorga a los titulares de datos derechos de acceso, rectificación, cancelación y oposición (derechos ARCO), y exige que el tratamiento de datos sea proporcional, informado y con finalidad específica.",
+    body: "Garantía plena de derechos ARCO (Acceso, Rectificación, Cancelación y Oposición) conforme a la legislación chilena vigente de protección de datos personales.",
   },
 ];
 
@@ -47,61 +36,49 @@ export function PrivacyInfoModal({ isOpen, onClose }: PrivacyInfoModalProps) {
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Protección y Privacidad"
-      className="max-w-xl"
+      title="Datos y Privacidad Clínica"
+      description="Protección técnica y legal de la información de tus pacientes"
+      className="max-w-md sm:max-w-lg"
     >
-      {/* Header visual */}
-      <div className="flex flex-col items-center text-center gap-3 mb-6 pb-6 border-b border-slate-100">
-        <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-200">
-          <ShieldCheck className="h-7 w-7 text-white" />
+      <div className="space-y-4">
+        {/* Lista de pilares minimalistas */}
+        <div className="space-y-2">
+          {sections.map(({ icon: Icon, title, body }) => (
+            <div
+              key={title}
+              className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100 transition-colors"
+            >
+              <div className="h-8 w-8 shrink-0 rounded-lg bg-[#F0F5DF] text-[#668E20] flex items-center justify-center mt-0.5">
+                <Icon className="h-4 w-4" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h4 className="text-xs font-bold text-slate-800 tracking-tight">{title}</h4>
+                <p className="text-[11px] sm:text-xs text-slate-500 leading-relaxed mt-0.5">
+                  {body}
+                </p>
+              </div>
+            </div>
+          ))}
         </div>
-        <div>
-          <h3 className="text-base font-bold text-slate-900">
-            Tus pacientes, solo tuyos
-          </h3>
-          <p className="text-sm text-slate-500 mt-1 leading-relaxed">
-            La información de tus pacientes está protegida por diseño técnico y
-            por la ley chilena de protección de datos.
+
+        {/* Badge normativo Chile */}
+        <div className="flex items-center gap-2 rounded-xl bg-[#F0F5DF]/70 border border-[#DDE7B8] px-3.5 py-2.5">
+          <CheckCircle2 className="h-4 w-4 text-[#668E20] shrink-0" />
+          <p className="text-[11px] text-[#4D6B18] font-medium leading-tight">
+            Cumplimiento normativo con la <strong>Ley N° 21.719</strong> de Protección de Datos Personales en Chile.
           </p>
         </div>
-      </div>
 
-      {/* Sections */}
-      <div className="space-y-4">
-        {sections.map(({ icon: Icon, iconClass, title, body }) => (
-          <div key={title} className="flex gap-3">
-            <div
-              className={`h-9 w-9 shrink-0 rounded-xl flex items-center justify-center ${iconClass}`}
-            >
-              <Icon className="h-4 w-4" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-slate-800">{title}</p>
-              <p className="text-sm text-slate-500 leading-relaxed mt-0.5">
-                {body}
-              </p>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Compliance badge */}
-      <div className="mt-6 flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-100 px-4 py-3">
-        <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-        <p className="text-xs text-emerald-700 font-medium">
-          NutriNet cumple con la Ley N° 21.719 de Protección de Datos Personales
-          de Chile.
-        </p>
-      </div>
-
-      {/* Action */}
-      <div className="mt-5">
-        <Button
-          onClick={onClose}
-          className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold h-10 rounded-xl transition-all"
-        >
-          Entendido
-        </Button>
+        {/* Botón de cierre minimalista */}
+        <div className="pt-1">
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full bg-[#668E20] hover:bg-[#55771B] text-white font-semibold text-xs sm:text-sm h-10 rounded-xl transition-colors cursor-pointer shadow-2xs"
+          >
+            Entendido
+          </button>
+        </div>
       </div>
     </Modal>
   );

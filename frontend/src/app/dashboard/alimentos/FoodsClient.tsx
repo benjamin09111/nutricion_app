@@ -9,6 +9,7 @@ import {
   Apple,
   Sparkles,
   BarChart2,
+  Lock,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
@@ -398,93 +399,44 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
       rightContent={
         <button
           type="button"
-          onClick={() => router.push("/dashboard/alimentos/nuevo")}
-          className="h-11 px-5 rounded-xl bg-[#7842D4] hover:bg-[#6936C8] text-white text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 shrink-0 shadow-2xs active:scale-[0.99] cursor-pointer"
+          disabled
+          className="h-11 px-4 sm:px-5 rounded-xl border border-slate-200/80 bg-slate-50 text-slate-400 text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 shrink-0 cursor-not-allowed opacity-60 select-none w-full sm:w-auto"
+          title="Inhabilitado para la demo"
         >
-          <Plus className="h-4 w-4 shrink-0" aria-hidden="true" />
+          <Lock className="h-4 w-4 text-slate-400 shrink-0" aria-hidden="true" />
           <span>Nuevo Alimento</span>
         </button>
       }
       className="pb-16 relative"
     >
-      <div className="space-y-6">
-        {/* Barra de Indicadores — Idéntica a Pacientes y Consultas con 3 columnas */}
-        <div className="relative overflow-hidden bg-white border border-[#E9E5E7] rounded-[18px] p-5 sm:p-6 min-h-[110px] shadow-2xs">
-          <svg
-            className="absolute left-0 top-0 h-full w-36 text-[#B0C76F] pointer-events-none select-none opacity-15"
-            viewBox="0 0 120 100"
-            preserveAspectRatio="none"
-            fill="currentColor"
-          >
-            <path d="M0 0 C 45 15, 65 55, 25 100 L 0 100 Z" />
-            <path d="M0 20 C 35 35, 45 75, 10 100 L 0 100 Z" opacity="0.6" />
-          </svg>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 divide-y md:divide-y-0 md:divide-x divide-[#F0ECEE] relative z-10">
-            {/* 1. Catálogo base */}
-            <div className="flex items-center justify-between sm:px-3">
-              <div className="flex items-center gap-3.5">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#F0F5DF] text-[#668E20]">
-                  <Apple className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-[#626573]">Catálogo base</p>
-                  <h3 className="text-3xl font-semibold text-[#20212B] tracking-tight leading-none mt-1">
-                    {totalCatalogCount}
-                  </h3>
-                </div>
-              </div>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#F0F5DF] text-[#668E20] border border-[#DDE7B8]">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#86A83C] animate-pulse" />
-                <span>Oficiales</span>
-              </span>
-            </div>
-
-            {/* 2. Alimentos creados */}
-            <div className="flex items-center justify-between pt-4 md:pt-0 md:px-6">
-              <div className="flex items-center gap-3.5">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-purple-50 text-[#7842D4]">
-                  <Sparkles className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-[#626573]">Alimentos creados</p>
-                  <h3 className="text-3xl font-semibold text-[#20212B] tracking-tight leading-none mt-1">
-                    {totalCreatedCount}
-                  </h3>
-                </div>
-              </div>
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-50 text-[#7842D4] border border-purple-200">
-                Públicos
-              </span>
-            </div>
-
-            {/* 3. Total disponibles */}
-            <div className="flex items-center justify-between pt-4 md:pt-0 md:px-6">
-              <div className="flex items-center gap-3.5">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#F3ECFC] text-[#7842D4]">
-                  <BarChart2 className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-[#626573]">Total disponibles</p>
-                  <h3 className="text-3xl font-semibold text-[#20212B] tracking-tight leading-none mt-1">
-                    {totalCatalogCount + totalCreatedCount}
-                  </h3>
-                </div>
-              </div>
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#F3ECFC] text-[#7842D4] border border-[#E4D5FA]">
-                100% disponibles
-              </span>
-            </div>
+      <div className="space-y-4 sm:space-y-5">
+        {/* Resumen simple y compacto */}
+        <div className="flex flex-wrap items-center justify-between sm:justify-start gap-2.5 sm:gap-6 bg-white border border-[#E9E5E7] rounded-xl px-4 py-2.5 shadow-2xs text-xs">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-[#86A83C]" />
+            <span className="text-[#626573] font-medium">Catálogo base:</span>
+            <strong className="text-[#20212B] font-bold">{totalCatalogCount}</strong>
+          </div>
+          <div className="h-3.5 w-px bg-[#E9E5E7]" />
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-[#7842D4]" />
+            <span className="text-[#626573] font-medium">Creados:</span>
+            <strong className="text-[#20212B] font-bold">{totalCreatedCount}</strong>
+          </div>
+          <div className="hidden sm:block h-3.5 w-px bg-[#E9E5E7]" />
+          <div className="hidden sm:flex items-center gap-2">
+            <span className="text-[#626573] font-medium">Total disponibles:</span>
+            <strong className="text-[#20212B] font-bold">{totalCatalogCount + totalCreatedCount}</strong>
           </div>
         </div>
 
-        {/* Pestañas Catálogo Base / Alimentos creados */}
-        <div className="flex items-center gap-2">
+        {/* Pestañas Catálogo Base / Alimentos creados (centradas en móvil) */}
+        <div className="grid grid-cols-2 sm:flex sm:items-center sm:justify-start gap-2 w-full sm:w-auto">
           <button
             type="button"
             onClick={() => handleTabClick("catalog")}
             className={cn(
-              "px-4 py-2 text-xs sm:text-sm font-semibold rounded-xl transition-all cursor-pointer flex items-center gap-2",
+              "px-3.5 sm:px-4 py-2.5 sm:py-2 text-xs sm:text-sm font-semibold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2",
               activeSourceTab === "catalog"
                 ? "bg-[#7842D4] text-white shadow-2xs"
                 : "bg-white text-[#626573] border border-[#E9E5E7] hover:bg-slate-50"
@@ -493,7 +445,7 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
             <span>Catálogo Base</span>
             <span
               className={cn(
-                "rounded-full px-2 py-0.5 text-[11px] font-bold",
+                "rounded-full px-1.5 py-0.5 text-[10px] sm:text-[11px] font-bold",
                 activeSourceTab === "catalog"
                   ? "bg-white/20 text-white"
                   : "bg-slate-100 text-slate-500"
@@ -507,7 +459,7 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
             type="button"
             onClick={() => handleTabClick("created")}
             className={cn(
-              "px-4 py-2 text-xs sm:text-sm font-semibold rounded-xl transition-all cursor-pointer flex items-center gap-2",
+              "px-3.5 sm:px-4 py-2.5 sm:py-2 text-xs sm:text-sm font-semibold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2",
               activeSourceTab === "created"
                 ? "bg-[#7842D4] text-white shadow-2xs"
                 : "bg-white text-[#626573] border border-[#E9E5E7] hover:bg-slate-50"
@@ -516,7 +468,7 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
             <span>Alimentos creados</span>
             <span
               className={cn(
-                "rounded-full px-2 py-0.5 text-[11px] font-bold",
+                "rounded-full px-1.5 py-0.5 text-[10px] sm:text-[11px] font-bold",
                 activeSourceTab === "created"
                   ? "bg-white/20 text-white"
                   : "bg-slate-100 text-slate-500"
@@ -595,19 +547,19 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
             )}
           </div>
 
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-1 pt-1 pb-1">
-            <p className="text-xs font-semibold text-[#626573]">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-1 pt-1 pb-1">
+            <p className="text-xs font-semibold text-[#626573] text-center sm:text-left">
               Mostrando <span className="font-bold text-[#7842D4]">{paginatedIngredients.length}</span> de{" "}
               <span className="font-bold text-[#20212B]">{filteredIngredients.length}</span> alimentos
               {totalPages > 1 && (
-                <span className="text-[#848792] ml-1">
+                <span className="text-[#848792] ml-1 block sm:inline">
                   · Página <strong className="text-[#20212B] font-bold">{currentPage}</strong> de {totalPages}
                 </span>
               )}
             </p>
 
             {totalPages > 1 && (
-              <div className="flex items-center self-end sm:self-auto shrink-0">
+              <div className="flex items-center justify-center shrink-0 w-full sm:w-auto">
                 <Pagination
                   currentPage={currentPage}
                   totalPages={totalPages}
@@ -746,7 +698,7 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
           )}
 
           {totalPages > 1 && (
-            <div className="flex items-center justify-between px-2 pt-2">
+            <div className="flex items-center justify-center px-2 pt-4 pb-2">
               <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
             </div>
           )}

@@ -8,6 +8,8 @@ import {
   FileText,
   Users,
   BarChart2,
+  Activity,
+  User,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -18,12 +20,14 @@ import {
 import { useScrollLock } from "@/hooks/useScrollLock";
 import { toast } from "sonner";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
+import { Modal } from "@/components/ui/Modal";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { UsageLimitBadge } from "@/components/shared/UsageLimitBadge";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { Pagination } from "@/components/ui/Pagination";
 import { fetchApi } from "@/lib/api-base";
 import { useSubscription } from "@/context/SubscriptionContext";
+import { isGuestMode } from "@/lib/demo-local-api";
 import { Input } from "@/components/ui/Input";
 import { useConsultations } from "@/features/consultations";
 
@@ -50,6 +54,8 @@ export default function ConsultationsClient() {
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [consultationToDelete, setConsultationToDelete] = useState<string | null>(null);
+  const isGuest = isGuestMode();
+  const [previewConsultation, setPreviewConsultation] = useState<Consultation | null>(null);
   const {
     usage,
     currentPlan,
@@ -163,40 +169,54 @@ export default function ConsultationsClient() {
         </div>
       }
       rightContent={
-        <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
-          {consultationsUsed !== undefined && !isRefreshingUsage && !isSubscriptionLoading && (
-            <UsageLimitBadge
-              label="Consultas"
-              usage={consultationsUsed}
-              limit={consultationLimit}
-            />
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3 w-full sm:w-auto">
+          {!isGuest && consultationsUsed !== undefined && !isRefreshingUsage && !isSubscriptionLoading && (
+            <div className="flex items-center justify-between sm:justify-start gap-2 w-full sm:w-auto">
+              <UsageLimitBadge
+                label="Consultas"
+                usage={consultationsUsed}
+                limit={consultationLimit}
+              />
+            </div>
           )}
 
-          <button
-            type="button"
-            onClick={() => {
-              if (consultationCreationBlocked) {
-                toast.info("Estamos verificando el uso de tu plan. Intenta nuevamente en unos segundos.");
-                return;
-              }
-              if (isConsultationLimitReached) {
-                toast.error("Has alcanzado el límite de consultas de tu plan.");
-                return;
-              }
-              router.push("/dashboard/consultas/nueva");
-            }}
-            disabled={consultationCreationBlocked || isConsultationLimitReached}
-            className="h-11 px-5 rounded-xl bg-[#86A83C] hover:bg-[#78A82F] text-white text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 shrink-0 shadow-2xs active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-sm shadow-[#86A83C]/20"
-          >
-            <Plus className="h-4 w-4 shrink-0" aria-hidden="true" />
-            <span>
-              {consultationCreationBlocked
-                ? "Verificando..."
-                : isConsultationLimitReached
-                  ? "Límite alcanzado"
-                  : "Nueva Consulta"}
-            </span>
-          </button>
+          {isGuest ? (
+            <button
+              type="button"
+              disabled
+              className="h-11 px-5 rounded-xl border border-slate-200/80 bg-slate-50 text-slate-400 text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 shrink-0 cursor-not-allowed opacity-60 select-none w-full sm:w-auto"
+              title="Inhabilitado para la demo"
+            >
+              <Plus className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span>Nueva Consulta</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                if (consultationCreationBlocked) {
+                  toast.info("Estamos verificando el uso de tu plan. Intenta nuevamente en unos segundos.");
+                  return;
+                }
+                if (isConsultationLimitReached) {
+                  toast.error("Has alcanzado el límite de consultas de tu plan.");
+                  return;
+                }
+                router.push("/dashboard/consultas/nueva");
+              }}
+              disabled={consultationCreationBlocked || isConsultationLimitReached}
+              className="h-11 px-5 rounded-xl bg-[#86A83C] hover:bg-[#78A82F] text-white text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-2 shrink-0 shadow-2xs active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-sm shadow-[#86A83C]/20 w-full sm:w-auto"
+            >
+              <Plus className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span>
+                {consultationCreationBlocked
+                  ? "Verificando..."
+                  : isConsultationLimitReached
+                    ? "Límite alcanzado"
+                    : "Nueva Consulta"}
+              </span>
+            </button>
+          )}
         </div>
       }
       className="pb-16 relative"
@@ -212,74 +232,25 @@ export default function ConsultationsClient() {
         variant="destructive"
       />
 
-      <div className="space-y-6">
-        {/* Barra de Indicadores — Idéntica a Pacientes con 3 columnas interiores */}
-        <div className="relative overflow-hidden bg-white border border-[#E9E5E7] rounded-[18px] p-5 sm:p-6 min-h-[110px] shadow-2xs">
-          <svg
-            className="absolute left-0 top-0 h-full w-36 text-[#B0C76F] pointer-events-none select-none opacity-15"
-            viewBox="0 0 120 100"
-            preserveAspectRatio="none"
-            fill="currentColor"
-          >
-            <path d="M0 0 C 45 15, 65 55, 25 100 L 0 100 Z" />
-            <path d="M0 20 C 35 35, 45 75, 10 100 L 0 100 Z" opacity="0.6" />
-          </svg>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 divide-y md:divide-y-0 md:divide-x divide-[#F0ECEE] relative z-10">
-            {/* 1. Consultas totales */}
-            <div className="flex items-center justify-between sm:px-3">
-              <div className="flex items-center gap-3.5">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#F0F5DF] text-[#668E20]">
-                  <CalendarDays className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-[#626573]">Consultas</p>
-                  <h3 className="text-3xl font-semibold text-[#20212B] tracking-tight leading-none mt-1">
-                    {meta.total}
-                  </h3>
-                </div>
-              </div>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#F0F5DF] text-[#668E20] border border-[#DDE7B8]">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#86A83C] animate-pulse" />
-                <span>Historial clínico</span>
-              </span>
-            </div>
-
-            {/* 2. Pacientes únicos atendidos */}
-            <div className="flex items-center justify-between pt-4 md:pt-0 md:px-6">
-              <div className="flex items-center gap-3.5">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
-                  <Users className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-[#626573]">Pacientes en registro</p>
-                  <h3 className="text-3xl font-semibold text-[#20212B] tracking-tight leading-none mt-1">
-                    {new Set(consultations.map((c) => c.patientId)).size || meta.total}
-                  </h3>
-                </div>
-              </div>
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-[#626573] border border-slate-200">
-                Seguimiento activo
-              </span>
-            </div>
-
-            {/* 3. Total registradas */}
-            <div className="flex items-center justify-between pt-4 md:pt-0 md:px-6">
-              <div className="flex items-center gap-3.5">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#F0F5DF] text-[#668E20]">
-                  <BarChart2 className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-[#626573]">Total registradas</p>
-                  <h3 className="text-3xl font-semibold text-[#20212B] tracking-tight leading-none mt-1">
-                    {meta.total}
-                  </h3>
-                </div>
-              </div>
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#F0F5DF] text-[#668E20] border border-[#DDE7B8]">
-                100% archivadas
-              </span>
-            </div>
+      <div className="space-y-4 sm:space-y-6">
+        {/* Resumen simple y compacto (reemplaza banner masivo para móviles) */}
+        <div className="flex flex-wrap items-center justify-between sm:justify-start gap-2.5 sm:gap-6 bg-white border border-[#E9E5E7] rounded-xl px-4 py-2.5 shadow-2xs text-xs">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-[#86A83C]" />
+            <span className="text-[#626573] font-medium">Consultas:</span>
+            <strong className="text-[#20212B] font-bold">{meta.total}</strong>
+          </div>
+          <div className="h-3.5 w-px bg-[#E9E5E7]" />
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-[#668E20]" />
+            <span className="text-[#626573] font-medium">Pacientes atendidos:</span>
+            <strong className="text-[#20212B] font-bold">{new Set(consultations.map((c) => c.patientId)).size || meta.total}</strong>
+          </div>
+          <div className="hidden sm:block h-3.5 w-px bg-[#E9E5E7]" />
+          <div className="hidden sm:flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-slate-400" />
+            <span className="text-[#626573] font-medium">Historial:</span>
+            <strong className="text-[#20212B] font-bold">100% archivadas</strong>
           </div>
         </div>
 
@@ -300,7 +271,7 @@ export default function ConsultationsClient() {
               />
             </div>
 
-            <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:gap-2.5 w-full sm:w-auto">
               <div className="w-full sm:w-40">
                 <DatePicker
                   value={dateFrom}
@@ -333,22 +304,33 @@ export default function ConsultationsClient() {
         <ConsultationsTableView
           consultations={consultations}
           isLoading={isLoading}
-          onViewConsultation={(id) => router.push(`/dashboard/consultas/${id}/view`)}
-          onViewPatient={(patientId) => router.push(`/dashboard/pacientes/${patientId}`)}
-          onDelete={(id) => {
-            if (!canDeleteConsultations) {
-              window.dispatchEvent(
-                new CustomEvent("show-freemium-upgrade", {
-                  detail: {
-                    description: "Eliminar consultas está disponible en los planes de pago.",
-                  },
-                }),
-              );
-              return;
+          onViewConsultation={(id) => {
+            const found = consultations.find((c) => c.id === id);
+            if (found) {
+              setPreviewConsultation(found);
+            } else {
+              router.push(`/dashboard/consultas/${id}/view`);
             }
-            setConsultationToDelete(id);
-            setIsDeleteModalOpen(true);
           }}
+          onViewPatient={(patientId) => router.push(`/dashboard/pacientes/${patientId}`)}
+          onDelete={
+            isGuest
+              ? undefined
+              : (id) => {
+                  if (!canDeleteConsultations) {
+                    window.dispatchEvent(
+                      new CustomEvent("show-freemium-upgrade", {
+                        detail: {
+                          description: "Eliminar consultas está disponible en los planes de pago.",
+                        },
+                      }),
+                    );
+                    return;
+                  }
+                  setConsultationToDelete(id);
+                  setIsDeleteModalOpen(true);
+                }
+          }
           footer={
             meta.lastPage > 1 ? (
               <Pagination
@@ -360,6 +342,126 @@ export default function ConsultationsClient() {
           }
         />
       </div>
+
+      {/* Modal de Vista Previa Rápida de Consulta */}
+      <Modal
+        isOpen={Boolean(previewConsultation)}
+        onClose={() => setPreviewConsultation(null)}
+        title="Vista Previa de la Consulta"
+        description="Resumen clínico y evolución registrado en la sesión"
+        className="max-w-2xl"
+      >
+        {previewConsultation && (
+          <div className="space-y-4 sm:space-y-5">
+            {/* Cabecera del paciente y fecha */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl bg-[#F0F5DF]/60 border border-[#DDE7B8]">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-xl bg-[#F0F5DF] border border-[#DDE7B8] flex items-center justify-center text-[#668E20] font-extrabold text-sm sm:text-base shrink-0 shadow-2xs">
+                  {previewConsultation.patientName?.charAt(0) || "P"}
+                </div>
+                <div className="min-w-0">
+                  <h4 className="font-extrabold text-[#20212B] text-sm sm:text-base leading-snug truncate">
+                    {previewConsultation.patientName || "Paciente"}
+                  </h4>
+                  <p className="text-xs font-semibold text-[#668E20]">
+                    Paciente en control
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 text-xs font-semibold text-slate-700 bg-white px-3 py-1.5 rounded-xl border border-[#DDE7B8] self-start sm:self-auto shrink-0 shadow-2xs">
+                <CalendarDays className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#86A83C] shrink-0" />
+                <span>
+                  {new Date(previewConsultation.date).toLocaleDateString("es-CL", {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                  })}
+                </span>
+              </div>
+            </div>
+
+            {/* Título de la sesión */}
+            {previewConsultation.title && (
+              <div className="space-y-1">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                  Motivo / Título de Consulta
+                </span>
+                <p className="text-sm sm:text-base font-bold text-slate-900 bg-slate-50 border border-slate-100 rounded-xl px-3.5 py-2">
+                  {previewConsultation.title}
+                </p>
+              </div>
+            )}
+
+            {/* Observaciones clínicas */}
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                <FileText className="w-3.5 h-3.5 text-[#86A83C]" />
+                <span>Observaciones Clínicas y Evolución</span>
+              </div>
+              <div className="p-3.5 sm:p-4 rounded-xl bg-[#F8F9FB] border border-slate-200/70 text-xs sm:text-sm font-medium text-slate-700 leading-relaxed whitespace-pre-wrap min-h-[80px]">
+                {previewConsultation.description || (previewConsultation as any).notes || "Sin observaciones registradas para esta sesión."}
+              </div>
+            </div>
+
+            {/* Métricas registradas */}
+            {Array.isArray(previewConsultation.metrics) && previewConsultation.metrics.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  <Activity className="w-3.5 h-3.5 text-[#86A83C]" />
+                  <span>Métricas y Antropometría ({previewConsultation.metrics.length})</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {previewConsultation.metrics.map((m, idx) => (
+                    <div
+                      key={idx}
+                      className="p-2.5 sm:p-3 rounded-xl bg-white border border-slate-200/80 shadow-2xs flex flex-col justify-between"
+                    >
+                      <span className="text-[11px] font-semibold text-slate-500 truncate">
+                        {m.label || m.key}
+                      </span>
+                      <div className="mt-1 flex items-baseline gap-1">
+                        <span className="text-base sm:text-lg font-extrabold text-[#20212B] tabular-nums">
+                          {m.value}
+                        </span>
+                        {m.unit && (
+                          <span className="text-xs font-bold text-slate-400">
+                            {m.unit}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Botones de acción del modal */}
+            <div className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+              <button
+                type="button"
+                onClick={() => {
+                  const patId = previewConsultation.patientId;
+                  setPreviewConsultation(null);
+                  router.push(`/dashboard/pacientes/${patId}`);
+                }}
+                className="h-10 px-4 rounded-xl bg-[#F0F5DF] hover:bg-[#E5ECCB] text-[#668E20] font-bold text-xs sm:text-sm flex items-center justify-center gap-2 border border-[#DDE7B8] transition-colors cursor-pointer"
+              >
+                <User className="w-4 h-4" />
+                <span>Ver Ficha del Paciente</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPreviewConsultation(null)}
+                className="h-10 px-5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs sm:text-sm transition-colors cursor-pointer text-center"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </ModuleLayout>
   );
 }

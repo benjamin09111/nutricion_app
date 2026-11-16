@@ -431,17 +431,17 @@ export function TagInput({
 
       {!hideTags && value.length > 0 && (
         <div className={cn(
-          "flex flex-wrap gap-2 min-h-[20px] px-1",
+          "flex flex-wrap gap-1.5 min-h-[20px] px-0.5 mt-1.5",
           tagsAbsolute && "absolute top-full left-0 mt-1 z-10"
         )}>
           {value.map((tag) => (
             <span
               key={tag}
               className={cn(
-                "inline-flex items-center px-3 py-1.5 rounded-xl text-[10px] font-bold border shadow-sm animate-in fade-in zoom-in duration-200",
+                "inline-flex items-center px-2.5 py-1 rounded-lg text-[11px] font-semibold border shadow-2xs transition-colors animate-in fade-in zoom-in duration-200",
                 isDarkMode
-                  ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
-                  : "bg-emerald-50 text-emerald-700 border-emerald-100"
+                  ? "bg-[#668E20]/20 text-[#DDE7B8] border-[#668E20]/30"
+                  : "bg-[#F0F5DF] text-[#668E20] border-[#DDE7B8]"
               )}
             >
               {tag}
@@ -449,10 +449,10 @@ export function TagInput({
                 type="button"
                 onClick={() => removeTag(tag)}
                 className={cn(
-                  "ml-2 h-4 w-4 rounded-full inline-flex items-center justify-center transition-colors cursor-pointer",
+                  "ml-1.5 h-3.5 w-3.5 rounded-full inline-flex items-center justify-center transition-colors cursor-pointer",
                   isDarkMode
-                    ? "hover:bg-emerald-500/30 hover:text-emerald-200 text-emerald-400/70"
-                    : "hover:bg-emerald-100 hover:text-emerald-900 text-emerald-700"
+                    ? "hover:bg-[#668E20]/40 text-[#DDE7B8]"
+                    : "hover:bg-[#DDE7B8] hover:text-[#4D6B18] text-[#668E20]"
                 )}
               >
                 <X className="h-3 w-3" />

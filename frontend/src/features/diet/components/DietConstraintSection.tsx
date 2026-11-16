@@ -59,7 +59,7 @@ export const DietConstraintSection: React.FC<DietConstraintSectionProps> = ({
   return (
     <div className="space-y-6">
       {showGeneralInfo && <>
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2 items-start">
         <div className="space-y-2">
           <p className="text-xs font-semibold text-[#20212B]">Título <span className="text-rose-500">*</span></p>
           <Input

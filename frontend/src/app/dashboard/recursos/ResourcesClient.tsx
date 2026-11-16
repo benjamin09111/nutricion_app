@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   BookOpen,
+  Check,
   ChevronDown,
   ExternalLink,
   FileText,
@@ -132,10 +133,12 @@ export function ResourcesClient() {
   const [onlyMineIntros, setOnlyMineIntros] = useState(false);
   const [resourceToPreview, setResourceToPreview] = useState<Resource | null>(null);
   const [resourceToDelete, setResourceToDelete] = useState<Resource | null>(null);
+  const [isMobileSectionModalOpen, setIsMobileSectionModalOpen] = useState(false);
 
-  const resourceTabs = RESOURCE_TABS.map((tab) =>
-    tab.id === "mine" && resourcesLocked ? { ...tab, icon: Lock } : tab,
-  );
+  const resourceTabs = RESOURCE_TABS.map((tab) => ({
+    ...tab,
+    isLocked: tab.id !== "library",
+  }));
 
   const showResourcesUpgrade = (description: string) => {
     window.dispatchEvent(
@@ -357,11 +360,11 @@ export function ResourcesClient() {
         <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
           <button
             type="button"
-            onClick={() => openCreate("general")}
-            disabled={resourcesLocked}
-            className="h-11 px-5 rounded-xl bg-[#7842D4] hover:bg-[#6936C8] text-white text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 shrink-0 shadow-2xs active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            disabled
+            className="h-11 px-5 rounded-xl bg-slate-50 border border-slate-200/80 text-slate-400 text-xs sm:text-sm font-semibold flex items-center gap-2 shrink-0 cursor-not-allowed opacity-60 select-none"
+            title="Inhabilitado para la demo"
           >
-            <Plus className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <Lock className="h-4 w-4 text-slate-400 shrink-0" aria-hidden="true" />
             <span>Nuevo Recurso</span>
           </button>
         </div>
@@ -439,33 +442,37 @@ export function ResourcesClient() {
           </div>
         </div>
 
-        {/* Pestañas de Navegación — Minimalistas y unificadas */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-          {resourceTabs.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => {
-                if (tab.id === "mine" && resourcesLocked) {
-                  showResourcesUpgrade("La gestión de recursos propios está disponible en los planes de pago.");
-                  return;
-                }
-                setMainTab(tab.id as MainTab);
-              }}
-              className={cn(
-                "h-10 px-4 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer flex items-center gap-2 shrink-0",
-                mainTab === tab.id
-                  ? "bg-[#7842D4] text-white shadow-2xs"
-                  : "bg-white text-[#626573] border border-[#E9E5E7] hover:bg-slate-50"
-              )}
-            >
-              <tab.icon className="h-4 w-4 shrink-0" />
-              <span>{tab.label}</span>
-              {tab.id === "mine" && resourcesLocked && (
-                <Lock className="h-3 w-3 text-amber-500" />
-              )}
-            </button>
-          ))}
+        {/* Pestañas de Navegación — En desktop se muestran las pestañas, en móvil se utiliza el selector de sección */}
+        <div className="hidden sm:flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+          {resourceTabs.map((tab) => {
+            const isLocked = tab.isLocked;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                disabled={isLocked}
+                onClick={() => {
+                  if (isLocked) return;
+                  setMainTab(tab.id as MainTab);
+                }}
+                className={cn(
+                  "h-10 px-4 rounded-xl text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 shrink-0 select-none",
+                  mainTab === tab.id
+                    ? "bg-[#7842D4] text-white shadow-2xs font-bold cursor-pointer"
+                    : isLocked
+                    ? "bg-slate-50 text-slate-400 border border-slate-200/80 cursor-not-allowed opacity-60"
+                    : "bg-white text-[#626573] border border-[#E9E5E7] hover:bg-slate-50 cursor-pointer"
+                )}
+                title={isLocked ? "Inhabilitado para la demo" : undefined}
+              >
+                <tab.icon className={cn("h-4 w-4 shrink-0", isLocked && "text-slate-400")} />
+                <span>{tab.label}</span>
+                {isLocked && (
+                  <Lock className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                )}
+              </button>
+            );
+          })}
         </div>
 
         {isLoading ? (
@@ -478,8 +485,64 @@ export function ResourcesClient() {
             {mainTab === "library" && (
               <>
                 {/* Filtros Biblioteca */}
-                <div className="space-y-2">
-                  <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
+                <div className="space-y-3">
+                  {/* Fila Móvil: Sistema | Comunidad + Botón Seleccionar sección */}
+                  <div className="flex sm:hidden items-center gap-2">
+                    <div className="inline-flex items-center rounded-xl bg-[#F0ECEE] p-1 shrink-0 h-11">
+                      <button
+                        type="button"
+                        onClick={() => setLibrarySource("system")}
+                        className={cn(
+                          "rounded-lg px-3 py-1.5 text-xs font-semibold transition-all cursor-pointer h-9 flex items-center",
+                          librarySource === "system"
+                            ? "bg-white text-[#7842D4] shadow-2xs font-bold"
+                            : "text-[#626573] hover:text-[#20212B]"
+                        )}
+                      >
+                        Sistema
+                      </button>
+                      <button
+                        type="button"
+                        disabled
+                        className="cursor-not-allowed rounded-lg px-2.5 py-1.5 text-xs font-medium text-[#848792] flex items-center gap-1 h-9 opacity-60"
+                        title="Inhabilitado para la demo"
+                      >
+                        <Lock className="h-3 w-3" />
+                        Comunidad
+                      </button>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setIsMobileSectionModalOpen(true)}
+                      className="flex-1 h-11 px-3 rounded-xl border border-[#E9E5E7] bg-white text-xs font-semibold text-[#20212B] flex items-center justify-between gap-1.5 shadow-2xs hover:bg-slate-50 transition-all cursor-pointer min-w-0"
+                    >
+                      <div className="flex items-center gap-1.5 truncate min-w-0">
+                        <span className="text-[#626573] font-normal shrink-0">Sección:</span>
+                        <span className="truncate font-bold text-[#7842D4]">
+                          {sectionFilter === "all"
+                            ? "Todos"
+                            : LIBRARY_CATEGORIES.find((c) => c.id === sectionFilter)?.label || "Todos"}
+                        </span>
+                      </div>
+                      <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
+                    </button>
+                  </div>
+
+                  {/* Fila Móvil: Búsqueda */}
+                  <div className="relative w-full sm:hidden">
+                    <Search className="pointer-events-none absolute left-3.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[#848792]" />
+                    <input
+                      type="search"
+                      value={librarySearch}
+                      onChange={(e) => setLibrarySearch(e.target.value)}
+                      placeholder="Buscar por nombre o contenido..."
+                      className="h-11 w-full rounded-xl border border-[#E9E5E7] bg-white pl-10 pr-4 text-sm font-medium text-[#20212B] placeholder:text-[#848792] focus:outline-none focus:ring-2 focus:ring-[#7842D4]/15 focus:border-[#7842D4] transition-all shadow-2xs"
+                    />
+                  </div>
+
+                  {/* Fila Desktop (>= sm): Sistema | Comunidad + Búsqueda + Select Sección */}
+                  <div className="hidden sm:flex items-center gap-3">
                     <div className="inline-flex items-center rounded-xl bg-[#F0ECEE] p-1 shrink-0 h-11">
                       <button
                         type="button"
@@ -496,7 +559,8 @@ export function ResourcesClient() {
                       <button
                         type="button"
                         disabled
-                        className="cursor-not-allowed rounded-lg px-3 py-1.5 text-xs font-medium text-[#848792] flex items-center gap-1.5 h-9"
+                        className="cursor-not-allowed rounded-lg px-3 py-1.5 text-xs font-medium text-[#848792] flex items-center gap-1.5 h-9 opacity-60"
+                        title="Inhabilitado para la demo"
                       >
                         <Lock className="h-3 w-3" />
                         Comunidad
@@ -509,32 +573,21 @@ export function ResourcesClient() {
                         type="search"
                         value={librarySearch}
                         onChange={(e) => setLibrarySearch(e.target.value)}
-                        placeholder="Buscar por nombre, contenido o hashtag..."
+                        placeholder="Buscar por nombre o contenido..."
                         className="h-11 w-full rounded-xl border border-[#E9E5E7] bg-white pl-10 pr-4 text-sm font-medium text-[#20212B] placeholder:text-[#848792] focus:outline-none focus:ring-2 focus:ring-[#7842D4]/15 focus:border-[#7842D4] transition-all shadow-2xs"
                       />
                     </div>
 
-                    <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
-                      <div className="w-full sm:w-48">
-                        <TagInput
-                          value={libraryTags}
-                          onChange={setLibraryTags}
-                          suggestions={availableTags}
-                          placeholder="Hashtags"
-                          className="h-11"
-                        />
-                      </div>
-                      <div className="w-full sm:w-56">
-                        <Select
-                          value={sectionFilter}
-                          onChange={setSectionFilter}
-                          options={LIBRARY_CATEGORIES.map((c) => ({
-                            value: c.id,
-                            label: c.label,
-                          }))}
-                          triggerClassName="h-11 rounded-xl border-[#E9E5E7] bg-white text-sm font-medium text-[#20212B] shadow-2xs"
-                        />
-                      </div>
+                    <div className="w-56 shrink-0">
+                      <Select
+                        value={sectionFilter}
+                        onChange={setSectionFilter}
+                        options={LIBRARY_CATEGORIES.map((c) => ({
+                          value: c.id,
+                          label: c.label,
+                        }))}
+                        triggerClassName="h-11 rounded-xl border-[#E9E5E7] bg-white text-sm font-medium text-[#20212B] shadow-2xs"
+                      />
                     </div>
                   </div>
                 </div>
@@ -915,6 +968,77 @@ export function ResourcesClient() {
           </>
         )}
       </div>
+
+      {/* Modal Móvil: Seleccionar sección */}
+      <Modal
+        isOpen={isMobileSectionModalOpen}
+        onClose={() => setIsMobileSectionModalOpen(false)}
+        title="Secciones"
+        className="max-w-sm"
+      >
+        <div className="divide-y divide-[#F0ECEE] -mx-2 -my-2">
+          {/* Todos */}
+          <button
+            type="button"
+            onClick={() => {
+              setMainTab("library");
+              setSectionFilter("all");
+              setIsMobileSectionModalOpen(false);
+            }}
+            className={cn(
+              "w-full flex items-center justify-between px-3 py-3 text-sm transition-colors cursor-pointer text-left",
+              mainTab === "library" && sectionFilter === "all"
+                ? "text-[#7842D4] font-bold bg-[#F3ECFC]"
+                : "text-[#20212B] hover:bg-slate-50 font-medium"
+            )}
+          >
+            <span>Todos</span>
+            {mainTab === "library" && sectionFilter === "all" && (
+              <Check className="w-4 h-4 text-[#7842D4] shrink-0" />
+            )}
+          </button>
+
+          {/* Categorías */}
+          {LIBRARY_CATEGORIES.filter((c) => c.id !== "all").map((cat) => {
+            const isSelected = mainTab === "library" && sectionFilter === cat.id;
+            return (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => {
+                  setMainTab("library");
+                  setSectionFilter(cat.id);
+                  setIsMobileSectionModalOpen(false);
+                }}
+                className={cn(
+                  "w-full flex items-center justify-between px-3 py-3 text-sm transition-colors cursor-pointer text-left",
+                  isSelected
+                    ? "text-[#7842D4] font-bold bg-[#F3ECFC]"
+                    : "text-[#20212B] hover:bg-slate-50 font-medium"
+                )}
+              >
+                <span>{cat.label}</span>
+                {isSelected && <Check className="w-4 h-4 text-[#7842D4] shrink-0" />}
+              </button>
+            );
+          })}
+
+          {/* Secciones bloqueadas */}
+          {[
+            "Mis recursos",
+            "Portada e introducción",
+            "Restricciones alimenticias",
+          ].map((label) => (
+            <div
+              key={label}
+              className="w-full flex items-center justify-between px-3 py-3 text-sm font-medium text-slate-400 select-none opacity-50 cursor-not-allowed"
+            >
+              <span>{label}</span>
+              <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            </div>
+          ))}
+        </div>
+      </Modal>
 
       <Modal isOpen={!!resourceToPreview} onClose={() => setResourceToPreview(null)} title={resourceToPreview?.title || "Vista previa"} className="max-w-4xl"><div className="space-y-6">{resourceToPreview?.tags?.length ? <div className="flex flex-wrap gap-2">{resourceToPreview.tags.map((tag) => <span key={tag} className="inline-flex items-center rounded-full bg-slate-50 border border-slate-100 px-3 py-1 text-[10px] font-semibold text-slate-500"><Hash className="mr-1 h-3 w-3" />{tag}</span>)}</div> : null}{resourceToPreview?.format === "PDF" ? <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-12 text-center"><FileText className="mx-auto mb-4 h-16 w-16 text-slate-200" />{resourceToPreview.fileUrl ? <a href={resourceToPreview.fileUrl} target="_blank" rel="noreferrer" className="inline-flex items-center rounded-full bg-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-lg hover:bg-indigo-700 transition-colors">Abrir PDF<ExternalLink className="ml-2 h-4 w-4" /></a> : null}</div> : <div className="prose prose-slate max-w-none text-slate-600 prose-p:leading-relaxed prose-headings:text-slate-900 prose-headings:font-semibold prose-h1:text-3xl prose-h2:text-2xl prose-h3:text-xl" dangerouslySetInnerHTML={{ __html: resourceToPreview?.content || "" }} />}</div></Modal>
       <ConfirmationModal isOpen={!!resourceToDelete} onClose={() => setResourceToDelete(null)} onConfirm={deleteResource} title="Eliminar recurso" description="Esta acción quitará el recurso de tu biblioteca personal. No se puede deshacer." confirmText="Eliminar" variant="destructive" />

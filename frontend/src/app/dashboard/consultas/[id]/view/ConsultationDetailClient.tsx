@@ -30,6 +30,7 @@ import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { toast } from "sonner";
 import { fetchApi } from "@/lib/api-base";
+import { isGuestMode } from "@/lib/demo-local-api";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -94,6 +95,7 @@ interface Props {
 
 export default function ConsultationDetailClient({ id }: Props) {
   const router = useRouter();
+  const isGuest = isGuestMode();
   const [consultation, setConsultation] = useState<Consultation | null>(null);
   const [patientData, setPatientData] = useState<Patient | null>(null);
   const [isPatientPanelOpen, setIsPatientPanelOpen] = useState(false);
@@ -135,7 +137,7 @@ export default function ConsultationDetailClient({ id }: Props) {
     return (
       <ModuleLayout title="Consulta" description="Cargando..." className="pb-8">
         <div className="flex items-center justify-center min-h-[50vh]">
-          <div className="h-12 w-12 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin" />
+          <div className="h-12 w-12 border-4 border-[#DDE7B8] border-t-[#86A83C] rounded-full animate-spin" />
         </div>
       </ModuleLayout>
     );
@@ -155,7 +157,7 @@ export default function ConsultationDetailClient({ id }: Props) {
           <div className="flex items-center gap-3">
             <button
               onClick={() => router.back()}
-              className="p-3 hover:bg-white rounded-2xl transition-all text-slate-400 hover:text-slate-900 border border-transparent hover:border-slate-100 hover:shadow-lg hover:shadow-slate-200/50 cursor-pointer"
+              className="p-2.5 hover:bg-white rounded-xl transition-all text-slate-400 hover:text-slate-900 border border-transparent hover:border-slate-100 hover:shadow-sm cursor-pointer"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
@@ -163,9 +165,9 @@ export default function ConsultationDetailClient({ id }: Props) {
               <div className="flex items-center gap-2 text-slate-400 text-xs font-semibold uppercase tracking-widest mb-0.5">
                 <span>Consulta</span>
                 <ChevronRight className="w-3 h-3" />
-                <span className="text-indigo-600">{consultation.title}</span>
+                <span className="text-[#668E20]">{consultation.title}</span>
               </div>
-              <p className="text-[10px] font-semibold text-slate-300 uppercase tracking-widest">
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">
                 {formatDateDisplay(consultation.date)}
               </p>
             </div>
@@ -175,18 +177,20 @@ export default function ConsultationDetailClient({ id }: Props) {
           <div className="flex items-center gap-2">
             <button
               onClick={() => router.push(`/dashboard/pacientes/${consultation.patientId}`)}
-              className="flex items-center gap-2 h-10 px-5 bg-white border border-slate-200 hover:border-indigo-200 hover:bg-indigo-50 text-slate-600 hover:text-indigo-700 text-xs font-semibold rounded-2xl transition-all cursor-pointer shadow-sm"
+              className="flex items-center gap-2 h-10 px-4 bg-white border border-[#DDE7B8] hover:bg-[#F0F5DF] text-[#668E20] hover:text-[#527518] text-xs font-semibold rounded-xl transition-all cursor-pointer shadow-2xs"
             >
               <User className="w-4 h-4" />
-              {consultation.patientName}
+              <span>Ver ficha: {consultation.patientName}</span>
             </button>
-            <button
-              onClick={() => router.push(`/dashboard/consultas/${id}`)}
-              className="flex items-center gap-2 h-10 px-5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-2xl transition-all cursor-pointer shadow-md"
-            >
-              <Edit2 className="w-4 h-4" />
-              Editar
-            </button>
+            {!isGuest && (
+              <button
+                onClick={() => router.push(`/dashboard/consultas/${id}`)}
+                className="flex items-center gap-2 h-10 px-4 bg-[#86A83C] hover:bg-[#78A82F] text-white text-xs font-semibold rounded-xl transition-all cursor-pointer shadow-md"
+              >
+                <Edit2 className="w-4 h-4" />
+                Editar
+              </button>
+            )}
           </div>
         </div>
 
@@ -200,11 +204,11 @@ export default function ConsultationDetailClient({ id }: Props) {
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
               <div className="px-6 py-5 border-b border-slate-50 bg-gradient-to-r from-slate-50 to-white">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center">
-                    <CalendarDays className="w-5 h-5 text-indigo-600" />
+                  <div className="w-10 h-10 rounded-xl bg-[#F0F5DF] border border-[#DDE7B8] flex items-center justify-center">
+                    <CalendarDays className="w-5 h-5 text-[#668E20]" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-semibold text-slate-900 tracking-tight">
+                    <h2 className="text-xl font-bold text-slate-900 tracking-tight">
                       {consultation.title}
                     </h2>
                     <p className="text-xs font-semibold text-slate-400 mt-0.5">
@@ -217,12 +221,12 @@ export default function ConsultationDetailClient({ id }: Props) {
               {/* Description / clinical notes */}
               <div className="p-6 space-y-3">
                 <div className="flex items-center gap-2 text-slate-400">
-                  <ClipboardList className="w-4 h-4 text-indigo-500" />
+                  <ClipboardList className="w-4 h-4 text-[#86A83C]" />
                   <h3 className="text-xs font-semibold uppercase tracking-widest">
                     Observaciones Clínicas
                   </h3>
                 </div>
-                <div className="p-5 bg-slate-50/60 rounded-2xl border border-slate-100 min-h-[120px]">
+                <div className="p-5 bg-slate-50/60 rounded-xl border border-slate-100 min-h-[120px]">
                   {consultation.description ? (
                     <p className="text-slate-600 font-medium leading-relaxed whitespace-pre-wrap text-sm">
                       {consultation.description}
@@ -245,12 +249,12 @@ export default function ConsultationDetailClient({ id }: Props) {
             {/* Metrics card */}
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
               <div className="px-6 py-4 border-b border-slate-50 flex items-center gap-2">
-                <Activity className="w-4 h-4 text-indigo-500" />
+                <Activity className="w-4 h-4 text-[#86A83C]" />
                 <h3 className="text-xs font-semibold uppercase tracking-widest text-slate-500">
                   Métricas Clave
                 </h3>
                 {hasMetrics && (
-                  <span className="ml-auto px-2.5 py-1 bg-indigo-50 text-indigo-600 text-[10px] font-semibold rounded-full border border-indigo-100">
+                  <span className="ml-auto px-2.5 py-1 bg-[#F0F5DF] text-[#668E20] text-[10px] font-semibold rounded-full border border-[#DDE7B8]">
                     {metrics.length}
                   </span>
                 )}
@@ -307,11 +311,11 @@ export default function ConsultationDetailClient({ id }: Props) {
           >
             <summary className="list-none [&::-webkit-details-marker]:hidden cursor-pointer select-none p-5 lg:p-6 border-b border-slate-50 bg-slate-50/30 flex items-center justify-between gap-3 group">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center group-hover:bg-indigo-100 transition-colors">
-                  <User className="w-6 h-6 text-indigo-600" />
+                <div className="w-12 h-12 rounded-2xl bg-[#F0F5DF] border border-[#DDE7B8] flex items-center justify-center group-hover:bg-[#E5ECCB] transition-colors">
+                  <User className="w-6 h-6 text-[#668E20]" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-semibold text-slate-900 group-hover:text-indigo-700 transition-colors flex items-center gap-2">
+                  <h3 className="text-xl font-semibold text-slate-900 group-hover:text-[#668E20] transition-colors flex items-center gap-2">
                     {patientData.fullName}
                   </h3>
                   <p className="text-xs font-semibold text-slate-400">Ficha del Paciente</p>
@@ -410,9 +414,9 @@ export default function ConsultationDetailClient({ id }: Props) {
                 <Button
                   onClick={() => router.push(`/dashboard/pacientes/${patientData.id}`)}
                   variant="ghost"
-                  className="w-full h-12 rounded-2xl border border-slate-200 text-slate-500 hover:text-indigo-700 hover:bg-indigo-50 hover:border-indigo-200 font-semibold transition-all flex items-center justify-center gap-3 group"
+                  className="w-full h-12 rounded-xl border border-slate-200 text-slate-600 hover:text-[#668E20] hover:bg-[#F0F5DF] hover:border-[#DDE7B8] font-semibold transition-all flex items-center justify-center gap-3 group"
                 >
-                  <User className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                  <User className="w-4 h-4 group-hover:scale-110 transition-transform text-[#86A83C]" />
                   <span>Ver perfil completo del paciente</span>
                   <ChevronRight className="w-4 h-4" />
                 </Button>

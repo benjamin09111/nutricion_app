@@ -34,6 +34,7 @@ import { DemoInterestModal } from "@/components/demo/DemoInterestModal";
 import { PlanLimitsModal } from "@/components/memberships/PlanLimitsModal";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
+import { isGuestMode } from "@/lib/demo-local-api";
 // import { FollowUpNotificationsMenu } from "@/components/layout/FollowUpNotificationsMenu";
 import { getCurrentUser } from "@/lib/current-user";
 
@@ -97,7 +98,7 @@ export function Navbar({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
 
-  const [isGuest, setIsGuest] = useState(false);
+  const [isGuest, setIsGuest] = useState(true);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isSecureSubModalOpen, setIsSecureSubModalOpen] = useState(false);
   const [isSecuringSub, setIsSecuringSub] = useState(false);
@@ -106,10 +107,7 @@ export function Navbar({
   const [todayString, setTodayString] = useState<string>("");
 
   useEffect(() => {
-    const hasSession = document.cookie
-      .split(";")
-      .some((item) => item.trim().startsWith("auth_session_present="));
-    setIsGuest(!hasSession);
+    setIsGuest(isGuestMode());
 
     const now = new Date();
     setTodayString(
@@ -194,57 +192,83 @@ export function Navbar({
         isAdminView && isDarkMode && "border-indigo-400/20",
       )}
     >
-      {/* Mobile Menu Toggle (Preserved) */}
-      <button
-        type="button"
-        aria-expanded={isMobileMenuOpen}
-        aria-controls="mobile-dashboard-navigation"
-        className={cn(
-          "-m-2.5 cursor-pointer rounded-lg p-2.5 transition-colors lg:hidden",
-          isDarkMode
-            ? "text-emerald-50 hover:bg-emerald-500/10"
-            : "text-slate-700 hover:bg-slate-50",
-        )}
-        onClick={onMenuClick}
-      >
-        <span className="sr-only">
-          {isMobileMenuOpen ? "Cerrar menú" : "Abrir menú"}
-        </span>
-        <Menu
-          className={cn(
-            "h-6 w-6",
-            isDarkMode ? "text-emerald-100" : "text-slate-600",
-          )}
-          aria-hidden="true"
-        />
-      </button>
+      {/* ========================================================================= */}
+      {/* 1. VISTA MÓVIL (< lg): Logo (Izq) | Me interesa (Centro) | Hamburger (Der) */}
+      {/* ========================================================================= */}
+      <div className="flex lg:hidden w-full items-center justify-between min-w-0 gap-2">
+        {/* Logo a la izquierda */}
+        <Link
+          href="/dashboard"
+          className="flex items-center shrink-0 hover:opacity-85 transition-opacity cursor-pointer select-none"
+          title="Ir al panel principal"
+        >
+          <Image
+            src="/logo_2_cropped.webp"
+            alt="NutriNet"
+            width={110}
+            height={26}
+            className="h-6 w-auto object-contain"
+            priority
+          />
+        </Link>
 
-        <div className="flex min-w-0 flex-1 items-center justify-between gap-x-1.5 sm:gap-x-4 lg:gap-x-6">
-          {/* Workspace Context — Clean, quiet & clinical */}
-          <Link
-            href="/dashboard"
-            className="flex items-center gap-1.5 sm:gap-2 min-w-0 hover:opacity-80 transition-opacity cursor-pointer select-none shrink-0"
-            title="Ir al panel principal"
-          >
-            <Image
-              src="/logo_2_cropped.webp"
-              alt="NutriNet"
-              width={140}
-              height={33}
-              className="h-6 sm:h-7 w-auto object-contain"
-              priority
-            />
-            <span className="text-xs text-slate-300 hidden sm:inline">/</span>
-            <span className="text-xs font-medium text-slate-600 hidden sm:inline">Espacio Clínico</span>
-            {!isAdminView && (
-              <>
-                <span className="text-xs text-slate-300">/</span>
-                <span className="text-[10px] sm:text-xs font-bold text-[#668E20] bg-[#F0F5DF] px-1.5 sm:px-2 py-0.5 rounded-md border border-[#86A83C]/30 tracking-wider">
-                  DEMO
-                </span>
-              </>
+        {/* Me interesa al medio llamativamente */}
+        {!isAdminView && (
+          <div className="flex-1 flex justify-center px-1">
+            <button
+              type="button"
+              onClick={() => setIsDemoInterestModalOpen(true)}
+              className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold shadow-sm transition-all duration-200 active:scale-95 bg-[#86A83C] hover:bg-[#78A82F] text-white shrink-0 shadow-[#86A83C]/20"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-white shrink-0 animate-pulse" />
+              <span>Me interesa</span>
+            </button>
+          </div>
+        )}
+
+        {/* Hamburger a la derecha */}
+        <button
+          type="button"
+          aria-expanded={isMobileMenuOpen}
+          aria-controls="mobile-dashboard-navigation"
+          className={cn(
+            "cursor-pointer rounded-xl p-2 transition-colors shrink-0",
+            isDarkMode
+              ? "text-emerald-50 hover:bg-emerald-500/10"
+              : "text-slate-700 hover:bg-slate-100",
+          )}
+          onClick={onMenuClick}
+          title={isMobileMenuOpen ? "Cerrar menú" : "Abrir menú"}
+        >
+          <span className="sr-only">
+            {isMobileMenuOpen ? "Cerrar menú" : "Abrir menú"}
+          </span>
+          <Menu
+            className={cn(
+              "h-6 w-6",
+              isDarkMode ? "text-emerald-100" : "text-slate-700",
             )}
-          </Link>
+            aria-hidden="true"
+          />
+        </button>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* 2. VISTA ESCRITORIO (>= lg): Completo con todas las acciones y dropdowns  */}
+      {/* ========================================================================= */}
+      <div className="hidden lg:flex min-w-0 flex-1 items-center justify-between gap-x-4 lg:gap-x-6">
+        {/* Workspace Context — Clean, quiet & clinical (logo en sidebar únicamente) */}
+        <div className="flex items-center gap-2 min-w-0 select-none shrink-0">
+          <span className="text-xs sm:text-sm font-semibold text-slate-700">Espacio Clínico</span>
+          {!isAdminView && (
+            <>
+              <span className="text-xs text-slate-300">/</span>
+              <span className="text-[10px] sm:text-xs font-bold text-[#668E20] bg-[#F0F5DF] px-1.5 sm:px-2 py-0.5 rounded-md border border-[#86A83C]/30 tracking-wider">
+                DEMO
+              </span>
+            </>
+          )}
+        </div>
 
           <div className="flex min-w-0 items-center justify-end gap-x-1.5 sm:gap-x-3 lg:gap-x-4">
             {!isAdminView && (
@@ -315,7 +339,7 @@ export function Navbar({
               </button>
             )}
 
-            {!isAdminView && isFreemium && (
+            {!isAdminView && !isGuest && isFreemium && (
               <button
                 type="button"
                 onClick={() =>
@@ -535,18 +559,18 @@ export function Navbar({
             <div className="flex items-center gap-2 sm:gap-2.5">
               <div
                 className={cn(
-                  "hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl border text-xs font-medium select-none shadow-xs",
+                  "hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl border text-xs font-semibold select-none shadow-2xs",
                   isDarkMode
-                    ? "bg-purple-950/40 text-purple-300 border-purple-800/60"
-                    : "bg-[#f5effe] text-[#7c3aed] border-purple-200/80",
+                    ? "bg-emerald-950/40 text-emerald-300 border-emerald-800/60"
+                    : "bg-[#F0F5DF] text-[#668E20] border-[#DDE7B8]",
                 )}
               >
-                <span className="h-1.5 w-1.5 rounded-full bg-[#7c3aed]" />
+                <span className="h-1.5 w-1.5 rounded-full bg-[#86A83C]" />
                 <span>Modo Invitado</span>
               </div>
               <Link
                 href="/login"
-                className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold shadow-xs transition-all active:scale-95 bg-[#7c3aed] hover:bg-[#6d28d9] text-white"
+                className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold shadow-2xs transition-all active:scale-95 bg-[#86A83C] hover:bg-[#78A82F] text-white"
               >
                 <span>Iniciar sesión</span>
               </Link>

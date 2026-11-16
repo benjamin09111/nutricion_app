@@ -27,6 +27,7 @@ import {
   BarChart2,
   Tag,
   Edit3,
+  FileText,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/Input";
@@ -39,10 +40,10 @@ import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { toast } from "sonner";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
-import { UsageLimitBadge } from "@/components/shared/UsageLimitBadge";
 import { RecordsTable, type Column } from "@/components/shared/RecordsTable";
 import { Pagination } from "@/components/ui/Pagination";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
+import { Modal } from "@/components/ui/Modal";
 import { TableLoadingRows } from "@/components/ui/TableLoadingRows";
 import { MobileCardLoadingList } from "@/components/ui/MobileCardLoadingList";
 import { fetchApi, getApiUrl } from "@/lib/api-base";
@@ -54,6 +55,7 @@ import { useScrollLock } from "@/hooks/useScrollLock";
 import { ShareFormModal } from "@/features/patients-intake/components/ShareFormModal";
 import { PrivacyInfoModal } from "@/features/patients/components/PrivacyInfoModal";
 import { buildClinicalRecordPdfData } from "@/features/patients/utils/clinical-record-export";
+import { isGuestMode } from "@/lib/demo-local-api";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -79,7 +81,13 @@ export default function PatientsClient() {
   const [page, setPage] = useState(1);
   const router = useRouter();
 
+  const isGuest = isGuestMode();
   const [patientPreview, setPatientPreview] = useState<Patient | null>(null);
+  const [clinicalRecordPatient, setClinicalRecordPatient] = useState<Patient | null>(null);
+  const [clinicalRecordDraft, setClinicalRecordDraft] = useState<any | null>(null);
+  const [clinicalRecordPdfUrl, setClinicalRecordPdfUrl] = useState<string | null>(null);
+  const [clinicalRecordTab, setClinicalRecordTab] = useState<"resumen" | "pdf">("resumen");
+  const [isClinicalRecordLoading, setIsClinicalRecordLoading] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -190,6 +198,48 @@ export default function PatientsClient() {
     }
   };
 
+  const generatePdfForPatient = async (patient: Patient) => {
+    const [{ pdf }, { ClinicalRecordPdfDocument }, React] = await Promise.all([
+      import("@react-pdf/renderer"),
+      import("@/features/pdf/ClinicalRecordPdfDocument"),
+      import("react"),
+    ]);
+
+    const response = await fetchApi(`/patients/${patient.id}/clinical-record`);
+    const clinicalRecord = response.ok ? await response.json() : null;
+    const clinicalRecordDraft = buildClinicalRecordDraft(patient, clinicalRecord);
+    const pdfData = buildClinicalRecordPdfData(patient, clinicalRecordDraft);
+
+    const doc = React.createElement(ClinicalRecordPdfDocument, { data: pdfData });
+    const blob = await pdf(doc as unknown as Parameters<typeof pdf>[0]).toBlob();
+    return { blob, draft: clinicalRecordDraft };
+  };
+
+  const handleOpenClinicalRecordPreview = async (patient: Patient) => {
+    setClinicalRecordPatient(patient);
+    setIsClinicalRecordLoading(true);
+    setClinicalRecordTab("resumen");
+    try {
+      const { blob, draft } = await generatePdfForPatient(patient);
+      const url = URL.createObjectURL(blob);
+      setClinicalRecordPdfUrl(url);
+      setClinicalRecordDraft(draft);
+    } catch (e) {
+      console.error("Error generating clinical record preview:", e);
+      toast.error("Error al cargar la ficha clínica");
+    } finally {
+      setIsClinicalRecordLoading(false);
+    }
+  };
+
+  const closeClinicalRecordModal = () => {
+    setClinicalRecordPatient(null);
+    if (clinicalRecordPdfUrl) {
+      URL.revokeObjectURL(clinicalRecordPdfUrl);
+      setClinicalRecordPdfUrl(null);
+    }
+  };
+
   const filteredPatients = patients;
   const rawActivePatientLimit = currentPlan?.entitlements?.["patients.total.limit"] ??
     currentPlan?.entitlements?.["patients.active.limit"];
@@ -215,11 +265,11 @@ export default function PatientsClient() {
       header: "Identidad del paciente",
       render: (patient: Patient) => (
         <div className="flex items-center gap-3 min-w-0">
-          <div className="h-9 w-9 rounded-xl bg-purple-100 flex items-center justify-center text-[#7c3aed] font-bold text-sm shrink-0">
+          <div className="h-9 w-9 rounded-xl bg-[#F0F5DF] flex items-center justify-center text-[#668E20] font-bold text-sm shrink-0 border border-[#DDE7B8]">
             {patient.fullName.charAt(0)}
           </div>
           <div className="min-w-0">
-            <div className="text-sm font-semibold text-slate-900 leading-tight mb-0.5 truncate group-hover:text-[#7c3aed] transition-colors">
+            <div className="text-sm font-semibold text-slate-900 leading-tight mb-0.5 truncate group-hover:text-[#668E20] transition-colors">
               {patient.fullName}
             </div>
             <div className="text-xs text-slate-500 font-normal truncate">
@@ -307,38 +357,19 @@ export default function PatientsClient() {
           onClick={(e) => e.stopPropagation()}
         >
           <button
+            onClick={() => handleOpenClinicalRecordPreview(patient)}
+            className="p-1.5 text-slate-400 hover:text-[#668E20] hover:bg-[#F0F5DF] rounded-lg transition-colors cursor-pointer"
+            title="Vista previa de ficha clínica (PDF)"
+          >
+            <FileText className="w-4 h-4 text-[#86A83C]" />
+          </button>
+          <button
             onClick={() => openPatientPreview(patient)}
             disabled={patientDataPending}
-            className="p-1.5 text-slate-400 hover:text-[#7c3aed] hover:bg-purple-50/70 rounded-lg transition-colors cursor-pointer"
+            className="p-1.5 text-slate-400 hover:text-[#668E20] hover:bg-[#F0F5DF] rounded-lg transition-colors cursor-pointer"
             title="Ver paciente"
           >
             <Eye className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => handleExportClinicalRecord(patient)}
-            className="p-1.5 text-slate-400 hover:text-[#668E20] hover:bg-[#F0F5DF] rounded-lg transition-colors cursor-pointer"
-            title="Descargar ficha clínica PDF"
-            disabled={isExporting || patientDataPending}
-          >
-            <Download className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => router.push(`/dashboard/pacientes/${patient.id}`)}
-            className="p-1.5 text-slate-400 hover:text-[#7c3aed] hover:bg-purple-50/70 rounded-lg transition-colors cursor-pointer"
-            title="Editar / Ficha"
-          >
-            <Edit3 className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => {
-              if (patientDataPending) return;
-              setPatientToDelete(patient);
-              setIsDeleteModalOpen(true);
-            }}
-            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50/70 rounded-lg transition-colors cursor-pointer"
-            title="Eliminar paciente"
-          >
-            <Trash2 className="w-4 h-4" />
           </button>
         </div>
       ),
@@ -360,146 +391,102 @@ export default function PatientsClient() {
         </div>
       }
       rightContent={
-        <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
-          {patientsUsed !== undefined && (
-            <UsageLimitBadge
-              label="Pacientes"
-              usage={patientsUsed}
-              limit={patientLimit}
-            />
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3 w-full sm:w-auto">
+          {/* Fila secundaria: Datos y Privacidad + Excel */}
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            {/* Datos y privacidad */}
+            <button
+              type="button"
+              onClick={() => setIsPrivacyModalOpen(true)}
+              title="Protección y privacidad de datos clínicos"
+              className="flex-1 sm:flex-initial h-10 sm:h-11 px-3 sm:px-4 rounded-xl border border-[#E9E5E7] bg-white text-[#20212B] hover:bg-slate-50 text-xs sm:text-sm font-medium transition-colors flex items-center justify-center gap-1.5 shrink-0 cursor-pointer shadow-2xs"
+              aria-label="Ver información de protección y privacidad"
+            >
+              <ShieldCheck className="h-4 w-4 shrink-0 text-[#626573]" />
+              <span className="hidden sm:inline">Datos y privacidad</span>
+              <span className="sm:hidden">Privacidad</span>
+            </button>
+
+            {/* Separador vertical en desktop */}
+            <div className="hidden sm:block w-px h-6 bg-[#E9E5E7] shrink-0" />
+
+            {/* Exportar Excel */}
+            <button
+              type="button"
+              disabled={isExporting || patientDataPending}
+              onClick={handleExportPatientsExcel}
+              className="flex-1 sm:flex-initial h-10 sm:h-11 px-3 sm:px-4 rounded-xl border border-[#E9E5E7] bg-white text-[#20212B] hover:bg-slate-50 text-xs sm:text-sm font-medium transition-colors flex items-center justify-center gap-1.5 shrink-0 cursor-pointer shadow-2xs disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isExporting ? (
+                <div className="h-4 w-4 border-2 border-slate-300 border-t-[#20212B] rounded-full animate-spin shrink-0" />
+              ) : (
+                <FileSpreadsheet className="h-4 w-4 shrink-0 text-[#626573]" />
+              )}
+              <span className="hidden sm:inline">Exportar Excel</span>
+              <span className="sm:hidden">Excel</span>
+            </button>
+          </div>
+
+          {/* Botón principal Crear paciente (centrado y full-width en móvil) */}
+          {isGuest ? (
+            <button
+              type="button"
+              disabled
+              className="h-11 px-5 rounded-xl border border-slate-200/80 bg-slate-50 text-slate-400 text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 shrink-0 cursor-not-allowed opacity-60 select-none w-full sm:w-auto"
+              title="Inhabilitado para la demo"
+            >
+              <Plus className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span>Crear paciente</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                if (patientCreationBlocked) {
+                  toast.info("Estamos verificando el uso de tu plan. Intenta nuevamente en unos segundos.");
+                  return;
+                }
+                if (isPatientLimitReached) {
+                  toast.error("Has alcanzado el límite de pacientes activos de tu plan.");
+                  return;
+                }
+                router.push("/dashboard/pacientes/new");
+              }}
+              disabled={patientCreationBlocked || isPatientLimitReached}
+              className="h-11 px-5 rounded-xl bg-[#86A83C] hover:bg-[#78A82F] text-white text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-2 shrink-0 shadow-2xs active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-sm shadow-[#86A83C]/20 w-full sm:w-auto"
+            >
+              <Plus className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span>
+                {isSubscriptionLoading || !hasAuthoritativePatientCount
+                  ? "Verificando..."
+                  : isPatientLimitReached
+                    ? "Límite alcanzado"
+                    : "Crear paciente"}
+              </span>
+            </button>
           )}
-
-          {/* Protección y privacidad */}
-          <button
-            type="button"
-            onClick={() => setIsPrivacyModalOpen(true)}
-            title="Protección y privacidad de datos clínicos"
-            className="h-11 px-4 rounded-xl border border-[#E9E5E7] bg-white text-[#20212B] hover:bg-[#FDFBFA] text-xs sm:text-sm font-medium transition-colors flex items-center gap-2 shrink-0 cursor-pointer shadow-2xs"
-            aria-label="Ver información de protección y privacidad"
-          >
-            <ShieldCheck className="h-4 w-4 shrink-0 text-[#626573]" />
-            <span className="hidden sm:inline">Protección y privacidad</span>
-            <span className="sm:hidden">Privacidad</span>
-          </button>
-
-          {/* Separador vertical */}
-          <div className="hidden sm:block w-px h-6 bg-[#E9E5E7] shrink-0" />
-
-          {/* Exportar Excel */}
-          <button
-            type="button"
-            disabled={isExporting || patientDataPending}
-            onClick={handleExportPatientsExcel}
-            className="h-11 px-4 rounded-xl border border-[#E9E5E7] bg-white text-[#20212B] hover:bg-[#FDFBFA] text-xs sm:text-sm font-medium transition-colors flex items-center gap-2 shrink-0 cursor-pointer shadow-2xs disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isExporting ? (
-              <div className="h-4 w-4 border-2 border-slate-300 border-t-[#20212B] rounded-full animate-spin shrink-0" />
-            ) : (
-              <FileSpreadsheet className="h-4 w-4 shrink-0 text-[#626573]" />
-            )}
-            <span className="hidden sm:inline">Exportar Excel</span>
-            <span className="sm:hidden">Excel</span>
-          </button>
-
-          {/* Botón principal Crear paciente */}
-          <button
-            type="button"
-            onClick={() => {
-              if (patientCreationBlocked) {
-                toast.info("Estamos verificando el uso de tu plan. Intenta nuevamente en unos segundos.");
-                return;
-              }
-              if (isPatientLimitReached) {
-                toast.error("Has alcanzado el límite de pacientes activos de tu plan.");
-                return;
-              }
-              router.push("/dashboard/pacientes/new");
-            }}
-            disabled={patientCreationBlocked || isPatientLimitReached}
-            className="h-11 px-5 rounded-xl bg-[#86A83C] hover:bg-[#78A82F] text-white text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 shrink-0 shadow-2xs active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-sm shadow-[#86A83C]/20"
-          >
-            <Plus className="h-4 w-4 shrink-0" aria-hidden="true" />
-            <span>
-              {isSubscriptionLoading || !hasAuthoritativePatientCount
-                ? "Verificando..."
-                : isPatientLimitReached
-                  ? "Límite alcanzado"
-                  : "Crear paciente"}
-            </span>
-          </button>
         </div>
       }
       className="pb-16 relative"
     >
-      <div className="space-y-6">
-        {/* Barra de Indicadores (Section 6) — Superficie horizontal única con 3 columnas interiores */}
-        <div className="relative overflow-hidden bg-white border border-[#E9E5E7] rounded-[18px] p-5 sm:p-6 min-h-[110px] shadow-2xs">
-          {/* Decoración vegetal tenue en el extremo izquierdo mediante SVG */}
-          <svg
-            className="absolute left-0 top-0 h-full w-36 text-[#B0C76F] pointer-events-none select-none opacity-15"
-            viewBox="0 0 120 100"
-            preserveAspectRatio="none"
-            fill="currentColor"
-          >
-            <path d="M0 0 C 45 15, 65 55, 25 100 L 0 100 Z" />
-            <path d="M0 20 C 35 35, 45 75, 10 100 L 0 100 Z" opacity="0.6" />
-          </svg>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 divide-y md:divide-y-0 md:divide-x divide-[#F0ECEE] relative z-10">
-            {/* Activos */}
-            <div className="flex items-center justify-between sm:px-3">
-              <div className="flex items-center gap-3.5">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#F0F5DF] text-[#668E20]">
-                  <Users className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-[#626573]">Activos</p>
-                  <h3 className="text-3xl font-semibold text-[#20212B] tracking-tight leading-none mt-1">
-                    {meta.activeCount}
-                  </h3>
-                </div>
-              </div>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#F0F5DF] text-[#668E20] border border-[#DDE7B8]">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#86A83C] animate-pulse" />
-                <span>En seguimiento</span>
-              </span>
-            </div>
-
-            {/* Inactivos */}
-            <div className="flex items-center justify-between pt-4 md:pt-0 md:px-6">
-              <div className="flex items-center gap-3.5">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
-                  <User className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-[#626573]">Inactivos</p>
-                  <h3 className="text-3xl font-semibold text-[#20212B] tracking-tight leading-none mt-1">
-                    {meta.inactiveCount}
-                  </h3>
-                </div>
-              </div>
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-[#626573] border border-slate-200">
-                Pausados
-              </span>
-            </div>
-
-            {/* Total registrados */}
-            <div className="flex items-center justify-between pt-4 md:pt-0 md:px-6">
-              <div className="flex items-center gap-3.5">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#F0F5DF] text-[#668E20]">
-                  <BarChart2 className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-[#626573]">Total registrados</p>
-                  <h3 className="text-3xl font-semibold text-[#20212B] tracking-tight leading-none mt-1">
-                    {meta.total}
-                  </h3>
-                </div>
-              </div>
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#F0F5DF] text-[#668E20] border border-[#DDE7B8]">
-                100% cartera
-              </span>
-            </div>
+      <div className="space-y-4 sm:space-y-6">
+        {/* Resumen simple y compacto (reemplaza banner masivo para móviles) */}
+        <div className="flex flex-wrap items-center justify-between sm:justify-start gap-2.5 sm:gap-6 bg-white border border-[#E9E5E7] rounded-xl px-4 py-2.5 shadow-2xs text-xs">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-[#86A83C]" />
+            <span className="text-[#626573] font-medium">Activos:</span>
+            <strong className="text-[#20212B] font-bold">{meta.activeCount}</strong>
+          </div>
+          <div className="h-3.5 w-px bg-[#E9E5E7]" />
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-slate-400" />
+            <span className="text-[#626573] font-medium">Inactivos:</span>
+            <strong className="text-[#20212B] font-bold">{meta.inactiveCount}</strong>
+          </div>
+          <div className="hidden sm:block h-3.5 w-px bg-[#E9E5E7]" />
+          <div className="hidden sm:flex items-center gap-2">
+            <span className="text-[#626573] font-medium">Total registrados:</span>
+            <strong className="text-[#20212B] font-bold">{meta.total}</strong>
           </div>
         </div>
 
@@ -588,7 +575,7 @@ export default function PatientsClient() {
               loadingColumns={columns.length}
               onRowClick={(patient) => {
                 if (!patientDataPending) {
-                  router.push(`/dashboard/pacientes/${patient.id}`);
+                  openPatientPreview(patient);
                 }
               }}
               rowClassName="hover:bg-slate-50 transition-colors group cursor-pointer"
@@ -629,14 +616,14 @@ export default function PatientsClient() {
                     key={patient.id}
                     onClick={() => {
                       if (!patientDataPending) {
-                        router.push(`/dashboard/pacientes/${patient.id}`);
+                        openPatientPreview(patient);
                       }
                     }}
                     className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs active:scale-[0.99] transition-all space-y-3 cursor-pointer"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="h-10 w-10 rounded-xl bg-purple-100 flex items-center justify-center text-[#7c3aed] font-bold border border-purple-200 shrink-0">
+                        <div className="h-10 w-10 rounded-xl bg-[#F0F5DF] flex items-center justify-center text-[#668E20] font-bold border border-[#DDE7B8] shrink-0">
                           {patient.fullName.charAt(0)}
                         </div>
                         <div className="min-w-0">
@@ -682,46 +669,25 @@ export default function PatientsClient() {
                     )}
 
                     <div
-                      className="flex items-center justify-between pt-2 border-t border-slate-100"
+                      className="flex items-center justify-between pt-2.5 border-t border-slate-100"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <span className="text-xs font-mono text-slate-500">
-                        {patient.documentId || "---"}
-                      </span>
+                      <button
+                        onClick={() => openPatientPreview(patient)}
+                        className="text-xs font-bold text-[#668E20] hover:text-[#527518] flex items-center gap-1.5 cursor-pointer py-1 px-2 rounded-lg hover:bg-[#F0F5DF] transition-colors"
+                      >
+                        <User className="w-3.5 h-3.5" />
+                        <span>Ver paciente</span>
+                      </button>
 
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => openPatientPreview(patient)}
-                          className="p-2 text-slate-400 hover:text-[#7c3aed] bg-slate-50 hover:bg-purple-50 rounded-xl transition-all"
-                          title="Ver"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleExportClinicalRecord(patient)}
-                          className="p-2 text-slate-400 hover:text-emerald-600 bg-slate-50 hover:bg-emerald-50 rounded-xl transition-all"
-                          title="Descargar PDF"
-                        >
-                          <Download className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => router.push(`/dashboard/pacientes/${patient.id}`)}
-                          className="p-2 text-slate-400 hover:text-[#7c3aed] bg-slate-50 hover:bg-purple-50 rounded-xl transition-all"
-                          title="Ficha"
-                        >
-                          <Edit3 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => {
-                            setPatientToDelete(patient);
-                            setIsDeleteModalOpen(true);
-                          }}
-                          className="p-2 text-slate-400 hover:text-rose-600 bg-slate-50 hover:bg-rose-50 rounded-xl transition-all"
-                          title="Eliminar"
-                        >
-                          <Trash2 className="w-4 h-4 text-rose-500" />
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => handleOpenClinicalRecordPreview(patient)}
+                        className="p-2 text-slate-600 hover:text-[#668E20] bg-slate-50 hover:bg-[#F0F5DF] rounded-xl transition-all cursor-pointer flex items-center gap-1.5 text-xs font-semibold"
+                        title="Ficha clínica"
+                      >
+                        <FileText className="w-3.5 h-3.5 text-[#86A83C]" />
+                        <span>Ficha clínica (PDF)</span>
+                      </button>
                     </div>
                   </div>
                 );
@@ -756,176 +722,346 @@ export default function PatientsClient() {
 
 
 
-      {patientPreview && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl border border-slate-200 bg-white shadow-2xl">
-            <div className="flex items-start justify-between gap-4 border-b border-slate-100 p-6">
-              <div className="flex items-center gap-4">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-indigo-100 bg-indigo-50 text-lg font-bold text-indigo-600">
+      {/* Modal: Ver Paciente (Minimalista) */}
+      <Modal
+        isOpen={Boolean(patientPreview)}
+        onClose={() => setPatientPreview(null)}
+        title="Información del Paciente"
+        description="Ficha de datos básicos y contacto"
+        className="max-w-md"
+      >
+        {patientPreview && (
+          <div className="space-y-4">
+            {/* Cabecera del paciente */}
+            <div className="flex items-center justify-between p-3.5 rounded-2xl bg-[#F0F5DF]/60 border border-[#DDE7B8]">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="h-11 w-11 rounded-xl bg-[#F0F5DF] border border-[#DDE7B8] flex items-center justify-center text-[#668E20] font-extrabold text-base shrink-0 shadow-2xs">
                   {patientPreview.fullName.charAt(0)}
                 </div>
-                <div>
-                  <h3 className="text-xl font-semibold text-slate-900">
+                <div className="min-w-0">
+                  <h4 className="font-extrabold text-[#20212B] text-base leading-snug truncate">
                     {patientPreview.fullName}
-                  </h3>
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <span
-                      className={cn(
-                        "rounded-full px-2.5 py-1 text-[11px] font-bold",
-                        patientPreview.status === "Active"
-                          ? "bg-indigo-50 text-indigo-700 ring-1 ring-indigo-100"
-                          : "bg-slate-100 text-slate-600 ring-1 ring-slate-200",
-                      )}
-                    >
-                      {patientPreview.status === "Active"
-                        ? "Activo"
-                        : "Inactivo"}
-                    </span>
-                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600 ring-1 ring-slate-200">
-                      {patientPreview.documentId || "Sin documento"}
-                    </span>
-                  </div>
+                  </h4>
+                  <p className="text-xs font-medium text-slate-500 font-mono">
+                    {patientPreview.documentId || "Sin documento"}
+                  </p>
                 </div>
               </div>
+
+              <span
+                className={cn(
+                  "inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border shrink-0",
+                  patientPreview.status !== "Inactive"
+                    ? "bg-[#F0F5DF] text-[#668E20] border-[#DDE7B8]"
+                    : "bg-slate-100 text-slate-600 border-slate-200",
+                )}
+              >
+                <span
+                  className={cn(
+                    "w-1.5 h-1.5 rounded-full",
+                    patientPreview.status !== "Inactive" ? "bg-[#86A83C]" : "bg-slate-400",
+                  )}
+                />
+                <span>{patientPreview.status !== "Inactive" ? "Activo" : "Inactivo"}</span>
+              </span>
+            </div>
+
+            {/* Datos de Contacto */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+              <div className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-slate-700 min-w-0">
+                <Mail className="w-4 h-4 text-[#86A83C] shrink-0" />
+                <span className="truncate">{patientPreview.email || "Sin correo"}</span>
+              </div>
+              <div className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-slate-700">
+                <Phone className="w-4 h-4 text-[#86A83C] shrink-0" />
+                <span>{patientPreview.phone || "Sin teléfono"}</span>
+              </div>
+            </div>
+
+            {/* Métricas Corporales */}
+            <div className="grid grid-cols-4 gap-2 text-center">
+              <div className="p-2.5 rounded-xl bg-white border border-slate-200/80 shadow-2xs">
+                <span className="text-[10px] font-bold uppercase text-slate-400 block">Edad</span>
+                <span className="text-sm font-extrabold text-slate-900 mt-0.5 block">
+                  {patientPreview.age ? `${patientPreview.age}a` : "—"}
+                </span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-white border border-slate-200/80 shadow-2xs">
+                <span className="text-[10px] font-bold uppercase text-slate-400 block">Sexo</span>
+                <span className="text-sm font-extrabold text-slate-900 mt-0.5 block">
+                  {patientPreview.gender || "—"}
+                </span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-white border border-slate-200/80 shadow-2xs">
+                <span className="text-[10px] font-bold uppercase text-slate-400 block">Altura</span>
+                <span className="text-sm font-extrabold text-slate-900 mt-0.5 block">
+                  {patientPreview.height ? `${patientPreview.height}cm` : "—"}
+                </span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-white border border-slate-200/80 shadow-2xs">
+                <span className="text-[10px] font-bold uppercase text-slate-400 block">Peso</span>
+                <span className="text-sm font-extrabold text-[#668E20] mt-0.5 block">
+                  {patientPreview.weight ? `${patientPreview.weight}kg` : "—"}
+                </span>
+              </div>
+            </div>
+
+            {/* Diagnóstico / Objetivo Clínico */}
+            {(patientPreview.clinicalSummary || patientPreview.nutritionalFocus || patientPreview.primaryCondition) && (
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                  Diagnóstico / Objetivo
+                </span>
+                <p className="text-slate-700 font-medium leading-relaxed">
+                  {patientPreview.clinicalSummary || patientPreview.nutritionalFocus || patientPreview.primaryCondition}
+                </p>
+              </div>
+            )}
+
+            {/* Restricciones médicas */}
+            {(() => {
+              const restrictions = formatRestrictions(patientPreview.dietRestrictions, patientPreview.primaryCondition);
+              if (restrictions.length === 0) return null;
+              return (
+                <div className="space-y-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                    Restricciones Alimentarias
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {restrictions.map((r) => (
+                      <span
+                        key={r}
+                        className="inline-flex items-center gap-1 rounded-lg bg-[#FEFCE8] border border-[#FEF08A] px-2 py-0.5 text-xs font-semibold text-[#854D0E]"
+                      >
+                        <Tag className="w-3 h-3 text-[#A16207]" />
+                        <span>{r}</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Footer */}
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  const pat = patientPreview;
+                  setPatientPreview(null);
+                  handleOpenClinicalRecordPreview(pat);
+                }}
+                className="h-10 px-4 rounded-xl bg-[#F0F5DF] hover:bg-[#E5ECCB] text-[#668E20] font-bold text-xs flex items-center gap-2 border border-[#DDE7B8] transition-colors cursor-pointer"
+              >
+                <FileText className="w-4 h-4" />
+                <span>Ver Ficha Clínica</span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => setPatientPreview(null)}
-                className="rounded-2xl p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
-                title="Cerrar"
+                className="h-10 px-5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs transition-colors cursor-pointer"
               >
-                <X className="h-5 w-5" />
+                Cerrar
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Modal: Vista Previa de Ficha Clínica (con PDF) */}
+      <Modal
+        isOpen={Boolean(clinicalRecordPatient)}
+        onClose={closeClinicalRecordModal}
+        title="Vista Previa de Ficha Clínica"
+        description={clinicalRecordPatient ? `Ficha clínica y antecedentes de ${clinicalRecordPatient.fullName}` : ""}
+        className="max-w-4xl"
+      >
+        <div className="space-y-4">
+          {/* Pestañas: Resumen Clínico / Vista Previa PDF */}
+          <div className="flex items-center justify-between border-b border-slate-200 pb-2.5 flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setClinicalRecordTab("resumen")}
+                className={cn(
+                  "px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer flex items-center gap-1.5",
+                  clinicalRecordTab === "resumen"
+                    ? "bg-[#668E20] text-white shadow-xs"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200/80"
+                )}
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>Resumen Clínico</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setClinicalRecordTab("pdf")}
+                className={cn(
+                  "px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer flex items-center gap-1.5",
+                  clinicalRecordTab === "pdf"
+                    ? "bg-[#668E20] text-white shadow-xs"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200/80"
+                )}
+              >
+                <Eye className="w-3.5 h-3.5" />
+                <span>Vista Previa PDF</span>
               </button>
             </div>
 
-            <div className="grid gap-4 p-6 md:grid-cols-2">
-              <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
-                <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                  Contacto
-                </p>
-                <div className="mt-3 space-y-3">
-                  <div className="flex items-center gap-2 text-sm text-slate-700 min-w-0">
-                    <Mail className="h-4 w-4 text-slate-400 shrink-0" />
-                    <span className="break-all">
-                      {patientPreview.email || "Sin correo"}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-slate-700">
-                    <Phone className="h-4 w-4 text-slate-400" />
-                    <span>{patientPreview.phone || "Sin teléfono"}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
-                <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                  Perfil
-                </p>
-                <div className="mt-3 grid grid-cols-2 gap-3 text-sm text-slate-700">
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
-                      Género
-                    </p>
-                    <p className="mt-1 font-semibold">
-                      {patientPreview.gender || "No registrado"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
-                      Nacimiento
-                    </p>
-                    <p className="mt-1 font-semibold">
-                      {patientPreview.birthDate
-                        ? formatDateOnlyForLocale(patientPreview.birthDate, {
-                            day: "2-digit",
-                            month: "short",
-                            year: "numeric",
-                          })
-                        : "No registrado"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
-                      Edad
-                    </p>
-                    <p className="mt-1 font-semibold">
-                      {patientPreview.age
-                        ? `${patientPreview.age} años`
-                        : "No registrada"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
-                      Altura
-                    </p>
-                    <p className="mt-1 font-semibold">
-                      {patientPreview.height
-                        ? `${patientPreview.height} cm`
-                        : "No registrado"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
-                      Peso
-                    </p>
-                    <p className="mt-1 font-semibold">
-                      {patientPreview.weight
-                        ? `${patientPreview.weight} kg`
-                        : "No registrado"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4 md:col-span-2">
-                <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                  Restricciones
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {(() => {
-                    const restrictions = formatRestrictions(patientPreview.dietRestrictions, patientPreview.primaryCondition);
-                    return restrictions.length > 0 ? (
-                      restrictions.map(
-                        (restriction) => (
-                        <span
-                          key={restriction}
-                          className="inline-flex items-center gap-1 rounded-full border border-[#cbd83b]/25 bg-[#fffeec] px-2.5 py-1 text-[11px] font-semibold text-indigo-700"
-                        >
-                          <Heart className="h-3 w-3" />
-                          {restriction}
-                        </span>
-                      ),
-                    )
-                  ) : (
-                    <p className="text-sm text-slate-400">
-                      Sin restricciones registradas.
-                    </p>
-                  )
-                })()}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-3 border-t border-slate-100 p-6">
-              <Button
-                variant="ghost"
-                onClick={() => setPatientPreview(null)}
-                className="rounded-2xl px-5"
+            {clinicalRecordPdfUrl && (
+              <a
+                href={clinicalRecordPdfUrl}
+                download={`Ficha_Clinica_${(clinicalRecordPatient?.fullName || "Paciente").replace(/\s+/g, "_")}.pdf`}
+                className="h-8 px-3 rounded-xl bg-white border border-[#DDE7B8] hover:bg-[#F0F5DF] text-[#668E20] text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs"
               >
-                Cerrar
-              </Button>
-              <Button
-                onClick={() => {
-                  setPatientPreview(null);
-                  router.push(`/dashboard/pacientes/${patientPreview.id}`);
-                }}
-                className="rounded-2xl bg-indigo-600 px-5 text-white hover:bg-indigo-700"
-              >
-                Ver ficha
-              </Button>
-            </div>
+                <Download className="w-3.5 h-3.5" />
+                <span>Descargar PDF</span>
+              </a>
+            )}
           </div>
+
+          {isClinicalRecordLoading ? (
+            <div className="flex flex-col items-center justify-center py-20 space-y-3">
+              <div className="h-10 w-10 border-4 border-[#DDE7B8] border-t-[#86A83C] rounded-full animate-spin" />
+              <p className="text-sm font-semibold text-slate-500">
+                Generando vista previa de la ficha clínica...
+              </p>
+            </div>
+          ) : clinicalRecordTab === "pdf" ? (
+            /* Visor PDF embebido */
+            <div className="space-y-3">
+              <div className="relative w-full h-[65vh] sm:h-[70vh] rounded-2xl overflow-hidden bg-slate-50 border border-slate-200">
+                {clinicalRecordPdfUrl ? (
+                  <iframe
+                    src={`${clinicalRecordPdfUrl}#toolbar=1&navpanes=0`}
+                    className="w-full h-full border-0"
+                    title="Vista previa de ficha clínica en PDF"
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full text-slate-400 text-sm">
+                    No se pudo cargar el visor PDF
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            /* Vista estructurada de Resumen Clínico */
+            <div className="space-y-4 max-h-[68vh] overflow-y-auto pr-1">
+              {clinicalRecordPatient && (
+                <>
+                  {/* Tarjeta de Identidad */}
+                  <div className="p-4 rounded-2xl bg-[#F0F5DF]/60 border border-[#DDE7B8] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="h-12 w-12 rounded-xl bg-[#F0F5DF] border border-[#DDE7B8] flex items-center justify-center text-[#668E20] font-extrabold text-lg shrink-0 shadow-2xs">
+                        {clinicalRecordPatient.fullName.charAt(0)}
+                      </div>
+                      <div>
+                        <h4 className="font-extrabold text-[#20212B] text-base">
+                          {clinicalRecordPatient.fullName}
+                        </h4>
+                        <p className="text-xs text-[#668E20] font-semibold">
+                          {clinicalRecordPatient.documentId ? `RUT: ${clinicalRecordPatient.documentId}` : "Sin RUT"} • {clinicalRecordPatient.email || "Sin email"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setClinicalRecordTab("pdf")}
+                      className="px-4 py-2 rounded-xl bg-[#86A83C] hover:bg-[#78A82F] text-white text-xs font-bold transition-all flex items-center justify-center gap-2 shrink-0 shadow-2xs self-start sm:self-auto cursor-pointer"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>Ver en documento PDF</span>
+                    </button>
+                  </div>
+
+                  {/* Antropometría básica */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    <div className="p-3 rounded-xl bg-white border border-slate-200/80 shadow-2xs">
+                      <span className="text-[10px] font-bold uppercase text-slate-400 block">Peso actual</span>
+                      <span className="text-base font-extrabold text-[#20212B] mt-0.5 block">
+                        {clinicalRecordPatient.weight ? `${clinicalRecordPatient.weight} kg` : "—"}
+                      </span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-white border border-slate-200/80 shadow-2xs">
+                      <span className="text-[10px] font-bold uppercase text-slate-400 block">Estatura</span>
+                      <span className="text-base font-extrabold text-[#20212B] mt-0.5 block">
+                        {clinicalRecordPatient.height ? `${clinicalRecordPatient.height} cm` : "—"}
+                      </span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-white border border-slate-200/80 shadow-2xs">
+                      <span className="text-[10px] font-bold uppercase text-slate-400 block">IMC estimado</span>
+                      <span className="text-base font-extrabold text-[#668E20] mt-0.5 block">
+                        {clinicalRecordPatient.weight && clinicalRecordPatient.height
+                          ? (clinicalRecordPatient.weight / Math.pow(clinicalRecordPatient.height / 100, 2)).toFixed(1)
+                          : "—"}
+                      </span>
+                    </div>
+                    <div className="p-3 rounded-xl bg-white border border-slate-200/80 shadow-2xs">
+                      <span className="text-[10px] font-bold uppercase text-slate-400 block">Nivel actividad</span>
+                      <span className="text-base font-extrabold text-[#20212B] mt-0.5 block capitalize">
+                        {clinicalRecordPatient.activityLevel || "Sedentario"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Diagnóstico y Anamnesis */}
+                  <div className="space-y-3">
+                    <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/70 space-y-1.5">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-[#668E20] flex items-center gap-1.5">
+                        <FileText className="w-3.5 h-3.5 text-[#86A83C]" />
+                        <span>Diagnóstico Nutricional & Motivo</span>
+                      </span>
+                      <p className="text-xs sm:text-sm text-slate-700 font-medium leading-relaxed">
+                        {clinicalRecordDraft?.nutritionalAnamnesis?.diagnosticoNutricional ||
+                          clinicalRecordDraft?.vitalHistory?.motivoConsulta ||
+                          clinicalRecordPatient.primaryCondition ||
+                          clinicalRecordPatient.clinicalSummary ||
+                          clinicalRecordPatient.nutritionalFocus ||
+                          "Control nutricional, evaluación antropométrica y hábitos de vida saludable."}
+                      </p>
+                    </div>
+
+                    <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/70 space-y-1.5">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                        <Heart className="w-3.5 h-3.5 text-rose-500" />
+                        <span>Antecedentes Mórbidos y Familiares</span>
+                      </span>
+                      <p className="text-xs sm:text-sm text-slate-700 font-medium leading-relaxed">
+                        {clinicalRecordDraft?.vitalHistory?.diagnosedPathologies || clinicalRecordDraft?.vitalHistory?.familyHistory || "Sin antecedentes mórbidos personales de riesgo agudo; antecedentes familiares controlados."}
+                      </p>
+                    </div>
+
+                    <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/70 space-y-1.5">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                        <Tag className="w-3.5 h-3.5 text-amber-500" />
+                        <span>Restricciones y Alergias Registradas</span>
+                      </span>
+                      <div className="flex flex-wrap gap-1.5 pt-0.5">
+                        {(() => {
+                          const restrictions = formatRestrictions(clinicalRecordPatient.dietRestrictions, clinicalRecordPatient.primaryCondition);
+                          if (restrictions.length === 0) return <p className="text-xs text-slate-400">Sin restricciones alimentarias registradas.</p>;
+                          return restrictions.map((r) => (
+                            <span
+                              key={r}
+                              className="inline-flex items-center gap-1 rounded-lg bg-[#FEFCE8] border border-[#FEF08A] px-2.5 py-1 text-xs font-bold text-[#854D0E]"
+                            >
+                              <Tag className="w-3 h-3 text-[#A16207]" />
+                              <span>{r}</span>
+                            </span>
+                          ));
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </div>
-      )}
+      </Modal>
 
       {isShareModalOpen && (
         <ShareFormModal

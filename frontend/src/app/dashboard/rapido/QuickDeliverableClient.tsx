@@ -21,6 +21,7 @@ import {
   Apple,
   Layers,
   NotebookText,
+  Globe,
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
@@ -2503,7 +2504,7 @@ export default function QuickDeliverableClient() {
 
         <div className="mt-6 xl:px-4 space-y-4">
           {/* Fila principal: Título, Paciente y Hashtags */}
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5 items-end">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5 items-start">
             {/* Título */}
             <div className="md:col-span-5 space-y-1.5">
               <label className="text-xs font-semibold text-[#20212B]">
@@ -2586,6 +2587,7 @@ export default function QuickDeliverableClient() {
                 value={quickHashtags.split(",").map((t) => t.trim()).filter(Boolean)}
                 onChange={(tags) => setQuickHashtags(tags.join(", "))}
                 fetchSuggestionsUrl={`${getApiUrl()}/tags`}
+                includeSystemSuggestions={false}
                 helperText=""
                 placeholder="Ej: keto, hipertrofia"
                 className="h-10 rounded-xl border-[#E9E5E7] bg-white text-xs font-normal text-[#20212B] focus:border-[#86A83C] focus:ring-1 focus:ring-[#86A83C]"
@@ -2593,8 +2595,8 @@ export default function QuickDeliverableClient() {
             </div>
           </div>
 
-          {/* Opciones y notas secundarias (sin bordes) */}
-          <div className="flex items-center justify-between pt-1">
+          {/* Opciones y notas secundarias */}
+          <div className="flex flex-wrap items-center justify-between gap-2.5 pt-1">
             <div>
               {!selectedPatient.fullName?.trim() && (
                 <button
@@ -2608,18 +2610,19 @@ export default function QuickDeliverableClient() {
                     setIsManualPatientExpanded(false);
                     toast.info("Modo general activado.");
                   }}
-                  className="text-xs text-[#626573] hover:text-[#20212B] transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:border-[#86A83C] hover:bg-[#F0F5DF]/50 text-slate-700 hover:text-[#668E20] text-xs font-semibold shadow-2xs transition-all cursor-pointer group"
                 >
-                  Continuar sin paciente (modo general)
+                  <Globe className="h-3.5 w-3.5 text-[#86A83C] group-hover:scale-110 transition-transform" />
+                  <span>Continuar sin paciente (modo general)</span>
                 </button>
               )}
             </div>
             <button
               type="button"
               onClick={() => setIsNotesExpanded((prev) => !prev)}
-              className="inline-flex items-center gap-1.5 text-xs font-medium text-[#668E20] hover:text-[#527518] transition-colors cursor-pointer ml-auto"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:border-[#86A83C] hover:bg-[#F0F5DF]/50 text-slate-700 hover:text-[#668E20] text-xs font-semibold shadow-2xs transition-all cursor-pointer ml-auto"
             >
-              <ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-200", isNotesExpanded && "rotate-180")} />
+              <ChevronDown className={cn("h-3.5 w-3.5 text-[#86A83C] transition-transform duration-200", isNotesExpanded && "rotate-180")} />
               <span>{isNotesExpanded ? "Ocultar notas y objetivos" : "+ Agregar notas u objetivo"}</span>
             </button>
           </div>
@@ -3560,16 +3563,6 @@ export default function QuickDeliverableClient() {
                       Agrega filas simples para dejar restricciones o recordatorios rápidos.
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      className="h-10 rounded-xl bg-[#86A83C] hover:bg-[#78A82F] text-white font-medium text-xs shadow-2xs w-full sm:w-auto justify-center cursor-pointer shadow-sm shadow-[#86A83C]/20"
-                      onClick={addAvoidFoodRow}
-                      disabled={!includeAvoidFoods}
-                    >
-                      <Plus className="mr-1.5 h-4 w-4" />
-                      Agregar fila
-                    </Button>
-                  </div>
                 </div>
 
                 {/* Vista Móvil (< 768px) */}
@@ -3593,6 +3586,16 @@ export default function QuickDeliverableClient() {
                       </button>
                     </div>
                   ))}
+
+                  <button
+                    type="button"
+                    onClick={addAvoidFoodRow}
+                    disabled={!includeAvoidFoods}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-[#E9E5E7] bg-white px-4 py-2.5 text-xs font-semibold text-[#626573] hover:border-[#86A83C] hover:bg-[#F0F5DF]/60 hover:text-[#668E20] transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed mt-3"
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span>Agregar otra fila</span>
+                  </button>
                 </div>
 
                 {/* Vista Desktop (>= 768px) */}
@@ -3635,6 +3638,21 @@ export default function QuickDeliverableClient() {
                         </tr>
                       ))}
                     </tbody>
+                    <tfoot>
+                      <tr className="border-t border-slate-100 bg-slate-50/40">
+                        <td colSpan={2} className="px-4 py-3">
+                          <button
+                            type="button"
+                            onClick={addAvoidFoodRow}
+                            disabled={!includeAvoidFoods}
+                            className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-[#E9E5E7] bg-white px-4 py-2.5 text-xs font-semibold text-[#626573] hover:border-[#86A83C] hover:bg-[#F0F5DF]/60 hover:text-[#668E20] transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <Plus className="h-4 w-4" />
+                            <span>Agregar otra fila</span>
+                          </button>
+                        </td>
+                      </tr>
+                    </tfoot>
                   </table>
                 </div>
               </section>
@@ -3850,16 +3868,6 @@ export default function QuickDeliverableClient() {
                       Resumen profesional simple para que el paciente entienda referencias base.
                     </p>
                   </div>
-                  <div className="flex justify-end">
-                    <Button
-                      className="h-10 rounded-xl bg-[#86A83C] hover:bg-[#78A82F] text-white font-medium text-xs shadow-2xs w-full sm:w-auto justify-center cursor-pointer shadow-sm shadow-[#86A83C]/20"
-                      onClick={addPortionGuideRow}
-                      disabled={!includePortionGuide}
-                    >
-                      <Plus className="mr-1.5 h-4 w-4" />
-                      Agregar fila
-                    </Button>
-                  </div>
                 </div>
 
                 {/* Vista Móvil (< 768px) */}
@@ -3892,6 +3900,16 @@ export default function QuickDeliverableClient() {
                       />
                     </div>
                   ))}
+
+                  <button
+                    type="button"
+                    onClick={addPortionGuideRow}
+                    disabled={!includePortionGuide}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-[#E9E5E7] bg-white px-4 py-2.5 text-xs font-semibold text-[#626573] hover:border-[#86A83C] hover:bg-[#F0F5DF]/60 hover:text-[#668E20] transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed mt-3"
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span>Agregar otra fila</span>
+                  </button>
                 </div>
 
                 {/* Vista Desktop (>= 768px) */}
@@ -3953,6 +3971,21 @@ export default function QuickDeliverableClient() {
                         </tr>
                       ))}
                     </tbody>
+                    <tfoot>
+                      <tr className="border-t border-slate-100 bg-slate-50/40">
+                        <td colSpan={3} className="px-4 py-3">
+                          <button
+                            type="button"
+                            onClick={addPortionGuideRow}
+                            disabled={!includePortionGuide}
+                            className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-[#E9E5E7] bg-white px-4 py-2.5 text-xs font-semibold text-[#626573] hover:border-[#86A83C] hover:bg-[#F0F5DF]/60 hover:text-[#668E20] transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <Plus className="h-4 w-4" />
+                            <span>Agregar otra fila</span>
+                          </button>
+                        </td>
+                      </tr>
+                    </tfoot>
                   </table>
                 </div>
               </section>

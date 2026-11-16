@@ -10,7 +10,7 @@ import {
 const STORAGE_KEYS = {
   PATIENTS: "nutrinet_demo_patients_v3",
   CONSULTATIONS: "nutrinet_demo_consultations_v3",
-  CREATIONS: "nutrinet_demo_creations_v3",
+  CREATIONS: "nutrinet_demo_creations_v6",
   FOODS: "nutrinet_demo_foods_v3",
   RESOURCES: "nutrinet_demo_resources_v3",
   SUPPORT: "nutrinet_demo_support_v3",
@@ -42,6 +42,17 @@ export const DEMO_USER = {
       "ai.monthly.limit": 999,
       "branding.enabled": true,
       "clinical_record.enabled": true,
+      "clinical_calculator.use.access": true,
+      "screening_tests.access": true,
+      "screening_tests.delete.access": true,
+      "creations.edit.access": true,
+      "creations.delete.access": true,
+      "creations.import.access": true,
+      "resources.create.access": true,
+      "resources.edit.access": true,
+      "ingredients.create.access": true,
+      "consultations.delete.access": true,
+      "ai.autofill.access": true,
     },
   },
 };
@@ -185,76 +196,289 @@ const INITIAL_CONSULTATIONS = [
 const INITIAL_CREATIONS = [
   {
     id: "cr-1",
-    name: "Pauta Semanal INTA - 1.750 kcal",
-    type: "Pauta Alimentaria",
-    createdAt: "2026-11-10T12:00:00.000Z",
+    name: "Pauta Rápida — Déficit y Recomposición (1.800 kcal)",
+    type: "FAST_DELIVERABLE",
+    createdAt: "2026-11-15T10:30:00.000Z",
     patientName: "Valentina Miranda",
     patientId: "pat-1",
-    metadata: { patientName: "Valentina Miranda" },
+    tags: ["Rápido", "Déficit Calórico", "INTA", "1800 kcal"],
+    description: "Pauta nutricional personalizada orientada a recomposición corporal y control de saciedad mediante porciones estructuradas y hábitos sostenibles.",
+    content: {
+      title: "Pauta Rápida — Déficit y Recomposición (1.800 kcal)",
+      patientName: "Valentina Miranda",
+      planObjective: "Recomposición corporal con déficit calórico moderado de 400 kcal, asegurando 1.6g/kg de proteína y óptima densidad nutricional.",
+      showPlanObjectiveInPdf: true,
+      clinicalRestriction: "Sensibilidad leve a lácteos enteros. Preferir opciones deslactosadas o vegetales.",
+      tableMode: "options",
+      meals: [
+        {
+          id: "m-1",
+          section: "Desayuno",
+          time: "07:30 - 08:30 hrs",
+          mealText: "A: 1 taza de avena integral cocida con canela y bebida vegetal + 2 huevos revueltos con orégano + 1 porción de arándanos frescos\nB: 2 rebanadas de pan de masa madre con 1/4 palta Hass + 2 huevos pochados + infusión de té verde sin azúcar",
+          portion: "1 porción"
+        },
+        {
+          id: "m-2",
+          section: "Almuerzo",
+          time: "13:00 - 14:00 hrs",
+          mealText: "A: 150g de pechuga de pollo a la plancha + 3/4 taza de quinoa cocida + ensalada abundante de hojas verdes con aceite de oliva extra virgen\nB: 160g de reineta al horno con finas hierbas + 1 papa mediana cocida con cáscara + ensalada de espinacas tiernas con tomate cherry",
+          portion: "1 plato equilibrado"
+        },
+        {
+          id: "m-3",
+          section: "Once / Merienda",
+          time: "17:00 - 18:00 hrs",
+          mealText: "A: 1 pote de yogur griego natural descremado (sin azúcar) + 1 puñado de nueces tostadas (20g) + 1 manzana verde en gajos\nB: Batido con 1 taza de bebida de almendras sin azúcar + 1 scoop de proteína aislada + 1/2 plátano maduro",
+          portion: "1 colación"
+        },
+        {
+          id: "m-4",
+          section: "Cena",
+          time: "20:30 - 21:30 hrs",
+          mealText: "A: Tortilla de verduras (2 claras + 1 huevo con zapallito italiano y espinaca) + crema tibia de zapallo camote natural\nB: Salpicón de atún al agua (1 lata) con lechuga, palmitos y pepino + 1 cdta de aceite de oliva",
+          portion: "1 plato liviano"
+        }
+      ],
+      avoidFoods: [
+        "Bebidas azucaradas, jugos procesados y néctares comerciales",
+        "Frituras y ultraprocesados con sellos negros",
+        "Alcohol durante los días de semana",
+        "Embutidos y fiambres con alto contenido de sodio",
+        "Harinas y azúcares simples refinados"
+      ],
+      portionGuide: [
+        { grupo: "Proteínas magras", porcion: "Palma de la mano (120-150g)", equivalencia: "Pollo, pescado blanco, huevos, tofu" },
+        { grupo: "Carbohidratos complejos", porcion: "Puño cerrado (1/2 a 3/4 taza)", equivalencia: "Quinoa, arroz integral, avena" },
+        { grupo: "Verduras libres", porcion: "Dos manos abiertas (libre consumo)", equivalencia: "Lechuga, espinaca, apio, pepino" },
+        { grupo: "Grasas saludables", porcion: "Punta del pulgar (1 cdta)", equivalencia: "Aceite de oliva extra virgen, palta, nueces" }
+      ],
+      resources: [
+        {
+          resourceId: "hab-1",
+          title: "Pilares del Déficit Sostenible",
+          content: "Priorizar 2 a 2.5 litros de agua al día, mantener 7 a 8 horas de sueño reparador y masticar con calma para permitir una correcta señalización de saciedad."
+        }
+      ]
+    },
+    metadata: {
+      patientName: "Valentina Miranda",
+      description: "Pauta nutricional personalizada orientada a recomposición corporal y control de saciedad mediante porciones estructuradas y hábitos sostenibles.",
+      foodCount: 15
+    }
   },
   {
     id: "cr-2",
-    name: "Minuta Mediterránea Sin Lácteos",
-    type: "Dieta",
-    createdAt: "2026-11-08T12:00:00.000Z",
-    patientName: "Don Luis Mansilla",
-    patientId: "pat-2",
-    metadata: { patientName: "Don Luis Mansilla" },
+    name: "Recetario Deportivo — Alto Rendimiento y Masa Muscular",
+    type: "RECIPE",
+    createdAt: "2026-11-13T16:40:00.000Z",
+    patientName: "Martín Silva",
+    patientId: "pat-3",
+    tags: ["Recetas", "Hipertrofia", "Alto Rendimiento", "Proteico"],
+    description: "Recetario práctico de preparación rápida con alta biodisponibilidad proteica y carbohidratos complejos para días de entrenamiento intenso.",
+    content: {
+      title: "Recetario Deportivo — Alto Rendimiento y Masa Muscular",
+      patientName: "Martín Silva",
+      planObjective: "Aporte energético y síntesis proteica óptima para entrenamientos de fuerza 4 veces por semana.",
+      showPlanObjectiveInPdf: true,
+      nutritionistNotes: "Consumir las preparaciones de pre-entrenamiento 90 minutos antes de la sesión. Mantener hidratación continua de 3L de agua al día.",
+      dishes: [
+        {
+          title: "Pancakes Proteicos de Avena y Plátano",
+          mealSection: "Desayuno / Pre-entreno",
+          description: "Rica fuente de carbohidratos de absorción gradual y proteína de alto valor biológico.",
+          preparation: "Licuar la avena, claras de huevo, plátano maduro y canela hasta obtener una mezcla homogénea. Cocinar en sartén antiadherente a fuego medio 2 minutos por lado.",
+          recommendedPortion: "3 pancakes medianos",
+          portions: 1,
+          calories: 420,
+          protein: 32,
+          carbs: 58,
+          fats: 6,
+          ingredients: [
+            { name: "Harina de avena integral", quantity: "60g" },
+            { name: "Claras de huevo pasteurizadas", quantity: "4 unidades (130ml)" },
+            { name: "Plátano maduro mediano", quantity: "1 unidad (100g)" },
+            { name: "Canela en polvo", quantity: "1 cdta" }
+          ]
+        },
+        {
+          title: "Bowl de Pollo Crispy en Airfryer con Quinoa y Palta",
+          mealSection: "Almuerzo Post-entreno",
+          description: "Comida completa de recuperación muscular y reposición de glucógeno.",
+          preparation: "Cortar la pechuga en cubos, condimentar con pimentón dulce, cúrcuma y sal reducida. Cocinar en freidora de aire a 190°C por 14 minutos. Servir sobre base de quinoa tibia y acompañar con palta en cubos y ensalada mixta.",
+          recommendedPortion: "1 bowl grande",
+          portions: 1,
+          calories: 580,
+          protein: 48,
+          carbs: 62,
+          fats: 14,
+          ingredients: [
+            { name: "Pechuga de pollo deshuesada", quantity: "180g" },
+            { name: "Quinoa cocida tricolor", quantity: "1 taza (160g)" },
+            { name: "Palta Hass", quantity: "1/4 unidad (50g)" },
+            { name: "Tomate cherry y hojas verdes", quantity: "1 plato hondo" }
+          ]
+        },
+        {
+          title: "Mousse Proteico Exprés de Frutos del Bosque",
+          mealSection: "Snack / Colación Nocturna",
+          description: "Postre ligero rico en caseína natural para nutrición nocturna sostenida.",
+          preparation: "Mezclar el yogur griego con proteína aislada y frutos rojos semi-congelados. Batir vigorosamente con batidor de mano hasta lograr textura aireada y refrigerar 15 minutos.",
+          recommendedPortion: "1 copa o frasco",
+          portions: 1,
+          calories: 210,
+          protein: 26,
+          carbs: 18,
+          fats: 2,
+          ingredients: [
+            { name: "Yogur griego natural 0% grasa", quantity: "170g" },
+            { name: "Mix de berries congeladas", quantity: "1/2 taza (75g)" },
+            { name: "Semillas de chía hidratadas", quantity: "1 cdta" }
+          ]
+        }
+      ]
+    },
+    metadata: {
+      patientName: "Martín Silva",
+      description: "Recetario práctico de preparación rápida con alta biodisponibilidad proteica y carbohidratos complejos para días de entrenamiento intenso.",
+      dishCount: 3
+    }
   },
   {
     id: "cr-3",
-    name: "Recetario Alto en Proteína & Fibra",
-    type: "Recetario",
-    createdAt: "2026-11-06T12:00:00.000Z",
-    patientName: "Martín Silva",
-    patientId: "pat-3",
-    metadata: { patientName: "Martín Silva" },
+    name: "Plan Personalizado — Manejo Metabólico y Antiinflamatorio",
+    type: "PAUTAS",
+    createdAt: "2026-11-11T09:00:00.000Z",
+    patientName: "Valentina Miranda",
+    patientId: "pat-1",
+    tags: ["Personalizado", "Metabólico", "Antiinflamatorio", "Sin Gluten"],
+    description: "Pauta nutricional personalizada por tiempos de comida para regulación de glicemia e insulina, con enfoque antiinflamatorio y alta saciedad.",
+    content: {
+      title: "Plan Personalizado — Manejo Metabólico y Antiinflamatorio",
+      patientName: "Valentina Miranda",
+      planObjective: "Mejorar la sensibilidad periférica a la insulina y reducir marcadores inflamatorios mediante carbohidratos de bajo índice glucémico y grasas monoinsaturadas.",
+      showPlanObjectiveInPdf: true,
+      clinicalRestriction: "Sin gluten estricto. Sensibilidad a lácteos de vaca.",
+      tableMode: "simple",
+      meals: [
+        {
+          id: "p-1",
+          section: "Desayuno",
+          time: "08:30 hrs",
+          mealText: "Pudín de semillas de chía hidratadas en leche de coco sin azúcar con arándanos frescos, semillas de zapallo tostadas y canela de Ceilán + infusión de jengibre y cúrcuma.",
+          portion: "1 tazón generoso"
+        },
+        {
+          id: "p-2",
+          section: "Almuerzo",
+          time: "13:30 hrs",
+          mealText: "Filete de salmón salvaje o trucha a la plancha (160g) con aliño de limón y eneldo + 1/2 taza de arroz basmati integral + timbal de verduras asadas (espárragos, pimentón y zapallito italiano).",
+          portion: "1 plato principal"
+        },
+        {
+          id: "p-3",
+          section: "Once / Colación",
+          time: "17:00 hrs",
+          mealText: "Bastoncitos de zanahoria, apio y pepino crujientes con 3 cdas soperas de hummus artesanal de garbanzo con sésamo tostado.",
+          portion: "1 porción"
+        },
+        {
+          id: "p-4",
+          section: "Cena",
+          time: "20:30 hrs",
+          mealText: "Sopa tibia reconfortante de verduras de hoja verde y jengibre + pechuga de pavo desmenuzada (130g) con 1/4 palta Hass y semillas de cáñamo.",
+          portion: "1 plato liviano"
+        }
+      ],
+      avoidFoods: [
+        "Harinas refinadas de trigo y productos ultraprocesados con gluten",
+        "Azúcares simples, jarabes de alta fructosa y golosinas industriales",
+        "Aceites vegetales de soya, maíz o maravilla recalentados",
+        "Lácteos de vaca enteros o quesos procesados",
+        "Bebidas alcohólicas y carbonatadas"
+      ],
+      portionGuide: [
+        { grupo: "Proteínas limpias", porcion: "130-160g en almuerzo y cena", equivalencia: "Pescados grasos, pavo, huevos de campo, legumbres" },
+        { grupo: "Grasas antiinflamatorias", porcion: "1-2 cdtas de aceite virgen o 1/4 palta", equivalencia: "Aceite de oliva extra virgen, palta Hass, chía, nueces" },
+        { grupo: "Fibra y vegetales", porcion: "Mínimo 2 platos abundantes al día", equivalencia: "Hojas verdes, brócoli, espárragos, zapallito, pepino" }
+      ],
+      resources: [
+        {
+          resourceId: "res-met",
+          title: "Pautas de Estilo de Vida Antiinflamatorio",
+          content: "Caminar 10 a 15 minutos después de las comidas principales para aplanar picos glucémicos. Mantener una ventana de ayuno nocturno fisiológico de 12 horas."
+        }
+      ]
+    },
+    metadata: {
+      patientName: "Valentina Miranda",
+      description: "Pauta nutricional personalizada por tiempos de comida para regulación de glicemia e insulina, con enfoque antiinflamatorio y alta saciedad.",
+      foodCount: 14
+    }
   },
   {
     id: "cr-4",
-    name: "Pauta Déficit Calórico Vegetariana (1.500 kcal)",
-    type: "Pauta Alimentaria",
-    createdAt: "2026-11-05T14:00:00.000Z",
-    patientName: "Ana Silva",
-    patientId: "1",
-    metadata: { patientName: "Ana Silva" },
-  },
-  {
-    id: "cr-5",
-    name: "Plan de Hipertrofia Libre de Gluten (2.400 kcal)",
-    type: "Pauta Alimentaria",
-    createdAt: "2026-11-03T18:00:00.000Z",
-    patientName: "Carlos Ruiz",
-    patientId: "2",
-    metadata: { patientName: "Carlos Ruiz" },
-  },
-  {
-    id: "cr-6",
-    name: "Guía de Hidratación y Carga de Carbohidratos 21K",
-    type: "Dieta",
-    createdAt: "2026-10-28T11:00:00.000Z",
-    patientName: "Maria Gonzalez",
-    patientId: "3",
-    metadata: { patientName: "Maria Gonzalez" },
-  },
-  {
-    id: "cr-7",
-    name: "Lista de Compras Inteligente - Supermercado Líder",
-    type: "Lista de Compras",
-    createdAt: "2026-10-25T16:00:00.000Z",
-    patientName: "Valentina Miranda",
-    patientId: "pat-1",
-    metadata: { patientName: "Valentina Miranda" },
-  },
-  {
-    id: "cr-8",
-    name: "Test de Adherencia y Hábitos Alimentarios (SNAQ)",
-    type: "Screening Test",
-    createdAt: "2026-10-20T10:00:00.000Z",
+    name: "Minuta Mediterránea Estructurada — Salud Cardiovascular",
+    type: "DIET",
+    createdAt: "2026-11-09T14:15:00.000Z",
     patientName: "Don Luis Mansilla",
     patientId: "pat-2",
-    metadata: { patientName: "Don Luis Mansilla" },
-  },
+    tags: ["Dietas", "Mediterránea", "Cardioprotectora", "Baja en Sodio"],
+    description: "Pauta estructurada basada en patrón mediterráneo con énfasis en fibra soluble, ácidos grasos monoinsaturados y reducción estricta de sodio.",
+    content: {
+      dietName: "Minuta Mediterránea Estructurada — Salud Cardiovascular",
+      patientName: "Don Luis Mansilla",
+      planObjective: "Optimización del perfil lipídico (reducción de LDL y triglicéridos) y control de presión arterial sistólica.",
+      showPlanObjectiveInPdf: true,
+      activeConstraints: ["Bajo en sodio", "Sin grasas trans", "Alto en omega 3"],
+      groups: {
+        "Proteínas y Pescados": [
+          { producto: "Salmón o jurel al horno con finas hierbas", grupo: "Proteínas y Pescados", unidad: "150g", calorias: 280, proteinas: 34, lipidos: 14, carbohidratos: 0 },
+          { producto: "Lentejas guisadas con zapallo y verduras", grupo: "Proteínas y Pescados", unidad: "1 taza", calorias: 230, proteinas: 18, lipidos: 3, carbohidratos: 40 },
+          { producto: "Pechuga de pavo asada", grupo: "Proteínas y Pescados", unidad: "140g", calorias: 180, proteinas: 32, lipidos: 4, carbohidratos: 0 }
+        ],
+        "Cereales Integrales y Legumbres": [
+          { producto: "Avena integral machacada", grupo: "Cereales Integrales y Legumbres", unidad: "1/2 taza", calorias: 150, proteinas: 5, lipidos: 3, carbohidratos: 27 },
+          { producto: "Arroz integral al vapor", grupo: "Cereales Integrales y Legumbres", unidad: "3/4 taza", calorias: 160, proteinas: 3, lipidos: 1, carbohidratos: 35 },
+          { producto: "Pan integral de masa madre 100%", grupo: "Cereales Integrales y Legumbres", unidad: "1 rebanada (50g)", calorias: 120, proteinas: 4, lipidos: 1, carbohidratos: 24 }
+        ],
+        "Verduras y Hortalizas": [
+          { producto: "Ensalada de espinacas tiernas con tomate cherry", grupo: "Verduras y Hortalizas", unidad: "1 plato hondo", calorias: 45, proteinas: 3, lipidos: 0, carbohidratos: 8 },
+          { producto: "Brócoli al vapor con ajo y limón", grupo: "Verduras y Hortalizas", unidad: "1 taza", calorias: 55, proteinas: 4, lipidos: 0, carbohidratos: 11 },
+          { producto: "Zapallo italiano salteado", grupo: "Verduras y Hortalizas", unidad: "1 taza", calorias: 35, proteinas: 2, lipidos: 0, carbohidratos: 7 }
+        ],
+        "Grasas Cardioprotectoras": [
+          { producto: "Aceite de oliva extra virgen", grupo: "Grasas Cardioprotectoras", unidad: "1 cda sopera (10ml)", calorias: 90, proteinas: 0, lipidos: 10, carbohidratos: 0 },
+          { producto: "Nueces chilenas seleccionadas", grupo: "Grasas Cardioprotectoras", unidad: "4 mitades (20g)", calorias: 130, proteinas: 3, lipidos: 13, carbohidratos: 2 },
+          { producto: "Palta Hass en láminas", grupo: "Grasas Cardioprotectoras", unidad: "2 cdas (50g)", calorias: 80, proteinas: 1, lipidos: 8, carbohidratos: 2 }
+        ]
+      },
+      meals: [
+        { section: "Desayuno", mealText: "Pan de masa madre con palta Hass y tomate natural + té de tilo o café descafeinado", time: "08:00", portion: "1 porción" },
+        { section: "Almuerzo", mealText: "Salmón o jurel al horno con arroz integral y generosa ensalada de hojas verdes con aceite de oliva", time: "13:30", portion: "1 porción completa" },
+        { section: "Colación", mealText: "Nueces seleccionadas + 1 pera o manzana de agua con cáscara", time: "17:00", portion: "1 porción" },
+        { section: "Cena", mealText: "Crema de verduras casera sin sal añadida + filete de pavo a la plancha con orégano", time: "20:00", portion: "1 porción" }
+      ]
+    },
+    metadata: {
+      patientName: "Don Luis Mansilla",
+      foodCount: 12,
+      description: "Pauta estructurada basada en patrón mediterráneo con énfasis en fibra soluble, ácidos grasos monoinsaturados y reducción estricta de sodio.",
+      foodSummary: [
+        { name: "Salmón o jurel al horno", group: "Proteínas y Pescados", unit: "150g", calories: 280, proteins: 34, lipids: 14, carbs: 0 },
+        { name: "Lentejas guisadas con zapallo", group: "Proteínas y Pescados", unit: "1 taza", calories: 230, proteins: 18, lipids: 3, carbs: 40 },
+        { name: "Pechuga de pavo asada", group: "Proteínas y Pescados", unit: "140g", calories: 180, proteins: 32, lipids: 4, carbs: 0 },
+        { name: "Avena integral machacada", group: "Cereales Integrales", unit: "1/2 taza", calories: 150, proteins: 5, lipids: 3, carbs: 27 },
+        { name: "Arroz integral al vapor", group: "Cereales Integrales", unit: "3/4 taza", calories: 160, proteins: 3, lipids: 1, carbs: 35 },
+        { name: "Pan integral de masa madre", group: "Cereales Integrales", unit: "1 rebanada", calories: 120, proteins: 4, lipids: 1, carbs: 24 },
+        { name: "Ensalada de espinacas tiernas", group: "Verduras y Hortalizas", unit: "1 plato", calories: 45, proteins: 3, lipids: 0, carbs: 8 },
+        { name: "Brócoli al vapor", group: "Verduras y Hortalizas", unit: "1 taza", calories: 55, proteins: 4, lipids: 0, carbs: 11 },
+        { name: "Aceite de oliva extra virgen", group: "Grasas Saludables", unit: "1 cda", calories: 90, proteins: 0, lipids: 10, carbs: 0 },
+        { name: "Nueces chilenas", group: "Grasas Saludables", unit: "4 unidades", calories: 130, proteins: 3, lipids: 13, carbs: 2 },
+        { name: "Palta Hass", group: "Grasas Saludables", unit: "2 cdas", calories: 80, proteins: 1, lipids: 8, carbs: 2 }
+      ]
+    }
+  }
 ];
 
 function getInitialPatients() {
@@ -346,7 +570,7 @@ export function getLocalCreations(): any[] {
       return INITIAL_CREATIONS;
     }
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed) || parsed.length < INITIAL_CREATIONS.length) {
+    if (!Array.isArray(parsed) || parsed.length !== INITIAL_CREATIONS.length) {
       localStorage.setItem(STORAGE_KEYS.CREATIONS, JSON.stringify(INITIAL_CREATIONS));
       return INITIAL_CREATIONS;
     }
@@ -533,6 +757,352 @@ function makeMockResponse(data: any, status = 200): Response {
   });
 }
 
+function roundNum(value: number, decimals = 1): number {
+  const factor = Math.pow(10, decimals);
+  return Math.round(value * factor) / factor;
+}
+
+export function calculateDemoClinical(inputs: any) {
+  const gender = inputs.gender === "Masculino" || inputs.gender === "Femenino" ? inputs.gender : "Masculino";
+  const resolvedAge = typeof inputs.ageYears === "number" ? inputs.ageYears : (typeof inputs.age === "number" ? inputs.age : 68);
+
+  const kneeHeight = typeof inputs.kneeHeight === "number" ? inputs.kneeHeight : null;
+  const armCircumference = typeof inputs.armCircumference === "number" ? inputs.armCircumference : null;
+  const calfCircumference = typeof inputs.calfCircumference === "number" ? inputs.calfCircumference : null;
+  const subescapular = typeof inputs.subescapularFold === "number" ? inputs.subescapularFold : null;
+  const tricipital = typeof inputs.tricipitalFold === "number" ? inputs.tricipitalFold : null;
+
+  // Stature & Weight Estimation (Chumlea)
+  let estimatedHeight: number | null = null;
+  if (kneeHeight && resolvedAge !== null) {
+    if (gender === "Masculino") {
+      estimatedHeight = roundNum(64.19 - 0.04 * resolvedAge + 2.02 * kneeHeight, 1);
+    } else {
+      estimatedHeight = roundNum(84.88 - 0.24 * resolvedAge + 1.83 * kneeHeight, 1);
+    }
+  }
+
+  let estimatedWeight: number | null = null;
+  if (kneeHeight && armCircumference && calfCircumference && subescapular) {
+    if (gender === "Masculino") {
+      estimatedWeight = roundNum(1.73 * armCircumference + 0.98 * calfCircumference + 0.37 * subescapular + 1.16 * kneeHeight - 81.69, 2);
+    } else {
+      estimatedWeight = roundNum(0.98 * armCircumference + 1.27 * calfCircumference + 0.4 * subescapular + 0.87 * kneeHeight - 62.35, 2);
+    }
+  }
+
+  const rawWeight = typeof inputs.weight === "number" ? inputs.weight : (estimatedWeight || 68);
+  const height = typeof inputs.height === "number" ? inputs.height : (estimatedHeight || 165);
+
+  const edemaPercent = typeof inputs.edemaPercent === "number" ? inputs.edemaPercent : 0;
+  const dryWeight = rawWeight && edemaPercent > 0 ? roundNum(rawWeight * (1 - edemaPercent / 100), 1) : null;
+  const weight = dryWeight || rawWeight;
+
+  const heightM = height / 100;
+  const bmiVal = roundNum(weight / (heightM * heightM), 1);
+
+  let bmiClassification = "Normopeso";
+  let bmiColor = "#22c55e";
+  let bmiRef = "Criterio OMS";
+  let bmiNote: string | undefined = undefined;
+
+  if (resolvedAge >= 65) {
+    bmiRef = "Criterio Lipschitz / OPS";
+    bmiNote = "Umbrales ajustados para proteger al adulto mayor de sarcopenia.";
+    if (bmiVal <= 23.0) {
+      bmiClassification = "Bajo peso (Enflaquecido)";
+      bmiColor = "#3b82f6";
+    } else if (bmiVal < 28.0) {
+      bmiClassification = "Normopeso (Eutrófico)";
+      bmiColor = "#22c55e";
+    } else if (bmiVal < 32.0) {
+      bmiClassification = "Sobrepeso";
+      bmiColor = "#eab308";
+    } else {
+      bmiClassification = "Obesidad";
+      bmiColor = "#ef4444";
+    }
+  } else {
+    if (bmiVal < 18.5) {
+      bmiClassification = "Bajo peso";
+      bmiColor = "#3b82f6";
+    } else if (bmiVal < 25) {
+      bmiClassification = "Normopeso";
+      bmiColor = "#22c55e";
+    } else if (bmiVal < 30) {
+      bmiClassification = "Sobrepeso";
+      bmiColor = "#eab308";
+    } else if (bmiVal < 35) {
+      bmiClassification = "Obesidad I";
+      bmiColor = "#f97316";
+    } else {
+      bmiClassification = "Obesidad II";
+      bmiColor = "#ef4444";
+    }
+  }
+
+  const bmi = {
+    bmi: bmiVal,
+    classification: bmiClassification,
+    color: bmiColor,
+    isPediatric: false,
+    reference: bmiRef,
+    note: bmiNote,
+  };
+
+  const targetBmi = inputs.targetBmi || (resolvedAge >= 65 ? 25.5 : 22.0);
+  const targetIdealWeight = targetBmi * heightM * heightM;
+  const adjustedWeight = roundNum(targetIdealWeight + 0.25 * (weight - targetIdealWeight), 1);
+
+  const idealWeight = resolvedAge >= 65
+    ? {
+        min: roundNum(23.0 * heightM * heightM, 1),
+        max: roundNum(28.0 * heightM * heightM, 1),
+        reference: "IMC 23.0 - 28.0 (Lipschitz)",
+        note: "Adulto mayor (objetivo central IMC 25.5).",
+        supported: true,
+      }
+    : {
+        min: roundNum(18.5 * heightM * heightM, 1),
+        max: roundNum(24.9 * heightM * heightM, 1),
+        reference: `Objetivo IMC ${targetBmi} (configurable)`,
+        note: `Peso óptimo central estimado: ${roundNum(targetIdealWeight, 1)} kg.`,
+        supported: true,
+      };
+
+  // Blackburn
+  let weightLoss = null;
+  if (typeof inputs.usualWeight === "number" && rawWeight) {
+    const wUsual = inputs.usualWeight;
+    const lossKg = roundNum(wUsual - rawWeight, 1);
+    const percentLoss = roundNum(((wUsual - rawWeight) / wUsual) * 100, 1);
+    const weeks = inputs.weightLossPeriodWeeks || 4;
+    let periodLabel = "1 mes";
+    let thresholdSignificant = 5;
+    let thresholdSevere = 5.001;
+    if (weeks <= 1.5) {
+      periodLabel = "1 semana";
+      thresholdSignificant = 1;
+      thresholdSevere = 2.001;
+    } else if (weeks <= 6) {
+      periodLabel = "1 mes";
+      thresholdSignificant = 5;
+      thresholdSevere = 5.001;
+    } else if (weeks <= 14) {
+      periodLabel = "3 meses";
+      thresholdSignificant = 7.5;
+      thresholdSevere = 7.501;
+    } else {
+      periodLabel = "6 meses+";
+      thresholdSignificant = 10;
+      thresholdSevere = 10.001;
+    }
+
+    let severity: "normal" | "significativa" | "grave" = "normal";
+    if (percentLoss >= thresholdSevere) severity = "grave";
+    else if (percentLoss >= thresholdSignificant) severity = "significativa";
+
+    weightLoss = {
+      usualWeight: wUsual,
+      currentWeight: rawWeight,
+      periodWeeks: weeks,
+      periodLabel,
+      lossKg,
+      percentLoss,
+      severity,
+      isAlert: severity === "grave",
+    };
+  }
+
+  // Arm composition (Frisancho)
+  let armComposition = null;
+  if (armCircumference && tricipital) {
+    const cb_mm = armCircumference * 10;
+    const cmb_mm = cb_mm - Math.PI * tricipital;
+    const atb_mm2 = Math.pow(cb_mm, 2) / (4 * Math.PI);
+    const amb_mm2 = gender === "Masculino"
+      ? Math.pow(cb_mm - Math.PI * tricipital, 2) / (4 * Math.PI) - 1000
+      : Math.pow(cb_mm - Math.PI * tricipital, 2) / (4 * Math.PI) - 650;
+    const agb_mm2 = atb_mm2 - amb_mm2;
+    armComposition = {
+      cmbMm: roundNum(cmb_mm, 1),
+      atbMm2: roundNum(atb_mm2, 1),
+      ambMm2: roundNum(amb_mm2, 1),
+      agbMm2: roundNum(agb_mm2, 1),
+      fatPercentage: roundNum((agb_mm2 / atb_mm2) * 100, 1),
+    };
+  }
+
+  // Cardiovascular risk (ICC)
+  let cardiovascularRisk = null;
+  if (typeof inputs.waistCircumference === "number") {
+    const cc = inputs.waistCircumference;
+    const cca = typeof inputs.hipCircumference === "number" ? inputs.hipCircumference : null;
+    let waistRiskNcep = "Bajo";
+    let waistRiskIdf = "Bajo";
+    if (gender === "Masculino") {
+      if (cc >= 102) waistRiskNcep = "Aumentado";
+      if (cc >= 90) waistRiskIdf = "Aumentado";
+    } else {
+      if (cc >= 88) waistRiskNcep = "Aumentado";
+      if (cc >= 80) waistRiskIdf = "Aumentado";
+    }
+    let icc = null;
+    let iccRisk = "No evaluable";
+    if (cca !== null && cca > 0) {
+      icc = roundNum(cc / cca, 2);
+      iccRisk = gender === "Masculino" ? (icc > 0.95 ? "Elevado" : "Bajo") : (icc > 0.85 ? "Elevado" : "Bajo");
+    }
+    cardiovascularRisk = {
+      waistCircumference: cc,
+      hipCircumference: cca,
+      icc,
+      iccRisk,
+      waistRiskNcep,
+      waistRiskIdf,
+    };
+  }
+
+  // Weight to use for energy requirements
+  const isUsingUsual = inputs.useUsualWeightForRequirements === true || (weightLoss?.severity === "grave" && inputs.useUsualWeightForRequirements !== false);
+  const reqWeight = isUsingUsual && typeof inputs.usualWeight === "number" ? inputs.usualWeight : weight;
+
+  // TMB & GET
+  const formula = inputs.tmbFormula || "mifflin-st-jeor";
+  let tmb = gender === "Masculino"
+    ? 10 * reqWeight + 6.25 * height - 5 * resolvedAge + 5
+    : 10 * reqWeight + 6.25 * height - 5 * resolvedAge - 161;
+  if (formula === "harris-benedict") {
+    tmb = gender === "Masculino"
+      ? 66.5 + 13.75 * reqWeight + 5.003 * height - 6.775 * resolvedAge
+      : 655.1 + 9.563 * reqWeight + 1.85 * height - 4.676 * resolvedAge;
+  }
+
+  const baseFactors: Record<string, number> = {
+    sedentario: 1.2,
+    ligero: 1.375,
+    moderado: 1.55,
+    activo: 1.725,
+    muy_activo: 1.9,
+  };
+  const factor = baseFactors[inputs.activityLevel || "sedentario"] || 1.2;
+  const getVal = Math.round(tmb * factor);
+
+  const carbPercent = inputs.carbPct ?? 55;
+  const proteinPercent = inputs.proteinPct ?? 20;
+  const fatPercent = inputs.fatPct ?? 25;
+
+  const carbsGrams = Math.round((getVal * (carbPercent / 100)) / 4);
+  const proteinGrams = Math.round((getVal * (proteinPercent / 100)) / 4);
+  const fatsGrams = Math.round((getVal * (fatPercent / 100)) / 9);
+
+  const energy = {
+    tmb: Math.round(tmb),
+    formula: formula === "harris-benedict" ? "Harris-Benedict (original, 1919)" : "Mifflin-St Jeor (1990)",
+    get: getVal,
+    activityFactor: factor,
+    macros: {
+      calories: getVal,
+      protein: proteinGrams,
+      carbs: carbsGrams,
+      fats: fatsGrams,
+      proteinPercent,
+      carbsPercent: carbPercent,
+      fatsPercent: fatPercent,
+    },
+  };
+
+  // Protein requirements
+  const proteinProfile = inputs.proteinProfile || (resolvedAge >= 65 ? "adulto_mayor" : "adulto_sano");
+  const pProfiles: Record<string, { label: string; min: number; max: number }> = {
+    adulto_sano: { label: "Adulto sano, mantención", min: 0.8, max: 1.0 },
+    adulto_mayor: { label: "Adulto mayor (prevención sarcopenia)", min: 1.2, max: 1.5 },
+    deportista: { label: "Deportista / hipertrofia", min: 1.6, max: 2.2 },
+    renal_sin_dialisis: { label: "Enfermedad renal crónica sin diálisis", min: 0.6, max: 0.8 },
+    renal_dialisis: { label: "Enfermedad renal en diálisis", min: 1.0, max: 1.2 },
+    oncologico: { label: "Paciente oncológico / desnutrido", min: 1.2, max: 1.5 },
+  };
+  const selProf = pProfiles[proteinProfile] || pProfiles.adulto_sano;
+  const minGrams = roundNum(reqWeight * selProf.min, 1);
+  const maxGrams = roundNum(reqWeight * selProf.max, 1);
+  const proteinRequirement = {
+    profileKey: proteinProfile,
+    profileLabel: selProf.label,
+    minPerKg: selProf.min,
+    maxPerKg: selProf.max,
+    minGrams,
+    maxGrams,
+    minPercentGet: getVal > 0 ? roundNum(((minGrams * 4) / getVal) * 100, 1) : 0,
+    maxPercentGet: getVal > 0 ? roundNum(((maxGrams * 4) / getVal) * 100, 1) : 0,
+  };
+
+  // Hydration
+  const minMl = roundNum(reqWeight * 30, 0);
+  const maxMl = roundNum(reqWeight * 35, 0);
+  const hydration = {
+    method: "Adulto (30-35 ml/kg/día)",
+    minMl,
+    maxMl,
+    minL: roundNum(minMl / 1000, 2),
+    maxL: roundNum(maxMl / 1000, 2),
+    note: "Ajustar a la baja en patología renal o cardíaca; al alza con fiebre o pérdidas digestivas.",
+  };
+
+  // Exchange portions
+  const exchangePortions = [
+    { category: "Cereales, panes y tubérculos", amount: "1/2 taza cocida, 1 rebanada de pan o 1 papa pequeña", portions: 4, cho: 120, protein: 12, fat: 4, kcal: 560, profileId: "cereales_tuberculos" },
+    { category: "Frutas", amount: "1 unidad mediana o 1 taza picada", portions: 3, cho: 45, protein: 0, fat: 0, kcal: 180, profileId: "frutas" },
+    { category: "Verduras de bajo aporte", amount: "2 tazas crudas o 1 taza cocida", portions: 4, cho: 20, protein: 8, fat: 0, kcal: 100, profileId: "verduras_bajas" },
+    { category: "Proteína magra", amount: "50 g cocidos o 1/2 pechuga pequeña", portions: 5, cho: 0, protein: 55, fat: 10, kcal: 325, profileId: "proteina_magra" },
+    { category: "Lácteos descremados", amount: "1 taza de leche o yogurt descremado", portions: 2, cho: 24, protein: 16, fat: 0, kcal: 160, profileId: "lacteos_descremados" },
+    { category: "Grasas y aceites", amount: "20 g de aceite o 1/4 de palta", portions: 3, cho: 0, protein: 0, fat: 60, kcal: 540, profileId: "grasas_saludables" },
+  ];
+
+  return {
+    version: "2026-07-21-v3",
+    calculatedAt: new Date().toISOString(),
+    inputs: {
+      gender,
+      age: resolvedAge,
+      weight: rawWeight,
+      dryWeight,
+      edemaPercent,
+      height,
+      targetBmi: inputs.targetBmi || (resolvedAge >= 65 ? 25.5 : 22.0),
+      activityLevel: inputs.activityLevel || "sedentario",
+      kneeHeight,
+      calfCircumference,
+      armCircumference,
+      waistCircumference: inputs.waistCircumference || null,
+      hipCircumference: inputs.hipCircumference || null,
+      usualWeight: inputs.usualWeight || null,
+      weightLossPeriodWeeks: inputs.weightLossPeriodWeeks || null,
+      proteinProfile,
+      useUsualWeightForRequirements: isUsingUsual,
+      folds: {
+        tricipital,
+        subescapular,
+        bicipital: null,
+        suprailiaco: null,
+      },
+    },
+    estimatedHeight,
+    estimatedWeight,
+    dryWeight,
+    edemaPercent,
+    bmi,
+    idealWeight,
+    adjustedWeight,
+    weightLoss,
+    armComposition,
+    cardiovascularRisk,
+    energy,
+    proteinRequirement,
+    hydration,
+    exchangePortions,
+  };
+}
+
 /**
  * Intercepta llamadas de fetchApi y responde directamente con localStorage
  * cuando se navega en modo demo sin iniciar sesión.
@@ -570,6 +1140,24 @@ export function handleDemoApi(path: string, init?: RequestInit): Response | null
         return makeMockResponse({ error: "Invalid body" }, 400);
       }
     }
+  }
+
+  if (cleanPath.startsWith("/creations/")) {
+    const creationId = cleanPath.replace("/creations/", "").replace("/share", "");
+    const creations = getLocalCreations();
+    const found = creations.find((c: any) => c.id === creationId);
+
+    if (cleanPath.endsWith("/share")) {
+      return makeMockResponse({ message: "Creación compartida con el paciente (Demo)" }, 200);
+    }
+    if (method === "DELETE") {
+      saveLocalCreations(creations.filter((c: any) => c.id !== creationId));
+      return makeMockResponse({ success: true }, 200);
+    }
+    if (found) {
+      return makeMockResponse(found);
+    }
+    return makeMockResponse({ error: "Creación no encontrada" }, 404);
   }
 
   // 3. Pacientes
@@ -818,14 +1406,161 @@ export function handleDemoApi(path: string, init?: RequestInit): Response | null
     });
   }
 
-  if (cleanPath.startsWith("/memberships")) {
+  if (cleanPath.startsWith("/memberships") || cleanPath === "/payments/membership-status") {
     return makeMockResponse({
-      plan: "pro",
-      planName: "Plan Pro Clínico",
-      status: "active",
+      requiresPlanSelection: false,
+      accountPlan: "pro",
+      hasPendingTransfer: false,
       entitlements: DEMO_USER.currentPlan.entitlements,
+      usage: {
+        patientsActive: 6,
+        consultationsUsed: 6,
+        followupsPrivateActive: 0,
+        pdfUsed: 4,
+        aiUsed: 2,
+        calculatorUsed: 0,
+      },
       currentPlan: DEMO_USER.currentPlan,
+      subscription: {
+        status: "active",
+        startDate: "2026-01-01T00:00:00.000Z",
+        endDate: "2027-01-01T00:00:00.000Z",
+        cancelAtPeriodEnd: false,
+        canceledAt: null,
+        daysRemaining: 365,
+      },
     });
+  }
+
+  // 7.1. Calculadora Clínica Demo
+  if (cleanPath === "/calculations/calculate") {
+    try {
+      const body = init?.body ? JSON.parse(init.body as string) : {};
+      return makeMockResponse(calculateDemoClinical(body));
+    } catch {
+      return makeMockResponse({ error: "Error en cálculo clínico demo" }, 400);
+    }
+  }
+
+  // 7.2. Generación con IA para Pautas (/pautas/ai-generate)
+  if (cleanPath === "/pautas/ai-generate") {
+    const mockPauta = {
+      paragraphs: [
+        {
+          category: "Lácteos y Bebidas Vegetales",
+          categoryOptional: "Descremados / Sin azúcar añadida",
+          portionsPerDay: "2 a 3 porciones al día",
+          foods: [
+            { portion: "1 taza (200 ml)", food: "Leche descremada o bebida de soya fortificada" },
+            { portion: "1 unidad (125 g)", food: "Yogurt natural descremado sin endulzar" },
+            { portion: "1 rebanada (30 g)", food: "Quesillo tradicional o queso fresco magro" },
+          ],
+        },
+        {
+          category: "Carnes, Huevos y Pescados",
+          categoryOptional: "Proteínas magras de alto valor biológico",
+          portionsPerDay: "2 porciones al día (almuerzo y cena)",
+          foods: [
+            { portion: "1 filete mediano (130 g)", food: "Pechuga de pollo o pavo a la plancha" },
+            { portion: "1 trozo mediano (140 g)", food: "Pescado blanco o azul (merluza, reineta, salmón) al horno" },
+            { portion: "2 unidades", food: "Huevos pochados, duros o revueltos con aceite de oliva" },
+          ],
+        },
+        {
+          category: "Verduras y Hortalizas",
+          categoryOptional: "Libre consumo (alta densidad de fibra)",
+          portionsPerDay: "Mínimo 3 platos o porciones al día",
+          foods: [
+            { portion: "1 plato hondo", food: "Mix de hojas verdes (lechuga, espinaca tierna, rúcula)" },
+            { portion: "1 taza cocida", food: "Zapallo italiano, judías verdes o brócoli al vapor" },
+            { portion: "1 taza picada", food: "Tomate, pepino de ensalada y zanahoria rallada con limón" },
+          ],
+        },
+        {
+          category: "Cereales y Tubérculos",
+          categoryOptional: "Carbohidratos complejos integrales",
+          portionsPerDay: "2 a 3 porciones al día",
+          foods: [
+            { portion: "3/4 taza cocida (120 g)", food: "Arroz integral o quinoa perlada" },
+            { portion: "3/4 taza cocida (150 g)", food: "Papas cocidas con piel o camote al horno" },
+            { portion: "1/2 taza en hojuelas (40 g)", food: "Avena integral machacada o salvado de avena" },
+          ],
+        },
+        {
+          category: "Frutas Frescas",
+          categoryOptional: "Frutas de estación variadas con piel lavada",
+          portionsPerDay: "2 a 3 porciones al día",
+          foods: [
+            { portion: "1 unidad regular", food: "Manzana verde, pera de agua o naranja" },
+            { portion: "1 taza (150 g)", food: "Arándanos, frambuesas o frutillas frescas" },
+            { portion: "2 unidades pequeñas", food: "Kiwis maduros o mandarinas" },
+          ],
+        },
+        {
+          category: "Grasas Saludables y Semillas",
+          categoryOptional: "Ácidos grasos monoinsaturados y omega-3",
+          portionsPerDay: "2 porciones al día",
+          foods: [
+            { portion: "1/4 unidad (50 g)", food: "Palta Hass madura" },
+            { portion: "1 cucharadita (5 ml)", food: "Aceite de oliva extra virgen en crudo" },
+            { portion: "1 cucharada (15 g)", food: "Semillas de chía, linaza o frutos secos (nueces, almendras)" },
+          ],
+        },
+      ],
+    };
+    return makeMockResponse(mockPauta);
+  }
+
+  // 7.3. Generación con IA para Recetas / Platos (/recipes/quick-ai-fill)
+  if (cleanPath === "/recipes/quick-ai-fill") {
+    try {
+      const parsed = init?.body ? JSON.parse(init.body as string) : {};
+      const targets = parsed?.payload?.mealSectionTargets || [];
+      const dishes = targets.map((target: any, idx: number) => ({
+        slotId: target.slotId || `slot-${idx}`,
+        optionIndex: target.optionIndex ?? 0,
+        mealSection: target.mealSection || "Almuerzo",
+        title: target.mealSection?.toLowerCase().includes("desayuno")
+          ? "Bowl de avena tibia con chía, canela y berries"
+          : target.mealSection?.toLowerCase().includes("cena")
+          ? "Filete de reineta al horno con ensalada tibia de zapallito"
+          : "Pechuga de pollo a la plancha con quinoa y mix de hojas verdes",
+        description: "Opción equilibrada en macronutrientes y micronutrientes esenciales.",
+        preparation: "Cocinar a fuego medio, sazonar con especias naturales y limón.",
+        recommendedPortion: "1 porción individual",
+        portions: 1,
+        calories: 420,
+        protein: 32,
+        carbs: 45,
+        fats: 12,
+        ingredients: [
+          { name: "Proteína principal", amount: 150, unit: "g" },
+          { name: "Acompañamiento vegetal", amount: 100, unit: "g" },
+        ],
+      }));
+      return makeMockResponse({
+        dishes: dishes.length > 0 ? dishes : [
+          {
+            slotId: "slot-default",
+            optionIndex: 0,
+            mealSection: "Almuerzo",
+            title: "Pechuga de pollo a la plancha con quinoa y ensalada verde",
+            description: "Plato balanceado rico en proteínas magras y fibra.",
+            preparation: "Grillar la pechuga y servir con quinoa cocida.",
+            recommendedPortion: "1 plato",
+            portions: 1,
+            calories: 450,
+            protein: 38,
+            carbs: 42,
+            fats: 11,
+            ingredients: [],
+          },
+        ],
+        meta: { note: "Generación asistida NutriNet IA en modo demo." },
+      });
+    } catch {
+      return makeMockResponse({ dishes: [], meta: { note: "Demo fallback" } });
+    }
   }
 
   // 8. Ratings status (silenciar modales de calificación en demo)
@@ -949,7 +1684,140 @@ export function handleDemoApi(path: string, init?: RequestInit): Response | null
     return makeMockResponse({ success: true });
   }
 
-  return null;
+  // 14. Notas personales (/personal-notes)
+  if (cleanPath === "/personal-notes" || cleanPath.startsWith("/personal-notes/")) {
+    const raw = typeof window !== "undefined" ? localStorage.getItem("nutrinet_personal_notes") : null;
+    let notes = [];
+    try {
+      notes = raw ? JSON.parse(raw) : [
+        {
+          id: "demo-note-1",
+          title: "Recordatorio caso Valentina Miranda",
+          content: "Ajustar porciones de carbohidratos complejos en la cena y evaluar curva de peso.",
+          pinned: true,
+          category: "CLINICAL",
+          color: "yellow",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }
+      ];
+    } catch {
+      notes = [];
+    }
+    return makeMockResponse(notes);
+  }
+
+  // 15. Citas / Agenda (/appointments)
+  if (cleanPath === "/appointments" || cleanPath.startsWith("/appointments/")) {
+    return makeMockResponse([]);
+  }
+
+  // 16. Portal Paciente (/patient-portals/*)
+  if (cleanPath.startsWith("/patient-portals")) {
+    if (cleanPath.includes("/preview")) {
+      return makeMockResponse({
+        patientName: "Valentina Miranda",
+        patientEmail: "valentina@nutrinet.cl",
+        nutritionistName: "Nutricionista Demo",
+        expiresAt: new Date(Date.now() + 86400000 * 30).toISOString(),
+      });
+    }
+
+    const demoPortalData = {
+      accessToken: "demo-portal-token",
+      patient: {
+        id: "demo-patient-1",
+        fullName: "Valentina Miranda",
+        email: "valentina@nutrinet.cl",
+        createdAt: new Date().toISOString(),
+        nutritionist: {
+          id: "demo-nutri-1",
+          fullName: "Nutricionista Demo",
+          settings: {
+            isScheduleActive: false,
+          },
+        },
+        projects: [],
+      },
+      portal: {
+        activeInvitation: {
+          id: "demo-invitation",
+          expiresAt: new Date(Date.now() + 86400000 * 30).toISOString(),
+          status: "ACTIVE",
+          createdAt: new Date().toISOString(),
+        },
+        latestInvitation: null,
+      },
+      summary: {
+        totalEntries: 0,
+        questionsCount: 0,
+        trackingCount: 0,
+        repliesCount: 0,
+        pendingQuestions: 0,
+        latestEntryAt: null,
+        daysSinceLastEntry: null,
+        sectionCounts: { alimentacion: 0, suplementos: 0, actividadFisica: 0 },
+        alerts: [],
+      },
+      entries: [],
+      questions: [],
+      tracking: [],
+      replies: [],
+      messages: [],
+      notifications: [],
+      sharedResources: [],
+      sharedDeliverables: getLocalCreations().slice(0, 1).map((c) => ({
+        id: c.id,
+        name: c.name,
+        type: c.type || "Pauta",
+        format: "PDF",
+        content: c,
+        tags: [],
+        createdAt: c.createdAt,
+        updatedAt: c.createdAt,
+      })),
+      appointments: [],
+      status: "ACTIVE",
+    };
+
+    return makeMockResponse(demoPortalData);
+  }
+
+  // 17. Formulario Intake Paciente (/public/patient-intake/*)
+  if (cleanPath.includes("/patient-intake")) {
+    if (cleanPath.includes("/validate")) {
+      return makeMockResponse({
+        valid: true,
+        nutritionistName: "Nutricionista Demo",
+        clinicName: "Consulta Nutricional Demo",
+        patientEmail: "valentina@nutrinet.cl",
+        patientName: "Valentina Miranda",
+      });
+    }
+    return makeMockResponse({ success: true, message: "Formulario demo recibido correctamente." });
+  }
+
+  // 18. Excepciones permitidas para conectar con el backend real desde modo invitado (registro / login)
+  const isAuthRealAction =
+    cleanPath.startsWith("/auth/login") ||
+    cleanPath.startsWith("/auth/register") ||
+    cleanPath.startsWith("/auth/forgot") ||
+    cleanPath.startsWith("/auth/reset") ||
+    cleanPath.startsWith("/auth/google") ||
+    cleanPath.startsWith("/auth/verify");
+
+  if (isAuthRealAction) {
+    return null; // Deja que viaje al backend real
+  }
+
+  // 19. Sandbox Guard Universal: Para cualquier otra ruta en modo invitado, responder 200 OK seguro
+  return makeMockResponse({
+    success: true,
+    data: [],
+    items: [],
+    total: 0,
+    message: "Modo demo: respuesta simulada protegida",
+  });
 }
 
 
