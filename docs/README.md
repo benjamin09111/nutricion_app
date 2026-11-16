@@ -9,6 +9,7 @@ Documentación útil para humanos y agentes.
 - `appointments-central-migration.md`: estrategia de migración del módulo de citas.
 - `FORMULAS_NUTRICIONALES.md`: fórmulas clínicas de referencia.
 - `integrations/flow-openapi.yaml`: contrato OpenAPI de Flow.
+- `product-analytics.md`: eventos de uso, privacidad, PostHog y CI/CD.
 
 ## Product context
 

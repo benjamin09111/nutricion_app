@@ -55,6 +55,10 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [selectedIngredient, setSelectedIngredient] = useState<Ingredient | null>(null);
+  const [sourceCounts, setSourceCounts] = useState<Record<FoodSourceTab, number>>({
+    catalog: initialCatalog.length,
+    created: 0,
+  });
 
   const sourceCacheRef = useRef<Record<FoodSourceTab, Ingredient[]>>({
     catalog: initialCatalog,
@@ -69,6 +73,7 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
     setData(valid);
     setCatalogPool(valid);
     sourceCacheRef.current.catalog = valid;
+    setSourceCounts((current) => ({ ...current, catalog: valid.length }));
   }, [initialData]);
 
   const setSourceTabData = (sourceTab: FoodSourceTab, items: Ingredient[]) => {
@@ -76,6 +81,7 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
       ...sourceCacheRef.current,
       [sourceTab]: items,
     };
+    setSourceCounts((current) => ({ ...current, [sourceTab]: items.length }));
     setData(items);
     setCatalogPool(items);
   };
@@ -379,8 +385,8 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
     },
   ];
 
-  const totalCatalogCount = sourceCacheRef.current.catalog?.length || OFFICIAL_INGREDIENTS.length;
-  const totalCreatedCount = sourceCacheRef.current.created?.length || getLocalCustomFoods().length;
+  const totalCatalogCount = sourceCounts.catalog || OFFICIAL_INGREDIENTS.length;
+  const totalCreatedCount = sourceCounts.created || getLocalCustomFoods().length;
 
   return (
     <ModuleLayout

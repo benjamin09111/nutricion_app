@@ -1,0 +1,49 @@
+name: NutriNet CD
+
+on:
+  workflow_run:
+    workflows: ["NutriNet CI"]
+    types: [completed]
+    branches: [staging]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Entorno a desplegar manualmente"
+        required: true
+        type: choice
+        options: [staging, production]
+
+jobs:
+  deploy-staging:
+    name: Deploy staging
+    if: >-
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
+      (github.event_name == 'workflow_dispatch' && inputs.target == 'staging')
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Trigger provider deploy hook
+        env:
+          DEPLOY_HOOK_URL: ${{ secrets.STAGING_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$DEPLOY_HOOK_URL" ]; then
+            echo "STAGING_DEPLOY_HOOK_URL no está configurado; se omite el despliegue."
+            exit 0
+          fi
+          curl --fail --silent --show-error --request POST "$DEPLOY_HOOK_URL"
+
+  deploy-production:
+    name: Deploy production
+    if: github.event_name == 'workflow_dispatch' && inputs.target == 'production'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Trigger provider deploy hook
+        env:
+          DEPLOY_HOOK_URL: ${{ secrets.PRODUCTION_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$DEPLOY_HOOK_URL" ]; then
+            echo "PRODUCTION_DEPLOY_HOOK_URL no está configurado; se detiene el despliegue."
+            exit 1
+          fi
+          curl --fail --silent --show-error --request POST "$DEPLOY_HOOK_URL"
