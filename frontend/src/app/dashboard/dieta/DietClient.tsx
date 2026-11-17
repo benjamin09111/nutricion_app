@@ -75,7 +75,18 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     }
 
     const newMeals: DietMealBlock[] = [];
-    const rawDishes = content.dishes || content.recipes || content.meals || [];
+    const canonicalMeals = content.planContext?.plan?.meals;
+    const rawDishes =
+      content.dishes ||
+      content.recipes ||
+      content.meals ||
+      (Array.isArray(canonicalMeals)
+        ? canonicalMeals.map((meal: any) => ({
+            ...meal,
+            name: meal.mealText || meal.section,
+            title: meal.mealText || meal.section,
+          }))
+        : []);
     if (Array.isArray(rawDishes) && rawDishes.length > 0) {
       rawDishes.forEach((dish: any, idx: number) => {
         const ingredientsList = Array.isArray(dish.ingredients)

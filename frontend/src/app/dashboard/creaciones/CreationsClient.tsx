@@ -223,8 +223,27 @@ export default function CreationsClient({
     content?: Record<string, unknown>;
     metadata?: Record<string, unknown>;
   }) => {
-    const rawContent = raw.content || {};
-    const paragraphsRaw = Array.isArray(rawContent.paragraphs) ? rawContent.paragraphs : [];
+    const rawContent: any = raw.content || {};
+    const canonical = rawContent.planContext as any;
+    const content: any = canonical?.plan
+      ? {
+          ...rawContent,
+          title: canonical.creation?.title || rawContent.title,
+          planObjective: canonical.plan.objective,
+          showPlanObjectiveInPdf: canonical.plan.showObjectiveInPdf === true,
+          contentMode: canonical.plan.format?.contentMode,
+          tableMode: canonical.plan.format?.tableMode,
+          planMode: canonical.plan.format?.planMode,
+          paragraphs: canonical.plan.paragraphs,
+          meals: canonical.plan.meals,
+          avoidFoods: canonical.plan.avoidFoods,
+          resources: canonical.plan.resources,
+          portionGuide: canonical.plan.portionGuide,
+          clinicalRestriction: canonical.plan.clinicalRestriction,
+          updatedAt: canonical.metadata?.updatedAt || rawContent.updatedAt,
+        }
+      : rawContent;
+    const paragraphsRaw = Array.isArray(content.paragraphs) ? content.paragraphs : [];
     const paragraphsFormatted = paragraphsRaw.map((p: any) => ({
       title: typeof p.title === "string" ? p.title : (p.categoryOptional ? `${p.category} (${p.categoryOptional})` : p.category || "Pauta"),
       subtitle: typeof p.subtitle === "string" ? p.subtitle : (p.portionsPerDay ? `${p.portionsPerDay} porciones al día` : undefined),
@@ -234,12 +253,12 @@ export default function CreationsClient({
       imagePath: p.imagePath || null,
     }));
 
-    const rawResource = rawContent.resource as { title?: string; content?: string } | undefined;
-    const resourcesList = Array.isArray(rawContent.resources)
-      ? rawContent.resources
+    const rawResource = content.resource as { title?: string; content?: string } | undefined;
+    const resourcesList = Array.isArray(content.resources)
+      ? content.resources
       : (rawResource && rawResource.title ? [{ resourceId: "hist", title: rawResource.title, content: rawResource.content || "" }] : []);
 
-    const rawMeals = Array.isArray(rawContent.meals) ? rawContent.meals : [];
+    const rawMeals = Array.isArray(content.meals) ? content.meals : [];
     let normalizedMeals = rawMeals.map((m: any, index: number) => ({
       id: m.id || `meal-${index}`,
       section: m.section || m.name || `Comida ${index + 1}`,
@@ -262,36 +281,36 @@ export default function CreationsClient({
 
     return {
       name:
-        typeof rawContent.title === "string"
-          ? rawContent.title
+        typeof content.title === "string"
+          ? content.title
           : typeof raw.name === "string" && raw.name.trim()
             ? raw.name
             : "Entregable",
       patientName:
         typeof raw.metadata?.patientName === "string"
           ? raw.metadata.patientName
-          : (rawContent.patient as any)?.name || (typeof rawContent.patientName === "string" ? rawContent.patientName : null),
+          : (content.patient as any)?.name || (typeof content.patientName === "string" ? content.patientName : null),
       clinicalRestriction:
-        typeof rawContent.clinicalRestriction === "string"
-          ? rawContent.clinicalRestriction
-            : (typeof rawContent.restriction === "string" ? rawContent.restriction : null),
-      planObjective: typeof rawContent.planObjective === "string" ? rawContent.planObjective : undefined,
-      showPlanObjectiveInPdf: rawContent.showPlanObjectiveInPdf === true,
-      contentMode: "table" as const,
+        typeof content.clinicalRestriction === "string"
+          ? content.clinicalRestriction
+            : (typeof content.restriction === "string" ? content.restriction : null),
+      planObjective: typeof content.planObjective === "string" ? content.planObjective : undefined,
+      showPlanObjectiveInPdf: content.showPlanObjectiveInPdf === true,
+      contentMode: content.contentMode === "both" || content.contentMode === "paragraphs" ? content.contentMode : "table",
       paragraphs: paragraphsFormatted,
-      tableMode: getFastDeliverableTableMode(rawContent.tableMode),
+      tableMode: getFastDeliverableTableMode(content.tableMode),
       meals: normalizedMeals.length > 0
-        ? normalizeFastDeliverableMeals(normalizedMeals, getFastDeliverableTableMode(rawContent.tableMode), rawContent.planMode)
+        ? normalizeFastDeliverableMeals(normalizedMeals, getFastDeliverableTableMode(content.tableMode), content.planMode)
         : [],
-      avoidFoods: Array.isArray(rawContent.avoidFoods)
-        ? rawContent.avoidFoods
-        : (Array.isArray(rawContent.recommendations) ? rawContent.recommendations : []),
+      avoidFoods: Array.isArray(content.avoidFoods)
+        ? content.avoidFoods
+        : (Array.isArray(content.recommendations) ? content.recommendations : []),
       resources: resourcesList,
-      portionGuide: Array.isArray(rawContent.portionGuide)
-        ? rawContent.portionGuide
-        : (Array.isArray(rawContent.portionGuideRows) ? rawContent.portionGuideRows : []),
-      generatedAt: typeof rawContent.updatedAt === "string"
-        ? new Date(rawContent.updatedAt).toLocaleDateString("es-CL")
+      portionGuide: Array.isArray(content.portionGuide)
+        ? content.portionGuide
+        : (Array.isArray(content.portionGuideRows) ? content.portionGuideRows : []),
+      generatedAt: typeof content.updatedAt === "string"
+        ? new Date(content.updatedAt).toLocaleDateString("es-CL")
         : new Date().toLocaleDateString("es-CL"),
     };
   };
@@ -705,11 +724,11 @@ export default function CreationsClient({
         <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
           <button
             onClick={() => handlePreviewPdf(item)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#668E20] bg-[#F0F5DF] hover:bg-[#E4ECC8] rounded-xl transition-all cursor-pointer shadow-2xs"
+            className="inline-flex items-center justify-center p-1.5 text-[#668E20] bg-[#F0F5DF] hover:bg-[#E4ECC8] rounded-xl transition-all cursor-pointer shadow-2xs"
             title="Vista previa del documento PDF"
+            aria-label="Vista previa del documento PDF"
           >
             <Eye className="h-3.5 w-3.5" />
-            <span>Vista previa</span>
           </button>
           <button
             onClick={() => handleInfoClick(item)}
@@ -925,10 +944,11 @@ export default function CreationsClient({
                 </button>
                 <button
                   onClick={() => handlePreviewPdf(item)}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-[#668E20] bg-[#F0F5DF] hover:bg-[#E4ECC8] rounded-xl transition-all shadow-2xs cursor-pointer"
+                  className="inline-flex items-center justify-center p-1.5 text-[#668E20] bg-[#F0F5DF] hover:bg-[#E4ECC8] rounded-xl transition-all shadow-2xs cursor-pointer"
+                  title="Vista previa del documento PDF"
+                  aria-label="Vista previa del documento PDF"
                 >
                   <Eye className="h-3.5 w-3.5" />
-                  <span>Vista previa</span>
                 </button>
               </div>
             </div>

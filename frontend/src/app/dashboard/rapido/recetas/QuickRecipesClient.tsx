@@ -532,6 +532,7 @@ export default function QuickRecipesClient() {
 
   const extractFoodsFromCreation = (creation: any) => {
     const content = (creation.content || {}) as Record<string, any>;
+    const canonicalPlan = content.planContext?.plan || {};
     const foodsSet = new Set<string>();
     const restrictionsSet = new Set<string>();
 
@@ -558,11 +559,25 @@ export default function QuickRecipesClient() {
       });
     }
 
+    if (foodsSet.size === 0) {
+      const canonicalFoods = [
+        ...(Array.isArray(canonicalPlan.avoidFoods) ? canonicalPlan.avoidFoods : []),
+        ...(Array.isArray(canonicalPlan.meals)
+          ? canonicalPlan.meals.map((meal: any) => meal.mealText || "")
+          : []),
+      ];
+      canonicalFoods.forEach((food) => {
+        if (typeof food === "string" && food.trim()) foodsSet.add(food.trim());
+      });
+    }
+
     const rawRestrictions =
       dietObj.restrictedFoods ||
       dietObj.activeConstraints ||
       dietObj.customConstraints ||
-      content.restrictedFoods;
+      content.restrictedFoods ||
+      canonicalPlan.clinicalRestriction ||
+      content.planContext?.patient?.clinical?.restrictions;
 
     if (Array.isArray(rawRestrictions)) {
       rawRestrictions.forEach((item: any) => {
@@ -1004,6 +1019,8 @@ export default function QuickRecipesClient() {
     if (isHydrating) return;
     const extracted = extractFoodsFromCreation(creation);
     const content = (creation.content || {}) as Record<string, unknown>;
+    const canonical = content.planContext as Record<string, any> | undefined;
+    const canonicalPlan = canonical?.plan || {};
 
     setSelectedBaseCreation(creation);
     setInstructionsMode("creation");
@@ -1011,7 +1028,7 @@ export default function QuickRecipesClient() {
     setTitle(
       typeof content.title === "string" && content.title.trim()
         ? content.title
-        : creation.name || DEFAULT_TITLE,
+        : canonical?.creation?.title || creation.name || DEFAULT_TITLE,
     );
     setDietName(
       typeof content.dietName === "string" && content.dietName.trim()
@@ -1022,8 +1039,14 @@ export default function QuickRecipesClient() {
       typeof content.nutritionistNotes === "string" ? content.nutritionistNotes : "",
     );
     setDeliveryDate(getTodayDateInputValue());
-    setPlanObjective(typeof content.planObjective === "string" ? content.planObjective : "");
-    setShowPlanObjectiveInPdf(content.showPlanObjectiveInPdf === true);
+    setPlanObjective(
+      typeof content.planObjective === "string"
+        ? content.planObjective
+        : canonicalPlan.objective || "",
+    );
+    setShowPlanObjectiveInPdf(
+      content.showPlanObjectiveInPdf === true || canonicalPlan.showObjectiveInPdf === true,
+    );
 
     if (extracted.foods.length > 0) {
       setAllowedFoodsMainText(extracted.foods.join("\n"));

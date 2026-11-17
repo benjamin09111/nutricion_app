@@ -48,11 +48,20 @@ import { calculateAge, calculateBMI, calculateGET, getIdealWeightRange, type Act
 import { cn } from "@/lib/utils";
 import { fetchCreation, fetchProject, saveCreation } from "@/lib/workflow";
 import { downloadFastDeliverablePdf } from "@/features/pdf/fastDeliverablePdfExport";
-import { getFastDeliverableTableMode, normalizeFastDeliverableMeals, type FastDeliverableTableMode } from "@/features/pdf/fastDeliverableMeals";
+import { getFastDeliverableTableMode, type FastDeliverableTableMode } from "@/features/pdf/fastDeliverableMeals";
 import { useDashboardShell } from "@/context/DashboardShellContext";
 import { getCurrentUser } from "@/lib/current-user";
 import { FoodReferenceBook } from "@/components/foods/FoodReferenceBook";
 import { getTodayDateInputValue } from "@/features/patients/utils/patient-helpers";
+import { buildQuickPlanContext } from "@/features/plan-context/builders/build-quick-plan-context";
+import { buildPautaAiPayload, buildQuickPlanAiPayload } from "@/features/plan-context/adapters/plan-context-to-ai";
+import { planContextToFastDeliverablePdf } from "@/features/plan-context/adapters/plan-context-to-pdf";
+import { creationToPlanContext } from "@/features/plan-context/migrations/creation-to-plan-context";
+import {
+  clearQuickPlanDraft,
+  readQuickPlanDraft,
+  writeQuickPlanDraft,
+} from "@/features/plan-context/storage/plan-context-storage";
 
 type QuickPlanMode = "single" | "weekly";
 type QuickContentMode = "table" | "paragraphs" | "both";
@@ -124,6 +133,9 @@ type QuickPatient = {
   fitnessGoals?: string | null;
   restrictions?: string[];
   dietRestrictions?: string[];
+  allergies?: string[];
+  medications?: string[];
+  habits?: string[];
   primaryCondition?: string | null;
   dislikedFoods?: string[];
   likes?: string | null;
@@ -385,6 +397,9 @@ const createEmptyQuickPatient = (): QuickPatient => ({
   nutritionalFocus: "",
   fitnessGoals: "",
   restrictions: [],
+  allergies: [],
+  medications: [],
+  habits: [],
   likes: "",
   clinicalSummary: "",
   activityLevel: null,
@@ -661,15 +676,12 @@ export default function QuickDeliverableClient() {
 
   useEffect(() => {
     if (creationId) return;
-    const quickDraft = localStorage.getItem("nutri_quick_deliverable_draft");
-    const pautaDraft = localStorage.getItem("nutri_pauta_alimentacion_draft");
-    const draft = quickDraft || pautaDraft;
-    if (!draft) {
+    const parsed = readQuickPlanDraft();
+    if (!parsed) {
       setIsHydrating(false);
       return;
     }
     try {
-      const parsed = JSON.parse(draft);
       setTitle(parsed.title ?? "");
       setQuickHashtags(parsed.quickHashtags || "");
       setQuickDescription(parsed.quickDescription || "");
@@ -714,9 +726,12 @@ export default function QuickDeliverableClient() {
                 .filter((r: QuickAvoidFoodRow) => Boolean(r.value))
             : [createAvoidFoodRow()],
       );
-      if (Array.isArray(parsed.resources) && parsed.resources.length > 0) {
+      const draftResources = Array.isArray(parsed.planContext?.plan?.resources)
+        ? parsed.planContext.plan.resources
+        : parsed.resources;
+      if (Array.isArray(draftResources) && draftResources.length > 0) {
         setResolvedResourcePages(
-          parsed.resources.map((resource: ResolvedResourcePage) => ({
+          draftResources.map((resource: ResolvedResourcePage) => ({
             ...resource,
             content: stripHtml(resource.content || ""),
           })),
@@ -738,9 +753,12 @@ export default function QuickDeliverableClient() {
       setIncludeAvoidFoods(parsed.includeAvoidFoods !== false);
       setIncludeResources(parsed.includeResources !== false);
       setIncludePortionGuide(parsed.includePortionGuide !== false);
+      const draftPortionGuideRows = Array.isArray(parsed.planContext?.plan?.portionGuide)
+        ? parsed.planContext.plan.portionGuide
+        : parsed.portionGuideRows;
       setPortionGuideRows(
-        Array.isArray(parsed.portionGuideRows) && parsed.portionGuideRows.length > 0
-          ? parsed.portionGuideRows
+        Array.isArray(draftPortionGuideRows) && draftPortionGuideRows.length > 0
+          ? draftPortionGuideRows
           : QUICK_PORTION_GUIDE.map((row) => createPortionGuideRow(row)),
       );
       setSelectedPatient(
@@ -758,9 +776,34 @@ export default function QuickDeliverableClient() {
 
   useEffect(() => {
     if (isHydrating) return;
-    localStorage.setItem(
-      "nutri_quick_deliverable_draft",
-      JSON.stringify({
+    const selectedResourcesForDraft = resolvedResourcePages.filter((resource, index) =>
+      selectedResourceKeys.includes(getResolvedResourceKey(resource, index)),
+    );
+    const timeoutId = window.setTimeout(() => {
+      writeQuickPlanDraft({
+        planContext: buildQuickPlanContext({
+          title,
+          description: creationDescription || quickDescription,
+          tags: quickHashtags.split(","),
+          planObjective,
+          showPlanObjectiveInPdf,
+          selectedRestriction,
+          hasClinicalRestriction,
+          planMode,
+          tableMode,
+          optionCount,
+          contentMode,
+          paragraphs,
+          meals,
+          avoidFoods: avoidFoods.map((food) => food.value),
+          portionGuideRows,
+          resources: selectedResourcesForDraft,
+          includeMeals,
+          includeAvoidFoods,
+          includeResources,
+          includePortionGuide,
+          patient: selectedPatient,
+        }),
         title,
         deliveryDate,
         quickHashtags,
@@ -777,22 +820,23 @@ export default function QuickDeliverableClient() {
         resourceOrigin,
         meals,
         avoidFoods,
-        resources: resolvedResourcePages,
         selectedResourceKeys,
         includeMeals,
         includeAvoidFoods,
         includeResources,
         includePortionGuide,
-        portionGuideRows,
         selectedPatient,
         isManualPatientExpanded,
-      }),
-    );
+      });
+    }, 300);
+
+    return () => window.clearTimeout(timeoutId);
   }, [
     title,
     deliveryDate,
     quickHashtags,
     quickDescription,
+    creationDescription,
     planObjective,
     showPlanObjectiveInPdf,
     planMode,
@@ -824,12 +868,13 @@ export default function QuickDeliverableClient() {
         setSelectedPatient(createEmptyQuickPatient());
         const creation = await fetchCreation(creationId);
         const content = creation.content || {};
-        setTitle(content.title ?? creation.name ?? "");
-        setQuickHashtags(content.quickHashtags || "");
-        setQuickDescription(content.quickDescription || "");
-        setPlanObjective(content.planObjective || "");
-        setShowPlanObjectiveInPdf(content.showPlanObjectiveInPdf === true);
-        setPlanMode(content.planMode === "weekly" ? "weekly" : "single");
+        const migratedPlanContext = creationToPlanContext(creation);
+        setTitle(migratedPlanContext.creation.title || creation.name || "");
+        setQuickHashtags(content.quickHashtags || migratedPlanContext.creation.tags.join(", "));
+        setQuickDescription(content.quickDescription || migratedPlanContext.creation.description || "");
+        setPlanObjective(migratedPlanContext.plan.objective || "");
+        setShowPlanObjectiveInPdf(migratedPlanContext.plan.showObjectiveInPdf);
+        setPlanMode(migratedPlanContext.plan.format.planMode);
 
         const isPautaType = creation.type === "PAUTAS";
         const isParagraphsMode =
@@ -846,13 +891,9 @@ export default function QuickDeliverableClient() {
               : "table",
         );
 
-        const restriction =
-          content.clinicalRestriction ||
-          content.selectedRestriction ||
-          content.restriction ||
-          "";
+        const restriction = migratedPlanContext.plan.clinicalRestriction || "";
         setSelectedRestriction(restriction);
-        setHasClinicalRestriction(content.hasClinicalRestriction ?? Boolean(restriction));
+        setHasClinicalRestriction(Boolean(restriction));
 
         if (Array.isArray(content.paragraphs) && content.paragraphs.length > 0) {
           setParagraphs(content.paragraphs);
@@ -860,17 +901,17 @@ export default function QuickDeliverableClient() {
           setParagraphs([createParagraph()]);
         }
 
-          setTableMode(getFastDeliverableTableMode(content.tableMode));
-          setOptionCount(Math.max(1, Math.min(3, Number(content.optionCount) || 1)));
-          setMeals(
-           normalizeQuickMeals(content.meals).length > 0
-             ? normalizeQuickMeals(content.meals)
-            : [createMeal("Desayuno")],
+          setTableMode(migratedPlanContext.plan.format.tableMode);
+          setOptionCount(migratedPlanContext.plan.format.optionCount);
+           setMeals(
+            normalizeQuickMeals(migratedPlanContext.plan.meals).length > 0
+              ? normalizeQuickMeals(migratedPlanContext.plan.meals)
+             : [createMeal("Desayuno")],
         );
 
         let avoidList: QuickAvoidFoodRow[] = [createAvoidFoodRow()];
-        if (Array.isArray(content.avoidFoods) && content.avoidFoods.length > 0) {
-          avoidList = content.avoidFoods.map((item: string | QuickAvoidFoodRow) =>
+        if (migratedPlanContext.plan.avoidFoods.length > 0) {
+          avoidList = migratedPlanContext.plan.avoidFoods.map((item) =>
             typeof item === "string" ? createAvoidFoodRow(item) : item,
           );
         } else if (typeof content.avoidFoods === "string" && content.avoidFoods.trim()) {
@@ -881,9 +922,9 @@ export default function QuickDeliverableClient() {
         }
         setAvoidFoods(avoidList);
 
-        if (Array.isArray(content.resources) && content.resources.length > 0) {
+        if (migratedPlanContext.plan.resources.length > 0) {
           setResolvedResourcePages(
-            content.resources.map((resource: ResolvedResourcePage) => ({
+            migratedPlanContext.plan.resources.map((resource) => ({
               ...resource,
               content: stripHtml(resource.content || ""),
             })),
@@ -914,20 +955,34 @@ export default function QuickDeliverableClient() {
         setSelectedResourceKeys(
           Array.isArray(content.selectedResourceKeys) ? content.selectedResourceKeys : [],
         );
-        setIncludeMeals(content.includeMeals !== false);
-        setIncludeAvoidFoods(content.includeAvoidFoods !== false);
-        setIncludeResources(content.includeResources !== false);
-        setIncludePortionGuide(content.includePortionGuide !== false);
+        setIncludeMeals(migratedPlanContext.plan.visibility.meals);
+        setIncludeAvoidFoods(migratedPlanContext.plan.visibility.avoidFoods);
+        setIncludeResources(migratedPlanContext.plan.visibility.resources);
+        setIncludePortionGuide(migratedPlanContext.plan.visibility.portionGuide);
         setPortionGuideRows(
-          Array.isArray(content.portionGuideRows) && content.portionGuideRows.length > 0
-            ? content.portionGuideRows
+          migratedPlanContext.plan.portionGuide.length > 0
+            ? migratedPlanContext.plan.portionGuide.map((row) => createPortionGuideRow(row))
             : QUICK_PORTION_GUIDE.map((row) => createPortionGuideRow(row)),
         );
-        const patientData: QuickPatient = creation.metadata?.patientName
+        const patientData: QuickPatient = creation.metadata?.patientName || migratedPlanContext.patient.source !== "general"
           ? {
               ...createEmptyQuickPatient(),
               id: creation.metadata?.patientId || "",
               fullName: creation.metadata.patientName || "",
+              ageYears: migratedPlanContext.patient.demographics.ageYears ?? null,
+              gender: migratedPlanContext.patient.demographics.sex || "",
+              weight: migratedPlanContext.patient.biometrics.weightKg ?? null,
+              height: migratedPlanContext.patient.biometrics.heightCm ?? null,
+              nutritionalFocus: migratedPlanContext.patient.goals.primary || "",
+              fitnessGoals: migratedPlanContext.patient.goals.fitnessGoals.join(", "),
+              restrictions: migratedPlanContext.patient.clinical.restrictions,
+              allergies: migratedPlanContext.patient.clinical.allergies,
+              medications: migratedPlanContext.patient.clinical.medications,
+              habits: migratedPlanContext.patient.lifestyle.habits,
+              dislikedFoods: migratedPlanContext.patient.preferences.dislikedFoods,
+              likes: migratedPlanContext.patient.preferences.likes.join(", "),
+              clinicalSummary: migratedPlanContext.patient.clinical.clinicalSummary || "",
+              activityLevel: migratedPlanContext.patient.lifestyle.activityLevel as ActivityLevel | undefined,
               source: (creation.metadata?.patientId ? "imported" : "manual") as "imported" | "manual",
             }
           : createEmptyQuickPatient();
@@ -1017,68 +1072,60 @@ export default function QuickDeliverableClient() {
     [resolvedResourcePages, selectedResourceKeys],
   );
 
-  const getCurrentStateString = useCallback(() => {
-    return JSON.stringify({
+  const planContext = useMemo(
+    () =>
+      buildQuickPlanContext({
+        title,
+        description: creationDescription || quickDescription,
+        tags: quickHashtags.split(","),
+        planObjective,
+        showPlanObjectiveInPdf,
+        selectedRestriction,
+        hasClinicalRestriction,
+        planMode,
+        tableMode,
+        optionCount,
+        contentMode,
+        paragraphs,
+        meals,
+        avoidFoods: avoidFoods.map((food) => food.value),
+        portionGuideRows,
+        resources: selectedResolvedResources,
+        includeMeals,
+        includeAvoidFoods,
+        includeResources,
+        includePortionGuide,
+        patient: selectedPatient,
+      }),
+    [
       title,
-      deliveryDate,
-      quickHashtags,
+      creationDescription,
       quickDescription,
+      quickHashtags,
       planObjective,
       showPlanObjectiveInPdf,
+      selectedRestriction,
+      hasClinicalRestriction,
       planMode,
       tableMode,
       optionCount,
-      meals: meals.map(m => ({
-        id: m.id,
-        section: m.section,
-        mealText: m.mealText,
-        weeklyMealTexts: m.weeklyMealTexts,
-        optionTexts: m.optionTexts,
-        time: m.time,
-        portion: m.portion,
-      })),
-      avoidFoods: avoidFoods.map(af => ({
-        id: af.id,
-        value: af.value
-      })),
-      patientId: selectedPatient.id || "",
-      patientName: selectedPatient.fullName || "",
-      resolvedResourcePages: resolvedResourcePages.map(r => ({
-        resourceId: r.resourceId,
-        title: r.title,
-        content: r.content,
-        variables: r.variables
-      })),
+      contentMode,
+      paragraphs,
+      meals,
+      avoidFoods,
+      portionGuideRows,
+      selectedResolvedResources,
       includeMeals,
       includeAvoidFoods,
       includeResources,
       includePortionGuide,
-      portionGuideRows: portionGuideRows.map(p => ({
-        id: p.id,
-        category: p.category,
-        portion: p.portion
-      }))
-    });
-  }, [
-    title,
-    deliveryDate,
-    quickHashtags,
-    quickDescription,
-    planObjective,
-    showPlanObjectiveInPdf,
-    planMode,
-    tableMode,
-    optionCount,
-    meals,
-    avoidFoods,
-    selectedPatient,
-    resolvedResourcePages,
-    includeMeals,
-    includeAvoidFoods,
-    includeResources,
-    includePortionGuide,
-    portionGuideRows
-  ]);
+      selectedPatient,
+    ],
+  );
+
+  const getCurrentStateString = useCallback(() => {
+    return JSON.stringify(planContext);
+  }, [planContext]);
 
   const validAvoidFoods = useMemo(
     () => avoidFoods.map((food) => food.value.trim()).filter(Boolean),
@@ -1143,7 +1190,7 @@ export default function QuickDeliverableClient() {
       missing.push({ id: "avoidFoods", label: "Alimentos a evitar *", ref: avoidFoodsSectionRef });
     }
     return missing;
-  }, [includeMeals, hasMealsContent, includeAvoidFoods, validAvoidFoods.length]);
+  }, [includeMeals, hasMealsContent, includeAvoidFoods, validAvoidFoods.length, contentMode]);
 
   const completedSteps = useMemo(() => {
     const sectionCompleted = [
@@ -1214,19 +1261,15 @@ export default function QuickDeliverableClient() {
       const response = await fetchApi("/pautas/ai-generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          restriction: selectedRestriction || "General",
-          categories: selectedCategoriesList,
-          allowedFoods: aiAllowedFoods
-            .split(/[\n,]+/)
-            .map((s) => s.trim())
-            .filter(Boolean),
-          restrictedFoods: aiRestrictedFoods
-            .split(/[\n,]+/)
-            .map((s) => s.trim())
-            .filter(Boolean),
-          allowExternalFoods: true,
-        }),
+        body: JSON.stringify(
+          buildPautaAiPayload(
+            planContext,
+            selectedCategoriesList,
+            aiAllowedFoods.split(/[\n,]+/).map((s) => s.trim()).filter(Boolean),
+            aiRestrictedFoods.split(/[\n,]+/).map((s) => s.trim()).filter(Boolean),
+            allowExternalFoods,
+          ),
+        ),
       });
 
       const data = await response.json().catch(() => null);
@@ -1413,38 +1456,30 @@ export default function QuickDeliverableClient() {
     }
 
     const content = creation.content || {};
-    const importedMeals = Array.isArray(content.meals)
-      ? (content.meals as QuickMeal[])
-      : [];
-    const importedAvoidFoods = Array.isArray(content.avoidFoods)
-      ? content.avoidFoods
-      : [];
-    const importedResources = Array.isArray(content.resources)
-      ? (content.resources as ResolvedResourcePage[])
-      : [];
-    const importedPortionRows = Array.isArray(content.portionGuideRows)
-      ? (content.portionGuideRows as QuickPortionGuideRow[])
-      : Array.isArray(content.portionGuide)
-        ? (content.portionGuide as Array<{ category?: string; portion?: string }>).map((row) =>
-            createPortionGuideRow({
-              category: row.category || "",
-              portion: row.portion || "",
-            }),
-          )
-        : [];
+    const importedContext = creationToPlanContext(creation);
+    const importedMeals = importedContext.plan.meals as QuickMeal[];
+    const importedAvoidFoods = importedContext.plan.avoidFoods;
+    const importedResources = importedContext.plan.resources as ResolvedResourcePage[];
+    const importedPortionRows = importedContext.plan.portionGuide;
 
     setTitle(
-      typeof content.title === "string" && content.title.trim()
-        ? content.title
-        : creation.name || "",
+      importedContext.creation.title || creation.name || "",
     );
-    setQuickHashtags(typeof content.quickHashtags === "string" ? content.quickHashtags : "");
-    setQuickDescription(typeof content.quickDescription === "string" ? content.quickDescription : "");
-    setPlanObjective(typeof content.planObjective === "string" ? content.planObjective : "");
-    setShowPlanObjectiveInPdf(content.showPlanObjectiveInPdf === true);
-    setPlanMode(content.planMode === "weekly" ? "weekly" : "single");
-    setTableMode(getFastDeliverableTableMode(content.tableMode));
-    setOptionCount(Math.max(1, Math.min(3, Number(content.optionCount) || 1)));
+    setQuickHashtags(
+      typeof content.quickHashtags === "string"
+        ? content.quickHashtags
+        : importedContext.creation.tags.join(", "),
+    );
+    setQuickDescription(
+      typeof content.quickDescription === "string"
+        ? content.quickDescription
+        : importedContext.creation.description || "",
+    );
+    setPlanObjective(importedContext.plan.objective || "");
+    setShowPlanObjectiveInPdf(importedContext.plan.showObjectiveInPdf);
+    setPlanMode(importedContext.plan.format.planMode);
+    setTableMode(importedContext.plan.format.tableMode);
+    setOptionCount(importedContext.plan.format.optionCount);
     const normalizedImportedMeals = normalizeQuickMeals(importedMeals);
     setMeals(normalizedImportedMeals.length > 0 ? normalizedImportedMeals : [createMeal("Desayuno")]);
     setAvoidFoods(
@@ -1469,32 +1504,46 @@ export default function QuickDeliverableClient() {
             getResolvedResourceKey(resource, index),
           ),
     );
-    setIncludeMeals(content.includeMeals !== false);
-    setIncludeAvoidFoods(content.includeAvoidFoods !== false);
-    setIncludeResources(content.includeResources !== false);
-    setIncludePortionGuide(content.includePortionGuide !== false);
+    setIncludeMeals(importedContext.plan.visibility.meals);
+    setIncludeAvoidFoods(importedContext.plan.visibility.avoidFoods);
+    setIncludeResources(importedContext.plan.visibility.resources);
+    setIncludePortionGuide(importedContext.plan.visibility.portionGuide);
     setPortionGuideRows(
       importedPortionRows.length > 0
         ? importedPortionRows.map((row) => createPortionGuideRow(row))
         : QUICK_PORTION_GUIDE.map((row) => createPortionGuideRow(row)),
     );
 
-    const patientName =
-      typeof creation.metadata?.patientName === "string"
-        ? creation.metadata.patientName
-        : null;
+    const patientName = typeof creation.metadata?.patientName === "string"
+      ? creation.metadata.patientName
+      : null;
     const patientId =
       typeof creation.metadata?.patientId === "string"
         ? creation.metadata.patientId
         : undefined;
 
     setSelectedPatient(
-      patientName
-        ? {
-            id: patientId,
-            fullName: patientName,
-            source: patientId ? "imported" : "manual",
-          }
+       patientName || importedContext.patient.source !== "general"
+         ? {
+             ...createEmptyQuickPatient(),
+             id: patientId,
+             fullName: patientName || "",
+             ageYears: importedContext.patient.demographics.ageYears ?? null,
+             gender: importedContext.patient.demographics.sex || "",
+             weight: importedContext.patient.biometrics.weightKg ?? null,
+             height: importedContext.patient.biometrics.heightCm ?? null,
+             nutritionalFocus: importedContext.patient.goals.primary || "",
+             fitnessGoals: importedContext.patient.goals.fitnessGoals.join(", "),
+             restrictions: importedContext.patient.clinical.restrictions,
+             allergies: importedContext.patient.clinical.allergies,
+             medications: importedContext.patient.clinical.medications,
+             habits: importedContext.patient.lifestyle.habits,
+             dislikedFoods: importedContext.patient.preferences.dislikedFoods,
+             likes: importedContext.patient.preferences.likes.join(", "),
+             clinicalSummary: importedContext.patient.clinical.clinicalSummary || "",
+             activityLevel: importedContext.patient.lifestyle.activityLevel as ActivityLevel | undefined,
+             source: patientId ? "imported" : "manual",
+           }
         : createEmptyQuickPatient(),
     );
     setIsManualPatientExpanded(false);
@@ -1642,63 +1691,13 @@ export default function QuickDeliverableClient() {
     toast.info("Naty está preparando opciones. Puedes seguir editando mientras tanto.");
 
     try {
-      const deliverableContext = [
-        aiNotes.trim(),
-        title.trim() ? `Título del entregable: ${title.trim()}.` : "",
-        quickHashtags.trim() ? `Etiquetas del enfoque: ${quickHashtags.trim()}.` : "",
-        quickDescription.trim() ? `Descripción del entregable: ${quickDescription.trim()}.` : "",
-        planObjective.trim() ? `Objetivo del plan: ${planObjective.trim()}.` : "",
-      ].filter(Boolean).join("\n");
+      const aiPayload = buildQuickDeliverablePromptPayload();
       const response = await fetchApi("/recipes/quick-ai-fill", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          payload: {
-            dietName: title.trim() || undefined,
-            notes: deliverableContext,
-            specialConsiderations: planObjective.trim() || undefined,
-            allowedFoodsMain: aiAllowedFoods
-              .split(",")
-              .map((item) => item.trim())
-              .filter(Boolean),
-            allowExternalFoods: true,
-            mealSectionTargets: quickAiMealTargets,
-            generationMode: tableMode === "options" ? "options" : planMode,
-            patient: {
-              fullName: selectedPatient.fullName || "",
-              gender: selectedPatient.gender || "",
-              ageYears: selectedPatient.ageYears ?? undefined,
-            restrictions: selectedPatient.restrictions || [],
-            dislikedFoods: selectedPatient.dislikedFoods || [],
-              likes: selectedPatient.likes || "",
-              fitnessGoals: selectedPatient.fitnessGoals || "",
-              clinicalSummary: selectedPatient.nutritionalFocus || "",
-            },
-            patientId: selectedPatient.id || undefined,
-            existingDishes: meals
-              .flatMap((meal) => {
-                if (!meal.section.trim()) return [];
-                if (tableMode === "options") {
-                  return (meal.optionTexts || [])
-                    .slice(0, optionCount)
-                    .map((title) => title.trim())
-                    .filter(Boolean)
-                    .map((title) => ({ title, mealSection: meal.section }));
-                }
-                if (planMode === "single") {
-                  return meal.mealText.trim()
-                    ? [{ title: meal.mealText.trim(), mealSection: meal.section }]
-                    : [];
-                }
-                return QUICK_WEEK_DAYS
-                  .map((day) => (meal.weeklyMealTexts?.[day] || "").trim())
-                  .filter(Boolean)
-                  .map((title) => ({ title, mealSection: meal.section }));
-              }),
-          },
-        }),
+        body: JSON.stringify(aiPayload),
       });
 
       if (!response.ok) {
@@ -2165,100 +2164,51 @@ export default function QuickDeliverableClient() {
         : [];
 
     return {
-      name: title.trim() || DEFAULT_TITLE,
+      ...planContextToFastDeliverablePdf(planContext, {
+        patientName: selectedPatient?.fullName || null,
+        patientAgeYears: resolvedAge,
+        nutritionistName,
+        nutritionistEmail,
+        paragraphs: pdfParagraphs,
+        supplementNote: getProteinSupplementNote(),
+      }),
       deliveryDate,
-      hashtags: quickHashtags.split(",").map((t) => t.trim()).filter(Boolean),
-      description: quickDescription.trim() || null,
-      planObjective: planObjective.trim() || undefined,
-      showPlanObjectiveInPdf,
-      patientName: selectedPatient?.fullName || null,
-      nutritionistName,
-      nutritionistEmail,
-      planMode,
-      tableMode,
-      contentMode,
-      clinicalRestriction:
-        hasClinicalRestriction && selectedRestriction ? selectedRestriction : null,
-      paragraphs: pdfParagraphs,
-      meals: includeMeals ? normalizeFastDeliverableMeals(meals, tableMode, planMode) : [],
-      avoidFoods: includeAvoidFoods ? validAvoidFoods : [],
-      resources: includeResources
-        ? selectedResolvedResources.map((resource) => ({
-            ...resource,
-            content: stripHtml(resource.content || ""),
-          }))
-        : [],
-      portionGuide: includePortionGuide
-        ? portionGuideRows
-            .map((row) => ({
-              category: row.category.trim(),
-              portion: row.portion.trim(),
-            }))
-            .filter((row) => row.category || row.portion)
-        : [],
-      supplementNote: getProteinSupplementNote(),
-      generatedAt: new Date().toLocaleDateString("es-CL"),
-      ...(selectedPatient.fullName.trim() ||
-      resolvedAge !== null ||
-      selectedPatient.weight !== null ||
-      selectedPatient.height !== null
-        ? {
-            patient: {
-              name: selectedPatient.fullName || null,
-              ageYears: resolvedAge,
-              weight: selectedPatient.weight ?? null,
-              height: selectedPatient.height ?? null,
-            },
-          }
-        : {}),
+      hashtags: planContext.creation.tags,
+      description: planContext.creation.description || null,
     };
   };
 
-  const buildQuickDeliverablePromptPayload = () => ({
-    payload: {
-      dietName: title.trim() || undefined,
+  const buildQuickDeliverablePromptPayload = () =>
+    buildQuickPlanAiPayload(planContext, {
       notes: [
         aiNotes.trim(),
         title.trim() ? `Título del entregable: ${title.trim()}.` : "",
         quickHashtags.trim() ? `Etiquetas del enfoque: ${quickHashtags.trim()}.` : "",
         quickDescription.trim() ? `Descripción del entregable: ${quickDescription.trim()}.` : "",
-        planObjective.trim() ? `Objetivo del plan: ${planObjective.trim()}.` : "",
       ].filter(Boolean).join("\n"),
-      specialConsiderations: planObjective.trim() || undefined,
       allowedFoodsMain: aiAllowedFoods.split(",").map((item) => item.trim()).filter(Boolean),
-      allowExternalFoods: true,
+      allowExternalFoods,
       mealSectionTargets: quickAiMealTargets,
-      generationMode: tableMode === "options" ? "options" : planMode,
-      patient: {
-        fullName: selectedPatient.fullName || "",
-        gender: selectedPatient.gender || "",
-        ageYears: selectedPatient.ageYears ?? undefined,
-        restrictions: selectedPatient.restrictions || [],
-        likes: selectedPatient.likes || "",
-        fitnessGoals: selectedPatient.fitnessGoals || "",
-        clinicalSummary: selectedPatient.nutritionalFocus || "",
-      },
       patientId: selectedPatient.id || undefined,
-      existingDishes: meals.flatMap((meal) => {
-        if (!meal.section.trim()) return [];
-        if (tableMode === "options") {
-          return (meal.optionTexts || [])
-            .slice(0, optionCount)
-            .map((title) => title.trim())
-            .filter(Boolean)
-            .map((title) => ({ title, mealSection: meal.section }));
-        }
-        if (planMode === "single") {
-          return meal.mealText.trim()
-            ? [{ title: meal.mealText.trim(), mealSection: meal.section }]
-            : [];
-        }
-        return QUICK_WEEK_DAYS
-          .map((day) => (meal.weeklyMealTexts?.[day] || "").trim())
-          .filter(Boolean)
-          .map((title) => ({ title, mealSection: meal.section }));
-      }),
+    });
+
+  const buildCreationPayload = () => ({
+    id: creationId || undefined,
+    name: planContext.creation.title || DEFAULT_TITLE,
+    type: "FAST_DELIVERABLE" as const,
+    content: {
+      planContext,
     },
+    metadata: {
+      ...(creationDescription.trim() ? { description: creationDescription.trim() } : {}),
+      ...(selectedPatient.fullName
+        ? { patientId: selectedPatient.id, patientName: selectedPatient.fullName }
+        : {}),
+      mealCount: includeMeals ? meals.length : 0,
+      avoidFoodsCount: includeAvoidFoods ? validAvoidFoods.length : 0,
+      resourceCount: includeResources ? selectedResolvedResources.length : 0,
+    },
+    tags: ["rapido", "express"],
   });
 
   const handleExportPdf = async () => {
@@ -2270,50 +2220,7 @@ export default function QuickDeliverableClient() {
     setIsExportingPdf(true);
     try {
       if (hasChanges) {
-        await saveCreation({
-          name: title.trim() || DEFAULT_TITLE,
-          type: "FAST_DELIVERABLE",
-          content: {
-            title,
-            deliveryDate,
-            quickHashtags,
-            quickDescription,
-            planObjective,
-            showPlanObjectiveInPdf,
-            planMode,
-            tableMode,
-            optionCount,
-            contentMode,
-            paragraphs,
-            meals,
-            avoidFoods: validAvoidFoods,
-            resources: resolvedResourcePages,
-            selectedResourceKeys,
-            includeMeals,
-            includeAvoidFoods,
-            includeResources,
-            includePortionGuide,
-            portionGuide: portionGuideRows
-              .map((row) => ({
-                category: row.category.trim(),
-                portion: row.portion.trim(),
-              }))
-              .filter((row) => row.category || row.portion),
-            portionGuideRows,
-            supplementNote: getProteinSupplementNote(),
-            updatedAt: new Date().toISOString(),
-          },
-          metadata: {
-            ...(creationDescription.trim() ? { description: creationDescription.trim() } : {}),
-            ...(selectedPatient.fullName
-              ? { patientId: selectedPatient.id, patientName: selectedPatient.fullName }
-              : {}),
-            mealCount: includeMeals ? meals.length : 0,
-            avoidFoodsCount: includeAvoidFoods ? validAvoidFoods.length : 0,
-            resourceCount: includeResources ? selectedResolvedResources.length : 0,
-          },
-          tags: ["rapido", "express"],
-        });
+        await saveCreation(buildCreationPayload());
         setLastSavedState(getCurrentStateString());
         if (typeof window !== "undefined") {
           window.dispatchEvent(new Event("creation-saved"));
@@ -2343,49 +2250,7 @@ export default function QuickDeliverableClient() {
 
     setIsSaving(true);
     try {
-      await saveCreation({
-        name: title.trim() || DEFAULT_TITLE,
-        type: "FAST_DELIVERABLE",
-        content: {
-          title,
-          deliveryDate,
-          quickHashtags,
-          quickDescription,
-          planObjective,
-          showPlanObjectiveInPdf,
-          planMode,
-          tableMode,
-          optionCount,
-          contentMode,
-          meals,
-          avoidFoods: validAvoidFoods,
-          resources: resolvedResourcePages,
-          selectedResourceKeys,
-          includeMeals,
-          includeAvoidFoods,
-          includeResources,
-          includePortionGuide,
-          portionGuide: portionGuideRows
-            .map((row) => ({
-              category: row.category.trim(),
-              portion: row.portion.trim(),
-            }))
-            .filter((row) => row.category || row.portion),
-          portionGuideRows,
-          supplementNote: getProteinSupplementNote(),
-          updatedAt: new Date().toISOString(),
-        },
-        metadata: {
-          ...(creationDescription.trim() ? { description: creationDescription.trim() } : {}),
-          ...(selectedPatient.fullName
-            ? { patientId: selectedPatient.id, patientName: selectedPatient.fullName }
-            : {}),
-          mealCount: includeMeals ? meals.length : 0,
-          avoidFoodsCount: includeAvoidFoods ? validAvoidFoods.length : 0,
-          resourceCount: includeResources ? selectedResolvedResources.length : 0,
-        },
-        tags: ["rapido", "express"],
-      });
+      await saveCreation(buildCreationPayload());
       toast.success("Entregable rápido guardado en creaciones.");
       setIsSaveCreationModalOpen(false);
       setCreationDescription("");
@@ -2427,7 +2292,7 @@ export default function QuickDeliverableClient() {
     setIncludePortionGuide(true);
     setPortionGuideRows(QUICK_PORTION_GUIDE.map((row) => createPortionGuideRow(row)));
     setCurrentStep(0);
-    localStorage.removeItem("nutri_quick_deliverable_draft");
+    clearQuickPlanDraft();
     toast.success("Entregable rápido reiniciado.");
   };
 
@@ -2452,7 +2317,9 @@ export default function QuickDeliverableClient() {
         id: "import",
         icon: Filter,
         label: "Importar creación",
+        description: "Importar creación no disponible por ahora",
         variant: "indigo",
+        disabled: true,
         onClick: () => setIsImportCreationModalOpen(true),
       },
       {
@@ -2697,6 +2564,46 @@ export default function QuickDeliverableClient() {
                     </select>
                   </div>
                 </div>
+                <div className="grid gap-3 md:grid-cols-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Peso (kg)</label>
+                    <Input
+                      type="number"
+                      min={0}
+                      step="0.1"
+                      value={selectedPatient.weight ?? ""}
+                      onChange={(e) => setSelectedPatient((current) => ({ ...current, weight: e.target.value === "" ? null : Math.max(0, Number(e.target.value) || 0), source: current.source || "manual" }))}
+                      placeholder="Ej: 68"
+                      className="h-9 rounded-xl border-[#E9E5E7] bg-white text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Estatura (cm)</label>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={selectedPatient.height ?? ""}
+                      onChange={(e) => setSelectedPatient((current) => ({ ...current, height: e.target.value === "" ? null : Math.max(0, Number(e.target.value) || 0), source: current.source || "manual" }))}
+                      placeholder="Ej: 165"
+                      className="h-9 rounded-xl border-[#E9E5E7] bg-white text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Actividad</label>
+                    <select
+                      value={selectedPatient.activityLevel || ""}
+                      onChange={(e) => setSelectedPatient((current) => ({ ...current, activityLevel: (e.target.value || null) as ActivityLevel | null, source: current.source || "manual" }))}
+                      className="h-9 w-full rounded-xl border border-[#E9E5E7] bg-white px-3 text-xs font-normal text-[#20212B] focus:border-[#86A83C] focus:outline-hidden"
+                    >
+                      <option value="">Seleccionar</option>
+                      <option value="sedentario">Sedentario</option>
+                      <option value="ligero">Ligero</option>
+                      <option value="moderado">Moderado</option>
+                      <option value="activo">Activo</option>
+                      <option value="muy_activo">Muy activo</option>
+                    </select>
+                  </div>
+                </div>
                 <div className="grid gap-3 md:grid-cols-2">
                   <div className="space-y-1">
                     <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Objetivo / enfoque</label>
@@ -2716,6 +2623,55 @@ export default function QuickDeliverableClient() {
                       className="h-9 rounded-xl border-[#E9E5E7] bg-white text-xs"
                     />
                   </div>
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Alergias</label>
+                    <Input
+                      value={(selectedPatient.allergies || []).join(", ")}
+                      onChange={(e) => setSelectedPatient((current) => ({ ...current, allergies: e.target.value.split(",").map((item) => item.trim()).filter(Boolean), source: current.source || "manual" }))}
+                      placeholder="Ej: maní, mariscos"
+                      className="h-9 rounded-xl border-[#E9E5E7] bg-white text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Medicamentos</label>
+                    <Input
+                      value={(selectedPatient.medications || []).join(", ")}
+                      onChange={(e) => setSelectedPatient((current) => ({ ...current, medications: e.target.value.split(",").map((item) => item.trim()).filter(Boolean), source: current.source || "manual" }))}
+                      placeholder="Ej: metformina"
+                      className="h-9 rounded-xl border-[#E9E5E7] bg-white text-xs"
+                    />
+                  </div>
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Hábitos relevantes</label>
+                    <Input
+                      value={(selectedPatient.habits || []).join(", ")}
+                      onChange={(e) => setSelectedPatient((current) => ({ ...current, habits: e.target.value.split(",").map((item) => item.trim()).filter(Boolean), source: current.source || "manual" }))}
+                      placeholder="Ej: come fuera de casa, turnos"
+                      className="h-9 rounded-xl border-[#E9E5E7] bg-white text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Alimentos rechazados</label>
+                    <Input
+                      value={(selectedPatient.dislikedFoods || []).join(", ")}
+                      onChange={(e) => setSelectedPatient((current) => ({ ...current, dislikedFoods: e.target.value.split(",").map((item) => item.trim()).filter(Boolean), source: current.source || "manual" }))}
+                      placeholder="Ej: brócoli, pescado"
+                      className="h-9 rounded-xl border-[#E9E5E7] bg-white text-xs"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Resumen clínico</label>
+                  <Textarea
+                    value={selectedPatient.clinicalSummary || ""}
+                    onChange={(e) => setSelectedPatient((current) => ({ ...current, clinicalSummary: e.target.value, source: current.source || "manual" }))}
+                    placeholder="Antecedentes relevantes para tomar decisiones en el plan..."
+                    className="min-h-20 rounded-xl border-[#E9E5E7] bg-white text-xs"
+                  />
                 </div>
                 <div className="grid gap-3 md:grid-cols-2">
                   <div className="space-y-1">

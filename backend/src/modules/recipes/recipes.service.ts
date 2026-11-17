@@ -324,7 +324,10 @@ export class RecipesService {
         clinicalSummary?: string | null;
         restrictions?: string[] | null;
         likes?: string | null;
-        dislikedFoods?: string[] | null;
+         dislikedFoods?: string[] | null;
+         allergies?: string[] | null;
+         medications?: string[] | null;
+         habits?: string[] | null;
       };
     },
   ) {
@@ -380,7 +383,10 @@ export class RecipesService {
         clinicalSummary: payload.patient.clinicalSummary ?? null,
         dietRestrictions: payload.patient.restrictions ?? [],
         likes: payload.patient.likes ?? null,
-        dislikedFoods: payload.patient.dislikedFoods ?? [],
+         dislikedFoods: payload.patient.dislikedFoods ?? [],
+         allergies: payload.patient.allergies ?? [],
+         medications: payload.patient.medications ?? [],
+         habits: payload.patient.habits ?? [],
       });
     }
 

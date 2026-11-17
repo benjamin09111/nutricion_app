@@ -68,6 +68,21 @@ class QuickAiPatientDto {
   @IsOptional()
   dislikedFoods?: string[];
 
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  allergies?: string[];
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  medications?: string[];
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  habits?: string[];
+
   @IsString()
   @IsOptional()
   clinicalSummary?: string;
