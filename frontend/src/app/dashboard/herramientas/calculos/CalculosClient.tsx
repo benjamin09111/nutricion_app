@@ -22,6 +22,7 @@ import {
   UserRound,
   Lock,
   Info,
+  RefreshCw,
   Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -71,6 +72,20 @@ type CalculatorPatient = {
   birthDate?: string | null;
   gender?: string | null;
   activityLevel?: string | null;
+};
+
+const getBmiBadgeStyle = (classification: string) => {
+  const lower = classification.toLowerCase();
+  if (lower.includes("normopeso") || lower.includes("eutrófico")) {
+    return "bg-[#F0F5DF] text-[#668E20] border-[#DDE7B8]";
+  }
+  if (lower.includes("bajo") || lower.includes("enflaquecido") || lower.includes("desnutri")) {
+    return "bg-blue-50 text-blue-700 border-blue-200";
+  }
+  if (lower.includes("sobrepeso")) {
+    return "bg-amber-50 text-amber-700 border-amber-200";
+  }
+  return "bg-rose-50 text-rose-700 border-rose-200";
 };
 
 const getPatientAge = (patient: CalculatorPatient): number | null => {
@@ -441,7 +456,7 @@ export default function CalculosClient() {
 
   return (
     <ModuleLayout
-      title="Calculadora Clínica"
+      title="Calculadora"
       description={
         <div className="space-y-1">
           <div className="flex items-center gap-1.5 text-xs font-semibold text-[#668E20] -mt-0.5 mb-0.5">
@@ -522,21 +537,12 @@ export default function CalculosClient() {
       {/* HERO RESULT BANNER CON OVERRIDE CLÍNICO DE RIESGO DE PACIENTE             */}
       {/* ========================================================================= */}
       {result && (
-        <div
-          className={cn(
-            "bg-white rounded-2xl p-5 sm:p-6 mb-6 shadow-2xs space-y-4 animate-in fade-in duration-200 border",
-            isCriticalAlert
-              ? "border-rose-200"
-              : isModerateAlert
-                ? "border-amber-200"
-                : "border-[#E9E5E7]"
-          )}
-        >
+        <div className="bg-white rounded-2xl p-5 sm:p-6 mb-6 shadow-2xs space-y-4 animate-in fade-in duration-200 border border-[#E9E5E7]">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
             <div className="flex items-center gap-3">
               <span
                 className={cn(
-                  "p-2.5 rounded-xl border shrink-0",
+                  "w-10 h-10 rounded-xl border flex items-center justify-center shrink-0",
                   isCriticalAlert
                     ? "bg-rose-50 text-rose-600 border-rose-200"
                     : isModerateAlert
@@ -545,7 +551,7 @@ export default function CalculosClient() {
                 )}
               >
                 {isCriticalAlert ? (
-                  <ShieldAlert className="w-5 h-5 text-rose-600 animate-pulse" />
+                  <ShieldAlert className="w-5 h-5 text-rose-600" />
                 ) : isModerateAlert ? (
                   <AlertTriangle className="w-5 h-5 text-amber-600" />
                 ) : (
@@ -575,21 +581,14 @@ export default function CalculosClient() {
               size="sm"
               onClick={executeCalculation}
               disabled={loading}
-              className={cn(
-                "font-semibold rounded-xl text-xs h-9 px-4 shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer w-full sm:w-auto transition-all",
-                isCriticalAlert
-                  ? "bg-rose-600 hover:bg-rose-700 text-white"
-                  : isModerateAlert
-                    ? "bg-amber-600 hover:bg-amber-700 text-white"
-                    : "border border-[#E9E5E7] bg-white text-[#20212B] hover:bg-slate-50"
-              )}
+              className="bg-[#86A83C] hover:bg-[#78A82F] text-white font-semibold rounded-xl text-xs h-9 px-4 shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer w-full sm:w-auto transition-all"
             >
               {loading ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
               ) : calculatorLocked ? (
-                <Lock className="w-3.5 h-3.5 text-amber-500" />
+                <Lock className="w-3.5 h-3.5 text-amber-300" />
               ) : (
-                <Sparkles className="w-3.5 h-3.5 text-[#7842D4]" />
+                <RefreshCw className="w-3.5 h-3.5 text-white" />
               )}
               <span>Recalcular</span>
             </Button>
@@ -597,9 +596,9 @@ export default function CalculosClient() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 items-stretch">
             {/* GET */}
-            <div className="bg-[#F8F9FB] p-4 rounded-xl border border-slate-100 flex flex-col justify-between">
+            <div className="bg-slate-50/70 p-4 rounded-xl border border-[#E9E5E7]/70 flex flex-col justify-between">
               <div>
-                <span className="text-[11px] font-bold uppercase text-[#626573] tracking-wider block mb-1">
+                <span className="text-[10px] font-bold uppercase text-[#626573] tracking-wider block mb-1">
                   Gasto Energético Total (GET)
                 </span>
                 {result.energy ? (
@@ -623,9 +622,9 @@ export default function CalculosClient() {
             </div>
 
             {/* IMC */}
-            <div className="bg-[#F8F9FB] p-4 rounded-xl border border-slate-100 flex flex-col justify-between">
+            <div className="bg-slate-50/70 p-4 rounded-xl border border-[#E9E5E7]/70 flex flex-col justify-between">
               <div>
-                <span className="text-[11px] font-bold uppercase text-[#626573] tracking-wider block mb-1">
+                <span className="text-[10px] font-bold uppercase text-[#626573] tracking-wider block mb-1">
                   Estado Nutricional (IMC)
                 </span>
                 {result.bmi ? (
@@ -635,16 +634,19 @@ export default function CalculosClient() {
                         {result.bmi.bmi} <span className="text-xs font-semibold text-[#626573]">kg/m²</span>
                       </p>
                       <span
-                        className="px-2.5 py-1 rounded-full text-xs font-bold text-white shadow-2xs"
-                        style={{ backgroundColor: result.bmi.color }}
+                        className={cn(
+                          "px-2.5 py-1 rounded-lg text-xs font-semibold border shadow-2xs",
+                          getBmiBadgeStyle(result.bmi.classification)
+                        )}
                       >
                         {result.bmi.classification}
                       </span>
                     </div>
                     {isCriticalAlert && result.bmi.classification.includes("Normopeso") && (
-                      <p className="text-[11px] font-semibold text-rose-700 mt-1.5 leading-tight">
-                        ⚠️ IMC estático opacado por catabolismo/pérdida aguda grave
-                      </p>
+                      <div className="flex items-center gap-1.5 text-[11px] font-medium text-amber-800 bg-amber-50/80 px-2.5 py-1.5 rounded-lg border border-amber-200/80 mt-2">
+                        <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                        <span>IMC estático condicionado por pérdida aguda de peso</span>
+                      </div>
                     )}
                   </div>
                 ) : (
@@ -654,13 +656,13 @@ export default function CalculosClient() {
             </div>
 
             {/* PRIORIDAD CLÍNICA / PESO IDEAL */}
-            <div className="bg-[#F8F9FB] p-4 rounded-xl border border-slate-100 flex flex-col justify-between">
+            <div className="bg-slate-50/70 p-4 rounded-xl border border-[#E9E5E7]/70 flex flex-col justify-between">
               {isCriticalAlert ? (
                 <div>
-                  <span className="text-[11px] font-bold uppercase text-rose-700 tracking-wider block mb-1">
+                  <span className="text-[10px] font-bold uppercase text-rose-700 tracking-wider block mb-1">
                     Prioridad Asistencial Inmediata
                   </span>
-                  <p className="text-base font-bold text-rose-700 tracking-tight leading-snug">
+                  <p className="text-base font-bold text-[#20212B] tracking-tight leading-snug">
                     Frenar Catabolismo y Estabilizar Peso
                   </p>
                   <p className="text-xs text-[#626573] mt-1">
@@ -669,10 +671,10 @@ export default function CalculosClient() {
                 </div>
               ) : isModerateAlert ? (
                 <div>
-                  <span className="text-[11px] font-bold uppercase text-amber-700 tracking-wider block mb-1">
+                  <span className="text-[10px] font-bold uppercase text-amber-700 tracking-wider block mb-1">
                     Enfoque Asistencial
                   </span>
-                  <p className="text-base font-bold text-amber-800 tracking-tight leading-snug">
+                  <p className="text-base font-bold text-[#20212B] tracking-tight leading-snug">
                     Monitorear Ingesta Proteico-Calórica
                   </p>
                   <p className="text-xs text-[#626573] mt-1">
@@ -710,7 +712,7 @@ export default function CalculosClient() {
           <div className="bg-white rounded-2xl border border-[#E9E5E7] p-5 sm:p-6 shadow-2xs space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h2 className="text-xs font-bold uppercase tracking-wider text-[#20212B] flex items-center gap-2">
-                <Activity className="w-4 h-4 text-[#7842D4]" />
+                <Activity className="w-4 h-4 text-[#86A83C]" />
                 Paso 1: Datos Esenciales
               </h2>
               <Button
@@ -718,7 +720,7 @@ export default function CalculosClient() {
                 size="sm"
                 onClick={executeCalculation}
                 disabled={loading}
-                className="bg-[#7842D4] hover:bg-[#6833c2] text-white font-bold rounded-xl text-xs h-9 px-4 shadow-2xs flex items-center gap-1.5 cursor-pointer transition-all active:scale-[0.98]"
+                className="bg-[#86A83C] hover:bg-[#78A82F] text-white font-semibold rounded-xl text-xs h-9 px-4 shadow-2xs flex items-center gap-1.5 cursor-pointer transition-all active:scale-[0.98]"
               >
                 {loading ? (
                   <>
@@ -768,7 +770,7 @@ export default function CalculosClient() {
                       onClick={() => setGender(g)}
                       className={cn(
                         "flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer",
-                        gender === g ? "bg-white text-[#7842D4] shadow-2xs" : "text-[#626573] hover:text-[#20212B]",
+                        gender === g ? "bg-white text-[#668E20] shadow-2xs" : "text-[#626573] hover:text-[#20212B]",
                       )}
                     >
                       {g}
@@ -782,7 +784,7 @@ export default function CalculosClient() {
                 <select
                   value={activityLevel}
                   onChange={(e) => setActivityLevel(e.target.value)}
-                  className="w-full h-11 rounded-xl border border-[#E9E5E7] bg-white px-3 text-xs sm:text-sm font-medium text-[#20212B] cursor-pointer outline-none focus:border-[#7842D4]"
+                  className="w-full h-11 rounded-xl border border-[#E9E5E7] bg-white px-3 text-xs sm:text-sm font-medium text-[#20212B] cursor-pointer outline-none focus:border-[#86A83C]"
                 >
                   {ACTIVITY_OPTIONS.map((o) => (
                     <option key={o.value} value={o.value}>{o.label}</option>
@@ -802,7 +804,7 @@ export default function CalculosClient() {
                   type="number"
                   min="0"
                   step="0.1"
-                  className="h-11 rounded-xl text-xs sm:text-sm font-medium px-3 border-[#E9E5E7] bg-white text-[#20212B] focus:border-[#7842D4]"
+                  className="h-11 rounded-xl text-xs sm:text-sm font-medium px-3 border-[#E9E5E7] bg-white text-[#20212B] focus:border-[#86A83C]"
                 />
               </div>
               <div>
@@ -814,7 +816,7 @@ export default function CalculosClient() {
                   type="number"
                   min="0"
                   step="0.1"
-                  className="h-11 rounded-xl text-xs sm:text-sm font-medium px-3 border-[#E9E5E7] bg-white text-[#20212B] focus:border-[#7842D4]"
+                  className="h-11 rounded-xl text-xs sm:text-sm font-medium px-3 border-[#E9E5E7] bg-white text-[#20212B] focus:border-[#86A83C]"
                 />
               </div>
               <div>
@@ -826,7 +828,7 @@ export default function CalculosClient() {
                   type="number"
                   min="0"
                   max="120"
-                  className="h-11 rounded-xl text-xs sm:text-sm font-medium px-3 border-[#E9E5E7] bg-white text-[#20212B] focus:border-[#7842D4]"
+                  className="h-11 rounded-xl text-xs sm:text-sm font-medium px-3 border-[#E9E5E7] bg-white text-[#20212B] focus:border-[#86A83C]"
                 />
               </div>
             </div>
@@ -852,10 +854,11 @@ export default function CalculosClient() {
                     <button
                       type="button"
                       onClick={() => setIsTargetBmiCustom(false)}
-                      className="text-[11px] font-bold text-[#7842D4] hover:underline cursor-pointer"
+                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#668E20] hover:underline cursor-pointer"
                       title="Restablecer IMC objetivo según criterio clínico OMS/Lipschitz"
                     >
-                      Auto ✨
+                      <Sparkles className="w-3 h-3 text-[#86A83C]" />
+                      <span>Auto</span>
                     </button>
                   ) : (
                     <span className="text-[10px] font-bold text-[#668E20] bg-[#F0F5DF] px-2 py-0.5 rounded-full border border-[#DDE7B8]">
@@ -874,7 +877,7 @@ export default function CalculosClient() {
                   min="18"
                   max="30"
                   step="0.1"
-                  className="h-11 rounded-xl text-xs sm:text-sm font-medium px-3 border-[#E9E5E7] bg-white text-[#20212B] focus:border-[#7842D4]"
+                  className="h-11 rounded-xl text-xs sm:text-sm font-medium px-3 border-[#E9E5E7] bg-white text-[#20212B] focus:border-[#86A83C]"
                 />
               </div>
             </div>
@@ -889,7 +892,7 @@ export default function CalculosClient() {
                     type="checkbox"
                     checked={isPregnant}
                     onChange={(event) => setIsPregnant(event.target.checked)}
-                    className="accent-[#7842D4] rounded"
+                    className="accent-[#86A83C] rounded"
                   />
                   Embarazo
                 </label>
@@ -898,7 +901,7 @@ export default function CalculosClient() {
                     type="checkbox"
                     checked={isLactating}
                     onChange={(event) => setIsLactating(event.target.checked)}
-                    className="accent-[#7842D4] rounded"
+                    className="accent-[#86A83C] rounded"
                   />
                   Lactancia
                 </label>
@@ -916,7 +919,7 @@ export default function CalculosClient() {
                     max="42"
                     step="1"
                     placeholder="24"
-                    className="h-11 rounded-xl text-xs sm:text-sm font-medium px-3 border-[#E9E5E7] bg-white text-[#20212B] focus:border-[#7842D4]"
+                    className="h-11 rounded-xl text-xs sm:text-sm font-medium px-3 border-[#E9E5E7] bg-white text-[#20212B] focus:border-[#86A83C]"
                   />
                 </div>
               ) : null}
@@ -924,7 +927,7 @@ export default function CalculosClient() {
                 <select
                   value={lactationType}
                   onChange={(event) => setLactationType(event.target.value as "exclusive" | "partial")}
-                  className="w-full h-11 rounded-xl border border-[#E9E5E7] bg-white px-3 text-xs sm:text-sm font-medium text-[#20212B] cursor-pointer outline-none focus:border-[#7842D4]"
+                  className="w-full h-11 rounded-xl border border-[#E9E5E7] bg-white px-3 text-xs sm:text-sm font-medium text-[#20212B] cursor-pointer outline-none focus:border-[#86A83C]"
                 >
                   <option value="exclusive">Lactancia exclusiva (+500 kcal)</option>
                   <option value="partial">Lactancia parcial (+300 kcal)</option>
@@ -1039,7 +1042,7 @@ export default function CalculosClient() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 px-1">
           <div>
             <h2 className="text-xs font-bold uppercase tracking-wider text-[#20212B] flex items-center gap-2">
-              <Plus className="w-4 h-4 text-[#7842D4]" />
+              <Plus className="w-4 h-4 text-[#86A83C]" />
               Módulos Adicionales
             </h2>
             <p className="text-xs text-[#626573] mt-0.5">
@@ -1058,7 +1061,7 @@ export default function CalculosClient() {
               <div className="bg-white rounded-2xl border border-[#E9E5E7] p-5 shadow-2xs space-y-3 animate-in fade-in duration-150">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                   <h3 className="text-xs font-bold text-[#20212B] flex items-center gap-1.5 uppercase">
-                    <Droplets className="w-4 h-4 text-[#7842D4]" />
+                    <Droplets className="w-4 h-4 text-[#86A83C]" />
                     Edema / Descuento de Agua
                   </h3>
                   <button
@@ -1124,12 +1127,13 @@ export default function CalculosClient() {
                       id="useUsualWeight"
                       checked={useUsualWeightForRequirements}
                       onChange={(e) => setUseUsualWeightForRequirements(e.target.checked)}
-                      className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#7842D4] focus:ring-[#7842D4] cursor-pointer"
+                      className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#86A83C] focus:ring-[#86A83C] cursor-pointer"
                     />
                     <label htmlFor="useUsualWeight" className="text-xs font-semibold text-[#20212B] cursor-pointer select-none leading-normal">
                       Calcular requerimientos (GET, proteínas, agua) sobre el peso habitual ({usualWeight} kg)
-                      <span className="block text-[11px] font-normal text-[#626573] mt-0.5">
-                        💡 Recomendado clínicamente para evitar subestimar necesidades calórico-proteicas en fase de desnutrición/pérdida aguda.
+                      <span className="flex items-center gap-1.5 text-[11px] font-normal text-[#626573] mt-1">
+                        <Info className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                        <span>Recomendado clínicamente para evitar subestimar necesidades calórico-proteicas en fase de desnutrición o pérdida aguda.</span>
                       </span>
                     </label>
                   </div>
@@ -1220,7 +1224,7 @@ export default function CalculosClient() {
                       type="number"
                       min="0"
                       step="0.1"
-                      className="h-11 rounded-xl text-xs sm:text-sm font-medium px-3 border-[#E9E5E7] bg-white text-[#20212B] focus:border-[#7842D4]"
+                      className="h-11 rounded-xl text-xs sm:text-sm font-medium px-3 border-[#E9E5E7] bg-white text-[#20212B] focus:border-[#86A83C]"
                     />
                   </div>
                   <div>
@@ -1232,7 +1236,7 @@ export default function CalculosClient() {
                       type="number"
                       min="0"
                       step="0.1"
-                      className="h-11 rounded-xl text-xs sm:text-sm font-medium px-3 border-[#E9E5E7] bg-white text-[#20212B] focus:border-[#7842D4]"
+                      className="h-11 rounded-xl text-xs sm:text-sm font-medium px-3 border-[#E9E5E7] bg-white text-[#20212B] focus:border-[#86A83C]"
                     />
                   </div>
                 </div>
@@ -1247,12 +1251,12 @@ export default function CalculosClient() {
                       type="number"
                       min="0"
                       step="0.1"
-                      className="h-11 rounded-xl text-xs sm:text-sm font-medium px-3 border-[#E9E5E7] bg-white text-[#20212B] focus:border-[#7842D4]"
+                      className="h-11 rounded-xl text-xs sm:text-sm font-medium px-3 border-[#E9E5E7] bg-white text-[#20212B] focus:border-[#86A83C]"
                     />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-[#626573] mb-1.5">
-                      Pliegue Subescapular PSE (mm) <span className="text-[#7842D4] font-normal">(Compartido)</span>
+                      Pliegue Subescapular PSE (mm) <span className="text-[#668E20] font-normal">(Compartido)</span>
                     </label>
                     <Input
                       value={subescapularFold}
@@ -1261,7 +1265,7 @@ export default function CalculosClient() {
                       type="number"
                       min="0"
                       step="0.1"
-                      className="h-11 rounded-xl text-xs sm:text-sm font-medium px-3 border-[#E9E5E7] bg-white text-[#20212B] focus:border-[#7842D4]"
+                      className="h-11 rounded-xl text-xs sm:text-sm font-medium px-3 border-[#E9E5E7] bg-white text-[#20212B] focus:border-[#86A83C]"
                     />
                   </div>
                 </div>
@@ -1289,7 +1293,7 @@ export default function CalculosClient() {
               <div className="bg-white rounded-2xl border border-[#E9E5E7] p-5 shadow-2xs space-y-3 animate-in fade-in duration-150">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                   <h3 className="text-xs font-bold text-[#20212B] flex items-center gap-1.5 uppercase">
-                    <Percent className="w-4 h-4 text-[#7842D4]" />
+                    <Percent className="w-4 h-4 text-[#86A83C]" />
                     Pliegues Cutáneos & Composición (Frisancho)
                   </h3>
                   <button
@@ -1311,12 +1315,12 @@ export default function CalculosClient() {
                       type="number"
                       min="0"
                       step="0.1"
-                      className="h-11 rounded-xl text-xs sm:text-sm font-medium px-3 border-[#E9E5E7] bg-white text-[#20212B] focus:border-[#7842D4]"
+                      className="h-11 rounded-xl text-xs sm:text-sm font-medium px-3 border-[#E9E5E7] bg-white text-[#20212B] focus:border-[#86A83C]"
                     />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-[#626573] mb-1.5">
-                      Pliegue Subescapular (mm) <span className="text-[#7842D4] font-normal">(Compartido)</span>
+                      Pliegue Subescapular (mm) <span className="text-[#668E20] font-normal">(Compartido)</span>
                     </label>
                     <Input
                       value={subescapularFold}
@@ -1325,7 +1329,7 @@ export default function CalculosClient() {
                       type="number"
                       min="0"
                       step="0.1"
-                      className="h-11 rounded-xl text-xs sm:text-sm font-medium px-3 border-[#E9E5E7] bg-white text-[#20212B] focus:border-[#7842D4]"
+                      className="h-11 rounded-xl text-xs sm:text-sm font-medium px-3 border-[#E9E5E7] bg-white text-[#20212B] focus:border-[#86A83C]"
                     />
                   </div>
                 </div>
@@ -1337,7 +1341,7 @@ export default function CalculosClient() {
                 className="w-full h-full flex items-center justify-between p-4 bg-white hover:bg-slate-50/80 rounded-2xl border border-[#E9E5E7] text-xs font-semibold text-[#20212B] transition-all cursor-pointer text-left shadow-2xs gap-3"
               >
                 <span className="flex items-center gap-3">
-                  <span className="w-9 h-9 rounded-xl bg-purple-50 text-[#7842D4] flex items-center justify-center shrink-0">
+                  <span className="w-9 h-9 rounded-xl bg-[#F0F5DF] text-[#668E20] flex items-center justify-center shrink-0">
                     <Percent className="w-4.5 h-4.5" />
                   </span>
                   Agregar Pliegues Cutáneos (AMB/AGB Frisancho)
@@ -1374,7 +1378,7 @@ export default function CalculosClient() {
                       type="number"
                       min="0"
                       step="0.1"
-                      className="h-11 rounded-xl text-xs sm:text-sm font-medium px-3 border-[#E9E5E7] bg-white text-[#20212B] focus:border-[#7842D4]"
+                      className="h-11 rounded-xl text-xs sm:text-sm font-medium px-3 border-[#E9E5E7] bg-white text-[#20212B] focus:border-[#86A83C]"
                     />
                   </div>
                   <div>
@@ -1386,7 +1390,7 @@ export default function CalculosClient() {
                       type="number"
                       min="0"
                       step="0.1"
-                      className="h-11 rounded-xl text-xs sm:text-sm font-medium px-3 border-[#E9E5E7] bg-white text-[#20212B] focus:border-[#7842D4]"
+                      className="h-11 rounded-xl text-xs sm:text-sm font-medium px-3 border-[#E9E5E7] bg-white text-[#20212B] focus:border-[#86A83C]"
                     />
                   </div>
                 </div>

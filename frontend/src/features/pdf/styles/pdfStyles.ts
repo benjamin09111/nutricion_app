@@ -1,21 +1,21 @@
 import { StyleSheet } from "@react-pdf/renderer";
 
-// -- Official NutriNet Canva-Style Color Palette --
+// -- Official NutriNet Color Palette (Sage Green & Slate) --
 export const colors = {
-    // Official NutriNet Purple & Navy Palette
-    primary: "#7C3AED",
-    primaryDark: "#1E1B4B",
-    primaryLight: "#F3EDFF",
-    primaryGradientStart: "#7C3AED",
-    primaryGradientEnd: "#6D28D9",
-    // Official NutriNet Lime & Fresh Accents
-    secondary: "#84CC16",
-    secondaryLight: "#ECFCCB",
-    secondaryDark: "#3F6212",
+    // Official NutriNet Sage Green & Dark Slate Palette
+    primary: "#86A83C",
+    primaryDark: "#1E293B",
+    primaryLight: "#F0F5DF",
+    primaryGradientStart: "#86A83C",
+    primaryGradientEnd: "#668E20",
+    // Official NutriNet Accents
+    secondary: "#668E20",
+    secondaryLight: "#F0F5DF",
+    secondaryDark: "#4D6E15",
     accentYellow: "#FEF08A",
     accentYellowDark: "#854D0E",
-    accentLime: "#84CC16",
-    accentLimeLight: "#ECFCCB",
+    accentLime: "#86A83C",
+    accentLimeLight: "#F0F5DF",
     // Warning & Avoid Foods Cream Palette
     bgCream: "#FFFBEB",
     borderAmber: "#FDE68A",

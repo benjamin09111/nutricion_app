@@ -8,8 +8,9 @@ import {
 } from "@/features/foods/local-catalog";
 
 const STORAGE_KEYS = {
-  PATIENTS: "nutrinet_demo_patients_v3",
-  CONSULTATIONS: "nutrinet_demo_consultations_v3",
+  PATIENTS: "nutrinet_demo_patients_v5",
+  CONSULTATIONS: "nutrinet_demo_consultations_v5",
+  CLINICAL_RECORDS: "nutrinet_demo_clinical_records_v2",
   CREATIONS: "nutrinet_demo_creations_v6",
   FOODS: "nutrinet_demo_foods_v3",
   RESOURCES: "nutrinet_demo_resources_v3",
@@ -111,84 +112,20 @@ const INITIAL_CONSULTATIONS = [
   },
   {
     id: "con-4",
-    patientId: "1",
+    patientId: "pat-4",
     patientName: "Ana Silva",
     title: "Control de déficit calórico y alimentación vegetariana",
     date: "2026-11-05T11:00:00.000Z",
-    patient: { id: "1", fullName: "Ana Silva" },
+    patient: { id: "pat-4", fullName: "Ana Silva" },
     description: "Excelente energía y digestión. Logró -1.8 kg en 4 semanas. Se refuerza suplementación de Vitamina B12 y combinación de legumbres con cereales integrales para perfil de aminoácidos completo.",
     notes: "Excelente energía y digestión. Logró -1.8 kg en 4 semanas. Se refuerza suplementación de Vitamina B12 y combinación de legumbres con cereales integrales para perfil de aminoácidos completo.",
     metrics: [
       { key: "weight", label: "Peso", value: 65.5, unit: "kg" },
+      { key: "height", label: "Estatura", value: 165, unit: "cm" },
       { key: "body_fat", label: "% Grasa", value: 24.1, unit: "%" },
       { key: "muscle_mass", label: "Masa Muscular", value: 25.3, unit: "kg" },
+      { key: "visceral_fat", label: "Grasa Visceral", value: 4, unit: "lvl" },
       { key: "waist", label: "Cintura", value: 72.0, unit: "cm" },
-    ],
-  },
-  {
-    id: "con-5",
-    patientId: "2",
-    patientName: "Carlos Ruiz",
-    title: "Seguimiento nutricional celiaquía & fase de volumen",
-    date: "2026-11-03T16:00:00.000Z",
-    patient: { id: "2", fullName: "Carlos Ruiz" },
-    description: "Sin episodios de contaminación cruzada. Peso subió 1.2 kg manteniendo porcentaje graso. Tolera adecuadamente avena certificada libre de gluten y harinas de legumbres.",
-    notes: "Sin episodios de contaminación cruzada. Peso subió 1.2 kg manteniendo porcentaje graso. Tolera adecuadamente avena certificada libre de gluten y harinas de legumbres.",
-    metrics: [
-      { key: "weight", label: "Peso", value: 85.0, unit: "kg" },
-      { key: "body_fat", label: "% Grasa", value: 16.8, unit: "%" },
-      { key: "muscle_mass", label: "Masa Muscular", value: 41.2, unit: "kg" },
-      { key: "waist", label: "Cintura", value: 82.5, unit: "cm" },
-    ],
-  },
-  {
-    id: "con-6",
-    patientId: "3",
-    patientName: "Maria Gonzalez",
-    title: "Estrategia de hidratación y carbohidratos para media maratón",
-    date: "2026-10-28T09:30:00.000Z",
-    patient: { id: "3", fullName: "Maria Gonzalez" },
-    description: "Plan de carga de carbohidratos 48h pre-carrera (7g CHO/kg). Pauta de geles isotónicos cada 45 minutos durante fondo largo de 18k sin molestias gastrointestinales.",
-    notes: "Plan de carga de carbohidratos 48h pre-carrera (7g CHO/kg). Pauta de geles isotónicos cada 45 minutos durante fondo largo de 18k sin molestias gastrointestinales.",
-    metrics: [
-      { key: "weight", label: "Peso", value: 58.2, unit: "kg" },
-      { key: "body_fat", label: "% Grasa", value: 18.5, unit: "%" },
-      { key: "muscle_mass", label: "Masa Muscular", value: 28.0, unit: "kg" },
-      { key: "waist", label: "Cintura", value: 66.0, unit: "cm" },
-    ],
-  },
-  {
-    id: "con-7",
-    patientId: "pat-1",
-    patientName: "Valentina Miranda",
-    title: "Consulta inicial de anamnesis alimentaria y curva HOMA",
-    date: "2026-10-12T11:00:00.000Z",
-    patient: { id: "pat-1", fullName: "Valentina Miranda" },
-    description: "Anamnesis completa. Exámenes de laboratorio revelan HOMA-IR 3.4. Se establece meta inicial de 1.750 kcal con distribución baja en azúcares libres y alta en fibra soluble.",
-    notes: "Anamnesis completa. Exámenes de laboratorio revelan HOMA-IR 3.4. Se establece meta inicial de 1.750 kcal con distribución baja en azúcares libres y alta en fibra soluble.",
-    metrics: [
-      { key: "weight", label: "Peso", value: 84.4, unit: "kg" },
-      { key: "body_fat", label: "% Grasa", value: 35.6, unit: "%" },
-      { key: "muscle_mass", label: "Masa Muscular", value: 26.2, unit: "kg" },
-      { key: "visceral_fat", label: "Grasa Visceral", value: 8, unit: "lvl" },
-      { key: "waist", label: "Cintura", value: 88.0, unit: "cm" },
-    ],
-  },
-  {
-    id: "con-8",
-    patientId: "pat-3",
-    patientName: "Martín Silva",
-    title: "Control de rendimiento y prueba de suplementación con creatina",
-    date: "2026-10-05T17:00:00.000Z",
-    patient: { id: "pat-3", fullName: "Martín Silva" },
-    description: "Inicia protocolo de carga de monohidrato de creatina (5g diarios constantes). Reporta mejora en fuerza máxima y reducción de fatiga entre series pesadas.",
-    notes: "Inicia protocolo de carga de monohidrato de creatina (5g diarios constantes). Reporta mejora en fuerza máxima y reducción de fatiga entre series pesadas.",
-    metrics: [
-      { key: "weight", label: "Peso", value: 73.7, unit: "kg" },
-      { key: "body_fat", label: "% Grasa", value: 14.8, unit: "%" },
-      { key: "muscle_mass", label: "Masa Muscular", value: 37.7, unit: "kg" },
-      { key: "visceral_fat", label: "Grasa Visceral", value: 3, unit: "lvl" },
-      { key: "waist", label: "Cintura", value: 78.5, unit: "cm" },
     ],
   },
 ];
@@ -481,46 +418,453 @@ const INITIAL_CREATIONS = [
   }
 ];
 
-function getInitialPatients() {
-  const demoPatients = INITIAL_DEMO_DATA.patients.map((p) => ({
-    id: p.id,
+const INITIAL_PATIENTS = [
+  {
+    id: "pat-1",
     nutritionistId: "nutri-demo",
-    fullName: p.fullName,
-    email: p.email,
-    phone: p.phone,
-    age: p.age,
-    gender: p.gender,
-    height: p.height,
-    weight: p.currentWeight,
-    dietRestrictions: p.dietaryRestrictions || [],
-    nutritionalFocus: p.goal,
-    clinicalSummary: p.clinicalDiagnosis,
-    status: (p.desertionRisk === "alto" ? "Inactive" : "Active") as "Active" | "Inactive",
-    tags: [p.region, p.activityLevel],
+    fullName: "Valentina Miranda",
+    email: "valentina.miranda@empresa.cl",
+    phone: "+56 9 8472 9182",
+    documentId: "18.492.381-4",
+    age: 34,
+    birthDate: "1992-04-18T00:00:00.000Z",
+    gender: "Femenino",
+    height: 163,
+    weight: 82.0,
+    dietRestrictions: ["Intolerancia a la lactosa", "Sin azúcar añadida"],
+    clinicalSummary: "Paciente derivada por medicina interna. Resistencia a la insulina (HOMA 3.6), acantosis nigricans leve. Se instaura pauta hipocalórica normoproteica de baja carga glicémica.",
+    fitnessGoals: "Pérdida de 14 kg de grasa corporal y control de curva de glucosa",
+    nutritionalFocus: "Bajar de peso",
+    status: "Active" as const,
+    activityLevel: "sedentario",
+    primaryCondition: "Resistencia a la Insulina y Obesidad Grado I",
+    tags: ["Metabólico", "Resistencia Insulina", "Antofagasta", "Sin lácteos"],
+    likes: "Guisos de verduras al vapor, frutos secos, palta hass, pescados magros al horno, frutas rojas",
+    dislikedFoods: ["Brócoli hervido", "Cilantro crudo", "Lácteos enteros"],
+    customVariables: [
+      { key: "evaluationDate", label: "Fecha de evaluación", value: "2026-11-10" },
+      { key: "motivoConsulta", label: "Motivo de consulta", value: "Control de peso, reducir fatiga vespertina y regular exámenes de insulina" },
+      { key: "occupation", label: "Ocupación", value: "Ingeniera en Minas / Analista de Datos" },
+      { key: "workSchedule", label: "Jornada", value: "Lunes a Viernes 08:30 - 18:00 (Trabajo de oficina)" },
+      { key: "medications", label: "Fármacos", value: "Metformina 850mg (1 vez al día con la cena)" },
+      { key: "drugsSupplements", label: "Suplementos", value: "Vitamina D3 2000 UI, Picolinato de Cromo 200mcg" },
+      { key: "diagnosedPathologies", label: "Patologías", value: "Resistencia a la Insulina, Dislipidemia leve" },
+      { key: "familyHistory", label: "Antecedentes familiares", value: "Madre con Diabetes Mellitus Tipo 2, Padre hipertenso" },
+      { key: "sleepQuality", label: "Sueño", value: "6 horas diarias, sueño interrumpido" },
+      { key: "perceivedStress", label: "Estrés", value: "Moderado - Alto por jornada laboral" },
+      { key: "weeklyExercise", label: "Ejercicio", value: "Caminatas 20 min 3 veces por semana" },
+      { key: "manualCaloriesAdjustment", label: "Ajuste calórico", value: "-400" },
+      { key: "pesoObjetivoProf", label: "Peso objetivo", value: "68.0" },
+      { key: "pesoHabitual", label: "Peso habitual", value: "76.0" },
+      { key: "pliegueTricipital", label: "Pliegue Tricipital", value: "24.5" },
+      { key: "pliegueBicipital", label: "Pliegue Bicipital", value: "16.2" },
+      { key: "pliegueSubescapular", label: "Pliegue Subescapular", value: "22.0" },
+      { key: "pliegueSuprailiaco", label: "Pliegue Suprailiaco", value: "26.8" },
+      { key: "circunferenciaCintura", label: "Circ. Cintura", value: "84.5" },
+      { key: "circunferenciaCadera", label: "Circ. Cadera", value: "106.0" },
+      { key: "circunferenciaBraquial", label: "Circ. Braquial", value: "31.5" },
+      { key: "circunferenciaPantorrilla", label: "Circ. Pantorrilla", value: "38.2" },
+      { key: "alturaRodilla", label: "Altura Rodilla", value: "49.5" },
+      { key: "diagnosticoNutricional", label: "Diagnóstico nutricional", value: "Obesidad Grado I (IMC 30.9) de origen exógeno asociada a insulino-resistencia severa. Foco en pauta hipocalórica normoproteica antiinflamatoria." },
+      { key: "rejectedFoods", label: "Alimentos rechazados", value: "Lácteos enteros, frituras, brócoli hervido" },
+    ],
     createdAt: "2026-10-15T10:00:00.000Z",
     updatedAt: "2026-11-10T12:00:00.000Z",
+    lastVisit: "2026-11-10",
+  },
+  {
+    id: "pat-2",
+    nutritionistId: "nutri-demo",
+    fullName: "Don Luis Mansilla",
+    email: "luis.mansilla@chiloe.cl",
+    phone: "+56 9 9123 4567",
+    documentId: "7.834.120-K",
+    age: 62,
+    birthDate: "1964-06-12T00:00:00.000Z",
+    gender: "Masculino",
+    height: 168,
+    weight: 79.0,
+    dietRestrictions: ["Sin azúcares añadidos", "Bajo en sodio (<1500mg)", "Sin frituras"],
+    clinicalSummary: "Diabetes Mellitus Tipo 2 compensada e Hipertensión Arterial esencial. Requiere restricción estricta de sodio (<1500mg) y carbohidratos complejos al vapor.",
+    fitnessGoals: "Control de presión arterial <130/80 mmHg y glucemia en ayunas <110 mg/dL",
+    nutritionalFocus: "Control metabólico",
+    status: "Active" as const,
+    activityLevel: "ligero",
+    primaryCondition: "Diabetes Mellitus Tipo 2 e Hipertensión Arterial",
+    tags: ["Cardioprotector", "Diabetes", "Hipertensión", "Chiloé"],
+    likes: "Merluza austral, papas nativas con piel, caldillo de congrio sin grasa, ajo chilote, poleo",
+    dislikedFoods: ["Comida chatarra", "Embutidos con sodio", "Ají picante"],
+    customVariables: [
+      { key: "evaluationDate", label: "Fecha de evaluación", value: "2026-11-08" },
+      { key: "motivoConsulta", label: "Motivo de consulta", value: "Mantener HbA1c < 7.0% y control tensional reduciendo consumo de sodio" },
+      { key: "occupation", label: "Ocupación", value: "Carpintero de ribera / Jubilado activo" },
+      { key: "workSchedule", label: "Jornada", value: "Mañanas en taller independiente (08:00 - 13:00)" },
+      { key: "medications", label: "Fármacos", value: "Losartán 50mg/12h, Empagliflozina 10mg/24h" },
+      { key: "drugsSupplements", label: "Suplementos", value: "Calcio + Vitamina D3 500mg/400UI" },
+      { key: "diagnosedPathologies", label: "Patologías", value: "Diabetes Mellitus Tipo 2 compensada, Hipertensión Arterial Primaria" },
+      { key: "familyHistory", label: "Antecedentes familiares", value: "Hermano con cardiopatía coronaria, Madre con diabetes" },
+      { key: "sleepQuality", label: "Sueño", value: "7 horas continuas, buen descanso reparador" },
+      { key: "perceivedStress", label: "Estrés", value: "Bajo" },
+      { key: "weeklyExercise", label: "Ejercicio", value: "Caminatas matutinas de 30 minutos todos los días" },
+      { key: "manualCaloriesAdjustment", label: "Ajuste calórico", value: "-250" },
+      { key: "pesoObjetivoProf", label: "Peso objetivo", value: "72.0" },
+      { key: "pesoHabitual", label: "Peso habitual", value: "82.0" },
+      { key: "pliegueTricipital", label: "Pliegue Tricipital", value: "18.0" },
+      { key: "pliegueBicipital", label: "Pliegue Bicipital", value: "12.0" },
+      { key: "pliegueSubescapular", label: "Pliegue Subescapular", value: "19.5" },
+      { key: "pliegueSuprailiaco", label: "Pliegue Suprailiaco", value: "21.0" },
+      { key: "circunferenciaCintura", label: "Circ. Cintura", value: "96.0" },
+      { key: "circunferenciaCadera", label: "Circ. Cadera", value: "101.5" },
+      { key: "circunferenciaBraquial", label: "Circ. Braquial", value: "30.0" },
+      { key: "circunferenciaPantorrilla", label: "Circ. Pantorrilla", value: "36.5" },
+      { key: "alturaRodilla", label: "Altura Rodilla", value: "51.0" },
+      { key: "diagnosticoNutricional", label: "Diagnóstico nutricional", value: "Sobrepeso en adulto mayor (IMC 28.0) según MINSAL. Control glucídico estable y adherencia cardioprotectora." },
+      { key: "rejectedFoods", label: "Alimentos rechazados", value: "Comida chatarra, embutidos con alto sodio, condimentos irritantes" },
+    ],
+    createdAt: "2026-10-15T10:00:00.000Z",
+    updatedAt: "2026-11-08T15:30:00.000Z",
     lastVisit: "2026-11-08",
-  }));
+  },
+  {
+    id: "pat-3",
+    nutritionistId: "nutri-demo",
+    fullName: "Martín Silva",
+    email: "martin.silva.deporte@gmail.com",
+    phone: "+56 9 7654 3210",
+    documentId: "21.049.812-7",
+    age: 19,
+    birthDate: "2007-01-20T00:00:00.000Z",
+    gender: "Masculino",
+    height: 182,
+    weight: 74.5,
+    dietRestrictions: ["Sin mariscos crudos"],
+    clinicalSummary: "Eutrófico activo, estudiante y deportista de fuerza. Superávit calórico controlado (+350 kcal) y 1.9 g/kg de proteína de alto valor biológico.",
+    fitnessGoals: "Ganancia limpia de 4.5 kg de masa muscular y aumento de fuerza",
+    nutritionalFocus: "Subir de peso",
+    status: "Active" as const,
+    activityLevel: "intenso",
+    primaryCondition: "Aumento de Masa Muscular y Rendimiento Atlético",
+    tags: ["Deportivo", "Hipertrofia", "Fuerza", "Santiago"],
+    likes: "Pechuga de pollo, huevos revueltos, arroz basmati, avena con canela, plátanos, mantequilla de maní",
+    dislikedFoods: ["Berenjenas", "Cebolla cruda", "Ultraprocesados grasos"],
+    customVariables: [
+      { key: "evaluationDate", label: "Fecha de evaluación", value: "2026-11-07" },
+      { key: "motivoConsulta", label: "Motivo de consulta", value: "Plan hipercalórico e hiperproteico (1.8g/kg) para ganancia de masa muscular limpia" },
+      { key: "occupation", label: "Ocupación", value: "Estudiante de Educación Física" },
+      { key: "workSchedule", label: "Jornada", value: "Clases universitarias de lunes a viernes (08:00 - 16:00)" },
+      { key: "medications", label: "Fármacos", value: "Ninguno" },
+      { key: "drugsSupplements", label: "Suplementos", value: "Creatina Monohidrato 5g/día, Proteína Whey Isolate 30g post-entreno" },
+      { key: "diagnosedPathologies", label: "Patologías", value: "Sin patologías crónicas registradas" },
+      { key: "familyHistory", label: "Antecedentes familiares", value: "Sin antecedentes de enfermedades crónicas no transmisibles" },
+      { key: "sleepQuality", label: "Sueño", value: "8 horas de descanso profundo reparador" },
+      { key: "perceivedStress", label: "Estrés", value: "Bajo" },
+      { key: "weeklyExercise", label: "Ejercicio", value: "Entrenamiento de hipertrofia y sobrecarga 5 días x 75 min" },
+      { key: "manualCaloriesAdjustment", label: "Ajuste calórico", value: "+350" },
+      { key: "pesoObjetivoProf", label: "Peso objetivo", value: "79.0" },
+      { key: "pesoHabitual", label: "Peso habitual", value: "73.0" },
+      { key: "pliegueTricipital", label: "Pliegue Tricipital", value: "9.2" },
+      { key: "pliegueBicipital", label: "Pliegue Bicipital", value: "5.0" },
+      { key: "pliegueSubescapular", label: "Pliegue Subescapular", value: "10.4" },
+      { key: "pliegueSuprailiaco", label: "Pliegue Suprailiaco", value: "11.8" },
+      { key: "circunferenciaCintura", label: "Circ. Cintura", value: "78.0" },
+      { key: "circunferenciaCadera", label: "Circ. Cadera", value: "95.0" },
+      { key: "circunferenciaBraquial", label: "Circ. Braquial", value: "34.5" },
+      { key: "circunferenciaPantorrilla", label: "Circ. Pantorrilla", value: "37.8" },
+      { key: "alturaRodilla", label: "Altura Rodilla", value: "56.0" },
+      { key: "diagnosticoNutricional", label: "Diagnóstico nutricional", value: "Eutrófico activo (IMC 22.5) con bajo porcentaje de masa grasa (14.2%). Indicación de superávit energético planificado." },
+      { key: "rejectedFoods", label: "Alimentos rechazados", value: "Golosinas ultraprocesadas, frituras, bebidas alcohólicas" },
+    ],
+    createdAt: "2026-10-15T10:00:00.000Z",
+    updatedAt: "2026-11-07T10:00:00.000Z",
+    lastVisit: "2026-11-07",
+  },
+  {
+    id: "pat-4",
+    nutritionistId: "nutri-demo",
+    fullName: "Ana Silva",
+    email: "ana.silva@diseno.cl",
+    phone: "+56 9 6543 2109",
+    documentId: "17.291.845-2",
+    age: 36,
+    birthDate: "1990-05-15T00:00:00.000Z",
+    gender: "Femenino",
+    height: 165,
+    weight: 65.5,
+    dietRestrictions: ["Vegetariana", "Sin mariscos", "Intolerancia a la lactosa"],
+    clinicalSummary: "Alimentación ovolactovegetariana balanceada. Exámenes recientes muestran perfil lipídico óptimo y ferritina normal tras suplementación con B12.",
+    fitnessGoals: "Recomposición corporal, reducción de 2 kg de grasa y mejora de resistencia aeróbica",
+    nutritionalFocus: "Mejorar composición corporal",
+    status: "Active" as const,
+    activityLevel: "moderado",
+    primaryCondition: "Alimentación Vegetariana y Tonificación Muscular",
+    tags: ["Vegetariano", "Plant-based", "Recomposición", "Santiago"],
+    likes: "Hummus casero, tofu salteado, quinoa tricolor, batidos verdes, semillas de calabaza y chía",
+    dislikedFoods: ["Carnes rojas", "Embutidos", "Pollo", "Pescados y mariscos"],
+    customVariables: [
+      { key: "evaluationDate", label: "Fecha de evaluación", value: "2026-11-05" },
+      { key: "motivoConsulta", label: "Motivo de consulta", value: "Optimizar biodisponibilidad de hierro, densidad proteica vegetal y tonificación muscular" },
+      { key: "occupation", label: "Ocupación", value: "Diseñadora UX / Docente" },
+      { key: "workSchedule", label: "Jornada", value: "Teletrabajo híbrido (09:00 - 17:30)" },
+      { key: "medications", label: "Fármacos", value: "Anticonceptivos orales combinados" },
+      { key: "drugsSupplements", label: "Suplementos", value: "Cianocobalamina (B12) 2000 mcg semanal, Hierro bisglicinato 30mg con vitamina C" },
+      { key: "diagnosedPathologies", label: "Patologías", value: "Antecedente de anemia ferropénica superada" },
+      { key: "familyHistory", label: "Antecedentes familiares", value: "Madre con hipotiroidismo primario en tratamiento con levotiroxina" },
+      { key: "sleepQuality", label: "Sueño", value: "7.5 horas continuas, despertar descansado" },
+      { key: "perceivedStress", label: "Estrés", value: "Moderado" },
+      { key: "weeklyExercise", label: "Ejercicio", value: "Yoga vinyasa y pilates reformer 4 veces por semana" },
+      { key: "manualCaloriesAdjustment", label: "Ajuste calórico", value: "-200" },
+      { key: "pesoObjetivoProf", label: "Peso objetivo", value: "62.0" },
+      { key: "pesoHabitual", label: "Peso habitual", value: "66.0" },
+      { key: "pliegueTricipital", label: "Pliegue Tricipital", value: "15.2" },
+      { key: "pliegueBicipital", label: "Pliegue Bicipital", value: "9.8" },
+      { key: "pliegueSubescapular", label: "Pliegue Subescapular", value: "14.0" },
+      { key: "pliegueSuprailiaco", label: "Pliegue Suprailiaco", value: "16.5" },
+      { key: "circunferenciaCintura", label: "Circ. Cintura", value: "72.0" },
+      { key: "circunferenciaCadera", label: "Circ. Cadera", value: "98.0" },
+      { key: "circunferenciaBraquial", label: "Circ. Braquial", value: "26.8" },
+      { key: "circunferenciaPantorrilla", label: "Circ. Pantorrilla", value: "34.5" },
+      { key: "alturaRodilla", label: "Altura Rodilla", value: "50.2" },
+      { key: "diagnosticoNutricional", label: "Diagnóstico nutricional", value: "Eutrófica (IMC 24.1) con patrón alimentario vegetariano armónico. Mantención y apoyo en biodisponibilidad de micronutrientes." },
+      { key: "rejectedFoods", label: "Alimentos rechazados", value: "Carnes de vacuno, cerdo, pollo, pescados y mariscos" },
+    ],
+    createdAt: "2026-10-15T10:00:00.000Z",
+    updatedAt: "2026-11-05T11:00:00.000Z",
+    lastVisit: "2026-11-05",
+  },
+];
 
-  return [...demoPatients, ...MOCK_PATIENTS];
-}
+export const DEMO_CLINICAL_RECORDS: Record<string, any> = {
+  "pat-1": {
+    id: "cr-1",
+    patientId: "pat-1",
+    vitalHistory: {
+      occupation: "Ingeniera en Minas / Analista de Datos",
+      workSchedule: "Lunes a Viernes 08:30 - 18:00 (Trabajo de oficina)",
+      medications: "Metformina 850mg (1 vez al día con la cena)",
+      supplementsOrDrugs: "Vitamina D3 2000 UI, Picolinato de Cromo 200mcg",
+      diagnosedPathologies: "Resistencia a la Insulina, Dislipidemia leve",
+      familyHistory: "Madre con Diabetes Mellitus Tipo 2, Padre hipertenso",
+      sleepQuality: "6 horas diarias, sueño interrumpido",
+      perceivedStress: "Moderado - Alto por jornada laboral",
+      weeklyExercise: "Caminatas 20 min 3 veces por semana",
+      motivoConsulta: "Control de peso, reducir fatiga vespertina y regular exámenes de insulina",
+      manualCaloriesAdjustment: "-400",
+      pesoObjetivoProf: "68.0",
+    },
+    anthropometry: {
+      skinfolds: {
+        tricipital: "24.5",
+        bicipital: "16.2",
+        subescapular: "22.0",
+        suprailiac: "26.8",
+      },
+      circumferences: {
+        kneeHeight: "49.5",
+        calfCircumference: "38.2",
+        armCircumference: "31.5",
+        waistCircumference: "84.5",
+        hipCircumference: "106.0",
+      },
+      pesoHabitual: "76.0",
+    },
+    nutritionalAnamnesis: {
+      eatingPreferences: "Preparaciones rápidas de menos de 15 minutos, frutos secos, pescados al horno",
+      rejectedFoods: "Lácteos enteros, frituras, brócoli hervido",
+      clinicalObservations: "Buena adherencia al omitir refrescos azucarados; requiere apoyo en organización de compras semanales.",
+      diagnosticoNutricional: "Obesidad Grado I (IMC 30.9) de origen exógeno asociada a insulino-resistencia severa. Foco en pauta hipocalórica normoproteica antiinflamatoria.",
+      gestationalSymptoms: [],
+      gestationalSupplementation: [],
+    },
+    gynecoObstetric: {
+      isPregnant: false,
+      pregnancyWeeks: "",
+      pregestationalWeight: "",
+      pregnancyType: "",
+    },
+    dataSources: {},
+    createdAt: "2026-10-15T10:00:00.000Z",
+    updatedAt: "2026-11-10T12:00:00.000Z",
+  },
+  "pat-2": {
+    id: "cr-2",
+    patientId: "pat-2",
+    vitalHistory: {
+      occupation: "Carpintero de ribera / Jubilado activo",
+      workSchedule: "Mañanas en taller independiente (08:00 - 13:00)",
+      medications: "Losartán 50mg/12h, Empagliflozina 10mg/24h",
+      supplementsOrDrugs: "Calcio + Vitamina D3 500mg/400UI",
+      diagnosedPathologies: "Diabetes Mellitus Tipo 2 compensada, Hipertensión Arterial Primaria",
+      familyHistory: "Hermano con cardiopatía coronaria, Madre con diabetes",
+      sleepQuality: "7 horas continuas, buen descanso reparador",
+      perceivedStress: "Bajo",
+      weeklyExercise: "Caminatas matutinas de 30 minutos todos los días",
+      motivoConsulta: "Mantener HbA1c < 7.0% y control tensional reduciendo consumo de sodio",
+      manualCaloriesAdjustment: "-250",
+      pesoObjetivoProf: "72.0",
+    },
+    anthropometry: {
+      skinfolds: {
+        tricipital: "18.0",
+        bicipital: "12.0",
+        subescapular: "19.5",
+        suprailiac: "21.0",
+      },
+      circumferences: {
+        kneeHeight: "51.0",
+        calfCircumference: "36.5",
+        armCircumference: "30.0",
+        waistCircumference: "96.0",
+        hipCircumference: "101.5",
+      },
+      pesoHabitual: "82.0",
+    },
+    nutritionalAnamnesis: {
+      eatingPreferences: "Comida tradicional del sur, merluza austral al vapor, papas nativas, ajo chilote y orégano",
+      rejectedFoods: "Comida chatarra, embutidos con alto sodio, condimentos irritantes",
+      clinicalObservations: "Excelente compromiso en la preparación al vapor sin sal de mesa añadida.",
+      diagnosticoNutricional: "Sobrepeso en adulto mayor (IMC 28.0) según MINSAL. Control glucídico estable y adherencia cardioprotectora.",
+      gestationalSymptoms: [],
+      gestationalSupplementation: [],
+    },
+    gynecoObstetric: {
+      isPregnant: false,
+      pregnancyWeeks: "",
+      pregestationalWeight: "",
+      pregnancyType: "",
+    },
+    dataSources: {},
+    createdAt: "2026-10-15T10:00:00.000Z",
+    updatedAt: "2026-11-08T15:30:00.000Z",
+  },
+  "pat-3": {
+    id: "cr-3",
+    patientId: "pat-3",
+    vitalHistory: {
+      occupation: "Estudiante de Educación Física",
+      workSchedule: "Clases universitarias de lunes a viernes (08:00 - 16:00)",
+      medications: "Ninguno",
+      supplementsOrDrugs: "Creatina Monohidrato 5g/día, Proteína Whey Isolate 30g post-entreno",
+      diagnosedPathologies: "Sin patologías crónicas registradas",
+      familyHistory: "Sin antecedentes de enfermedades crónicas no transmisibles",
+      sleepQuality: "8 horas de descanso profundo reparador",
+      perceivedStress: "Bajo",
+      weeklyExercise: "Entrenamiento de hipertrofia y sobrecarga 5 días x 75 min",
+      motivoConsulta: "Plan hipercalórico e hiperproteico (1.8g/kg) para ganancia de masa muscular limpia",
+      manualCaloriesAdjustment: "+350",
+      pesoObjetivoProf: "79.0",
+    },
+    anthropometry: {
+      skinfolds: {
+        tricipital: "9.2",
+        bicipital: "5.0",
+        subescapular: "10.4",
+        suprailiac: "11.8",
+      },
+      circumferences: {
+        kneeHeight: "56.0",
+        calfCircumference: "37.8",
+        armCircumference: "34.5",
+        waistCircumference: "78.0",
+        hipCircumference: "95.0",
+      },
+      pesoHabitual: "73.0",
+    },
+    nutritionalAnamnesis: {
+      eatingPreferences: "Avena con leche descremada, huevos revueltos, arroz basmati, legumbres y pechuga de pollo",
+      rejectedFoods: "Golosinas ultraprocesadas, frituras, bebidas alcohólicas",
+      clinicalObservations: "Gran disciplina y constancia en pesaje de porciones e hidratación de 3L diarios.",
+      diagnosticoNutricional: "Eutrófico activo (IMC 22.5) con bajo porcentaje de masa grasa (14.2%). Indicación de superávit energético planificado.",
+      gestationalSymptoms: [],
+      gestationalSupplementation: [],
+    },
+    gynecoObstetric: {
+      isPregnant: false,
+      pregnancyWeeks: "",
+      pregestationalWeight: "",
+      pregnancyType: "",
+    },
+    dataSources: {},
+    createdAt: "2026-10-15T10:00:00.000Z",
+    updatedAt: "2026-11-07T10:00:00.000Z",
+  },
+  "pat-4": {
+    id: "cr-4",
+    patientId: "pat-4",
+    vitalHistory: {
+      occupation: "Diseñadora UX / Docente",
+      workSchedule: "Teletrabajo híbrido (09:00 - 17:30)",
+      medications: "Anticonceptivos orales combinados",
+      supplementsOrDrugs: "Cianocobalamina (B12) 2000 mcg semanal, Hierro bisglicinato 30mg con vitamina C",
+      diagnosedPathologies: "Antecedente de anemia ferropénica superada",
+      familyHistory: "Madre con hipotiroidismo primario en tratamiento con levotiroxina",
+      sleepQuality: "7.5 horas continuas, despertar descansado",
+      perceivedStress: "Moderado",
+      weeklyExercise: "Yoga vinyasa y pilates reformer 4 veces por semana",
+      motivoConsulta: "Optimizar biodisponibilidad de hierro, densidad proteica vegetal y tonificación muscular",
+      manualCaloriesAdjustment: "-200",
+      pesoObjetivoProf: "62.0",
+    },
+    anthropometry: {
+      skinfolds: {
+        tricipital: "15.2",
+        bicipital: "9.8",
+        subescapular: "14.0",
+        suprailiac: "16.5",
+      },
+      circumferences: {
+        kneeHeight: "50.2",
+        calfCircumference: "34.5",
+        armCircumference: "26.8",
+        waistCircumference: "72.0",
+        hipCircumference: "98.0",
+      },
+      pesoHabitual: "66.0",
+    },
+    nutritionalAnamnesis: {
+      eatingPreferences: "Guisos de legumbres con pimientos rojos, hummus casero, quinoa tricolor, ensaladas abundantes",
+      rejectedFoods: "Carnes de vacuno, cerdo, pollo, pescados y mariscos",
+      clinicalObservations: "Excelente variedad de cereales integrales y legumbres; sin síntomas gastrointestinales.",
+      diagnosticoNutricional: "Eutrófica (IMC 24.1) con patrón alimentario vegetariano armónico. Mantención y apoyo en biodisponibilidad de micronutrientes.",
+      gestationalSymptoms: [],
+      gestationalSupplementation: [],
+    },
+    gynecoObstetric: {
+      isPregnant: false,
+      pregnancyWeeks: "",
+      pregestationalWeight: "",
+      pregnancyType: "",
+    },
+    dataSources: {},
+    createdAt: "2026-10-15T10:00:00.000Z",
+    updatedAt: "2026-11-05T11:00:00.000Z",
+  },
+};
 
 // ==========================================
 // LocalStorage Persistence Helpers
 // ==========================================
 
 export function getLocalPatients(): any[] {
-  if (typeof window === "undefined") return getInitialPatients();
+  if (typeof window === "undefined") return INITIAL_PATIENTS;
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.PATIENTS);
     if (!raw) {
-      const initial = getInitialPatients();
-      localStorage.setItem(STORAGE_KEYS.PATIENTS, JSON.stringify(initial));
-      return initial;
+      localStorage.setItem(STORAGE_KEYS.PATIENTS, JSON.stringify(INITIAL_PATIENTS));
+      return INITIAL_PATIENTS;
     }
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    if (
+      !Array.isArray(parsed) ||
+      parsed.length < INITIAL_PATIENTS.length ||
+      !parsed[0]?.documentId ||
+      parsed[0]?.dietRestrictions?.includes("Cocina poco")
+    ) {
+      localStorage.setItem(STORAGE_KEYS.PATIENTS, JSON.stringify(INITIAL_PATIENTS));
+      return INITIAL_PATIENTS;
+    }
+    return parsed;
   } catch {
-    return getInitialPatients();
+    return INITIAL_PATIENTS;
   }
 }
 
@@ -533,6 +877,39 @@ export function saveLocalPatients(patients: any[]) {
   }
 }
 
+export function getLocalClinicalRecords(): Record<string, any> {
+  if (typeof window === "undefined") return { ...DEMO_CLINICAL_RECORDS };
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.CLINICAL_RECORDS);
+    if (!raw) {
+      localStorage.setItem(STORAGE_KEYS.CLINICAL_RECORDS, JSON.stringify(DEMO_CLINICAL_RECORDS));
+      return { ...DEMO_CLINICAL_RECORDS };
+    }
+    const parsed = JSON.parse(raw);
+    if (
+      !parsed ||
+      typeof parsed !== "object" ||
+      !parsed["pat-1"]?.anthropometry?.skinfolds?.tricipital ||
+      !parsed["pat-4"]?.anthropometry?.skinfolds?.tricipital
+    ) {
+      localStorage.setItem(STORAGE_KEYS.CLINICAL_RECORDS, JSON.stringify(DEMO_CLINICAL_RECORDS));
+      return { ...DEMO_CLINICAL_RECORDS };
+    }
+    return parsed;
+  } catch {
+    return { ...DEMO_CLINICAL_RECORDS };
+  }
+}
+
+export function saveLocalClinicalRecords(records: Record<string, any>) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(STORAGE_KEYS.CLINICAL_RECORDS, JSON.stringify(records));
+  } catch (err) {
+    console.error("Error saving clinical records to localStorage:", err);
+  }
+}
+
 export function getLocalConsultations(): any[] {
   if (typeof window === "undefined") return INITIAL_CONSULTATIONS;
   try {
@@ -542,7 +919,12 @@ export function getLocalConsultations(): any[] {
       return INITIAL_CONSULTATIONS;
     }
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed) || parsed.length < INITIAL_CONSULTATIONS.length || !parsed[0]?.patientName) {
+    if (
+      !Array.isArray(parsed) ||
+      parsed.length > 4 ||
+      parsed.length < INITIAL_CONSULTATIONS.length ||
+      !parsed[0]?.patientName
+    ) {
       localStorage.setItem(STORAGE_KEYS.CONSULTATIONS, JSON.stringify(INITIAL_CONSULTATIONS));
       return INITIAL_CONSULTATIONS;
     }
@@ -802,7 +1184,7 @@ export function calculateDemoClinical(inputs: any) {
   const bmiVal = roundNum(weight / (heightM * heightM), 1);
 
   let bmiClassification = "Normopeso";
-  let bmiColor = "#22c55e";
+  let bmiColor = "#668E20";
   let bmiRef = "Criterio OMS";
   let bmiNote: string | undefined = undefined;
 
@@ -811,33 +1193,33 @@ export function calculateDemoClinical(inputs: any) {
     bmiNote = "Umbrales ajustados para proteger al adulto mayor de sarcopenia.";
     if (bmiVal <= 23.0) {
       bmiClassification = "Bajo peso (Enflaquecido)";
-      bmiColor = "#3b82f6";
+      bmiColor = "#2563eb";
     } else if (bmiVal < 28.0) {
       bmiClassification = "Normopeso (Eutrófico)";
-      bmiColor = "#22c55e";
+      bmiColor = "#668E20";
     } else if (bmiVal < 32.0) {
       bmiClassification = "Sobrepeso";
-      bmiColor = "#eab308";
+      bmiColor = "#d97706";
     } else {
       bmiClassification = "Obesidad";
-      bmiColor = "#ef4444";
+      bmiColor = "#dc2626";
     }
   } else {
     if (bmiVal < 18.5) {
       bmiClassification = "Bajo peso";
-      bmiColor = "#3b82f6";
+      bmiColor = "#2563eb";
     } else if (bmiVal < 25) {
       bmiClassification = "Normopeso";
-      bmiColor = "#22c55e";
+      bmiColor = "#668E20";
     } else if (bmiVal < 30) {
       bmiClassification = "Sobrepeso";
-      bmiColor = "#eab308";
+      bmiColor = "#d97706";
     } else if (bmiVal < 35) {
       bmiClassification = "Obesidad I";
-      bmiColor = "#f97316";
+      bmiColor = "#ea580c";
     } else {
       bmiClassification = "Obesidad II";
-      bmiColor = "#ef4444";
+      bmiColor = "#dc2626";
     }
   }
 
@@ -1206,6 +1588,36 @@ export function handleDemoApi(path: string, init?: RequestInit): Response | null
         };
         const all = [newPatient, ...patients];
         saveLocalPatients(all);
+
+        if (body.clinicalRecord) {
+          const records = getLocalClinicalRecords();
+          records[newPatient.id] = {
+            id: `cr-${Date.now()}`,
+            patientId: newPatient.id,
+            ...body.clinicalRecord,
+          };
+          saveLocalClinicalRecords(records);
+        }
+
+        if (body.weight || body.height) {
+          const consultations = getLocalConsultations();
+          const baseConsultation = {
+            id: `con-${Date.now()}`,
+            patientId: newPatient.id,
+            patientName: newPatient.fullName,
+            patient: { id: newPatient.id, fullName: newPatient.fullName },
+            title: "Evaluación antropométrica inicial (Ingreso)",
+            date: newPatient.createdAt,
+            description: "Registro inicial de ingreso del paciente.",
+            notes: "Registro inicial de ingreso del paciente.",
+            metrics: [
+              ...(body.weight ? [{ key: "weight", label: "Peso", value: Number(body.weight), unit: "kg" }] : []),
+              ...(body.height ? [{ key: "height", label: "Estatura", value: Number(body.height), unit: "cm" }] : []),
+            ],
+          };
+          saveLocalConsultations([baseConsultation, ...consultations]);
+        }
+
         return makeMockResponse(newPatient, 201);
       } catch {
         return makeMockResponse({ error: "Invalid patient body" }, 400);
@@ -1345,17 +1757,22 @@ export function handleDemoApi(path: string, init?: RequestInit): Response | null
   const clinicalRecordMatch = cleanPath.match(/^\/patients\/([^/]+)\/clinical-record$/);
   if (clinicalRecordMatch) {
     const patientId = clinicalRecordMatch[1];
-    const patients = getLocalPatients();
-    const patient = patients.find((p) => p.id === patientId) || patients[0];
-    return makeMockResponse({
-      anamnesis: patient.clinicalSummary || "Paciente en control y evolución nutricional.",
-      diagnosis: patient.clinicalDiagnosis || "Control nutricional y hábitos saludables.",
-      allergies: patient.dietRestrictions || [],
-      medicalHistory: "Sin antecedentes mórbidos de relevancia.",
-      familyHistory: "Resistencia a la insulina en línea materna.",
-      treatments: "Suplementación con omega 3 y probióticos.",
-      notes: "Buena adherencia y tolerancia digestiva.",
-    });
+    const clinicalRecords = getLocalClinicalRecords();
+    const record = clinicalRecords[patientId] || clinicalRecords["pat-1"];
+    if (method === "GET") {
+      return makeMockResponse(record);
+    }
+    if (method === "PATCH" || method === "PUT" || method === "POST") {
+      try {
+        const body = init?.body ? JSON.parse(init.body as string) : {};
+        const updatedRecord = { ...record, ...body, updatedAt: new Date().toISOString() };
+        clinicalRecords[patientId] = updatedRecord;
+        saveLocalClinicalRecords(clinicalRecords);
+        return makeMockResponse(updatedRecord);
+      } catch {
+        return makeMockResponse(record);
+      }
+    }
   }
 
   // 5e. Contexto IA /patients/:id/ai-context
@@ -1384,11 +1801,11 @@ export function handleDemoApi(path: string, init?: RequestInit): Response | null
   // 5g. Métricas Clínicas /metrics
   if (cleanPath === "/metrics") {
     return makeMockResponse([
-      { key: "weight", label: "Peso Corporal", unit: "kg" },
-      { key: "body_fat", label: "% Grasa Corporal", unit: "%" },
-      { key: "muscle_mass", label: "Masa Muscular", unit: "kg" },
-      { key: "visceral_fat", label: "Grasa Visceral", unit: "lvl" },
-      { key: "waist", label: "Circunferencia Cintura", unit: "cm" },
+      { key: "weight", name: "Peso Corporal", label: "Peso Corporal", unit: "kg" },
+      { key: "body_fat", name: "% Grasa Corporal", label: "% Grasa Corporal", unit: "%" },
+      { key: "muscle_mass", name: "Masa Muscular", label: "Masa Muscular", unit: "kg" },
+      { key: "visceral_fat", name: "Grasa Visceral", label: "Grasa Visceral", unit: "lvl" },
+      { key: "waist", name: "Circunferencia Cintura", label: "Circunferencia Cintura", unit: "cm" },
     ]);
   }
 

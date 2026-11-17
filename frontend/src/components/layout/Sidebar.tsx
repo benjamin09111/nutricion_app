@@ -86,7 +86,7 @@ const groups: SidebarGroup[] = [
       { name: "Tabla de composición", href: "/dashboard/alimentos", icon: Apple, tutorialPath: "/dashboard/alimentos" },
       { name: "Grupos", href: "/dashboard/alimentos/grupos", icon: FolderPlus, locked: true },
       { name: "Intercambios", href: "/dashboard/herramientas/porciones-intercambio", icon: Calculator, tutorialPath: "/dashboard/herramientas/porciones-intercambio" },
-      { name: "Cálculos", href: "/dashboard/herramientas/calculos", icon: Calculator, tutorialPath: "/dashboard/herramientas/calculos" },
+      { name: "Calculadora", href: "/dashboard/herramientas/calculos", icon: Calculator, tutorialPath: "/dashboard/herramientas/calculos" },
     ],
   },
   {

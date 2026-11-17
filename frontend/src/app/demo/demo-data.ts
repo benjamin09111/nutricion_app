@@ -158,7 +158,7 @@ export const INITIAL_DEMO_DATA: DemoState = {
       goal: "Pérdida de peso y control de resistencia a la insulina",
       activityLevel: "sedentario" as const,
       clinicalDiagnosis: "Obesidad Grado I (IMC 30.9), Resistencia a la Insulina (HOMA 3.6). Indicación de pauta baja en carga glicémica, sin lácteos y de preparación rápida.",
-      dietaryRestrictions: ["Intolerancia a la lactosa", "Sin lácteos", "Cocina poco"],
+      dietaryRestrictions: ["Intolerancia a la lactosa", "Sin lácteos"],
       region: "Antofagasta" as const,
       preferences: ["Cocina poco", "Preparaciones de menos de 15 minutos", "Sin lácteos"],
       adherenceScore: 92,

@@ -2555,26 +2555,44 @@ export default function QuickDeliverableClient() {
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center gap-2">
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void openPatientImportModal()}
+                      disabled={isLoadingPatients}
+                      className="flex-1 h-10 px-3 inline-flex items-center justify-between rounded-xl border border-[#E9E5E7] bg-white hover:border-[#86A83C] hover:bg-[#F0F5DF]/30 text-xs font-medium text-[#626573] hover:text-[#668E20] transition-all cursor-pointer group"
+                    >
+                      <span className="flex items-center gap-2 truncate">
+                        <User className="h-3.5 w-3.5 text-[#86A83C] shrink-0" />
+                        <span>{isLoadingPatients ? "Cargando..." : "Importar paciente"}</span>
+                      </span>
+                      <span className="text-[10px] text-slate-400 group-hover:text-[#668E20] shrink-0">Buscar</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={startManualPatientEntry}
+                      title="Completar datos del paciente manualmente"
+                      className="h-10 px-2.5 rounded-xl border border-[#E9E5E7] bg-white hover:bg-slate-50 text-xs font-medium text-[#626573] hover:text-[#20212B] transition-colors cursor-pointer shrink-0"
+                    >
+                      Manual
+                    </button>
+                  </div>
                   <button
                     type="button"
-                    onClick={() => void openPatientImportModal()}
-                    disabled={isLoadingPatients}
-                    className="flex-1 h-10 px-3 inline-flex items-center justify-between rounded-xl border border-[#E9E5E7] bg-white hover:border-[#86A83C] hover:bg-[#F0F5DF]/30 text-xs font-medium text-[#626573] hover:text-[#668E20] transition-all cursor-pointer group"
+                    onClick={() => {
+                      setSelectedPatient({
+                        ...createEmptyQuickPatient(),
+                        fullName: "tú persona",
+                        nutritionalFocus: "General / Entregable Express",
+                      });
+                      setIsManualPatientExpanded(false);
+                      toast.info("Modo general activado.");
+                    }}
+                    className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-[#86A83C]/40 bg-[#F0F5DF]/30 hover:border-[#86A83C] hover:bg-[#F0F5DF] text-[#668E20] text-xs font-semibold shadow-2xs transition-all cursor-pointer group"
                   >
-                    <span className="flex items-center gap-2 truncate">
-                      <User className="h-3.5 w-3.5 text-[#86A83C] shrink-0" />
-                      <span>{isLoadingPatients ? "Cargando..." : "Importar paciente"}</span>
-                    </span>
-                    <span className="text-[10px] text-slate-400 group-hover:text-[#668E20] shrink-0">Buscar</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={startManualPatientEntry}
-                    title="Completar datos del paciente manualmente"
-                    className="h-10 px-2.5 rounded-xl border border-[#E9E5E7] bg-white hover:bg-slate-50 text-xs font-medium text-[#626573] hover:text-[#20212B] transition-colors cursor-pointer shrink-0"
-                  >
-                    Manual
+                    <Globe className="h-3.5 w-3.5 text-[#86A83C] group-hover:scale-110 transition-transform" />
+                    <span>Continuar sin paciente (modo general)</span>
                   </button>
                 </div>
               )}
@@ -2596,31 +2614,11 @@ export default function QuickDeliverableClient() {
           </div>
 
           {/* Opciones y notas secundarias */}
-          <div className="flex flex-wrap items-center justify-between gap-2.5 pt-1">
-            <div>
-              {!selectedPatient.fullName?.trim() && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedPatient({
-                      ...createEmptyQuickPatient(),
-                      fullName: "tú persona",
-                      nutritionalFocus: "General / Entregable Express",
-                    });
-                    setIsManualPatientExpanded(false);
-                    toast.info("Modo general activado.");
-                  }}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:border-[#86A83C] hover:bg-[#F0F5DF]/50 text-slate-700 hover:text-[#668E20] text-xs font-semibold shadow-2xs transition-all cursor-pointer group"
-                >
-                  <Globe className="h-3.5 w-3.5 text-[#86A83C] group-hover:scale-110 transition-transform" />
-                  <span>Continuar sin paciente (modo general)</span>
-                </button>
-              )}
-            </div>
+          <div className="flex items-center justify-end gap-2.5 pt-1">
             <button
               type="button"
               onClick={() => setIsNotesExpanded((prev) => !prev)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:border-[#86A83C] hover:bg-[#F0F5DF]/50 text-slate-700 hover:text-[#668E20] text-xs font-semibold shadow-2xs transition-all cursor-pointer ml-auto"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:border-[#86A83C] hover:bg-[#F0F5DF]/50 text-slate-700 hover:text-[#668E20] text-xs font-semibold shadow-2xs transition-all cursor-pointer"
             >
               <ChevronDown className={cn("h-3.5 w-3.5 text-[#86A83C] transition-transform duration-200", isNotesExpanded && "rotate-180")} />
               <span>{isNotesExpanded ? "Ocultar notas y objetivos" : "+ Agregar notas u objetivo"}</span>

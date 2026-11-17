@@ -111,7 +111,7 @@ export function ClinicalAlerts({ result, mnaResult }: ClinicalAlertsProps) {
           }`}
         >
           {alert.severity === "critical" && (
-            <ShieldAlert className="w-5 h-5 text-rose-600 shrink-0 mt-0.5 animate-pulse" />
+            <ShieldAlert className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
           )}
           {alert.severity === "warning" && (
             <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />

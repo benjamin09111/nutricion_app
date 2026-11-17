@@ -335,7 +335,7 @@ export function PatientFichaClinicaTab({
               </button>
               <button
                 onClick={onSave}
-                className="h-9 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shadow-md active:scale-95"
+                className="h-9 px-5 rounded-xl bg-[#86A83C] hover:bg-[#78A82F] text-white font-semibold text-xs tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs active:scale-95"
               >
                 <Save className="w-3.5 h-3.5" />
                 GUARDAR CAMBIOS
@@ -347,7 +347,7 @@ export function PatientFichaClinicaTab({
         {/* ── 1. Datos del Paciente ──────────────────────────────────────── */}
         {showSection("identificacion") && (
           <FormStepCard
-            icon={<User className="w-4 h-4 text-indigo-600" />}
+            icon={<User className="w-4 h-4 text-[#86A83C]" />}
             title="Datos del Paciente"
             description="Información básica de identificación"
           >
@@ -466,10 +466,10 @@ export function PatientFichaClinicaTab({
               </div>
 
               {g === "Femenino" && (
-                <div className="space-y-3 p-4 rounded-2xl bg-emerald-50/50 border border-emerald-100">
+                <div className="space-y-3 p-4 rounded-2xl bg-[#F0F5DF]/60 border border-[#DDE7B8]">
                   <div className="flex items-center gap-2">
-                    <User className="w-4 h-4 text-emerald-600" />
-                    <p className="text-xs font-bold text-emerald-700 uppercase tracking-wider">
+                    <User className="w-4 h-4 text-[#86A83C]" />
+                    <p className="text-xs font-bold text-[#668E20] uppercase tracking-wider">
                       Condición femenina
                     </p>
                   </div>
@@ -480,7 +480,7 @@ export function PatientFichaClinicaTab({
                       onChange={(e) =>
                         updateClinical("gynecoObstetric", "isPregnant", e.target.checked)
                       }
-                      className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                      className="h-4 w-4 rounded border-slate-300 accent-[#86A83C] text-[#86A83C]"
                     />
                     <span className="text-sm font-semibold text-slate-700">¿Está embarazada?</span>
                     {isEditing && (
@@ -540,7 +540,7 @@ export function PatientFichaClinicaTab({
         {/* ── 2. Objetivos y Actividad ────────────────────────────────────── */}
         {showSection("objetivos") && (
           <FormStepCard
-            icon={<Target className="w-4 h-4 text-indigo-600" />}
+            icon={<Target className="w-4 h-4 text-[#86A83C]" />}
             title="Objetivos y Actividad"
             description="Motivo de consulta, enfoque nutricional y nivel de actividad"
           >
@@ -613,7 +613,7 @@ export function PatientFichaClinicaTab({
                           className={cn(
                             "h-10 rounded-xl border text-xs font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1 px-2",
                             isSelected
-                              ? "border-emerald-500 bg-emerald-600 text-white shadow-sm"
+                              ? "border-[#86A83C] bg-[#86A83C] text-white shadow-2xs"
                               : "border-amber-300/80 bg-white text-slate-700 hover:bg-amber-100/50",
                           )}
                         >
@@ -636,7 +636,7 @@ export function PatientFichaClinicaTab({
         {/* ── 3. Antropometría y Cálculos ─────────────────────────────────── */}
         {showSection("antropometria") && (
           <FormStepCard
-            icon={<Ruler className="w-4 h-4 text-indigo-600" />}
+            icon={<Ruler className="w-4 h-4 text-[#86A83C]" />}
             title="Antropometría y Cálculos"
             description="Peso, talla y mediciones avanzadas"
           >
@@ -820,7 +820,7 @@ export function PatientFichaClinicaTab({
         {/* ── 4. Anamnesis General ────────────────────────────────────────── */}
         {showSection("anamnesis-general") && (
           <FormStepCard
-            icon={<Stethoscope className="w-4 h-4 text-indigo-600" />}
+            icon={<Stethoscope className="w-4 h-4 text-[#86A83C]" />}
             title="Anamnesis General"
             description="Antecedentes clínicos relevantes"
           >
@@ -943,7 +943,7 @@ export function PatientFichaClinicaTab({
         {/* ── 5. Anamnesis Nutricional ────────────────────────────────────── */}
         {showSection("anamnesis-nutricional") && (
           <FormStepCard
-            icon={<Apple className="w-4 h-4 text-indigo-600" />}
+            icon={<Apple className="w-4 h-4 text-[#86A83C]" />}
             title="Anamnesis Nutricional"
             description="Preferencias, restricciones y observaciones"
           >
@@ -1083,7 +1083,7 @@ export function PatientFichaClinicaTab({
               />
             ) : (
               <FormStepCard
-                icon={<Baby className="w-4 h-4 text-indigo-600" />}
+                icon={<Baby className="w-4 h-4 text-[#86A83C]" />}
                 title="Modo Gestante"
                 description="Activa el checkbox de embarazo en Datos del Paciente para ver el panel gestacional."
               >
@@ -1104,7 +1104,7 @@ export function PatientFichaClinicaTab({
               "h-6 w-6 rounded-md flex items-center justify-center transition-all cursor-pointer shrink-0",
               isEditing
                 ? "text-slate-200 cursor-not-allowed"
-                : "text-slate-500 hover:text-indigo-600 hover:bg-indigo-50",
+                : "text-slate-500 hover:text-[#668E20] hover:bg-[#F0F5DF]",
             )}
             title={isEditing ? "Modo edición activo" : "Editar paciente"}
           >
@@ -1120,7 +1120,7 @@ export function PatientFichaClinicaTab({
                 className={cn(
                   "w-full text-left text-sm rounded-lg px-3 py-2 transition-colors",
                   selectedSection === s.id
-                    ? "bg-indigo-50 text-indigo-700 font-semibold"
+                    ? "bg-[#F0F5DF] text-[#668E20] font-semibold"
                     : "text-slate-500 hover:bg-slate-50 hover:text-slate-700",
                 )}
               >

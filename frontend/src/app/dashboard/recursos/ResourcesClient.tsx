@@ -7,6 +7,7 @@ import {
   Check,
   ChevronDown,
   ExternalLink,
+  Eye,
   FileText,
   Hash,
   Image as ImageIcon,
@@ -331,10 +332,12 @@ export function ResourcesClient() {
             <span className="text-[11px] font-medium text-[#848792]">{fmtDate(resource.updatedAt || resource.createdAt)}</span>
             <button
               type="button"
-              className="text-xs font-semibold text-[#7842D4] hover:bg-[#F3ECFC] px-3 py-1.5 rounded-xl transition-all cursor-pointer"
+              className="h-8 w-8 rounded-xl flex items-center justify-center text-[#7842D4] hover:bg-[#F3ECFC] transition-colors cursor-pointer"
               onClick={() => setResourceToPreview(resource)}
+              title="Vista previa"
+              aria-label="Vista previa"
             >
-              Ver recurso
+              <Eye className="h-4 w-4" />
             </button>
           </div>
         </div>
@@ -754,22 +757,25 @@ export function ResourcesClient() {
                             </div>
                           </div>
                           <p className="mt-3 line-clamp-3 text-xs leading-relaxed text-[#626573] font-normal">{short(plain(resource.content || ""), 150)}</p>
-                          <div className="mt-auto flex items-center justify-between pt-4 border-t border-[#F0ECEE]">
+                          <div className="mt-auto flex items-center justify-end gap-1.5 pt-4 border-t border-[#F0ECEE]">
                             <button
                               type="button"
-                              className="text-xs font-semibold text-[#7842D4] hover:bg-[#F3ECFC] px-3 py-1.5 rounded-xl transition-all cursor-pointer"
+                              className="h-8 w-8 rounded-xl flex items-center justify-center text-[#7842D4] hover:bg-[#F3ECFC] transition-colors cursor-pointer"
                               onClick={() => setResourceToPreview(resource)}
+                              title="Vista previa"
+                              aria-label="Vista previa"
                             >
-                              Ver recurso
+                              <Eye className="h-4 w-4" />
                             </button>
                             {resource.isMine && canEditResources && (
                               <button
                                 type="button"
-                                className="h-7 w-7 rounded-lg flex items-center justify-center text-[#848792] hover:text-[#7842D4] hover:bg-purple-50 transition-colors cursor-pointer"
+                                className="h-8 w-8 rounded-xl flex items-center justify-center text-[#848792] hover:text-[#7842D4] hover:bg-purple-50 transition-colors cursor-pointer"
                                 onClick={() => openEdit(resource)}
                                 title="Editar"
+                                aria-label="Editar"
                               >
-                                <Pencil className="h-3.5 w-3.5" />
+                                <Pencil className="h-4 w-4" />
                               </button>
                             )}
                           </div>
