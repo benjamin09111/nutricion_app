@@ -16,6 +16,7 @@ import {
   Scale,
   Ban,
   X,
+  ArrowLeftRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -64,6 +65,9 @@ interface DietMealsSectionProps {
 const createMealRowId = () =>
   `meal-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
+const createSubstituteRowId = () =>
+  `sub-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
 export function DietMealsSection({
   includeMealsSection,
   setIncludeMealsSection,
@@ -82,6 +86,7 @@ export function DietMealsSection({
   const [activeDishSelectorId, setActiveDishSelectorId] = useState<string | null>(null);
   const [showPortionGuide, setShowPortionGuide] = useState(true);
   const [avoidFoodInput, setAvoidFoodInput] = useState("");
+  const [substituteRows, setSubstituteRows] = useState<Array<{ id: string; original: string; substitutes: string[]; draft: string }>>([]);
 
   const submitAvoidFood = () => {
     if (!addAvoidFood) return;
@@ -119,6 +124,28 @@ export function DietMealsSection({
 
   const removeMealRow = (id: string) => {
     setDietMealsTableData((prev) => prev.filter((row) => row.id !== id));
+  };
+
+  const addSubstituteRow = () => {
+    setSubstituteRows((current) => [
+      ...current,
+      { id: createSubstituteRowId(), original: "", substitutes: [], draft: "" },
+    ]);
+  };
+
+  const updateSubstituteRow = (id: string, field: "original" | "draft", value: string) => {
+    setSubstituteRows((current) => current.map((row) => row.id === id ? { ...row, [field]: value } : row));
+  };
+
+  const addSubstitute = (id: string) => {
+    setSubstituteRows((current) => current.map((row) => {
+      if (row.id !== id || !row.draft.trim()) return row;
+      return { ...row, substitutes: [...row.substitutes, row.draft.trim()], draft: "" };
+    }));
+  };
+
+  const removeSubstitute = (id: string, index: number) => {
+    setSubstituteRows((current) => current.map((row) => row.id === id ? { ...row, substitutes: row.substitutes.filter((_, itemIndex) => itemIndex !== index) } : row));
   };
 
   const selectDishForMealRow = (rowId: string, dish: DietMealBlock) => {
@@ -260,7 +287,7 @@ export function DietMealsSection({
                                 />
                                 <div className="absolute left-0 top-full z-30 mt-1 w-full max-w-md rounded-2xl border border-slate-200 bg-white p-3 shadow-xl space-y-2">
                                   <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                                       Platos creados ({dishes.length})
                                     </span>
                                     <button
@@ -381,7 +408,7 @@ export function DietMealsSection({
             {/* Agregar Fila Rápida por Categoría */}
             <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 mr-1">Añadir comida:</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mr-1">Añadir comida:</span>
                 {QUICK_SECTIONS.map((sec) => (
                   <button
                     key={sec}
@@ -406,7 +433,7 @@ export function DietMealsSection({
               <Ban className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-base font-black text-slate-900">Alimentos a evitar</h3>
+              <h3 className="text-base font-bold text-slate-900">Alimentos a evitar</h3>
               <p className="text-xs text-slate-500">
                 Agrega los alimentos que {patientName || "el paciente"} debe evitar en este plan.
               </p>
@@ -474,6 +501,54 @@ export function DietMealsSection({
         )}
       </div>
 
+      {/* Sustitutos */}
+      <div className="space-y-4 rounded-2xl border border-indigo-100 bg-indigo-50/30 p-5 sm:p-6 shadow-2xs">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-100 text-indigo-700">
+              <ArrowLeftRight className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-900">Sustitutos</h3>
+              <p className="text-xs text-slate-500">Define alternativas prácticas para cada alimento o plato.</p>
+            </div>
+          </div>
+          <Button type="button" onClick={addSubstituteRow} className="h-9 rounded-xl bg-indigo-600 px-3 text-xs font-bold text-white hover:bg-indigo-700">
+            <Plus className="mr-1.5 h-3.5 w-3.5" /> Agregar fila
+          </Button>
+        </div>
+
+        {substituteRows.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-indigo-200 bg-white/70 px-4 py-4 text-xs text-slate-500">Agrega un alimento o plato original y una o más alternativas.</p>
+        ) : (
+          <div className="space-y-3">
+            {substituteRows.map((row) => (
+              <div key={row.id} className="grid gap-3 rounded-xl border border-indigo-100 bg-white p-3 md:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Original</label>
+                  <Input value={row.original} onChange={(event) => updateSubstituteRow(row.id, "original", event.target.value)} placeholder="Ej: arroz blanco" className="h-10 rounded-xl border-slate-200 text-xs" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Alternativas</label>
+                  <div className="flex gap-2">
+                    <Input value={row.draft} onChange={(event) => updateSubstituteRow(row.id, "draft", event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addSubstitute(row.id); } }} placeholder="Ej: quinoa, papa cocida" className="h-10 flex-1 rounded-xl border-slate-200 text-xs" />
+                    <Button type="button" onClick={() => addSubstitute(row.id)} className="h-10 w-10 rounded-xl bg-indigo-600 p-0 text-white hover:bg-indigo-700"><Plus className="h-4 w-4" /></Button>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {row.substitutes.map((substitute, index) => (
+                      <span key={`${row.id}-${index}`} className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2.5 py-1 text-[11px] font-bold text-indigo-700">
+                        {substitute}
+                        <button type="button" onClick={() => removeSubstitute(row.id, index)} className="cursor-pointer text-indigo-400 hover:text-rose-600"><X className="h-3 w-3" /></button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Guía de Porciones de Intercambio (Collapsible con Toggle para PDF) */}
       <div className="space-y-4 rounded-2xl border border-[#E9E5E7] bg-white p-5 sm:p-6 shadow-2xs">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -482,7 +557,7 @@ export function DietMealsSection({
               <Scale className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-base font-black text-slate-900">Guía de Porciones de Intercambio</h3>
+              <h3 className="text-base font-bold text-slate-900">Guía de Porciones de Intercambio</h3>
               <p className="text-xs text-slate-500">
                 Resumen de equivalencias y porciones para orientar al paciente.
               </p>
@@ -521,7 +596,7 @@ export function DietMealsSection({
                   key={item.id}
                   className="rounded-2xl border border-slate-100 bg-slate-50/60 p-3.5 transition-all hover:bg-slate-50"
                 >
-                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                     {item.category}
                   </span>
                   <p className="mt-0.5 text-sm font-bold text-slate-800">{item.portion}</p>

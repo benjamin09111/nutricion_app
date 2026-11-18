@@ -98,7 +98,7 @@ export const DietGenerateDishesModal: React.FC<DietGenerateDishesModalProps> = (
               <Sparkles className="h-5 w-5 text-emerald-700" />
             </div>
             <div>
-              <h3 className="text-base font-black text-slate-950 flex items-center gap-2">
+              <h3 className="text-base font-bold text-slate-950 flex items-center gap-2">
                 Generar Platos con Naty IA
               </h3>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
@@ -128,12 +128,12 @@ export const DietGenerateDishesModal: React.FC<DietGenerateDishesModalProps> = (
               />
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-black uppercase tracking-wider text-emerald-950 flex items-center gap-1.5">
+                  <span className="text-xs font-bold uppercase tracking-wider text-emerald-950 flex items-center gap-1.5">
                     <Apple className="h-4 w-4 text-emerald-600" />
                     Considerar dieta base seleccionada (Paso anterior)
                   </span>
                   {baseDietFoodsCount > 0 && (
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-200 text-emerald-900">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-200 text-emerald-900">
                       {baseDietFoodsCount} alimentos
                     </span>
                   )}
@@ -149,7 +149,7 @@ export const DietGenerateDishesModal: React.FC<DietGenerateDishesModalProps> = (
 
           {/* Dish Counts per Meal Section */}
           <div className="space-y-3">
-            <label className="text-xs font-black uppercase tracking-wider text-slate-500 flex items-center justify-between">
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center justify-between">
               <span className="flex items-center gap-1.5">
                 <Sliders className="h-4 w-4 text-emerald-600" />
                 Cantidad de platos por tiempo de comida
@@ -165,7 +165,7 @@ export const DietGenerateDishesModal: React.FC<DietGenerateDishesModalProps> = (
                     key={key}
                     className="flex items-center justify-between p-3 rounded-2xl border border-slate-200/80 bg-slate-50/50"
                   >
-                    <span className="text-xs font-extrabold text-slate-800">
+                    <span className="text-xs font-bold text-slate-800">
                       {label}
                     </span>
                     <div className="flex items-center gap-2">
@@ -177,7 +177,7 @@ export const DietGenerateDishesModal: React.FC<DietGenerateDishesModalProps> = (
                       >
                         <Minus className="h-3 w-3" />
                       </button>
-                      <span className="w-5 text-center text-xs font-mono font-black text-slate-900">
+                      <span className="w-5 text-center text-xs font-mono font-bold text-slate-900">
                         {count}
                       </span>
                       <button
@@ -197,7 +197,7 @@ export const DietGenerateDishesModal: React.FC<DietGenerateDishesModalProps> = (
 
           {/* Special Instructions for Naty */}
           <div className="space-y-2">
-            <label className="text-xs font-black uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
               <FileText className="h-4 w-4 text-emerald-600" />
               Instrucciones especiales para Naty
             </label>

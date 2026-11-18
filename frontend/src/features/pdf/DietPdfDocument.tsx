@@ -193,12 +193,8 @@ function groupFoods(foods: DietFood[]): Record<string, DietFood[]> {
 // ─── Cover Page ──────────────────────────────────────────────────────────────
 
 function CoverPage({ data }: { data: DietPdfData }) {
-  const grouped = groupFoods(data.foods);
-  const groupCount = Object.keys(grouped).length;
-
   const extraMeta = [
     { label: "Alimentos", value: `${data.foods.length}` },
-    { label: "Grupos", value: `${groupCount}` },
   ];
 
   return (
@@ -218,10 +214,6 @@ function CoverPage({ data }: { data: DietPdfData }) {
         <View style={S.statCard}>
           <Text style={S.statLabel}>Total Alimentos</Text>
           <Text style={S.statVal}>{data.foods.length}</Text>
-        </View>
-        <View style={S.statCard}>
-          <Text style={S.statLabel}>Grupos Alimentarios</Text>
-          <Text style={S.statVal}>{groupCount}</Text>
         </View>
         <View style={S.statCard}>
           <Text style={S.statLabel}>Restricciones Activas</Text>
@@ -245,34 +237,6 @@ function CoverPage({ data }: { data: DietPdfData }) {
         <PdfAvoidFoodsSection avoidFoods={data.activeConstraints} title="Restricciones aplicadas a este plan" />
       )}
 
-      {/* Top alimentos destacados */}
-      <View style={S.section}>
-        <PdfSectionHeader title="Resumen de Grupos Alimenticios" icon="leaf" />
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-          {Object.entries(grouped).map(([grupo, foods], idx) => (
-            <View
-              key={idx}
-              style={{
-                width: "48%",
-                backgroundColor: colors.slate50,
-                borderWidth: 1,
-                borderColor: colors.slate200,
-                borderRadius: 8,
-                padding: 6,
-                marginBottom: 4,
-              }}
-            >
-              <Text style={{ fontSize: 8, fontFamily: "Helvetica-Bold", color: colors.primaryDark }}>
-                {grupo}
-              </Text>
-              <Text style={{ fontSize: 7, color: colors.slate500, marginTop: 1 }}>
-                {foods.length} alimentos seleccionados
-              </Text>
-            </View>
-          ))}
-        </View>
-      </View>
-
       <PdfBrandedFooter />
     </Page>
   );
@@ -284,13 +248,23 @@ function FoodTablePage({
   grouped,
   patientName,
   dietName,
+  generatedAt,
 }: {
   grouped: Record<string, DietFood[]>;
   patientName?: string;
   dietName: string;
+  generatedAt?: string;
 }) {
   return (
     <Page size="A4" style={S.page}>
+      <PdfBrandedHeader
+        title={dietName || "Plan de Alimentación"}
+        subtitle="Pauta Nutricional Personalizada"
+        badgeLabel="Plan Nutricional"
+        patientName={patientName}
+        date={generatedAt}
+        extraMeta={[{ label: "Alimentos", value: `${Object.values(grouped).reduce((total, foods) => total + foods.length, 0)}` }]}
+      />
       <PdfSectionHeader title={`Catálogo de Alimentos · ${dietName}`} icon="cutlery" />
 
       {Object.entries(grouped).map(([grupo, foods]) => (
@@ -350,12 +324,12 @@ export function DietPdfDocument({ data }: { data: DietPdfData }) {
       subject="Plan Alimentario Personalizado"
       creator="NutriNet Canva Engine"
     >
-      <CoverPage data={data} />
       {showFoodTable && (
         <FoodTablePage
           grouped={grouped}
           patientName={data.patientName}
           dietName={data.dietName}
+          generatedAt={data.generatedAt}
         />
       )}
     </Document>

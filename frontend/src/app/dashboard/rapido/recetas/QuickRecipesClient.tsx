@@ -10,6 +10,7 @@ import {
 } from "@/lib/nutrition-formulas";
 import {
   ChefHat,
+  CheckCircle2,
   Filter,
   FileText,
   Library,
@@ -673,6 +674,7 @@ export default function QuickRecipesClient() {
   const [includeNutrients, setIncludeNutrients] = useState(true);
   const [useDietAsAbsoluteTruth, setUseDietAsAbsoluteTruth] = useState(false);
   const instructionsOptional = recipeCreationMode === "patient" || recipeCreationMode === "general";
+  const isGeneralMode = recipeCreationMode === "general";
 
   const missingGenerationFields = {
     allowedFoodsMain: parseLines(allowedFoodsMainText).length === 0,
@@ -1975,6 +1977,29 @@ export default function QuickRecipesClient() {
     }
   };
 
+  const handleDownloadPlainText = () => {
+    const text = [
+      title.trim() || "Recetas y platos generales",
+      quickHashtags.trim() ? `Hashtags: ${quickHashtags.trim()}` : "",
+      "",
+      ...meaningfulDishes.map((dish, index) => [
+        `${index + 1}. ${dish.title}`,
+        dish.mealSection ? `Categoría: ${dish.mealSection}` : "",
+        dish.ingredients.length > 0 ? `Ingredientes: ${dish.ingredients.map((ingredient) => `${ingredient.name} ${ingredient.quantity}`).join(", ")}` : "",
+        dish.preparation ? `Preparación: ${dish.preparation}` : "",
+      ].filter(Boolean).join("\n")),
+    ].filter(Boolean).join("\n");
+    const url = URL.createObjectURL(new Blob([text], { type: "text/plain;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${(title.trim() || "recetas-generales").replace(/\s+/g, "_")}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success("Texto plano descargado correctamente.");
+  };
+
   const handlePreviewPdf = async () => {
     if (isHydrating || isExportDisabled) return;
     setIsGeneratingPreview(true);
@@ -2246,7 +2271,7 @@ export default function QuickRecipesClient() {
           <button
             type="button"
             onClick={() => void handlePatientModeExamplePreview()}
-            className="cursor-pointer text-xs font-bold text-purple-700 underline decoration-purple-300 underline-offset-4 transition-colors hover:text-purple-900 hover:decoration-purple-600"
+            className="cursor-pointer text-xs font-bold text-indigo-700 underline decoration-indigo-300 underline-offset-4 transition-colors hover:text-indigo-900 hover:decoration-indigo-600"
             title="Ver cómo se verá el documento de recetas para paciente"
           >
             Ver vista previa del plan
@@ -2272,16 +2297,18 @@ export default function QuickRecipesClient() {
             <div className="space-y-2">
               <p className="text-xs font-semibold text-[#20212B]">Modo de funcionamiento</p>
               <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
-                <button type="button" onClick={() => { setRecipeCreationMode("patient"); setCurrentStep(0); }} className={cn("rounded-xl border p-3 text-left text-xs transition-all", recipeCreationMode === "patient" ? "border-purple-300 bg-purple-50 text-purple-800" : "border-slate-200 bg-white text-slate-600 hover:border-purple-200")}>
-                  <span className="font-bold">Recetas para paciente</span>
+                <button type="button" aria-pressed={recipeCreationMode === "patient"} onClick={() => { setRecipeCreationMode("patient"); setCurrentStep(0); }} className={cn("relative rounded-xl border p-3 text-left text-xs transition-all", recipeCreationMode === "patient" ? "border-indigo-500 bg-indigo-50 text-indigo-900 ring-2 ring-indigo-200 shadow-sm" : "border-slate-200 bg-white text-slate-600 hover:border-indigo-300 hover:bg-indigo-50/40")}>
+                  {recipeCreationMode === "patient" && <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-indigo-600 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-white"><CheckCircle2 className="h-3 w-3" /> Activo</span>}
+                  <span className="block pr-14 font-bold">Recetas para paciente</span>
                   <span className="mt-1 block text-[10px] leading-4">Crea un documento especial para un paciente que contenga recetas y platos recomendados y personalizados.</span>
                 </button>
                 <button type="button" disabled className="cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 p-3 text-left text-xs text-slate-400 opacity-75">
                   <span className="font-bold">Documento basado en dieta</span>
                   <span className="mt-1 block text-[10px] leading-4">Bloqueado por ahora.</span>
                 </button>
-                <button type="button" onClick={() => { setRecipeCreationMode("general"); setSelectedPatient(null); setCurrentStep(0); }} className={cn("rounded-xl border p-3 text-left text-xs transition-all", recipeCreationMode === "general" ? "border-purple-300 bg-purple-50 text-purple-800" : "border-slate-200 bg-white text-slate-600 hover:border-purple-200")}>
-                  <span className="font-bold">Recetas y platos generales</span>
+                <button type="button" aria-pressed={recipeCreationMode === "general"} onClick={() => { setRecipeCreationMode("general"); setSelectedPatient(null); setCurrentStep(0); }} className={cn("relative rounded-xl border p-3 text-left text-xs transition-all", recipeCreationMode === "general" ? "border-indigo-500 bg-indigo-50 text-indigo-900 ring-2 ring-indigo-200 shadow-sm" : "border-slate-200 bg-white text-slate-600 hover:border-indigo-300 hover:bg-indigo-50/40")}>
+                  {recipeCreationMode === "general" && <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-indigo-600 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-white"><CheckCircle2 className="h-3 w-3" /> Activo</span>}
+                  <span className="block pr-14 font-bold">Recetas y platos generales</span>
                   <span className="mt-1 block text-[10px] leading-4 opacity-75">Crea y guarda nuevas recetas y platos para tener en tu biblioteca, y así re utilizarlos o compartirlos.</span>
                 </button>
               </div>
@@ -2331,7 +2358,7 @@ export default function QuickRecipesClient() {
                     <User className="h-4 w-4" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Paciente importado</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Paciente seleccionado</p>
                     <p className="truncate text-sm font-bold text-slate-900">{selectedPatient?.fullName || "Sin paciente vinculado"}</p>
                   </div>
                 </div>
@@ -2339,10 +2366,10 @@ export default function QuickRecipesClient() {
                   Cambiar paciente
                 </Button>
               </div>
-              <details className="group rounded-xl bg-white">
+              <details className="group rounded-xl bg-white" open>
                 <summary className="flex cursor-pointer list-none items-center justify-between py-2 text-xs font-bold text-slate-600 [&::-webkit-details-marker]:hidden">
-                  Ver información clínica
-                  <span className="text-[11px] text-purple-600 transition-transform group-open:rotate-180">⌄</span>
+                  Ficha clínica resumida
+                  <span className="text-[11px] text-indigo-600 transition-transform group-open:rotate-180">⌄</span>
                 </summary>
                 <div className="grid gap-2 border-t border-slate-100 pt-3 sm:grid-cols-2 lg:grid-cols-3">
                   <div><p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Edad</p><p className="text-xs font-semibold text-slate-800">{selectedPatient?.birthDate ? `${calculateAge(selectedPatient.birthDate) || "—"} años` : selectedPatient?.ageYears ? `${selectedPatient.ageYears} años` : "—"}</p></div>
@@ -2576,7 +2603,7 @@ export default function QuickRecipesClient() {
                         Recetas generadas ({dishes.length})
                       </h3>
                       <p className="mt-0.5 text-xs text-[#668E20] font-medium">
-                        Preparaciones disponibles en texto plano. Puedes copiarlas, guardarlas o descargar el PDF.
+                         Preparaciones disponibles en texto plano. Puedes copiarlas y revisarlas antes de guardarlas en tu biblioteca.
                       </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -2591,31 +2618,12 @@ export default function QuickRecipesClient() {
                       </Button>
                       <Button
                         type="button"
-                        variant="outline"
-                        onClick={() => void handlePreviewPdf()}
-                        disabled={isGeneratingPreview}
-                        className="h-9 rounded-xl border-slate-200 bg-white text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer"
+                        disabled
+                        title="Guardar en biblioteca está inhabilitado en la demo"
+                        className="h-9 cursor-not-allowed rounded-xl bg-slate-200 text-xs font-bold text-slate-500 disabled:opacity-100"
                       >
-                        <FileText className="mr-1.5 h-3.5 w-3.5" />
-                        Vista previa
-                      </Button>
-                      <Button
-                        type="button"
-                        onClick={handleDownloadPdf}
-                        disabled={isExportingPdf}
-                        className="h-9 rounded-xl bg-purple-600 hover:bg-purple-700 text-xs font-bold text-white shadow-2xs cursor-pointer"
-                      >
-                        <Download className="mr-1.5 h-3.5 w-3.5" />
-                        Descargar PDF
-                      </Button>
-                      <Button
-                        type="button"
-                        onClick={() => setIsSaveCreationModalOpen(true)}
-                        disabled={isSaving}
-                        className="h-9 rounded-xl bg-[#86A83C] hover:bg-[#78A82F] text-xs font-bold text-white shadow-2xs cursor-pointer"
-                      >
-                        <Save className="mr-1.5 h-3.5 w-3.5" />
-                        Guardar en creaciones
+                        <Lock className="mr-1.5 h-3.5 w-3.5" />
+                        Guardar en mis platos y recetas
                       </Button>
                     </div>
                   </div>
@@ -2710,6 +2718,7 @@ export default function QuickRecipesClient() {
           onBack={goBack}
            onNext={handleWizardNext}
            isLastStep={currentStep === WIZARD_STEPS.length - 1}
+           hideNextOnLastStep
            nextDisabled={
              (currentStep === 0 && !instructionsOptional && (instructionsMode === "creation" ? !selectedBaseCreation : (!skipInstructions && Object.values(missingGenerationFields).some(Boolean)))) ||
              (currentStep === 1 && !hasGenerationTarget) ||
@@ -4034,7 +4043,16 @@ export default function QuickRecipesClient() {
                 </div>
               </div>
               <div className="flex flex-wrap gap-2 pt-2">
-                {isGuestMode() ? (
+                {isGeneralMode ? (
+                  <div className="flex w-full items-center justify-between gap-3">
+                    <Button onClick={handleDownloadPlainText} className="h-10 w-auto rounded-xl bg-indigo-600 px-4 font-bold text-white hover:bg-indigo-700">
+                      Descargar texto plano
+                    </Button>
+                    <Button disabled title="Guardar en biblioteca está inhabilitado en la demo" className="h-10 w-auto cursor-not-allowed rounded-xl bg-slate-200 px-4 font-bold text-slate-500 disabled:opacity-100">
+                      <Lock className="mr-2 h-4 w-4" /> Guardar en mis platos y recetas
+                    </Button>
+                  </div>
+                ) : isGuestMode() ? (
                   <>
                     <Button disabled title="Guardar creaciones está inhabilitado en la demo" className="h-10 cursor-not-allowed rounded-xl bg-slate-200 px-4 font-bold text-slate-500 disabled:opacity-100">
                       <Lock className="mr-2 h-4 w-4" /> Descargar y guardar PDF
@@ -4042,10 +4060,10 @@ export default function QuickRecipesClient() {
                     <Button disabled title="Guardar creaciones está inhabilitado en la demo" className="h-10 cursor-not-allowed rounded-xl bg-slate-200 px-4 font-bold text-slate-500 disabled:opacity-100">
                       <Lock className="mr-2 h-4 w-4" /> Guardar
                     </Button>
-                    <Button onClick={() => void handlePreviewPdf()} disabled={isGeneratingPreview || isExportDisabled} className="h-10 rounded-xl border border-purple-200 bg-purple-50 px-4 font-bold text-purple-700 hover:bg-purple-100 disabled:cursor-not-allowed disabled:opacity-50">
+                    <Button onClick={() => void handlePreviewPdf()} disabled={isGeneratingPreview || isExportDisabled} className="h-10 rounded-xl border border-indigo-200 bg-indigo-50 px-4 font-bold text-indigo-700 hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-50">
                       {isGeneratingPreview ? "Generando vista previa..." : "Generar vista previa"}
                     </Button>
-                    <Button onClick={() => void handleDownloadPdf()} disabled={isExportingPdf || isExportDisabled} className="h-10 rounded-xl bg-purple-600 px-4 font-bold text-white hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50">
+                    <Button onClick={() => void handleDownloadPdf()} disabled={isExportingPdf || isExportDisabled} className="h-10 rounded-xl bg-indigo-600 px-4 font-bold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50">
                       {isExportingPdf ? "Descargando..." : "Descargar PDF"}
                     </Button>
                   </>

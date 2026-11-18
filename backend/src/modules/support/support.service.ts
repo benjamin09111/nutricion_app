@@ -40,6 +40,17 @@ export class SupportService {
       },
     });
 
+    if (dbType === SupportRequestType.CONTACT) {
+      this.mailService
+        .sendDemoInterestEmail({
+          email: data.email,
+          fullName: data.message?.match(/Nombre:\s*([^\.]+)\./i)?.[1],
+        })
+        .catch((err) =>
+          console.error('Error enviando interés de demo a contacto:', err),
+        );
+    }
+
     if (data.type === 'REUNION' || dbType === SupportRequestType.REUNION) {
       this.mailService
         .sendMeetingRequestEmail({

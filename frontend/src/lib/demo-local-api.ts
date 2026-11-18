@@ -2535,7 +2535,16 @@ export function handleDemoApi(path: string, init?: RequestInit): Response | Prom
         return list[opt] || list[0];
       };
 
-      const dishes = rawTargets.map((target: any, idx: number) => {
+      const expandedTargets = rawTargets.flatMap((target: any) =>
+        Array.from({ length: Math.max(1, Number(target.count) || 1) }, (_, index) => ({
+          ...target,
+          slotId: target.slotId || `slot-${target.mealSection || "meal"}-${index}`,
+          optionIndex: Number.isInteger(target.optionIndex)
+            ? target.optionIndex
+            : index % 3,
+        })),
+      );
+      const dishes = expandedTargets.map((target: any, idx: number) => {
         const mealSection = target.mealSection || "Almuerzo";
         const optionIndex = Number.isInteger(target.optionIndex) ? target.optionIndex : 0;
         const slotId = target.slotId || `slot-${idx}`;

@@ -103,13 +103,13 @@ export function DietCartSection({
           {/* Metric Cards */}
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-2xl border border-[#E9E5E7] bg-white p-4 shadow-2xs">
-              <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Total de Ingredientes</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total de Ingredientes</p>
               <p className="mt-1 text-2xl font-bold text-slate-900">{autoCartItems.length} alimentos</p>
               <p className="mt-0.5 text-xs font-medium text-[#668E20]">Recopilados automáticamente de la dieta y los platos</p>
             </div>
 
             <div className="rounded-2xl border border-[#E9E5E7] bg-white p-4 shadow-2xs">
-              <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Categorías</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Categorías</p>
               <p className="mt-1 text-2xl font-bold text-slate-900">{categories.length} grupos</p>
               <p className="mt-0.5 text-xs font-medium text-slate-500">Organizados por grupo alimenticio</p>
             </div>

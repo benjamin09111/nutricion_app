@@ -1,19 +1,20 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { GraduationCap, ChevronDown, ChevronUp, Calculator, User, Filter, Download, Loader2, RotateCcw, Lock, Save, Apple, MessageCircleHeart } from "lucide-react";
+import Image from "next/image";
+import { ChevronDown, ChevronUp, Calculator, User, Filter, Loader2, RotateCcw, Lock, Apple, MessageCircleHeart, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Textarea";
 import { ActionDockItem } from "@/components/ui/ActionDock";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { ModuleUsageBadges } from "@/components/shared/ModuleUsageBadges";
 import { WorkflowContextBanner } from "@/components/shared/WorkflowContextBanner";
-import { PlanWizardShell } from "@/components/plans";
+import { NatyLoadingOverlay, PlanWizardShell } from "@/components/plans";
+import { NatyPlanChatDemo } from "@/components/plans/NatyPlanChatDemo";
 import { MarketPrice } from "@/features/foods";
 
 import { useDietState } from "@/features/diet/hooks/useDietState";
 import { DietPatientSection } from "@/features/diet/components/DietPatientSection";
-import { DietTemplateImportSection } from "@/features/diet/components/DietTemplateImportSection";
 import { DietConstraintSection } from "@/features/diet/components/DietConstraintSection";
 import { DietMacroSection } from "@/features/diet/components/DietMacroSection";
 import { DietPlannerSection } from "@/features/diet/components/DietPlannerSection";
@@ -31,9 +32,9 @@ import {
   normalizeConstraintList,
   buildFoodInfoPreview,
 } from "@/features/diet/utils/diet-helpers";
-import { useRouter } from "next/navigation";
 import { getTodayDateInputValue } from "@/features/patients/utils/patient-helpers";
 import { toast } from "sonner";
+import { isGuestMode } from "@/lib/demo-local-api";
 
 import { DietMealsSection, DietMealTableRow } from "@/features/diet/components/DietMealsSection";
 
@@ -54,8 +55,7 @@ const WIZARD_STEPS = [
 const QUICK_WIZARD_STEPS = ["Info general", "Dieta", "Plan final"];
 
 export default function DietClient({ initialFoods }: DietClientProps) {
-  const router = useRouter();
-  const state = useDietState({ initialFoods, startEmpty: true });
+  const state = useDietState({ initialFoods, startEmpty: false });
   const wizardSteps = state.flowMode === "quick" ? QUICK_WIZARD_STEPS : WIZARD_STEPS;
   const finalStepIndex = wizardSteps.length - 1;
   const currentStep = state.currentStep;
@@ -64,6 +64,8 @@ export default function DietClient({ initialFoods }: DietClientProps) {
   const [showMacroCalculator, setShowMacroCalculator] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [isFoodReferenceBookOpen, setIsFoodReferenceBookOpen] = useState(false);
+  const [useDefaultDiet, setUseDefaultDiet] = useState(true);
+  const [isNatyChatOpen, setIsNatyChatOpen] = useState(false);
 
   const [isImportRecipeModalOpen, setIsImportRecipeModalOpen] = useState(false);
 
@@ -181,7 +183,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
       : fullStepCompletion;
 
     return completion.reduce<number[]>((completed, isComplete, index) => {
-      if (isComplete) completed.push(index);
+      if (index < currentStep && isComplete) completed.push(index);
       return completed;
     }, []);
   }, [
@@ -200,20 +202,31 @@ export default function DietClient({ initialFoods }: DietClientProps) {
   const actionItems: ActionDockItem[] = useMemo(
     () => [
       {
-        id: "reset",
-        icon: RotateCcw,
-        label: "Reiniciar",
-        description: "Reiniciar plan",
-        variant: "rose",
-        onClick: () => state.setIsResetConfirmOpen(true),
+        id: "patient",
+        icon: state.isLoadingPatients ? Loader2 : User,
+        label: state.selectedPatient?.fullName || "Importar paciente",
+        description: state.selectedPatient ? "Cambiar paciente" : "Importar paciente",
+        variant: state.selectedPatient ? "emerald" : "slate",
+        disabled: state.isLoadingPatients,
+        onClick: () => state.setIsImportPatientModalOpen(true),
       },
       {
         id: "import",
         icon: Filter,
-        label: "Importar dieta creada",
-        description: "Cargar una dieta previamente guardada",
+        label: "Importar creación",
+        description: "Importar creación no disponible por ahora",
         variant: "indigo",
-        onClick: () => state.setIsImportCreationModalOpen(true),
+        disabled: true,
+        onClick: () => undefined,
+      },
+      {
+        id: "naty-chat",
+        icon: Sparkles,
+        customIcon: <Image src="/circle_logo.webp" alt="Naty" width={48} height={48} className="-m-1.5 h-10 w-10 rounded-full object-contain md:-m-2 md:h-12 md:w-12" />,
+        label: "Hablar con Naty",
+        description: "Abrir chat demo de Naty",
+        variant: "indigo",
+        onClick: () => setIsNatyChatOpen(true),
       },
       {
         id: "food-reference-book",
@@ -224,12 +237,12 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         onClick: () => setIsFoodReferenceBookOpen(true),
       },
       {
-        id: "pdf",
-        icon: Download,
-        label: "Descargar PDF",
-        description: "Descargar PDF de la pauta",
-        variant: "indigo",
-        onClick: () => void state.performExportPdf(),
+        id: "reset",
+        icon: RotateCcw,
+        label: "Reiniciar",
+        description: "Reiniciar plan",
+        variant: "rose",
+        onClick: () => state.setIsResetConfirmOpen(true),
       },
     ],
     [state, setIsFoodReferenceBookOpen],
@@ -237,6 +250,20 @@ export default function DietClient({ initialFoods }: DietClientProps) {
 
   return (
     <>
+      <NatyPlanChatDemo isOpen={isNatyChatOpen} onClose={() => setIsNatyChatOpen(false)} />
+      {state.isGeneratingAiDishes && (
+        <NatyLoadingOverlay
+          title="Naty está diseñando el plan..."
+          subtitle="Terminando los últimos detalles..."
+          steps={[
+            "Revisando la dieta base y el contexto clínico...",
+            "Organizando platos y porciones...",
+            "Auditando restricciones y combinaciones...",
+            "Listo para revisar",
+          ]}
+          isDemo={isGuestMode()}
+        />
+      )}
       <ModuleLayout
         title={state.flowMode === "quick" ? "Rápido" : "Pauta Nutricional Personalizada"}
         description={
@@ -252,12 +279,6 @@ export default function DietClient({ initialFoods }: DietClientProps) {
             </p>
           </div>
         }
-        step={{
-          number: currentStep + 1,
-          label: wizardSteps[currentStep],
-          icon: GraduationCap,
-          color: "text-[#86A83C]",
-        }}
         rightContent={<ModuleUsageBadges />}
         rightNavItems={state.isHydrating ? [] : actionItems}
         rightNavDesktopBreakpoint="lg"
@@ -282,6 +303,19 @@ export default function DietClient({ initialFoods }: DietClientProps) {
               patientRestrictions={state.selectedPatient?.dietRestrictions || state.selectedPatient?.tags || []}
             />
 
+            {!state.selectedPatient ? (
+              <div className="rounded-2xl border-2 border-dashed border-purple-200 bg-purple-50/60 p-8 text-center">
+                <User className="mx-auto h-10 w-10 text-purple-500" />
+                <h2 className="mt-3 text-base font-bold text-purple-900">Importa un paciente para comenzar</h2>
+                <p className="mx-auto mt-2 max-w-md text-xs leading-5 text-purple-700">
+                  Personalizado necesita el contexto del paciente para construir una dieta clínica segura y específica.
+                </p>
+                <Button type="button" onClick={() => state.setIsImportPatientModalOpen(true)} className="mt-5 rounded-xl bg-indigo-600 px-5 text-xs font-bold text-white hover:bg-indigo-700">
+                  <User className="mr-2 h-4 w-4" />
+                  Importar paciente
+                </Button>
+              </div>
+            ) : (
             <PlanWizardShell
               steps={wizardSteps}
               currentStep={currentStep}
@@ -396,22 +430,43 @@ export default function DietClient({ initialFoods }: DietClientProps) {
               {/* PASO 2: DIETA */}
               {currentStep === 1 && (
                 <div className="space-y-6">
-                  <DietTemplateImportSection
-                    dietName={state.dietName}
-                    dietTags={state.dietTags}
-                    totalFoodsCount={
-                      Object.values(state.allGroupsToRender).reduce(
-                        (acc, foods) => acc + foods.length,
-                        0,
-                      )
-                    }
-                    totalGroupsCount={Object.keys(state.allGroupsToRender).length}
-                    onImportDiet={() => state.setIsImportCreationModalOpen(true)}
-                    onCreateDiet={() => {
-                      state.saveDraft();
-                      router.push("/dashboard/dietas");
-                    }}
-                  />
+                   <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 text-xs font-bold text-slate-700 shadow-2xs">
+                     <input
+                       type="checkbox"
+                       checked={useDefaultDiet}
+                       onChange={(event) => {
+                         const nextValue = event.target.checked;
+                         setUseDefaultDiet(nextValue);
+                         if (nextValue) state.applyBaseFoods();
+                         else state.startFromZero();
+                       }}
+                       className="h-4 w-4 rounded border-slate-300 text-[#86A83C] focus:ring-[#86A83C]"
+                     />
+                     <span>
+                       <span className="block">Aplicar dieta por defecto</span>
+                       <span className="mt-0.5 block text-[11px] font-medium text-slate-500">Usa la misma plantilla base de categorías y alimentos de Dietas.</span>
+                     </span>
+                   </label>
+                   <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs">
+                     <div>
+                       <h2 className="text-base font-bold text-slate-900">Dieta base</h2>
+                       <p className="mt-1 text-xs text-slate-500">Usa la plantilla base o importa una dieta guardada para comenzar.</p>
+                     </div>
+                     {state.editingCreationId ? (
+                       <div className="flex items-center gap-2">
+                         <Button type="button" variant="outline" onClick={() => state.setIsImportCreationModalOpen(true)} className="h-10 rounded-xl border-indigo-200 bg-indigo-50 px-4 text-xs font-bold text-indigo-700 hover:bg-indigo-100">
+                           Cambiar dieta
+                         </Button>
+                         <Button type="button" variant="outline" onClick={state.removeImportedDiet} className="h-10 rounded-xl border-rose-200 bg-rose-50 px-4 text-xs font-bold text-rose-700 hover:bg-rose-100">
+                           Quitar dieta
+                         </Button>
+                       </div>
+                     ) : (
+                       <Button type="button" onClick={() => state.setIsImportCreationModalOpen(true)} className="h-10 rounded-xl bg-indigo-600 px-4 text-xs font-bold text-white hover:bg-indigo-700">
+                         Importar dieta
+                       </Button>
+                     )}
+                   </div>
 
                   {Object.values(state.allGroupsToRender).some((foods) => foods.length > 0) && (
                     <>
@@ -575,6 +630,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                 />
               )}
             </PlanWizardShell>
+            )}
 
             <DietModals
               isResetConfirmOpen={state.isResetConfirmOpen}

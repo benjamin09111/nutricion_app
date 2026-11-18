@@ -536,10 +536,10 @@ export function DietResourcesSection({
                   )}
 
                   <div>
-                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                       {resource.category}
                     </span>
-                    <h3 className="mt-0.5 text-sm font-black text-slate-900 leading-snug">
+                    <h3 className="mt-0.5 text-sm font-bold text-slate-900 leading-snug">
                       {resource.title}
                     </h3>
                     <p className="mt-1.5 text-xs text-slate-500 leading-relaxed">

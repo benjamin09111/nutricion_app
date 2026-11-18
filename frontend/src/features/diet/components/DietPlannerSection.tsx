@@ -214,7 +214,7 @@ export const DietPlannerSection: React.FC<DietPlannerSectionProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+         <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
           {/* Nueva Categoría Button */}
           <Button
             onClick={() => setIsAddingCategoryInline((prev) => !prev)}
@@ -316,7 +316,7 @@ export const DietPlannerSection: React.FC<DietPlannerSectionProps> = ({
             </div>
 
             <div className="py-4 space-y-3">
-              <label className="text-xs font-black text-slate-500 uppercase tracking-wider block">
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
                 Nombre de Categoría
               </label>
               <div className="relative">
@@ -335,7 +335,7 @@ export const DietPlannerSection: React.FC<DietPlannerSectionProps> = ({
             </div>
 
             <div className="flex-1 overflow-y-auto space-y-2 py-2 border-t border-slate-100">
-              <span className="text-xs font-black text-slate-400 uppercase tracking-wider block">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
                 Sugerencias Disponibles (No usadas primero)
               </span>
               <div className="flex flex-wrap gap-2">

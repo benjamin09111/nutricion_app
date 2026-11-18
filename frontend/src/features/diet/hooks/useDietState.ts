@@ -11,6 +11,7 @@ import {
 import { useDashboardShell } from "@/context/DashboardShellContext";
 import { fetchApi } from "@/lib/api-base";
 import { hasActiveSession } from "@/lib/auth-token";
+import { isGuestMode } from "@/lib/demo-local-api";
 import {
   buildProjectAwarePath,
   createProject,
@@ -1989,7 +1990,7 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
     },
     setMeals?: React.Dispatch<React.SetStateAction<any[]>>
   ) => {
-    if (!hasActiveSession()) {
+    if (!hasActiveSession() && !isGuestMode()) {
       if (typeof window !== "undefined") {
         window.location.href = "/login";
       }
@@ -2288,8 +2289,18 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
   }, [defaultBaseGroups, deletedBaseGroups, includedFoods, customGroups]);
 
   useEffect(() => {
-    if (!isAddFoodModalOpen || !foodSearchQuery.trim()) {
+    if (!isAddFoodModalOpen) {
       setSearchResultFoods([]);
+      setIsSearchingFoods(false);
+      return;
+    }
+
+    if (!foodSearchQuery.trim()) {
+      const targetGroup = normalizeGroupName(activeGroupForAddition || "Varios");
+      const categoryMatches = initialFoods.filter(
+        (food) => normalizeGroupName(food.grupo || "Varios") === targetGroup,
+      );
+      setSearchResultFoods(categoryMatches.slice(0, 100));
       setIsSearchingFoods(false);
       return;
     }
@@ -2362,6 +2373,7 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
     activeGroupForAddition,
     customGroups,
     fullCatalogFoods,
+    initialFoods,
   ]);
 
   useEffect(() => {
@@ -2488,6 +2500,31 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
     clearDietDraftStorage();
     resetDietState();
     toast.success("Dieta reiniciada.");
+  };
+
+  const removeImportedDiet = () => {
+    setEditingCreationId(null);
+    setManualAdditions([]);
+    setCustomGroups([]);
+    setDeletedBaseGroups([]);
+    setFoodStatus(createBaseFoodStatus());
+    setDietName("");
+    setDietTags([]);
+    setPlanObjective("");
+    setCurrentStep(1);
+    toast.success("Dieta importada quitada. Se restauró la plantilla base.");
+  };
+
+  const startFromZero = () => {
+    if (isHydrating) return;
+    clearDietDraftStorage();
+    resetDietState();
+    const emptyStatus: Record<string, "removed"> = {};
+    initialFoods.forEach((food) => {
+      emptyStatus[food.producto] = "removed";
+    });
+    setFoodStatus(emptyStatus);
+    toast.success("Puedes comenzar desde cero.");
   };
 
   const handlePatientLoad = () => {
@@ -3279,6 +3316,8 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
     handleContinue,
     confirmDeleteGroup,
     resetDiet,
+    startFromZero,
+    removeImportedDiet,
     applyBaseFoods,
     applyNutritionistPreferences,
     handlePatientLoad,

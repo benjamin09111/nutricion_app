@@ -115,7 +115,7 @@ export const DietMacroSection: React.FC<DietMacroSectionProps> = ({
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-1">
-          <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
             Objetivos energéticos
           </p>
           <h2 className="flex items-center gap-2 text-base sm:text-lg font-bold text-slate-900">
@@ -144,7 +144,7 @@ export const DietMacroSection: React.FC<DietMacroSectionProps> = ({
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
         <div className="space-y-1.5">
-          <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
             Peso de referencia
           </label>
           <Input
@@ -161,7 +161,7 @@ export const DietMacroSection: React.FC<DietMacroSectionProps> = ({
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
             Modo de ajuste
           </label>
           <div className="flex h-10 items-center gap-1 rounded-xl border border-[#E9E5E7] bg-slate-50/80 p-1">
@@ -191,7 +191,7 @@ export const DietMacroSection: React.FC<DietMacroSectionProps> = ({
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
             {macroSettings.calorieAdjustmentMode === "percent"
               ? "Déficit (%)"
               : "Ajuste (kcal)"}
@@ -207,7 +207,7 @@ export const DietMacroSection: React.FC<DietMacroSectionProps> = ({
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
             Base estimada
           </label>
           <div className="flex h-10 items-center rounded-xl border border-[#E9E5E7] bg-slate-50/60 px-3 text-xs font-bold text-slate-800">
@@ -216,7 +216,7 @@ export const DietMacroSection: React.FC<DietMacroSectionProps> = ({
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-[10px] font-black uppercase tracking-wider text-[#668E20]">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-[#668E20]">
             Objetivo final
           </label>
           <div className="flex h-10 items-center rounded-xl border border-[#DDE7B8] bg-[#F0F5DF] px-3 text-xs font-bold text-[#668E20]">
@@ -255,7 +255,7 @@ export const DietMacroSection: React.FC<DietMacroSectionProps> = ({
 
               <div className="grid gap-2.5 sm:grid-cols-2">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                     g/kg
                   </label>
                   <Input
@@ -271,7 +271,7 @@ export const DietMacroSection: React.FC<DietMacroSectionProps> = ({
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                     g totales
                   </label>
                   <Input

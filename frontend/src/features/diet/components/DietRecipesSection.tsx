@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import Image from "next/image";
 import {
   ChefHat,
   Plus,
@@ -13,11 +12,10 @@ import {
   ChevronUp,
   Clock,
   ArrowRight,
-  Filter,
   Pencil,
   Scale,
-  Loader2,
   X,
+  Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -403,33 +401,6 @@ export function DietRecipesSection({
 
   return (
     <>
-      {isGeneratingAiDishes ? (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/45 backdrop-blur-sm">
-          <div className="mx-4 flex max-w-sm flex-col items-center rounded-3xl bg-white px-8 py-7 text-center shadow-2xl">
-            <Image
-              src="/nutria.webp"
-              alt="Nati está cocinando"
-              width={112}
-              height={112}
-              className="h-28 w-28 animate-pulse object-contain"
-            />
-            <p className="mt-4 text-[11px] font-black uppercase tracking-[0.28em] text-emerald-600">
-              Nati está cocinando
-            </p>
-            <h3 className="mt-2 text-2xl font-black text-slate-900">
-              Creando preparaciones con tu dieta
-            </h3>
-            <p className="mt-2 text-sm font-medium text-slate-500">
-              Naty está diseñando platos personalizados basados en los alimentos de la pauta.
-            </p>
-            <div className="mt-5 flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-700">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Generando platos
-            </div>
-          </div>
-        </div>
-      ) : null}
-
       {/* Sección Única: Estructura de Comidas y Platos (Estilo NutriNet / Entregables) */}
       <div className="space-y-5">
         {/* Selector de Categorías de Comida del Día (Checkboxes) */}
@@ -476,7 +447,7 @@ export function DietRecipesSection({
                   />
                   <span>{cat.label}</span>
                   {mealsCountInCat > 0 && (
-                    <span className="rounded-full bg-[#E8EFCB] px-1.5 py-0.2 text-[10px] font-black text-[#668E20]">
+                    <span className="rounded-full bg-[#E8EFCB] px-1.5 py-0.2 text-[10px] font-bold text-[#668E20]">
                       {mealsCountInCat}
                     </span>
                   )}
@@ -534,11 +505,12 @@ export function DietRecipesSection({
             {onImportRecipe && (
               <Button
                 type="button"
-                onClick={onImportRecipe}
+                disabled
                 variant="outline"
-                className="h-9 rounded-xl border border-[#E9E5E7] bg-white text-xs font-bold text-slate-700 hover:border-[#86A83C] hover:bg-[#F0F5DF] hover:text-[#668E20] shadow-2xs cursor-pointer"
+                title="Importar recetas está bloqueado por ahora"
+                className="h-9 cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 text-xs font-bold text-slate-400 disabled:opacity-100"
               >
-                <Filter className="mr-1.5 h-3.5 w-3.5 text-slate-500" />
+                <Lock className="mr-1.5 h-3.5 w-3.5" />
                 Importar receta
               </Button>
             )}
@@ -575,7 +547,7 @@ export function DietRecipesSection({
                       <h3 className="font-bold text-slate-800 uppercase tracking-wide text-xs">
                         {cat.label}
                       </h3>
-                      <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-black text-slate-700">
+                      <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-700">
                         {categoryMeals.length}
                       </span>
                     </div>
@@ -596,6 +568,16 @@ export function DietRecipesSection({
                     >
                       <Plus className="mr-1 h-3.5 w-3.5" />
                       Agregar plato
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled
+                      title="Importar plato está bloqueado por ahora"
+                      className="h-8 cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-3 text-xs font-bold text-slate-400 disabled:opacity-100"
+                    >
+                      <Lock className="mr-1 h-3.5 w-3.5" />
+                      Importar plato
                     </Button>
                   </div>
                 </summary>
@@ -645,7 +627,7 @@ export function DietRecipesSection({
                               </div>
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-2">
-                                  <span className="rounded-full bg-amber-100/80 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-widest text-amber-800">
+                                  <span className="rounded-full bg-amber-100/80 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-amber-800">
                                     {dish.section || "Plato"}
                                   </span>
                                   <span className="flex items-center gap-1 text-[11px] font-bold text-slate-400">
@@ -663,19 +645,19 @@ export function DietRecipesSection({
                               {/* Nutrientes Badges: Kcal, Prot, Grasas, Carbos */}
                               <div className="flex items-center gap-1.5 text-xs">
                                 <div className="rounded-xl border border-slate-100 bg-slate-50 px-2.5 py-1 text-center">
-                                  <span className="block font-black text-slate-800">{dish.calories || "0"}</span>
+                                  <span className="block font-bold text-slate-800">{dish.calories || "0"}</span>
                                   <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Kcal</span>
                                 </div>
                                 <div className="rounded-xl border border-slate-100 bg-slate-50 px-2.5 py-1 text-center">
-                                  <span className="block font-black text-slate-800">{dish.protein || "0"}g</span>
+                                  <span className="block font-bold text-slate-800">{dish.protein || "0"}g</span>
                                   <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Prot.</span>
                                 </div>
                                 <div className="rounded-xl border border-slate-100 bg-slate-50 px-2.5 py-1 text-center">
-                                  <span className="block font-black text-slate-800">{dish.fats || "0"}g</span>
+                                  <span className="block font-bold text-slate-800">{dish.fats || "0"}g</span>
                                   <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Grasas</span>
                                 </div>
                                 <div className="rounded-xl border border-slate-100 bg-slate-50 px-2.5 py-1 text-center hidden md:block">
-                                  <span className="block font-black text-slate-800">{dish.carbs || "0"}g</span>
+                                  <span className="block font-bold text-slate-800">{dish.carbs || "0"}g</span>
                                   <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Carbos</span>
                                 </div>
                               </div>

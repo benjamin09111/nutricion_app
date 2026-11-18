@@ -76,7 +76,7 @@ export function NutriaChatWidget() {
   const { isDarkMode } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const normalizedPathname = pathname || "/dashboard";
-  const isAllowed = normalizedPathname.startsWith("/dashboard") && !normalizedPathname.startsWith("/dashboard/admin");
+  const isAllowed = normalizedPathname.startsWith("/dashboard") && !normalizedPathname.startsWith("/dashboard/admin") && !normalizedPathname.startsWith("/dashboard/dietas") && !normalizedPathname.startsWith("/dashboard/dieta");
   const showFloatingButton = !normalizedPathname.startsWith("/dashboard/rapido");
 
   useEffect(() => {

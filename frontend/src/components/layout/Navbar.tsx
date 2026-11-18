@@ -285,7 +285,7 @@ export function Navbar({
               <button
                 type="button"
                 onClick={() => setIsDemoInterestModalOpen(true)}
-                className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-xl px-2.5 sm:px-3.5 py-1.5 text-xs font-bold shadow-xs transition-all duration-200 active:scale-95 bg-purple-600 hover:bg-purple-700 text-white hover:shadow-md shrink-0"
+                className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-xl px-2.5 sm:px-3.5 py-1.5 text-xs font-bold shadow-xs transition-all duration-200 active:scale-95 bg-[#7842D4] hover:bg-[#6634B8] text-white hover:shadow-md shrink-0"
               >
                 <Sparkles className="h-3.5 w-3.5 text-white shrink-0" />
                 <span className="hidden sm:inline">Me interesa NutriNet</span>

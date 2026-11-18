@@ -98,14 +98,14 @@ export const DietTemplateImportSection: React.FC<DietTemplateImportSectionProps>
       </summary>
       <div className="grid gap-3 border-t border-slate-100 px-4 pb-4 pt-4 md:grid-cols-2">
         <div className="rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2">
-          <p className="text-[10px] font-black uppercase text-slate-400">Resumen Nutricional</p>
+          <p className="text-[10px] font-bold uppercase text-slate-400">Resumen Nutricional</p>
           <p className="text-sm font-semibold text-slate-800">
             {totalFoodsCount} alimentos · {totalGroupsCount} grupos
           </p>
         </div>
         {dietTags && dietTags.length > 0 ? (
           <div className="rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2">
-            <p className="text-[10px] font-black uppercase text-slate-400">Etiquetas</p>
+            <p className="text-[10px] font-bold uppercase text-slate-400">Etiquetas</p>
             <p className="text-sm font-semibold text-slate-800">{dietTags.join(", ")}</p>
           </div>
         ) : null}

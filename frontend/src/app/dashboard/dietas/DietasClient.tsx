@@ -1,16 +1,14 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useEffect, useRef, useState, useMemo } from "react";
+import Image from "next/image";
 import {
   Utensils,
-  Download,
-  Save,
   RotateCcw,
   Filter,
   FileCode,
   Loader2,
   Sparkles,
-  ChefHat,
   Beef,
   Wheat,
   Droplets,
@@ -18,8 +16,13 @@ import {
   Tag as TagIcon,
   AlertCircle,
   Apple,
+  User,
+  Lock,
+  FileText,
 } from "lucide-react";
 import { Input } from "@/components/ui/Input";
+import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
 import { TagInput } from "@/components/ui/TagInput";
 import { ActionDockItem } from "@/components/ui/ActionDock";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
@@ -34,18 +37,33 @@ import { saveCreation } from "@/lib/workflow";
 import { toast } from "sonner";
 import { FreemiumUpgradeModal } from "@/components/memberships/FreemiumUpgradeModal";
 import { FoodReferenceBook } from "@/components/foods/FoodReferenceBook";
+import { NatyPlanChatDemo } from "@/components/plans/NatyPlanChatDemo";
+import { PlanWizardShell } from "@/components/plans";
 import { formatCLP } from "@/lib/utils/currency";
+import { useDashboardShell } from "@/context/DashboardShellContext";
+import { isGuestMode } from "@/lib/demo-local-api";
 
 interface DietasClientProps {
   initialFoods: MarketPrice[];
 }
 
 export default function DietasClient({ initialFoods }: DietasClientProps) {
-  const state = useDietState({ initialFoods, startEmpty: true });
+  const { setSidebarCollapsed } = useDashboardShell();
+  const state = useDietState({ initialFoods, startEmpty: false });
   const [isSaving, setIsSaving] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [isFoodReferenceBookOpen, setIsFoodReferenceBookOpen] = useState(false);
+  const hasEnsuredDemoBaseFoods = useRef(false);
+  const [isNatyChatOpen, setIsNatyChatOpen] = useState(false);
+  const [dietWizardStep, setDietWizardStep] = useState(0);
+  const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
+  const [useBaseTemplate, setUseBaseTemplate] = useState(true);
+  const [resetToEmpty, setResetToEmpty] = useState(false);
+
+  useEffect(() => {
+    setSidebarCollapsed(true);
+  }, [setSidebarCollapsed]);
 
   // Compute total foods count across categories
   const totalFoodsCount = useMemo(() => {
@@ -54,6 +72,20 @@ export default function DietasClient({ initialFoods }: DietasClientProps) {
       0,
     );
   }, [state.allGroupsToRender]);
+
+  useEffect(() => {
+    if (
+      hasEnsuredDemoBaseFoods.current ||
+      !isGuestMode() ||
+      state.isHydrating ||
+      totalFoodsCount > 0
+    ) {
+      return;
+    }
+
+    hasEnsuredDemoBaseFoods.current = true;
+    state.applyBaseFoods();
+  }, [state.isHydrating, totalFoodsCount, state]);
 
   // Real-time macro calculations
   const totals = useMemo(() => {
@@ -81,6 +113,18 @@ export default function DietasClient({ initialFoods }: DietasClientProps) {
       price: Math.round(price),
     };
   }, [state.allGroupsToRender]);
+
+  const handleResetDiet = () => {
+    if (resetToEmpty) {
+      state.startFromZero();
+      setUseBaseTemplate(false);
+      return;
+    }
+
+    state.resetDiet();
+    setDietWizardStep(0);
+    setUseBaseTemplate(true);
+  };
 
   // Handle Save Creation (JSON to Creaciones)
   const handleSaveCreation = async () => {
@@ -123,18 +167,33 @@ export default function DietasClient({ initialFoods }: DietasClientProps) {
     }
   };
 
+  const buildDietPdfData = () => ({
+    dietName: state.dietName.trim() || "Dieta General Base",
+    dietTags: state.dietTags,
+    patientName: "tú persona",
+    foods: Object.values(state.allGroupsToRender).flat(),
+    generatedAt: new Date().toLocaleDateString("es-CL"),
+  });
+
+  const handlePreviewPdf = async () => {
+    try {
+      const [{ pdf }, { DietPdfDocument }] = await Promise.all([
+        import("@react-pdf/renderer"),
+        import("@/features/pdf/DietPdfDocument"),
+      ]);
+      const blob = await pdf(React.createElement(DietPdfDocument, { data: buildDietPdfData() }) as any).toBlob();
+      if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
+      setPreviewPdfUrl(URL.createObjectURL(blob));
+    } catch (error: any) {
+      toast.error(error?.message || "No se pudo generar la vista previa.");
+    }
+  };
+
   // Handle PDF Export
   const handleExportPdf = async () => {
     setIsExportingPdf(true);
     try {
-      const foodsList = Object.values(state.allGroupsToRender).flat();
-      await downloadDietPdf({
-        dietName: state.dietName.trim() || "Dieta General Base",
-        dietTags: state.dietTags,
-        patientName: "tú persona",
-        foods: foodsList,
-        generatedAt: new Date().toLocaleDateString("es-CL"),
-      });
+      await downloadDietPdf(buildDietPdfData());
       toast.success("PDF descargado correctamente.");
     } catch (err: any) {
       console.error("Error al exportar PDF de dieta:", err);
@@ -202,24 +261,35 @@ export default function DietasClient({ initialFoods }: DietasClientProps) {
     toast.success(`Dieta "${creation.name}" importada exitosamente.`);
   };
 
-  // Action Dock buttons: Reiniciar, Importar otra DIETA creada, Guardar, Descargar
+  // Action Dock shared with the quick modules, plus Importar dieta.
   const actionItems: ActionDockItem[] = useMemo(
     () => [
       {
-        id: "reset",
-        icon: RotateCcw,
-        label: "Reiniciar",
-        description: "Reiniciar borrador y limpiar alimentos",
-        variant: "rose",
-        onClick: () => state.setIsResetConfirmOpen(true),
+        id: "patient",
+        icon: state.isLoadingPatients ? Loader2 : User,
+        label: state.selectedPatient?.fullName || "Importar paciente",
+        description: state.selectedPatient ? "Cambiar paciente" : "Importar paciente",
+        variant: state.selectedPatient ? "emerald" : "slate",
+        disabled: state.isLoadingPatients,
+        onClick: () => state.setIsImportPatientModalOpen(true),
       },
       {
         id: "import",
         icon: Filter,
-        label: "Importar dieta creada",
-        description: "Cargar una dieta previamente guardada",
-        variant: "emerald",
-        onClick: () => setIsUpgradeModalOpen(true),
+        label: "Importar creación",
+        description: "Importar creación no disponible por ahora",
+        variant: "indigo",
+        disabled: true,
+        onClick: () => undefined,
+      },
+      {
+        id: "naty-chat",
+        icon: Sparkles,
+        customIcon: <Image src="/circle_logo.webp" alt="Naty" width={48} height={48} className="-m-1.5 h-10 w-10 rounded-full object-contain md:-m-2 md:h-12 md:w-12" />,
+        label: "Hablar con Naty",
+        description: "Abrir chat demo de Naty",
+        variant: "indigo",
+        onClick: () => setIsNatyChatOpen(true),
       },
       {
         id: "food-reference-book",
@@ -230,29 +300,23 @@ export default function DietasClient({ initialFoods }: DietasClientProps) {
         onClick: () => setIsFoodReferenceBookOpen(true),
       },
       {
-        id: "save",
-        icon: isSaving ? Loader2 : Save,
-        label: isSaving ? "Guardando..." : "Guardar",
-        description: "Guardar en Creaciones",
-        variant: "emerald",
-        disabled: isSaving,
-        onClick: () => void handleSaveCreation(),
-      },
-      {
-        id: "pdf",
-        icon: isExportingPdf ? Loader2 : Download,
-        label: isExportingPdf ? "Exportando..." : "Descargar",
-        description: "Descargar pauta en PDF",
-        variant: "emerald",
-        disabled: isExportingPdf,
-        onClick: () => void handleExportPdf(),
+        id: "reset",
+        icon: RotateCcw,
+        label: "Reiniciar",
+        description: "Volver a la plantilla base",
+        variant: "rose",
+        onClick: () => {
+          setResetToEmpty(false);
+          state.setIsResetConfirmOpen(true);
+        },
       },
     ],
-    [state, isSaving, isExportingPdf],
+    [state, setIsFoodReferenceBookOpen],
   );
 
   return (
     <>
+      <NatyPlanChatDemo isOpen={isNatyChatOpen} onClose={() => setIsNatyChatOpen(false)} />
       <ModuleLayout
         title="Dietas Generales"
         description={
@@ -282,9 +346,9 @@ export default function DietasClient({ initialFoods }: DietasClientProps) {
           <div className="space-y-6">
             {/* Header: Title, Constraints & Actions (Unboxed Layout) */}
             <div className="space-y-4">
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-start">
+              <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-2">
                 {/* Diet Name */}
-                <div className="lg:col-span-5 space-y-1.5">
+                <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-[#20212B] flex items-center gap-1">
                     Nombre de la Dieta <span className="text-rose-500">*</span>
                   </label>
@@ -297,7 +361,7 @@ export default function DietasClient({ initialFoods }: DietasClientProps) {
                 </div>
 
                 {/* Restricción Clínica Input */}
-                <div className="lg:col-span-4 space-y-1.5">
+                <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-[#20212B] flex items-center gap-1.5">
                     <AlertCircle className="h-3.5 w-3.5 text-amber-500" />
                     Restricción / Foco Nutricional
@@ -313,30 +377,6 @@ export default function DietasClient({ initialFoods }: DietasClientProps) {
                   />
                 </div>
 
-                {/* Action Buttons */}
-                <div className="lg:col-span-3 flex items-center gap-2 justify-end lg:pt-[22px]">
-                  <button
-                    type="button"
-                    onClick={state.applyBaseFoods}
-                    className="h-10 px-3.5 border border-[#E9E5E7] bg-white text-[#20212B] hover:border-[#86A83C] hover:bg-[#F0F5DF] hover:text-[#668E20] font-semibold text-xs rounded-xl flex items-center gap-1.5 shadow-2xs cursor-pointer transition-all"
-                  >
-                    <ChefHat className="h-4 w-4 text-[#86A83C]" />
-                    <span>Ingredientes base</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void handleSaveCreation()}
-                    disabled={isSaving}
-                    className="h-10 px-4 bg-[#86A83C] hover:bg-[#78A82F] text-white font-semibold text-xs rounded-xl flex items-center gap-1.5 shadow-2xs cursor-pointer transition-all disabled:opacity-50"
-                  >
-                    {isSaving ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Save className="h-4 w-4" />
-                    )}
-                    <span>Guardar Dieta</span>
-                  </button>
-                </div>
               </div>
 
               {/* Tag Badges (Clean inline chips) */}
@@ -366,7 +406,41 @@ export default function DietasClient({ initialFoods }: DietasClientProps) {
               )}
             </div>
 
-            {/* Macro Calculations Summary Bar (Minimalist Horizontal Bar) */}
+             <PlanWizardShell
+               steps={["Dieta base", "Resumen"]}
+               currentStep={dietWizardStep}
+               completedSteps={dietWizardStep > 0 ? [0] : []}
+               onStepClick={setDietWizardStep}
+               onBack={() => setDietWizardStep(0)}
+               onNext={() => setDietWizardStep(1)}
+               isLastStep={dietWizardStep === 1}
+               hideNextOnLastStep
+               nextDisabled={dietWizardStep === 0 && (!state.dietName.trim() || totalFoodsCount === 0)}
+               lockFutureSteps
+             >
+             {dietWizardStep === 0 ? (
+             <>
+             {/* Macro Calculations Summary Bar (Minimalist Horizontal Bar) */}
+             <label className="flex w-fit cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 shadow-2xs">
+               <input
+                 type="checkbox"
+                 checked={useBaseTemplate}
+                 onChange={(event) => {
+                   const nextValue = event.target.checked;
+                   setUseBaseTemplate(nextValue);
+                   setResetToEmpty(!nextValue);
+                   if (nextValue) {
+                     state.applyBaseFoods();
+                   } else {
+                     state.startFromZero();
+                   }
+                 }}
+                 className="h-4 w-4 rounded border-slate-300 text-[#86A83C] focus:ring-[#86A83C]"
+               />
+               Usar plantilla base de alimentos
+             </label>
+
+             {/* Macro Calculations Summary Bar (Minimalist Horizontal Bar) */}
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#E9E5E7] bg-white px-5 py-3.5 shadow-2xs">
               <div className="flex items-center gap-5 sm:gap-7 flex-wrap">
                 <div className="flex items-center gap-2">
@@ -395,7 +469,7 @@ export default function DietasClient({ initialFoods }: DietasClientProps) {
               </span>
             </div>
 
-            {/* Diet Categories & Food Builder Section */}
+             {/* Diet Categories & Food Builder Section */}
             <div className="space-y-4">
               <DietPlannerSection
                 allGroupsToRender={state.allGroupsToRender}
@@ -411,16 +485,54 @@ export default function DietasClient({ initialFoods }: DietasClientProps) {
                 addFoodToGroup={state.addFoodToGroup}
                 handleCreateGroupByName={state.handleCreateGroupByName}
               />
-            </div>
-          </div>
+             </div>
+             </>
+             ) : (
+               <section className="space-y-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs">
+                 <div>
+                   <h2 className="text-base sm:text-lg font-bold text-slate-900">Resumen de la dieta</h2>
+                   <p className="mt-1 text-xs leading-5 text-slate-500">Revisa la plantilla antes de exportarla o guardarla.</p>
+                 </div>
+                 <div className="grid gap-3 sm:grid-cols-3">
+                   <div className="rounded-xl bg-slate-50 p-3"><p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Dieta</p><p className="mt-1 text-sm font-bold text-slate-900">{state.dietName || "Dieta General Base"}</p></div>
+                   <div className="rounded-xl bg-slate-50 p-3"><p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Categorías</p><p className="mt-1 text-sm font-bold text-slate-900">{Object.keys(state.allGroupsToRender).length}</p></div>
+                   <div className="rounded-xl bg-slate-50 p-3"><p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Alimentos</p><p className="mt-1 text-sm font-bold text-slate-900">{totalFoodsCount}</p></div>
+                 </div>
+                 <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-4">
+                   <Button type="button" variant="outline" onClick={() => setDietWizardStep(0)} className="rounded-xl">Volver</Button>
+                   <Button type="button" onClick={() => void handlePreviewPdf()} className="rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100">Vista previa</Button>
+                   <Button type="button" onClick={() => void handleExportPdf()} disabled={isExportingPdf} className="rounded-xl bg-indigo-600 text-white hover:bg-indigo-700">Descargar PDF</Button>
+                   <Button type="button" disabled={isGuestMode()} onClick={() => void handleSaveCreation()} className="rounded-xl bg-slate-200 text-slate-500 disabled:cursor-not-allowed disabled:opacity-100"><Lock className="mr-2 h-4 w-4" />Guardar dieta</Button>
+                   <Button type="button" disabled={isGuestMode()} onClick={async () => { await handleSaveCreation(); await handleExportPdf(); }} className="rounded-xl bg-slate-200 text-slate-500 disabled:cursor-not-allowed disabled:opacity-100"><Lock className="mr-2 h-4 w-4" />Guardar y descargar</Button>
+                 </div>
+               </section>
+             )}
+             </PlanWizardShell>
+           </div>
         )}
       </ModuleLayout>
+
+      <Modal
+        isOpen={Boolean(previewPdfUrl)}
+        onClose={() => {
+          if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
+          setPreviewPdfUrl(null);
+        }}
+        title="Vista previa de la dieta"
+        className="max-w-5xl"
+      >
+        {previewPdfUrl && (
+          <div className="h-[70vh] overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+            <iframe src={`${previewPdfUrl}#toolbar=1&navpanes=0`} title="Vista previa de la dieta" className="h-full w-full border-0" />
+          </div>
+        )}
+      </Modal>
 
       {/* Shared Modals */}
       <DietModals
         isResetConfirmOpen={state.isResetConfirmOpen}
         setIsResetConfirmOpen={state.setIsResetConfirmOpen}
-        resetDiet={state.resetDiet}
+        resetDiet={handleResetDiet}
         isExportConfirmOpen={state.isExportConfirmOpen}
         setIsExportConfirmOpen={state.setIsExportConfirmOpen}
         performExportPdf={state.performExportPdf}
