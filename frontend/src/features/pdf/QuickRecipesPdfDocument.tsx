@@ -30,10 +30,24 @@ export interface QuickDishPdf {
   ingredients?: QuickRecipeIngredientPdf[];
 }
 
+export interface QuickRecipesPdfResource {
+  resourceId?: string;
+  title: string;
+  content?: string;
+}
+
+export interface QuickRecipesPdfPortionGuide {
+  category?: string;
+  grupo?: string;
+  portion?: string;
+  porcion?: string;
+}
+
 export interface QuickRecipesPdfData {
   title: string;
   dietName?: string;
   patientName?: string | null;
+  nutritionistName?: string | null;
   nutritionistNotes?: string;
   planObjective?: string;
   showPlanObjectiveInPdf?: boolean;
@@ -42,7 +56,8 @@ export interface QuickRecipesPdfData {
   restrictedFoods?: string[];
   specialConsiderations?: string;
   referenceDishes?: string[];
-  resources?: string[];
+  resources?: QuickRecipesPdfResource[];
+  portionGuide?: QuickRecipesPdfPortionGuide[];
   dishes: QuickDishPdf[];
   generatedAt?: string;
 }
@@ -169,6 +184,44 @@ const styles = StyleSheet.create({
   },
 });
 
+const decodeHtmlEntities = (value: string) =>
+  value
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#039;|&apos;/gi, "'")
+    .replace(/&#(\d+);/g, (_, code: string) => String.fromCharCode(Number(code)))
+    .replace(/&#x([\da-f]+);/gi, (_, code: string) => String.fromCharCode(parseInt(code, 16)));
+
+const parseResourceContent = (content: string): Array<{ kind: "heading" | "bullet" | "paragraph"; text: string }> => {
+  const normalized = content
+    .replace(/(<li[^>]*>)\s*<p[^>]*>/gi, "$1")
+    .replace(/<\/p>\s*(?=<\/li>)/gi, "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<h[1-6][^>]*>/gi, "\n__HEADING__")
+    .replace(/<\/h[1-6\s]*>/gi, "\n")
+    .replace(/<li[^>]*>/gi, "\n__BULLET__")
+    .replace(/<\/li\s*>/gi, "\n")
+    .replace(/<\/?(?:p|div|section|article|blockquote)[^>]*>/gi, "\n")
+    .replace(/<[^>]+>/g, "");
+
+  return decodeHtmlEntities(normalized)
+    .split(/\r?\n/)
+    .map((line) => line.replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .map((line) => {
+      if (line.startsWith("__HEADING__")) {
+        return { kind: "heading" as const, text: line.slice("__HEADING__".length).trim() };
+      }
+      if (line.startsWith("__BULLET__")) {
+        return { kind: "bullet" as const, text: line.slice("__BULLET__".length).trim() };
+      }
+      return { kind: "paragraph" as const, text: line };
+    });
+};
+
 export function QuickRecipesPdfDocument({ data }: { data: QuickRecipesPdfData }) {
   const extraMeta = [
     data.dietName ? { label: "Plan", value: data.dietName } : null,
@@ -258,8 +311,73 @@ export function QuickRecipesPdfDocument({ data }: { data: QuickRecipesPdfData })
           ))}
         </View>
 
-        <PdfBrandedFooter />
+        <PdfBrandedFooter nutritionistName={data.nutritionistName || undefined} />
       </Page>
+
+      {/* Recursos educativos: siempre penúltimo */}
+      {data.resources && data.resources.length > 0 && (
+        <Page size="A4" style={styles.page}>
+          <View style={styles.section}>
+            <PdfSectionHeader title="Recursos educativos" icon="leaf" />
+            {data.resources.map((resource, index) => (
+              <View key={resource.resourceId || index} style={{ marginBottom: 12 }}>
+                <Text style={{ fontSize: 11, fontFamily: "Helvetica-Bold", color: colors.slate900, marginBottom: 5 }}>
+                  {resource.title}
+                </Text>
+                {parseResourceContent(resource.content || "").map((block, blockIndex) => (
+                  <Text
+                    key={`${resource.resourceId || index}-${blockIndex}`}
+                    style={{
+                      fontSize: block.kind === "heading" ? 9.5 : 8.5,
+                      fontFamily: block.kind === "heading" ? "Helvetica-Bold" : "Helvetica",
+                      color: block.kind === "heading" ? colors.primaryDark : colors.slate700,
+                      marginBottom: 3,
+                      marginLeft: block.kind === "bullet" ? 8 : 0,
+                    }}
+                  >
+                    {block.kind === "bullet" ? `• ${block.text}` : block.text}
+                  </Text>
+                ))}
+              </View>
+            ))}
+          </View>
+          <PdfBrandedFooter nutritionistName={data.nutritionistName || undefined} />
+        </Page>
+      )}
+
+      {/* Guía de porciones: siempre al final, aparte y completa */}
+      {data.portionGuide && data.portionGuide.length > 0 && (
+        <Page size="A4" style={styles.page}>
+          <View style={styles.section}>
+            <PdfSectionHeader title="Guía práctica de porciones" icon="cutlery" />
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+              {data.portionGuide.map((pg, idx) => (
+                <View
+                  key={idx}
+                  wrap={false}
+                  style={{
+                    width: "48%",
+                    minHeight: 62,
+                    padding: 9,
+                    backgroundColor: colors.slate50,
+                    borderRadius: 8,
+                    borderWidth: 1,
+                    borderColor: colors.slate200,
+                  }}
+                >
+                  <Text style={{ fontSize: 9, fontFamily: "Helvetica-Bold", color: colors.slate800 }}>
+                    {pg.grupo || pg.category || "Grupo"}
+                  </Text>
+                  <Text style={{ fontSize: 8, color: colors.primaryDark, marginTop: 3 }}>
+                    {pg.porcion || pg.portion || ""}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+          <PdfBrandedFooter nutritionistName={data.nutritionistName || undefined} />
+        </Page>
+      )}
     </Document>
   );
 }

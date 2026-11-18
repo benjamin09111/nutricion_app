@@ -24,6 +24,11 @@ import {
   Apple,
   Pencil,
   Lock,
+  AlertCircle,
+  BookOpen,
+  Copy,
+  Download,
+  Save,
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
@@ -49,6 +54,7 @@ import { cn } from "@/lib/utils";
 import { FoodReferenceBook } from "@/components/foods/FoodReferenceBook";
 import { getTodayDateInputValue } from "@/features/patients/utils/patient-helpers";
 import { isGuestMode } from "@/lib/demo-local-api";
+import { buildExchangeGuideForPatient } from "@/lib/exchange-portions";
 import type { QuickRecipesPdfData } from "@/features/pdf/QuickRecipesPdfDocument";
 
 type QuickIngredient = {
@@ -154,7 +160,91 @@ const MEAL_SECTIONS = [
 const DEFAULT_TITLE = "Entregable rápido";
 const DEFAULT_DIET_NAME = "Plan nutricional personalizado";
 const DRAFT_KEY = "nutri_quick_recipes_draft";
-const WIZARD_STEPS = ["Instrucciones", "Generación", "Platos", "Resumen"];
+const WIZARD_STEPS = ["Instrucciones", "Generación", "Platos", "Recursos y Porciones", "Resumen"];
+
+interface ResourceTemplate {
+  id: string;
+  title: string;
+  content: string;
+  category?: string;
+  tags?: string[];
+  isMine?: boolean;
+  isPublic?: boolean;
+}
+
+interface ResolvedResourcePage {
+  resourceId: string;
+  title: string;
+  content: string;
+  variables: Record<string, string>;
+}
+
+type QuickPortionGuideRow = {
+  id: string;
+  category: string;
+  portion: string;
+};
+
+const createPortionGuideRow = (row?: Partial<QuickPortionGuideRow>): QuickPortionGuideRow => ({
+  id: row?.id || `portion-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+  category: row?.category || "",
+  portion: row?.portion || "",
+});
+
+function stripHtml(html: string): string {
+  return html
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;|&apos;/g, "'")
+    .replace(/\n\s*\n/g, "\n")
+    .replace(/[ \t]+/g, " ")
+    .trim();
+}
+
+function getPatientVariableValues(patient: QuickPatient | null, planObjective = ""): Record<string, string> {
+  const age = patient?.birthDate ? calculateAge(patient.birthDate) : patient?.ageYears;
+  const objective = (planObjective.trim() || patient?.nutritionalFocus || patient?.fitnessGoals || "").trim();
+  const patientName = patient?.fullName?.trim() || "";
+  return {
+    NOMBRE_PACIENTE: patientName === "Paciente General" || !patientName ? "tú persona" : patientName,
+    EDAD_PACIENTE: typeof age === "number" ? String(age) : "",
+    OBJETIVO_PRINCIPAL: objective,
+    OBJETIVO: objective,
+    OBJETIVO_PLAN: objective,
+    OBJETIVO_DEL_PLAN: objective,
+    PLAN_OBJECTIVE: objective,
+  };
+}
+
+function replaceResourceVariables(
+  content: string,
+  patient: QuickPatient | null,
+  overrides: Record<string, string> = {},
+  planObjective = "",
+): { content: string; variables: Record<string, string>; missing: string[] } {
+  const variables: Record<string, string> = {};
+  const values = { ...getPatientVariableValues(patient, planObjective), ...overrides };
+  const missing = new Set<string>();
+  const resolvedContent = stripHtml(content).replace(
+    /\^([a-zA-Z0-9_\- ]+)\^|\{([a-zA-Z0-9_\- ]+)\}/g,
+    (match, caretName: string | undefined, braceName: string | undefined) => {
+      const name = (caretName || braceName || "").trim();
+      const value = values[name] || "";
+      if (!value) {
+        missing.add(name);
+        return match;
+      }
+      variables[name] = value;
+      return value;
+    },
+  );
+
+  return { content: resolvedContent, variables, missing: Array.from(missing) };
+}
 
 const buildPatientRecipesExamplePdf = (): QuickRecipesPdfData => ({
   title: "Recetario personalizado — Ejemplo paciente",
@@ -526,6 +616,59 @@ export default function QuickRecipesClient() {
   const [includeGeneratedImages, setIncludeGeneratedImages] = useState(false);
   const [generalDishCount, setGeneralDishCount] = useState(3);
   const [generalMealSection, setGeneralMealSection] = useState("Almuerzo");
+  const [generalCategoryTargets, setGeneralCategoryTargets] = useState<Array<{ id: string; mealSection: string; count: number }>>([
+    { id: "cat-1", mealSection: "Almuerzo", count: 3 },
+  ]);
+
+  const addGeneralCategoryTarget = () => {
+    setGeneralCategoryTargets((prev) => [
+      ...prev,
+      { id: `cat-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, mealSection: "Cena", count: 2 },
+    ]);
+  };
+
+  const removeGeneralCategoryTarget = (id: string) => {
+    setGeneralCategoryTargets((prev) => (prev.length === 1 ? prev : prev.filter((t) => t.id !== id)));
+  };
+
+  const updateGeneralCategoryTarget = (id: string, field: "mealSection" | "count", value: string | number) => {
+    setGeneralCategoryTargets((prev) =>
+      prev.map((target) => (target.id === id ? { ...target, [field]: value } : target)),
+    );
+  };
+
+  const generalTotalToGenerate = useMemo(() => {
+    return generalCategoryTargets.reduce((sum, target) => sum + (Number(target.count) || 0), 0);
+  }, [generalCategoryTargets]);
+
+  const formatIngredientQuantity = (quantity?: string, amount?: string | number, unit?: string) => {
+    if (amount != null && String(amount).trim()) {
+      return `${amount} ${unit || ""}`.trim();
+    }
+    return (quantity || "").trim();
+  };
+
+  const copyDishesAsPlainText = () => {
+    if (dishes.length === 0) return;
+    const text = dishes
+      .map((d, i) => {
+        const ingredientsText = (d.ingredients || [])
+          .map((ing) => {
+            const qty = formatIngredientQuantity(ing.quantity, ing.amount, ing.unit);
+            return `  • ${ing.name}${qty ? ` (${qty})` : ""}`;
+          })
+          .join("\n");
+        return `${i + 1}. ${d.title} (${d.mealSection || "General"})\n` +
+          (d.description ? `${d.description}\n` : "") +
+          (d.recommendedPortion ? `Porción: ${d.recommendedPortion}\n` : "") +
+          (ingredientsText ? `Ingredientes:\n${ingredientsText}\n` : "") +
+          (d.preparation ? `Preparación:\n${d.preparation}\n` : "") +
+          ((d.calories || d.protein) ? `Nutrientes: ${d.calories || 0} kcal, ${d.protein || 0}g P, ${d.carbs || 0}g C, ${d.fats || 0}g G\n` : "");
+      })
+      .join("\n---\n\n");
+    navigator.clipboard.writeText(text);
+    toast.success("Recetas copiadas en texto plano al portapapeles.");
+  };
   const [includeInstructions, setIncludeInstructions] = useState(true);
   const [includeNutrients, setIncludeNutrients] = useState(true);
   const [useDietAsAbsoluteTruth, setUseDietAsAbsoluteTruth] = useState(false);
@@ -594,6 +737,128 @@ export default function QuickRecipesClient() {
   const [editingDishForm, setEditingDishForm] = useState<QuickDish | null>(null);
   const [instructionsMode, setInstructionsMode] = useState<"manual" | "creation">("manual");
   const [selectedBaseCreation, setSelectedBaseCreation] = useState<ImportedCreation | null>(null);
+
+  const [includeResources, setIncludeResources] = useState(true);
+  const [resources, setResources] = useState<ResourceTemplate[]>([]);
+  const [resolvedResourcePages, setResolvedResourcePages] = useState<ResolvedResourcePage[]>([]);
+  const [selectedResourceIds, setSelectedResourceIds] = useState<string[]>([]);
+  const [resourceSearch, setResourceSearch] = useState("");
+  const [resourceCategoryFilter, setResourceCategoryFilter] = useState("Todas");
+  const [isResourceModalOpen, setIsResourceModalOpen] = useState(false);
+  const [isLoadingResources, setIsLoadingResources] = useState(false);
+
+  const [includePortionGuide, setIncludePortionGuide] = useState(true);
+  const [portionGuideRows, setPortionGuideRows] = useState<QuickPortionGuideRow[]>(() =>
+    (buildExchangeGuideForPatient() as Array<{ category: string; portion: string }>).map((row) =>
+      createPortionGuideRow(row),
+    ),
+  );
+
+  const resourceCategories = useMemo(() => {
+    const categories = new Set<string>();
+    resources.forEach((resource) => {
+      if (resource.category?.trim()) {
+        categories.add(resource.category.trim());
+      }
+    });
+    return ["Todas", ...Array.from(categories)];
+  }, [resources]);
+
+  const filteredResources = useMemo(() => {
+    return resources.filter((resource) => {
+      const matchesSearch =
+        !resourceSearch.trim() ||
+        resource.title.toLowerCase().includes(resourceSearch.toLowerCase()) ||
+        stripHtml(resource.content || "").toLowerCase().includes(resourceSearch.toLowerCase());
+      const matchesCategory =
+        resourceCategoryFilter === "Todas" ||
+        (resource.category || "").toLowerCase() === resourceCategoryFilter.toLowerCase();
+      return matchesSearch && matchesCategory;
+    });
+  }, [resources, resourceSearch, resourceCategoryFilter]);
+
+  const fetchResources = async () => {
+    try {
+      const response = await fetchApi(`/resources`);
+      if (!response.ok) return;
+      const payload = await response.json();
+      const data = Array.isArray(payload)
+        ? payload
+        : Array.isArray(payload?.data)
+          ? payload.data
+          : Array.isArray(payload?.resources)
+            ? payload.resources
+            : [];
+      setResources(data);
+    } catch (error) {
+      console.error("Error loading resources", error);
+    }
+  };
+
+  const openResourceModal = async () => {
+    setIsLoadingResources(true);
+    try {
+      await fetchResources();
+      setSelectedResourceIds([]);
+      setResourceSearch("");
+      setResourceCategoryFilter("Todas");
+      setIsResourceModalOpen(true);
+    } catch (error) {
+      console.error(error);
+      toast.error("No se pudieron cargar los recursos.");
+    } finally {
+      setIsLoadingResources(false);
+    }
+  };
+
+  const addResolvedResourcePages = () => {
+    if (selectedResourceIds.length === 0) {
+      toast.error("Selecciona al menos un recurso.");
+      return;
+    }
+    const resourcesToAdd = selectedResourceIds
+      .map((id) => resources.find((r) => r.id === id))
+      .filter((r): r is ResourceTemplate => Boolean(r));
+
+    const nextResources: ResolvedResourcePage[] = resourcesToAdd.map((resource) => {
+      const resolved = replaceResourceVariables(resource.content || "", selectedPatient, {}, planObjective);
+      return {
+        resourceId: resource.id,
+        title: resource.title,
+        content: resolved.content,
+        variables: resolved.variables,
+      };
+    });
+
+    setResolvedResourcePages((prev) => [...prev, ...nextResources]);
+    setIsResourceModalOpen(false);
+    setSelectedResourceIds([]);
+    toast.success(`${resourcesToAdd.length} recurso(s) agregado(s).`);
+  };
+
+  const removeResolvedResource = (index: number) => {
+    setResolvedResourcePages((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const updatePortionGuideRow = (
+    rowId: string,
+    field: "category" | "portion",
+    value: string,
+  ) => {
+    setPortionGuideRows((current) =>
+      current.map((row) => (row.id === rowId ? { ...row, [field]: value } : row)),
+    );
+  };
+
+  const addPortionGuideRow = () => {
+    setPortionGuideRows((current) => [...current, createPortionGuideRow()]);
+  };
+
+  const removePortionGuideRow = (rowId: string) => {
+    setPortionGuideRows((current) =>
+      current.length === 1 ? current : current.filter((row) => row.id !== rowId),
+    );
+  };
 
   const extractFoodsFromCreation = (creation: any) => {
     const content = (creation.content || {}) as Record<string, any>;
@@ -834,6 +1099,14 @@ export default function QuickRecipesClient() {
       setHasGeneratedDishes(parsed.hasGeneratedDishes === true);
       setSkipInstructions(parsed.skipInstructions === true);
       setAllowExternalFoods(parsed.allowExternalFoods === true);
+      if (typeof parsed.includeResources === "boolean") setIncludeResources(parsed.includeResources);
+      if (Array.isArray(parsed.resolvedResourcePages)) {
+        setResolvedResourcePages(parsed.resolvedResourcePages as ResolvedResourcePage[]);
+      }
+      if (typeof parsed.includePortionGuide === "boolean") setIncludePortionGuide(parsed.includePortionGuide);
+      if (Array.isArray(parsed.portionGuideRows) && parsed.portionGuideRows.length > 0) {
+        setPortionGuideRows(parsed.portionGuideRows as QuickPortionGuideRow[]);
+      }
     } catch (error) {
       console.error("Error loading quick recipes draft", error);
     } finally {
@@ -867,6 +1140,10 @@ export default function QuickRecipesClient() {
         hasGeneratedDishes,
         skipInstructions,
         allowExternalFoods,
+        includeResources,
+        resolvedResourcePages,
+        includePortionGuide,
+        portionGuideRows,
       }),
     );
   }, [
@@ -891,6 +1168,10 @@ export default function QuickRecipesClient() {
     isManualPatientExpanded,
     skipInstructions,
     allowExternalFoods,
+    includeResources,
+    resolvedResourcePages,
+    includePortionGuide,
+    portionGuideRows,
     isHydrating,
   ]);
 
@@ -1379,7 +1660,9 @@ export default function QuickRecipesClient() {
             : "Platos generados correctamente con IA.",
         );
       }
-      setCurrentStep(2);
+      if (recipeCreationMode !== "general") {
+        setCurrentStep(2);
+      }
       return true;
     } catch (error) {
       console.error("Quick AI generation error", error);
@@ -1400,11 +1683,17 @@ export default function QuickRecipesClient() {
   };
 
   const generateGeneralRecipes = () => {
-    const targets = MEAL_SECTIONS.map((section) => ({
-      mealSection: section,
-      enabled: section === generalMealSection,
-      count: section === generalMealSection ? generalDishCount : 0,
-    }));
+    const targets = generalCategoryTargets
+      .filter((t) => Number(t.count) > 0)
+      .map((t) => ({
+        mealSection: t.mealSection.trim() || "Almuerzo",
+        count: Number(t.count) || 1,
+        enabled: true,
+      }));
+    if (targets.length === 0) {
+      toast.error("Configura al menos una categoría con cantidad mayor a 0.");
+      return;
+    }
     void generateWithAi("single", targets);
   };
 
@@ -1578,12 +1867,20 @@ export default function QuickRecipesClient() {
     setHasGeneratedDishes(false);
     setSkipInstructions(false);
     setAllowExternalFoods(false);
+    setResolvedResourcePages([]);
+    setIncludeResources(true);
+    setIncludePortionGuide(true);
+    setPortionGuideRows(
+      (buildExchangeGuideForPatient() as Array<{ category: string; portion: string }>).map((row) =>
+        createPortionGuideRow(row),
+      ),
+    );
     setCurrentStep(0);
     localStorage.removeItem(DRAFT_KEY);
     toast.success("Borrador reiniciado.");
   };
 
-  const buildPdfData = () => ({
+  const buildPdfData = (): QuickRecipesPdfData => ({
     title: title.trim() || DEFAULT_TITLE,
     dietName: dietName.trim() || DEFAULT_DIET_NAME,
     patientName: selectedPatient?.fullName || null,
@@ -1593,6 +1890,21 @@ export default function QuickRecipesClient() {
     allowedFoodsMain: parseLines(allowedFoodsMainText),
     restrictedFoods: parseLines(restrictedFoodsText),
     specialConsiderations: specialConsiderations.trim() || undefined,
+    resources: includeResources
+      ? resolvedResourcePages.map((r) => ({
+          resourceId: r.resourceId,
+          title: r.title,
+          content: r.content,
+        }))
+      : undefined,
+    portionGuide: includePortionGuide
+      ? portionGuideRows
+          .filter((row) => row.category.trim() || row.portion.trim())
+          .map((row) => ({
+            category: row.category.trim(),
+            portion: row.portion.trim(),
+          }))
+      : undefined,
     dishes: meaningfulDishes.map((dish) => ({
       title: dish.title,
       mealSection: dish.mealSection,
@@ -2046,16 +2358,347 @@ export default function QuickRecipesClient() {
             )}
           </div>
           {recipeCreationMode === "patient" && !selectedPatient ? (
-            <div className="rounded-2xl border-2 border-dashed border-purple-200 bg-purple-50/60 p-8 text-center">
-              <User className="mx-auto h-10 w-10 text-purple-500" />
-              <h2 className="mt-3 text-base font-black text-purple-900">Importa un paciente para comenzar</h2>
-              <p className="mx-auto mt-2 max-w-md text-xs leading-5 text-purple-700">
+            <div className="rounded-2xl border-2 border-dashed border-[#DDE7B8] bg-[#F0F5DF]/50 p-8 text-center">
+              <User className="mx-auto h-10 w-10 text-[#86A83C]" />
+              <h2 className="mt-3 text-base font-black text-slate-900">Importa un paciente para comenzar</h2>
+              <p className="mx-auto mt-2 max-w-md text-xs leading-5 text-slate-600">
                 Naty necesita el contexto del paciente para crear recetas personalizadas y seguras.
               </p>
-              <Button type="button" onClick={openPatientModal} className="mt-5 rounded-xl bg-purple-600 px-5 text-xs font-bold text-white hover:bg-purple-700">
+              <Button type="button" onClick={openPatientModal} className="mt-5 rounded-xl bg-[#86A83C] hover:bg-[#78A82F] px-5 text-xs font-bold text-white shadow-2xs">
                 <User className="mr-2 h-4 w-4" />
                 Importar paciente
               </Button>
+            </div>
+          ) : recipeCreationMode === "general" ? (
+            <div className="space-y-6">
+              {/* Formulario simple de recetas generales */}
+              <div className="rounded-2xl border border-[#E9E5E7] bg-white p-5 sm:p-6 shadow-2xs space-y-5">
+                <div>
+                  <h2 className="text-base sm:text-lg font-bold text-slate-900">
+                    Recetas y preparaciones generales
+                  </h2>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    Configura los alimentos que quieres incluir y las categorías a generar. Naty te entregará las preparaciones listas para copiar o guardar.
+                  </p>
+                </div>
+
+                {/* Título de la entrega */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    Título de la entrega
+                  </label>
+                  <Input
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="Recetario Saludable"
+                    className="h-10 rounded-xl border-[#E9E5E7] bg-slate-50 text-sm font-semibold text-slate-900"
+                  />
+                </div>
+
+                {/* Alimentos permitidos y no permitidos */}
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                      Alimentos permitidos principales
+                    </label>
+                    <Textarea
+                      value={allowedFoodsMainText}
+                      onChange={(e) => setAllowedFoodsMainText(e.target.value)}
+                      placeholder="Ej: avena, pollo, frutas, verduras, legumbres..."
+                      className="min-h-24 rounded-xl border-[#E9E5E7] bg-slate-50 text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                      Alimentos no permitidos / a evitar
+                    </label>
+                    <Textarea
+                      value={restrictedFoodsText}
+                      onChange={(e) => setRestrictedFoodsText(e.target.value)}
+                      placeholder="Ej: frituras, azúcar refinada, embutidos..."
+                      className="min-h-24 rounded-xl border-[#E9E5E7] bg-slate-50 text-sm"
+                    />
+                  </div>
+                </div>
+
+                {/* Consideraciones especiales */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    Consideraciones
+                  </label>
+                  <Textarea
+                    value={specialConsiderations}
+                    onChange={(e) => setSpecialConsiderations(e.target.value)}
+                    placeholder="Ej: preparaciones rápidas, económicas, fáciles de trasladar..."
+                    className="min-h-20 rounded-xl border-[#E9E5E7] bg-slate-50 text-sm"
+                  />
+                </div>
+
+                {/* Categorías y cantidades dinámicas */}
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                      Cantidad de platos y categorías
+                    </label>
+                    <span className="text-xs font-bold text-[#668E20]">
+                      Total a generar: {generalTotalToGenerate} plato(s)
+                    </span>
+                  </div>
+
+                  <div className="space-y-2.5">
+                    {generalCategoryTargets.map((target) => (
+                      <div key={target.id} className="flex items-center gap-2">
+                        <div className="w-28 sm:w-36">
+                          <Input
+                            type="number"
+                            min={1}
+                            max={14}
+                            value={target.count}
+                            onChange={(e) =>
+                              updateGeneralCategoryTarget(
+                                target.id,
+                                "count",
+                                Math.max(1, Math.min(14, Number(e.target.value) || 1)),
+                              )
+                            }
+                            className="h-10 rounded-xl border-[#E9E5E7] bg-slate-50 text-sm font-semibold"
+                            placeholder="Cantidad"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <select
+                            value={target.mealSection}
+                            onChange={(e) =>
+                              updateGeneralCategoryTarget(target.id, "mealSection", e.target.value)
+                            }
+                            className="h-10 w-full rounded-xl border border-[#E9E5E7] bg-slate-50 px-3 text-sm font-medium text-slate-800"
+                          >
+                            <option value="">Como Naty prefiera</option>
+                            {MEAL_SECTIONS.map((sec) => (
+                              <option key={sec} value={sec}>
+                                {sec}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        {generalCategoryTargets.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeGeneralCategoryTarget(target.id)}
+                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors cursor-pointer"
+                            title="Eliminar categoría"
+                            aria-label="Eliminar categoría"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={addGeneralCategoryTarget}
+                    className="mt-1 inline-flex items-center gap-1.5 rounded-xl border border-dashed border-[#DDE7B8] bg-[#F0F5DF]/60 px-3.5 py-2 text-xs font-bold text-[#668E20] hover:bg-[#F0F5DF] transition-colors cursor-pointer"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    <span>Agregar otra categoría</span>
+                  </button>
+                </div>
+
+                {/* Opciones */}
+                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 pt-2 border-t border-[#E9E5E7]">
+                  <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/70 p-2.5 text-xs font-semibold text-slate-700 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={allowExternalFoods}
+                      onChange={(e) => setAllowExternalFoods(e.target.checked)}
+                      className="h-4 w-4 rounded border-[#DDE7B8] text-[#86A83C] focus:ring-[#86A83C] accent-[#86A83C]"
+                    />
+                    <span>Permitir alimentos fuera de la lista</span>
+                  </label>
+                  <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/70 p-2.5 text-xs font-semibold text-slate-700 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={useMyRecipes}
+                      onChange={(e) => setUseMyRecipes(e.target.checked)}
+                      className="h-4 w-4 rounded border-[#DDE7B8] text-[#86A83C] focus:ring-[#86A83C] accent-[#86A83C]"
+                    />
+                    <span>Considerar mis platos existentes</span>
+                  </label>
+                  <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/70 p-2.5 text-xs font-semibold text-slate-700 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={includeInstructions}
+                      onChange={(e) => setIncludeInstructions(e.target.checked)}
+                      className="h-4 w-4 rounded border-[#DDE7B8] text-[#86A83C] focus:ring-[#86A83C] accent-[#86A83C]"
+                    />
+                    <span>Incluir preparación y pasos</span>
+                  </label>
+                  <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/70 p-2.5 text-xs font-semibold text-slate-700 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={includeNutrients}
+                      onChange={(e) => setIncludeNutrients(e.target.checked)}
+                      className="h-4 w-4 rounded border-[#DDE7B8] text-[#86A83C] focus:ring-[#86A83C] accent-[#86A83C]"
+                    />
+                    <span>Incluir calorías y nutrientes</span>
+                  </label>
+                </div>
+
+                {/* Botón generar */}
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-[#E9E5E7]">
+                  <p className="text-xs text-slate-500">
+                    Sin pasos de asistente: pulsa generar y las recetas aparecerán abajo de inmediato.
+                  </p>
+                  <Button
+                    type="button"
+                    onClick={generateGeneralRecipes}
+                    disabled={isGenerating}
+                    className="h-11 rounded-xl bg-[#86A83C] hover:bg-[#78A82F] text-white font-bold px-6 shadow-2xs cursor-pointer shadow-sm shadow-[#86A83C]/20"
+                  >
+                    {isGenerating ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin text-white" />
+                    ) : (
+                      <Sparkles className="mr-2 h-4 w-4" />
+                    )}
+                    {isGenerating ? "Generando con Naty..." : "Generar"}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Recetas generadas */}
+              {dishes.length > 0 && (
+                <div className="space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-[#DDE7B8] bg-[#F0F5DF]/60 p-4">
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-900">
+                        Recetas generadas ({dishes.length})
+                      </h3>
+                      <p className="mt-0.5 text-xs text-[#668E20] font-medium">
+                        Preparaciones disponibles en texto plano. Puedes copiarlas, guardarlas o descargar el PDF.
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={copyDishesAsPlainText}
+                        className="h-9 rounded-xl border-[#DDE7B8] bg-white text-xs font-bold text-[#668E20] hover:bg-[#F0F5DF] cursor-pointer"
+                      >
+                        <Copy className="mr-1.5 h-3.5 w-3.5" />
+                        Copiar texto plano
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => void handlePreviewPdf()}
+                        disabled={isGeneratingPreview}
+                        className="h-9 rounded-xl border-slate-200 bg-white text-xs font-bold text-slate-700 hover:bg-slate-50 cursor-pointer"
+                      >
+                        <FileText className="mr-1.5 h-3.5 w-3.5" />
+                        Vista previa
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={handleDownloadPdf}
+                        disabled={isExportingPdf}
+                        className="h-9 rounded-xl bg-purple-600 hover:bg-purple-700 text-xs font-bold text-white shadow-2xs cursor-pointer"
+                      >
+                        <Download className="mr-1.5 h-3.5 w-3.5" />
+                        Descargar PDF
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={() => setIsSaveCreationModalOpen(true)}
+                        disabled={isSaving}
+                        className="h-9 rounded-xl bg-[#86A83C] hover:bg-[#78A82F] text-xs font-bold text-white shadow-2xs cursor-pointer"
+                      >
+                        <Save className="mr-1.5 h-3.5 w-3.5" />
+                        Guardar en creaciones
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    {dishes.map((dish, index) => (
+                      <div
+                        key={dish.id || index}
+                        className="rounded-2xl border border-[#E9E5E7] bg-white p-5 shadow-2xs space-y-3"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="rounded-md bg-[#F0F5DF] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#668E20]">
+                                {dish.mealSection || "Receta"}
+                              </span>
+                              {dish.recommendedPortion && (
+                                <span className="text-xs text-slate-500 font-medium">
+                                  · Porción: {dish.recommendedPortion}
+                                </span>
+                              )}
+                            </div>
+                            <h4 className="mt-1 text-base font-bold text-slate-900">{dish.title}</h4>
+                            {dish.description && (
+                              <p className="mt-1 text-xs text-slate-600">{dish.description}</p>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeDish(dish.id)}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 cursor-pointer"
+                            title="Eliminar plato"
+                            aria-label="Eliminar plato"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+
+                        {dish.ingredients && dish.ingredients.length > 0 && (
+                          <div className="rounded-xl bg-slate-50/80 p-3 border border-slate-100">
+                            <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1.5">
+                              Ingredientes:
+                            </p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {dish.ingredients.map((ing, iIdx) => {
+                                const qty = formatIngredientQuantity(ing.quantity, ing.amount, ing.unit);
+                                return (
+                                  <span
+                                    key={iIdx}
+                                    className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700"
+                                  >
+                                    • {ing.name} {qty ? `(${qty})` : ""}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {dish.preparation && (
+                          <div>
+                            <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">
+                              Preparación:
+                            </p>
+                            <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-line bg-slate-50/50 p-3 rounded-xl border border-slate-100">
+                              {dish.preparation}
+                            </p>
+                          </div>
+                        )}
+
+                        {(dish.calories || dish.protein) && (
+                          <div className="flex flex-wrap items-center gap-4 text-xs font-semibold text-slate-500 pt-1 border-t border-slate-100">
+                            {dish.calories && <span>Calorías: <strong className="text-slate-800">{dish.calories} kcal</strong></span>}
+                            {dish.protein && <span>Proteínas: <strong className="text-slate-800">{dish.protein}g</strong></span>}
+                            {dish.carbs && <span>Carbohidratos: <strong className="text-slate-800">{dish.carbs}g</strong></span>}
+                            {dish.fats && <span>Grasas: <strong className="text-slate-800">{dish.fats}g</strong></span>}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
           <>
@@ -2072,7 +2715,6 @@ export default function QuickRecipesClient() {
              (currentStep === 1 && !hasGenerationTarget) ||
              (currentStep === 2 && (!hasGeneratedDishes || meaningfulDishes.length === 0))
           }
-           hideControls={recipeCreationMode === "general"}
            lockFutureSteps
           onReset={handleReset}
         >
@@ -2283,7 +2925,7 @@ export default function QuickRecipesClient() {
             className="space-y-4"
           >
             {/* Mode Tabs */}
-            <div className={cn("flex items-center gap-2 border-b border-[#F0ECEE] pb-3", recipeCreationMode === "general" && "hidden")}>
+            <div className="flex items-center gap-2 border-b border-[#F0ECEE] pb-3">
               <button
                 type="button"
                 onClick={() => setInstructionsMode("manual")}
@@ -2377,7 +3019,7 @@ export default function QuickRecipesClient() {
               </div>
             )}
             {/* Mode Content */}
-            {recipeCreationMode !== "general" && instructionsMode === "manual" ? (
+            {instructionsMode === "manual" ? (
               <>
                 <div className={cn(
                   "hidden flex-col gap-3 rounded-2xl border p-4 sm:flex-row sm:items-center sm:justify-between",
@@ -2446,7 +3088,7 @@ export default function QuickRecipesClient() {
                   </div>
                 </div>
               </>
-            ) : recipeCreationMode !== "general" && selectedBaseCreation ? (
+            ) : selectedBaseCreation ? (
               <div className="space-y-3">
                 <div>
                   <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
@@ -2469,117 +3111,102 @@ export default function QuickRecipesClient() {
                 </div>
               </div>
             ) : null}
-            {recipeCreationMode === "general" && (
-              <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs">
-                <div>
-                  <h2 className="text-base font-black text-slate-900">Instrucciones para generar</h2>
-                  <p className="mt-1 text-xs leading-5 text-slate-500">Completa lo que quieras considerar. Todo es opcional y Naty usará el contexto disponible.</p>
+            <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label
+                    className={`flex items-center gap-2 text-[10px] font-black uppercase tracking-widest ${missingGenerationFields.specialConsiderations && !instructionsOptional
+                        ? "text-rose-600"
+                        : "text-slate-400"
+                      }`}
+                  >
+                    Consideraciones especiales
+                  </label>
+                  <Textarea
+                    value={specialConsiderations}
+                    onChange={(event) => setSpecialConsiderations(event.target.value)}
+                    placeholder="Ej: máximo 20 min por preparación, usar ingredientes de bajo costo..."
+                    className={`min-h-[80px] rounded-xl bg-slate-50 text-sm ${missingGenerationFields.specialConsiderations && !instructionsOptional
+                        ? "border-rose-300 ring-1 ring-rose-100 focus-visible:ring-rose-300"
+                        : "border-slate-200"
+                      }`}
+                    maxLength={700}
+                  />
+                  <p className="text-xs text-slate-500">
+                    {instructionsOptional
+                      ? "Opcional: Naty considera toda la información clínica del paciente seleccionado."
+                      : "Las instrucciones de arriba se usan directamente para generar con IA."}
+                  </p>
                 </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="space-y-1.5"><label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Alimentos permitidos</label><Textarea value={allowedFoodsMainText} onChange={(event) => setAllowedFoodsMainText(event.target.value)} placeholder="Ej: avena, pollo, frutas..." className="min-h-24 rounded-xl border-slate-200 bg-slate-50 text-sm" /></div>
-                  <div className="space-y-1.5"><label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Alimentos no permitidos</label><Textarea value={restrictedFoodsText} onChange={(event) => setRestrictedFoodsText(event.target.value)} placeholder="Ej: frituras, azúcar refinada..." className="min-h-24 rounded-xl border-slate-200 bg-slate-50 text-sm" /></div>
-                </div>
-                <div className="space-y-1.5"><label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Consideraciones</label><Textarea value={specialConsiderations} onChange={(event) => setSpecialConsiderations(event.target.value)} placeholder="Ej: preparaciones simples y económicas..." className="min-h-20 rounded-xl border-slate-200 bg-slate-50 text-sm" /></div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="space-y-1.5"><label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Cantidad de platos</label><Input type="number" min={1} max={14} value={generalDishCount} onChange={(event) => setGeneralDishCount(Math.max(1, Math.min(14, Number(event.target.value) || 1)))} className="h-10 rounded-xl border-slate-200 bg-slate-50" /></div>
-                  <div className="space-y-1.5"><label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Categoría</label><select value={generalMealSection} onChange={(event) => setGeneralMealSection(event.target.value)} className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm"><option value="">Como Naty prefiera</option>{MEAL_SECTIONS.map((section) => <option key={section} value={section}>{section}</option>)}</select></div>
-                </div>
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex flex-wrap gap-3">
-                  <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs font-bold text-slate-700"><input type="checkbox" checked={includeInstructions} onChange={(event) => setIncludeInstructions(event.target.checked)} className="h-4 w-4 rounded border-slate-300 text-indigo-600" /> Incluir instrucciones</label>
-                  <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs font-bold text-slate-700"><input type="checkbox" checked={includeNutrients} onChange={(event) => setIncludeNutrients(event.target.checked)} className="h-4 w-4 rounded border-slate-300 text-indigo-600" /> Incluir calorías y nutrientes</label>
+
+                {/* Preferencias de generación en cuadrícula con separación */}
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <label className={cn(
+                    "flex items-start gap-3 rounded-xl border p-3.5 text-sm transition-all cursor-pointer",
+                    allowExternalFoods
+                      ? "border-[#DDE7B8] bg-[#F0F5DF]/60 text-slate-900"
+                      : "border-[#E9E5E7] bg-white text-slate-700 hover:bg-slate-50/80"
+                  )}>
+                    <input
+                      type="checkbox"
+                      checked={allowExternalFoods}
+                      onChange={(event) => setAllowExternalFoods(event.target.checked)}
+                      className="mt-0.5 h-4 w-4 rounded border-[#DDE7B8] text-[#86A83C] focus:ring-[#86A83C] accent-[#86A83C] cursor-pointer"
+                    />
+                    <span className="flex-1">
+                      <span className="block font-bold text-slate-900">Permitir alimentos fuera de la lista</span>
+                      <span className="mt-0.5 block text-xs text-slate-500">Los condimentos básicos podrán aparecer como opcionales.</span>
+                    </span>
+                  </label>
+
+                  <label className={cn(
+                    "flex items-start gap-3 rounded-xl border p-3.5 text-sm transition-all cursor-pointer",
+                    useMyRecipes
+                      ? "border-[#DDE7B8] bg-[#F0F5DF]/60 text-slate-900"
+                      : "border-[#E9E5E7] bg-white text-slate-700 hover:bg-slate-50/80"
+                  )}>
+                    <input
+                      type="checkbox"
+                      checked={useMyRecipes}
+                      onChange={(event) => setUseMyRecipes(event.target.checked)}
+                      className="mt-0.5 h-4 w-4 rounded border-[#DDE7B8] text-[#86A83C] focus:ring-[#86A83C] accent-[#86A83C] cursor-pointer"
+                    />
+                    <span className="flex-1">
+                      <span className="block font-bold text-slate-900">Utilizar mis platos</span>
+                      <span className="mt-0.5 block text-xs text-slate-500">Naty podrá considerar tus recetas guardadas.</span>
+                    </span>
+                  </label>
+
+                  <div className="flex items-center justify-between gap-3 rounded-xl border border-[#E9E5E7] bg-slate-50/70 p-3.5">
+                    <div>
+                      <p className="text-sm font-bold text-slate-900">Importar dieta</p>
+                      <p className="mt-0.5 text-xs text-slate-500">Filtra automáticamente recetas según la dieta del paciente seleccionado.</p>
+                    </div>
+                    <button
+                      type="button"
+                      disabled
+                      className="inline-flex shrink-0 cursor-not-allowed items-center gap-1.5 rounded-lg bg-slate-200/90 px-2.5 py-1 text-xs font-semibold text-slate-500"
+                    >
+                      Bloqueado <Lock className="h-3 w-3" aria-hidden="true" />
+                    </button>
                   </div>
-                  <Button type="button" onClick={generateGeneralRecipes} disabled={isGenerating} className="h-10 w-auto shrink-0 rounded-xl bg-purple-600 px-5 font-bold text-white hover:bg-purple-700"><Sparkles className="mr-2 h-4 w-4" />Generar</Button>
+
+                  {recipeCreationMode === "patient" && (
+                    <label className="flex cursor-not-allowed items-start gap-3 rounded-xl border border-[#E9E5E7] bg-slate-100/70 p-3.5 text-sm text-slate-400">
+                      <input
+                        type="checkbox"
+                        checked={includeGeneratedImages}
+                        disabled
+                        className="mt-0.5 h-4 w-4 rounded border-slate-300 text-slate-400"
+                      />
+                      <span className="flex-1">
+                        <span className="block font-bold text-slate-500">Incluir imágenes generadas</span>
+                        <span className="mt-0.5 block text-xs text-slate-400">Disponible próximamente para ilustrar cada receta.</span>
+                      </span>
+                      <Lock className="ml-auto mt-0.5 h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" />
+                    </label>
+                  )}
                 </div>
-             <div className="flex items-center justify-between gap-3 rounded-xl border border-purple-200 bg-purple-50/70 p-3">
-                  <div><p className="text-sm font-bold text-purple-900">Importar dieta</p><p className="mt-0.5 text-xs text-purple-700">Filtra automáticamente recetas según una dieta importada.</p></div>
-                  <button type="button" disabled className="inline-flex shrink-0 cursor-not-allowed items-center gap-1.5 rounded-xl bg-slate-200 px-3 py-2 text-xs font-bold text-slate-500">Bloqueado <Lock className="h-3.5 w-3.5" /></button>
-                </div>
-                <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/80 p-3 text-sm text-slate-700"><input type="checkbox" checked={allowExternalFoods} onChange={(event) => setAllowExternalFoods(event.target.checked)} className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600" /><span><span className="font-bold">Permitir alimentos fuera de la lista</span><span className="mt-0.5 block text-xs text-slate-500">Se considerará siempre lo que indiques.</span></span></label>
-                <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/80 p-3 text-sm text-slate-700"><input type="checkbox" checked={useMyRecipes} onChange={(event) => setUseMyRecipes(event.target.checked)} className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600" /><span><span className="font-bold">Considerar mis platos</span><span className="mt-0.5 block text-xs text-slate-500">Naty evitará repetir exactamente tus platos existentes.</span></span></label>
               </div>
-            )}
-            {recipeCreationMode !== "general" && (
-            <div>
-            <div>
-              <label
-                className={`mb-1.5 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest ${missingGenerationFields.specialConsiderations && !instructionsOptional
-                    ? "text-rose-600"
-                    : "text-slate-400"
-                  }`}
-              >
-                Consideraciones especiales
-              </label>
-              <Textarea
-                value={specialConsiderations}
-                onChange={(event) => setSpecialConsiderations(event.target.value)}
-                placeholder="Ej: máximo 20 min por preparación, usar ingredientes de bajo costo..."
-                className={`min-h-[80px] rounded-xl bg-slate-50 text-sm ${missingGenerationFields.specialConsiderations && !instructionsOptional
-                    ? "border-rose-300 ring-1 ring-rose-100 focus-visible:ring-rose-300"
-                    : "border-slate-200"
-                  }`}
-                maxLength={700}
-              />
-            </div>
-            <p className="text-xs text-slate-500">
-              {instructionsOptional
-                ? "Opcional: Naty considera toda la información clínica del paciente seleccionado."
-                : "Las instrucciones de arriba se usan directamente para generar con IA."}
-            </p>
-            <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/80 p-3 text-sm text-slate-700">
-              <input
-                type="checkbox"
-                checked={allowExternalFoods}
-                onChange={(event) => setAllowExternalFoods(event.target.checked)}
-                className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-              />
-              <span>
-                <span className="font-bold">Permitir alimentos fuera de la lista</span>
-                <span className="mt-0.5 block text-xs text-slate-500">Los condimentos básicos podrán aparecer como opcionales.</span>
-              </span>
-            </label>
-            <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/80 p-3 text-sm text-slate-700">
-              <input
-                type="checkbox"
-                checked={useMyRecipes}
-                onChange={(event) => setUseMyRecipes(event.target.checked)}
-                className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-              />
-              <span>
-                <span className="font-bold">Utilizar mis platos</span>
-                <span className="mt-0.5 block text-xs text-slate-500">Naty podrá considerar tus recetas guardadas.</span>
-              </span>
-            </label>
-            <div className="flex items-center justify-between gap-3 rounded-xl border border-purple-200 bg-purple-50/70 p-3">
-              <div>
-                <p className="text-sm font-bold text-purple-900">Importar dieta</p>
-                <p className="mt-0.5 text-xs text-purple-700">Filtra automáticamente recetas según la dieta del paciente seleccionado.</p>
-              </div>
-              <button type="button" disabled className="inline-flex shrink-0 cursor-not-allowed items-center gap-1.5 rounded-xl bg-slate-200 px-3 py-2 text-xs font-bold text-slate-500">
-                Bloqueado <Lock className="h-3.5 w-3.5" aria-hidden="true" />
-              </button>
-            </div>
-             {false && (
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/80 p-3 text-sm text-slate-700">
-                  <input type="checkbox" checked={includeInstructions} onChange={(event) => setIncludeInstructions(event.target.checked)} className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
-                  <span><span className="font-bold">Incluir instrucciones</span><span className="mt-0.5 block text-xs text-slate-500">Añade preparación y pasos a cada receta.</span></span>
-                </label>
-                <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/80 p-3 text-sm text-slate-700">
-                  <input type="checkbox" checked={includeNutrients} onChange={(event) => setIncludeNutrients(event.target.checked)} className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
-                  <span><span className="font-bold">Incluir información nutricional</span><span className="mt-0.5 block text-xs text-slate-500">Calorías, proteínas y nutrientes estimados.</span></span>
-                </label>
-              </div>
-            )}
-            {recipeCreationMode === "patient" && (
-              <label className="flex cursor-not-allowed items-start gap-3 rounded-xl border border-slate-200 bg-slate-100/80 p-3 text-sm text-slate-400">
-                <input type="checkbox" checked={includeGeneratedImages} disabled className="mt-0.5 h-4 w-4 rounded border-slate-300" />
-                <span><span className="font-bold">Incluir imágenes generadas</span><span className="mt-0.5 block text-xs">Disponible próximamente para ilustrar cada receta.</span></span>
-                <Lock className="ml-auto mt-0.5 h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" />
-              </label>
-            )}
-            </div>
-            )}
           </div>}
 
            {currentStep === 1 && <div ref={generationSectionRef} className="space-y-4">
@@ -3072,6 +3699,301 @@ export default function QuickRecipesClient() {
           </div>}
 
            {currentStep === 3 && (
+            <div className="space-y-6">
+              {/* Sección Recursos Específicos */}
+              <section
+                className={cn(
+                  "rounded-2xl border border-[#E9E5E7] bg-white p-5 sm:p-8 shadow-2xs space-y-5 transition-opacity",
+                  !includeResources && "opacity-55",
+                )}
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-base sm:text-lg font-bold text-[#20212B]">
+                      Recursos específicos
+                    </h2>
+                    <button
+                      type="button"
+                      onClick={() => setIncludeResources((current) => !current)}
+                      className={cn(
+                        "mt-2 inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-medium transition-colors w-fit cursor-pointer",
+                        includeResources
+                          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                          : "border-[#E9E5E7] bg-white text-slate-500",
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "h-2 w-2 rounded-full",
+                          includeResources ? "bg-emerald-500" : "bg-slate-300",
+                        )}
+                      />
+                      {includeResources ? "Omitir sección" : "Incluir sección"}
+                    </button>
+                    <p className="mt-1 text-xs text-[#626573]">
+                      Puedes sumar material educativo o recomendaciones breves adaptadas al paciente.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      className="h-10 rounded-xl bg-[#86A83C] hover:bg-[#78A82F] text-white font-medium text-xs shadow-2xs w-full sm:w-auto justify-center cursor-pointer shadow-sm shadow-[#86A83C]/20"
+                      onClick={openResourceModal}
+                      disabled={!includeResources || isLoadingResources}
+                    >
+                      {isLoadingResources ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin text-white" />
+                      ) : (
+                        <Plus className="mr-1.5 h-4 w-4" />
+                      )}
+                      {isLoadingResources ? "Cargando..." : "Agregar recurso"}
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Tabla Desktop (>= 640px) */}
+                <div className="mt-5 overflow-x-auto rounded-xl border border-[#E9E5E7] hidden sm:block">
+                  <table className="w-full min-w-[680px] bg-white">
+                    <thead className="bg-slate-50/80">
+                      <tr className="border-b border-[#E9E5E7]">
+                        <th className="px-4 py-2.5 text-left text-xs font-semibold text-[#626573] w-1/3">
+                          Recurso
+                        </th>
+                        <th className="px-4 py-2.5 text-left text-xs font-semibold text-[#626573]">
+                          Vista previa
+                        </th>
+                        <th className="px-4 py-2.5 text-right text-xs font-semibold text-[#626573] w-20">
+                          Acción
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {resolvedResourcePages.length > 0 ? (
+                        resolvedResourcePages.map((resource, index) => (
+                          <tr key={`${resource.resourceId}-${index}`} className="border-b border-slate-100 last:border-b-0">
+                            <td className="px-4 py-3 align-top">
+                              <p className="font-bold text-slate-800 text-xs sm:text-sm">{resource.title}</p>
+                              <p className="mt-0.5 text-[11px] text-slate-500">
+                                {Object.keys(resource.variables || {}).length} variables resueltas
+                              </p>
+                            </td>
+                            <td className="px-4 py-3 align-top">
+                              <p className="line-clamp-3 whitespace-pre-wrap text-xs sm:text-sm leading-5 text-slate-600">
+                                {resource.content}
+                              </p>
+                            </td>
+                            <td className="px-4 py-3 align-top text-right">
+                              <button
+                                type="button"
+                                onClick={() => removeResolvedResource(index)}
+                                className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 cursor-pointer transition-colors"
+                                title="Eliminar recurso"
+                                aria-label="Eliminar recurso"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={3} className="px-4 py-6 text-center text-xs sm:text-sm text-slate-500">
+                            Todavía no agregas recursos para este recetario. Pulsa &quot;Agregar recurso&quot; para seleccionar.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Lista Móvil (< 640px) */}
+                <div className="block sm:hidden mt-4 space-y-3">
+                  {resolvedResourcePages.length > 0 ? (
+                    resolvedResourcePages.map((resource, index) => (
+                      <div
+                        key={`${resource.resourceId}-${index}`}
+                        className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="font-bold text-slate-800 text-sm">
+                            {resource.title}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => removeResolvedResource(index)}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100"
+                            title="Eliminar recurso"
+                            aria-label="Eliminar recurso"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                        <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-xs leading-5 text-slate-600">
+                          {resource.content}
+                        </p>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-xs text-slate-500 text-center">
+                      Todavía no agregas recursos para este recetario.
+                    </div>
+                  )}
+                </div>
+              </section>
+
+              {/* Sección Guía Práctica de Porciones */}
+              <section className="rounded-2xl border border-[#E9E5E7] bg-white p-5 sm:p-8 shadow-2xs space-y-5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-base sm:text-lg font-bold text-[#20212B]">
+                      Guía práctica de porciones
+                    </h2>
+                    <button
+                      type="button"
+                      onClick={() => setIncludePortionGuide((current) => !current)}
+                      className={cn(
+                        "mt-2 inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-medium transition-colors w-fit cursor-pointer",
+                        includePortionGuide
+                          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                          : "border-[#E9E5E7] bg-white text-slate-500",
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "h-2 w-2 rounded-full",
+                          includePortionGuide ? "bg-emerald-500" : "bg-slate-300",
+                        )}
+                      />
+                      {includePortionGuide ? "Ocultar sección" : "Incluir sección"}
+                    </button>
+                    <p className="mt-1 text-xs text-[#626573]">
+                      Resumen profesional simple para que el paciente entienda referencias base de intercambio.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Vista Móvil (< 768px) */}
+                <div className="block md:hidden space-y-2.5 mt-4">
+                  {portionGuideRows.map((row) => (
+                    <div key={row.id} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <Input
+                          value={row.category}
+                          onChange={(e) => updatePortionGuideRow(row.id, "category", e.target.value)}
+                          className="h-9 flex-1 rounded-xl border-slate-200 bg-white text-xs font-bold"
+                          placeholder="Categoría"
+                          disabled={!includePortionGuide}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removePortionGuideRow(row.id)}
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 text-rose-600"
+                          disabled={!includePortionGuide || portionGuideRows.length === 1}
+                          title="Eliminar fila"
+                          aria-label="Eliminar fila"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                      <Input
+                        value={row.portion}
+                        onChange={(e) => updatePortionGuideRow(row.id, "portion", e.target.value)}
+                        className="h-9 rounded-xl border-slate-200 bg-white text-xs font-semibold"
+                        placeholder="Detalle de porción"
+                        disabled={!includePortionGuide}
+                      />
+                    </div>
+                  ))}
+
+                  <button
+                    type="button"
+                    onClick={addPortionGuideRow}
+                    disabled={!includePortionGuide}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-[#E9E5E7] bg-white px-4 py-2.5 text-xs font-semibold text-[#626573] hover:border-[#86A83C] hover:bg-[#F0F5DF]/60 hover:text-[#668E20] transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed mt-3"
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span>Agregar otra fila</span>
+                  </button>
+                </div>
+
+                {/* Vista Desktop (>= 768px) */}
+                <div
+                  className={cn(
+                    "hidden md:block mt-4 overflow-x-auto rounded-xl border border-[#E9E5E7]",
+                    !includePortionGuide && "opacity-45",
+                  )}
+                >
+                  <table className="w-full min-w-[680px] bg-white">
+                    <thead className="bg-slate-50/80">
+                      <tr className="border-b border-[#E9E5E7]">
+                        <th className="px-4 py-2.5 text-left text-xs font-semibold text-[#626573] w-1/3">
+                          Categoría
+                        </th>
+                        <th className="px-4 py-2.5 text-left text-xs font-semibold text-[#626573]">
+                          Porción
+                        </th>
+                        <th className="px-4 py-2.5 text-right text-xs font-semibold text-[#626573] w-20">
+                          Acción
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {portionGuideRows.map((row) => (
+                        <tr key={row.id} className="border-b border-slate-100 last:border-b-0">
+                          <td className="px-4 py-2.5">
+                            <Input
+                              value={row.category}
+                              onChange={(e) => updatePortionGuideRow(row.id, "category", e.target.value)}
+                              className="h-10 rounded-xl border-[#E9E5E7] bg-white text-xs font-medium text-[#20212B]"
+                              placeholder="Categoría"
+                              disabled={!includePortionGuide}
+                            />
+                          </td>
+                          <td className="px-4 py-2.5">
+                            <Input
+                              value={row.portion}
+                              onChange={(e) => updatePortionGuideRow(row.id, "portion", e.target.value)}
+                              className="h-10 rounded-xl border-[#E9E5E7] bg-white text-xs text-[#20212B]"
+                              placeholder="Detalle de porción"
+                              disabled={!includePortionGuide}
+                            />
+                          </td>
+                          <td className="px-4 py-2.5 text-right">
+                            <button
+                              type="button"
+                              onClick={() => removePortionGuideRow(row.id)}
+                              className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 cursor-pointer transition-colors"
+                              disabled={!includePortionGuide || portionGuideRows.length === 1}
+                              title="Eliminar fila"
+                              aria-label="Eliminar fila"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t border-slate-100 bg-slate-50/40">
+                        <td colSpan={3} className="px-4 py-3">
+                          <button
+                            type="button"
+                            onClick={addPortionGuideRow}
+                            disabled={!includePortionGuide}
+                            className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-[#E9E5E7] bg-white px-4 py-2.5 text-xs font-semibold text-[#626573] hover:border-[#86A83C] hover:bg-[#F0F5DF]/60 hover:text-[#668E20] transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <Plus className="h-4 w-4" />
+                            <span>Agregar otra fila</span>
+                          </button>
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </section>
+            </div>
+          )}
+
+           {currentStep === 4 && (
             <section className="space-y-4">
               <div>
                 <h2 className="text-base sm:text-lg font-bold text-slate-900">Revisa tu entrega antes de continuar</h2>
@@ -3085,6 +4007,22 @@ export default function QuickRecipesClient() {
                 <div className="rounded-2xl border border-[#E9E5E7] bg-white p-4 shadow-2xs">
                   <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Platos</p>
                   <p className="mt-1 text-sm font-bold text-slate-900">{meaningfulDishes.length} preparados</p>
+                </div>
+                <div className="rounded-2xl border border-[#E9E5E7] bg-white p-4 shadow-2xs">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Recursos educativos</p>
+                  <p className="mt-1 text-sm font-bold text-slate-900">
+                    {includeResources
+                      ? `${resolvedResourcePages.length} recurso(s) incluido(s)`
+                      : "Sección omitida"}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-[#E9E5E7] bg-white p-4 shadow-2xs">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Guía de porciones</p>
+                  <p className="mt-1 text-sm font-bold text-slate-900">
+                    {includePortionGuide
+                      ? `${portionGuideRows.length} grupos configurados`
+                      : "Sección omitida"}
+                  </p>
                 </div>
                 <div className="rounded-2xl border border-[#DDE7B8] bg-[#F0F5DF] p-4 md:col-span-2 shadow-2xs">
                   <p className="text-[10px] font-black uppercase tracking-wider text-[#668E20]">Indicaciones</p>
@@ -3125,13 +4063,6 @@ export default function QuickRecipesClient() {
           )}
         </div>
         </PlanWizardShell>
-        {recipeCreationMode === "general" && currentStep === 2 && hasGeneratedDishes && (
-          <div className="flex justify-end pt-2">
-            <Button disabled title="Guardar en biblioteca está inhabilitado en la demo" className="h-10 cursor-not-allowed rounded-xl bg-slate-200 px-5 font-bold text-slate-500 disabled:opacity-100">
-              <Lock className="mr-2 h-4 w-4" /> Guardar en biblioteca
-            </Button>
-          </div>
-        )}
         </>
         )}
         </>}
@@ -3260,6 +4191,109 @@ export default function QuickRecipesClient() {
         onImport={applyImportedCreation}
         allowedTypes={["DIET", "FAST_DELIVERABLE", "DELIVERABLE", "RECETARIO", "PAUTAS", "RECIPE"]}
       />
+
+      <Modal
+        isOpen={isResourceModalOpen}
+        onClose={() => setIsResourceModalOpen(false)}
+        title="Agregar recurso educativo"
+        className="max-w-2xl"
+      >
+        <div className="space-y-4">
+          <div className="grid gap-3 md:grid-cols-[1fr_200px]">
+            <Input
+              value={resourceSearch}
+              onChange={(e) => setResourceSearch(e.target.value)}
+              placeholder="Buscar por nombre o contenido..."
+              className="h-10 rounded-xl border-slate-200 bg-slate-50 text-xs"
+            />
+            <select
+              value={resourceCategoryFilter}
+              onChange={(e) => setResourceCategoryFilter(e.target.value)}
+              className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium text-slate-900"
+            >
+              {resourceCategories.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+              Recursos disponibles ({filteredResources.length})
+            </p>
+            <div className="max-h-[340px] space-y-2 overflow-y-auto pr-1">
+              {filteredResources.length > 0 ? (
+                filteredResources.map((resource) => {
+                  const isSelected = selectedResourceIds.includes(resource.id);
+                  const preview = stripHtml(resource.content || "").replace(/\s+/g, " ").trim();
+
+                  return (
+                    <button
+                      key={resource.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedResourceIds((current) =>
+                          current.includes(resource.id)
+                            ? current.filter((id) => id !== resource.id)
+                            : [...current, resource.id],
+                        );
+                      }}
+                      className={cn(
+                        "w-full rounded-2xl border p-3.5 text-left transition-colors cursor-pointer",
+                        isSelected
+                          ? "border-[#86A83C] bg-[#F0F5DF]/70"
+                          : "border-slate-200 bg-white hover:border-slate-300",
+                      )}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-bold text-slate-900">{resource.title}</p>
+                        {resource.category && (
+                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                            {resource.category}
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">
+                        {preview}
+                      </p>
+                    </button>
+                  );
+                })
+              ) : (
+                <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-xs text-slate-500">
+                  No se encontraron recursos educativos.
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+            <span className="text-xs text-slate-500 font-medium">
+              {selectedResourceIds.length} seleccionado(s)
+            </span>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setIsResourceModalOpen(false)}
+                className="h-9 rounded-xl text-xs font-semibold text-slate-600"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                onClick={addResolvedResourcePages}
+                disabled={selectedResourceIds.length === 0}
+                className="h-9 rounded-xl bg-[#86A83C] hover:bg-[#78A82F] text-xs font-bold text-white shadow-2xs"
+              >
+                Agregar seleccionados
+              </Button>
+            </div>
+          </div>
+        </div>
+      </Modal>
 
     </>
     </FeatureGate>
