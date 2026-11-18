@@ -53,6 +53,7 @@ export const planContextSchema = z.object({
       optionTexts: z.array(z.string()).optional(),
     })),
     avoidFoods: z.array(z.string()),
+    avoidFoodCategories: z.array(z.object({ name: z.string(), category: optionalText })),
     portionGuide: z.array(z.object({ category: z.string(), portion: z.string() })),
     resources: z.array(z.object({ resourceId: z.string(), title: z.string(), content: z.string(), variables: z.record(z.string(), z.string()) })),
     visibility: z.object({ meals: z.boolean(), avoidFoods: z.boolean(), resources: z.boolean(), portionGuide: z.boolean() }),

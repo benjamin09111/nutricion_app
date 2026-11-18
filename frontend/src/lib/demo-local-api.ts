@@ -971,6 +971,43 @@ export function saveLocalCreations(creations: any[]) {
   }
 }
 
+const INITIAL_DEMO_RESOURCES = [
+  {
+    id: "resource-demo-hydration",
+    title: "Hidratación diaria",
+    content: "Mantener una hidratación regular durante el día. Ajustar el volumen según actividad física, clima y contexto clínico.",
+    category: "Hábitos",
+    isMine: false,
+  },
+  {
+    id: "resource-demo-portions",
+    title: "Guía de porciones",
+    content: "Usar referencias visuales para ordenar proteínas, carbohidratos, verduras y grasas saludables en cada comida.",
+    category: "Educación nutricional",
+    isMine: false,
+  },
+];
+
+export function getLocalResources(): any[] {
+  if (typeof window === "undefined") return INITIAL_DEMO_RESOURCES;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.RESOURCES);
+    if (!raw) {
+      localStorage.setItem(STORAGE_KEYS.RESOURCES, JSON.stringify(INITIAL_DEMO_RESOURCES));
+      return INITIAL_DEMO_RESOURCES;
+    }
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : INITIAL_DEMO_RESOURCES;
+  } catch {
+    return INITIAL_DEMO_RESOURCES;
+  }
+}
+
+export function saveLocalResources(resources: any[]) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(STORAGE_KEYS.RESOURCES, JSON.stringify(resources));
+}
+
 export const INITIAL_COMMUNITY_FOODS = [
   {
     id: "custom-001",
@@ -1540,6 +1577,29 @@ export function handleDemoApi(path: string, init?: RequestInit): Response | Prom
       return makeMockResponse(found);
     }
     return makeMockResponse({ error: "Creación no encontrada" }, 404);
+  }
+
+  // 2.1. Recursos educativos
+  if (cleanPath === "/resources") {
+    if (method === "GET") {
+      return makeMockResponse(getLocalResources());
+    }
+    if (method === "POST" && init?.body) {
+      try {
+        const body = JSON.parse(init.body as string);
+        const resource = {
+          id: `resource-${Date.now()}`,
+          createdAt: new Date().toISOString(),
+          isMine: true,
+          ...body,
+        };
+        const resources = [resource, ...getLocalResources()];
+        saveLocalResources(resources);
+        return makeMockResponse(resource, 201);
+      } catch {
+        return makeMockResponse({ error: "Invalid resource body" }, 400);
+      }
+    }
   }
 
   // 3. Pacientes

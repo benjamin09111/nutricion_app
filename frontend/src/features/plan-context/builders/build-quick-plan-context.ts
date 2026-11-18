@@ -45,6 +45,7 @@ type QuickPlanInput = {
   paragraphs: Array<{ category: string; categoryOptional: string; portionsPerDay: string; foods: Array<{ portion: string; food: string }> }>;
   meals: Array<{ section: string; time?: string; portion?: string; mealText: string; weeklyMealTexts?: Record<string, string>; optionTexts?: string[] }>;
   avoidFoods: string[];
+  avoidFoodCategories: Array<{ name: string; category?: string }>;
   portionGuideRows: Array<{ category: string; portion: string }>;
   resources: ResourceInput[];
   includeMeals: boolean;
@@ -168,6 +169,9 @@ export const buildQuickPlanContext = (input: QuickPlanInput): PlanContext => {
       ...(meal.optionTexts ? { optionTexts: meal.optionTexts.map((option) => option.trim()).filter(Boolean) } : {}),
     })).filter((meal) => meal.section || meal.mealText || Object.values(meal.weeklyMealTexts || {}).some(Boolean) || (meal.optionTexts || []).length > 0),
     avoidFoods: compactList(input.avoidFoods),
+    avoidFoodCategories: input.avoidFoodCategories
+      .map((item) => ({ name: item.name.trim(), ...(item.category?.trim() ? { category: item.category.trim() } : {}) }))
+      .filter((item) => item.name),
     portionGuide: input.portionGuideRows
       .map((row) => ({ category: row.category.trim(), portion: row.portion.trim() }))
       .filter((row) => row.category || row.portion),

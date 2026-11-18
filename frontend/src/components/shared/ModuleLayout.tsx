@@ -14,6 +14,7 @@ interface StepIndicator {
 
 interface ModuleLayoutProps {
   title: string;
+  titleAction?: React.ReactNode;
   description: React.ReactNode;
   step?: StepIndicator;
   rightNavItems?: ActionDockItem[];
@@ -26,6 +27,7 @@ interface ModuleLayoutProps {
 
 export function ModuleLayout({
   title,
+  titleAction,
   description,
   step,
   rightNavItems,
@@ -57,9 +59,12 @@ export function ModuleLayout({
             </div>
           )}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-[#20212B] tracking-tight leading-tight">
-              {title}
-            </h1>
+            <div className="flex min-w-0 flex-wrap items-center gap-3">
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-[#20212B] tracking-tight leading-tight">
+                {title}
+              </h1>
+              {titleAction}
+            </div>
             {rightContent}
           </div>
           <div className="text-xs sm:text-sm text-[#626573] font-medium leading-relaxed max-w-4xl">

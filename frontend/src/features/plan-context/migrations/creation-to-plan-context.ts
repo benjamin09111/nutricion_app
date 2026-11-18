@@ -48,6 +48,13 @@ export const creationToPlanContext = (creation: LegacyCreation): PlanContext => 
     avoidFoods: Array.isArray(content.avoidFoods)
       ? content.avoidFoods.map((food: any) => typeof food === "string" ? food : food?.value || "")
       : asText(content.avoidFoods).split(","),
+    avoidFoodCategories: Array.isArray(content.avoidFoods)
+      ? content.avoidFoods.map((food: any) =>
+          typeof food === "string"
+            ? { name: food }
+            : { name: food?.value || food?.name || "", category: food?.category },
+        )
+      : [],
     portionGuideRows: Array.isArray(content.portionGuideRows)
       ? content.portionGuideRows
       : Array.isArray(content.portionGuide) ? content.portionGuide : [],

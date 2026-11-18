@@ -82,7 +82,7 @@ export interface FastDeliverablePdfData {
   showPlanObjectiveInPdf?: boolean;
   intro?: FastDeliverableIntroData | null;
   meals: FastMealPlanItem[];
-  avoidFoods: string[];
+  avoidFoods: Array<string | { name: string; category?: string }>;
   recipes?: FastDeliverableRecipeItem[];
   cart?: FastDeliverableCartItem[];
   resources: FastDeliverableResourcePage[];
@@ -511,6 +511,7 @@ export function FastDeliverablePdfDocument({
                 return (
                   <View
                     key={meal.id || index}
+                    wrap={false}
                     style={[styles.mealRow, index % 2 === 1 ? styles.mealRowEven : {}]}
                   >
                     <View style={styles.cellTime}>
@@ -539,69 +540,56 @@ export function FastDeliverablePdfDocument({
           </View>
         )}
 
-        {/* Párrafos estructurados / Tiempos de comida alternativos si no hay tabla */}
-        {data.paragraphs && data.paragraphs.length > 0 && !showTable && (
+        {/* Párrafos estructurados / guía por categoría */}
+        {data.paragraphs && data.paragraphs.length > 0 && (
           <View style={styles.section}>
-            <PdfSectionHeader title="Estructura de la Pauta" icon="cutlery" />
+            <PdfSectionHeader
+              title={showTable ? "Guía por categorías" : "Estructura de la Pauta"}
+              icon="cutlery"
+            />
             {data.paragraphs.map((p, pIdx) => (
               <View
                 key={pIdx}
+                wrap={false}
                 style={{
                   marginBottom: 6,
                   padding: 8,
                   backgroundColor: colors.slate50,
                   borderRadius: 10,
-                  borderWidth: 1,
-                  borderColor: colors.slate200,
                 }}
               >
-                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
-                  <Text style={{ fontSize: 9.5, fontFamily: "Helvetica-Bold", color: colors.slate900 }}>{p.title}</Text>
-                  {p.subtitle && (
-                    <Text style={{ fontSize: 8, color: colors.primaryDark, fontFamily: "Helvetica-Bold" }}>{p.subtitle}</Text>
-                  )}
+                <View style={{ flexDirection: "row", alignItems: "stretch", minHeight: 92 }}>
+                  <View style={{ flex: 1, paddingRight: 10 }}>
+                    <Text style={{ fontSize: 9.5, fontFamily: "Helvetica-Bold", color: colors.slate900 }}>{p.title}</Text>
+                    {p.subtitle && (
+                      <Text style={{ fontSize: 8, color: colors.primaryDark, fontFamily: "Helvetica-Bold", marginTop: 2 }}>{p.subtitle}</Text>
+                    )}
+                    <View style={{ marginTop: 5 }}>
+                      {p.foods.map((food, fIdx) => (
+                        <Text key={fIdx} style={{ fontSize: 8, color: colors.slate700, marginLeft: 4, lineHeight: 1.35 }}>
+                          • {food}
+                        </Text>
+                      ))}
+                    </View>
+                  </View>
+                  {p.imagePath ? (
+                    <Image
+                      src={p.imagePath}
+                      style={{ width: 112, height: 88, borderRadius: 10 }}
+                    />
+                  ) : null}
                 </View>
-                {p.foods.map((food, fIdx) => (
-                  <Text key={fIdx} style={{ fontSize: 8, color: colors.slate700, marginLeft: 4, lineHeight: 1.35 }}>
-                    • {food}
-                  </Text>
-                ))}
               </View>
             ))}
           </View>
         )}
 
-        {/* Guía de porciones */}
-        {data.portionGuide && data.portionGuide.length > 0 && (
-          <View style={styles.section}>
-            <PdfSectionHeader title="Guía práctica de porciones" icon="cutlery" />
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-              {data.portionGuide.map((pg: any, idx: number) => (
-                <View
-                  key={idx}
-                  style={{
-                    width: "48%",
-                    padding: 6,
-                    backgroundColor: colors.slate50,
-                    borderRadius: 8,
-                    borderWidth: 1,
-                    borderColor: colors.slate200,
-                  }}
-                >
-                  <Text style={{ fontSize: 8.5, fontFamily: "Helvetica-Bold", color: colors.slate800 }}>
-                    {pg.grupo || pg.category || "Grupo"}
-                  </Text>
-                  <Text style={{ fontSize: 7.5, color: colors.primaryDark, marginTop: 1 }}>
-                    {pg.porcion || pg.portion || ""}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
-
         {/* Alimentos a evitar */}
-        <PdfAvoidFoodsSection avoidFoods={data.avoidFoods} />
+        <PdfAvoidFoodsSection
+          avoidFoods={data.avoidFoods.map((item) =>
+            typeof item === "string" ? { name: item } : item,
+          )}
+        />
 
         {/* Recetas (si hay) */}
         {data.recipes && data.recipes.length > 0 && (
@@ -641,6 +629,71 @@ export function FastDeliverablePdfDocument({
         {/* Footer */}
         <PdfBrandedFooter nutritionistName={nutritionistName} />
       </Page>
+
+      {/* Recursos: penúltima página del documento */}
+      {data.resources && data.resources.length > 0 && (
+        <Page size="A4" style={styles.page}>
+          <View style={styles.section}>
+            <PdfSectionHeader title="Recursos educativos" icon="leaf" />
+            {data.resources.map((resource, index) => (
+              <View key={resource.resourceId || index} style={{ marginBottom: 12 }}>
+                <Text style={{ fontSize: 11, fontFamily: "Helvetica-Bold", color: colors.slate900, marginBottom: 5 }}>
+                  {resource.title}
+                </Text>
+                {parseResourceContent(resource.content || "").map((block, blockIndex) => (
+                  <Text
+                    key={`${resource.resourceId || index}-${blockIndex}`}
+                    style={{
+                      fontSize: block.kind === "heading" ? 9.5 : 8.5,
+                      fontFamily: block.kind === "heading" ? "Helvetica-Bold" : "Helvetica",
+                      color: block.kind === "heading" ? colors.primaryDark : colors.slate700,
+                      marginBottom: 3,
+                      marginLeft: block.kind === "bullet" ? 8 : 0,
+                    }}
+                  >
+                    {block.kind === "bullet" ? `• ${block.text}` : block.text}
+                  </Text>
+                ))}
+              </View>
+            ))}
+          </View>
+          <PdfBrandedFooter nutritionistName={nutritionistName} />
+        </Page>
+      )}
+
+      {/* Porciones: siempre última página completa */}
+      {data.portionGuide && data.portionGuide.length > 0 && (
+        <Page size="A4" style={styles.page}>
+          <View style={styles.section}>
+            <PdfSectionHeader title="Guía práctica de porciones" icon="cutlery" />
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+              {data.portionGuide.map((pg: any, idx: number) => (
+                <View
+                  key={idx}
+                  wrap={false}
+                  style={{
+                    width: "48%",
+                    minHeight: 62,
+                    padding: 9,
+                    backgroundColor: colors.slate50,
+                    borderRadius: 8,
+                    borderWidth: 1,
+                    borderColor: colors.slate200,
+                  }}
+                >
+                  <Text style={{ fontSize: 9, fontFamily: "Helvetica-Bold", color: colors.slate800 }}>
+                    {pg.grupo || pg.category || "Grupo"}
+                  </Text>
+                  <Text style={{ fontSize: 8, color: colors.primaryDark, marginTop: 3 }}>
+                    {pg.porcion || pg.portion || ""}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+          <PdfBrandedFooter nutritionistName={nutritionistName} />
+        </Page>
+      )}
     </Document>
   );
 }

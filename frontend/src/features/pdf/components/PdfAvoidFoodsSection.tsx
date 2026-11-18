@@ -36,36 +36,35 @@ const styles = StyleSheet.create({
   },
   cardsGrid: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    flexWrap: "wrap",
+    justifyContent: "flex-start",
     gap: 6,
   },
   foodCard: {
-    flex: 1,
+    width: "18%",
     backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.borderAmber,
     borderRadius: 8,
-    paddingVertical: 5,
+    paddingVertical: 4,
     paddingHorizontal: 4,
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 52,
+    minHeight: 42,
   },
   foodImage: {
-    width: 24,
-    height: 24,
-    marginBottom: 3,
+    width: 18,
+    height: 18,
+    marginBottom: 2,
     objectFit: "contain",
   },
   prohibitIconBadge: {
-    width: 24,
-    height: 24,
-    marginBottom: 3,
+    width: 18,
+    height: 18,
+    marginBottom: 2,
     alignItems: "center",
     justifyContent: "center",
   },
   foodLabel: {
-    fontSize: 6.5,
+    fontSize: 6,
     color: colors.slate700,
     textAlign: "center",
     lineHeight: 1.2,
@@ -164,9 +163,10 @@ export function PdfAvoidFoodsSection({
   const hasCustom = Array.isArray(avoidFoods) && avoidFoods.length > 0;
 
   const itemsToRender = hasCustom
-    ? (avoidFoods as (string | AvoidFoodItem)[]).slice(0, 5).map((item) => {
+      ? (avoidFoods as (string | AvoidFoodItem)[]).slice(0, 5).map((item) => {
         const name = typeof item === "string" ? item : item.name;
-        const b64 = resolveAvoidFoodImage(name);
+        const category = typeof item === "string" ? undefined : item.category;
+        const b64 = resolveAvoidFoodImage(category || name);
         return { label: name, b64 };
       })
     : DEFAULT_AVOID_CATEGORIES.map((cat) => ({
@@ -188,7 +188,7 @@ export function PdfAvoidFoodsSection({
 
       <View style={styles.cardsGrid}>
         {itemsToRender.map((item, idx) => (
-          <View key={idx} style={styles.foodCard}>
+          <View key={idx} wrap={false} style={styles.foodCard}>
             {item.b64 ? (
               <Image src={item.b64} style={styles.foodImage} />
             ) : (

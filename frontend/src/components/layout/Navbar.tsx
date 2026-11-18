@@ -17,6 +17,7 @@ import {
   NotebookPen,
   X,
   HeartHandshake,
+  MousePointerClick,
 } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
@@ -259,7 +260,16 @@ export function Navbar({
       <div className="hidden lg:flex min-w-0 flex-1 items-center justify-between gap-x-4 lg:gap-x-6">
         {/* Workspace Context — Clean, quiet & clinical (logo en sidebar únicamente) */}
         <div className="flex items-center gap-2 min-w-0 select-none shrink-0">
-          <span className="text-xs sm:text-sm font-semibold text-slate-700">Espacio Clínico</span>
+          <button
+            type="button"
+            onClick={() => router.push("/paciente/dashboard")}
+            className="group inline-flex cursor-pointer items-center gap-1 text-xs font-semibold text-slate-700 underline decoration-slate-300 underline-offset-4 transition-colors hover:text-violet-700 hover:decoration-violet-400 sm:text-sm"
+            aria-label="Ir a la vista paciente"
+            title="Ir a la vista paciente"
+          >
+            <span>Vista nutricionista</span>
+            <MousePointerClick className="h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-100" aria-hidden="true" />
+          </button>
           {!isAdminView && (
             <>
               <span className="text-xs text-slate-300">/</span>
@@ -275,7 +285,7 @@ export function Navbar({
               <button
                 type="button"
                 onClick={() => setIsDemoInterestModalOpen(true)}
-                className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-xl px-2.5 sm:px-3.5 py-1.5 text-xs font-bold shadow-xs transition-all duration-200 active:scale-95 bg-[#86A83C] hover:bg-[#78A82F] text-white hover:shadow-md shrink-0"
+                className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-xl px-2.5 sm:px-3.5 py-1.5 text-xs font-bold shadow-xs transition-all duration-200 active:scale-95 bg-purple-600 hover:bg-purple-700 text-white hover:shadow-md shrink-0"
               >
                 <Sparkles className="h-3.5 w-3.5 text-white shrink-0" />
                 <span className="hidden sm:inline">Me interesa NutriNet</span>

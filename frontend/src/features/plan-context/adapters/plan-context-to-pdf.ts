@@ -41,7 +41,11 @@ export const planContextToFastDeliverablePdf = (
         context.plan.format.planMode,
       )
     : [],
-  avoidFoods: context.plan.visibility.avoidFoods ? context.plan.avoidFoods : [],
+  avoidFoods: context.plan.visibility.avoidFoods
+    ? context.plan.avoidFoodCategories.length > 0
+      ? context.plan.avoidFoodCategories
+      : context.plan.avoidFoods
+    : [],
   resources: context.plan.visibility.resources
     ? context.plan.resources
     : [],

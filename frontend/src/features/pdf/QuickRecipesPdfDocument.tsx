@@ -5,7 +5,6 @@ import { formatIngredientQuantityLabel } from "./pdfFormatters";
 import {
   PdfBrandedHeader,
   PdfSectionHeader,
-  PdfAvoidFoodsSection,
   PdfBrandedFooter,
 } from "./components";
 
@@ -199,7 +198,7 @@ export function QuickRecipesPdfDocument({ data }: { data: QuickRecipesPdfData })
         <View style={styles.section}>
           <PdfSectionHeader title="Recetas & Preparaciones" icon="recipe" />
           {data.dishes.map((dish, index) => (
-            <View key={index} style={styles.dishCard}>
+            <View key={index} wrap={false} style={styles.dishCard}>
               <View style={styles.dishHeader}>
                 <Text style={styles.dishTitle}>{dish.title || `Receta ${index + 1}`}</Text>
                 {dish.mealSection && (
@@ -258,11 +257,6 @@ export function QuickRecipesPdfDocument({ data }: { data: QuickRecipesPdfData })
             </View>
           ))}
         </View>
-
-        {/* Alimentos restringidos si aplica */}
-        {data.restrictedFoods && data.restrictedFoods.length > 0 && (
-          <PdfAvoidFoodsSection avoidFoods={data.restrictedFoods} />
-        )}
 
         <PdfBrandedFooter />
       </Page>

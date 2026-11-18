@@ -1,6 +1,7 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import React, { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import {
   calculateBMI,
   calculateGET,
@@ -9,20 +10,20 @@ import {
 } from "@/lib/nutrition-formulas";
 import {
   ChefHat,
-  Download,
+  Filter,
   FileText,
   Library,
   Loader2,
   Plus,
   RotateCcw,
   Search,
-  Save,
   Sparkles,
   Trash2,
   User,
   X,
   Apple,
   Pencil,
+  Lock,
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
@@ -37,6 +38,7 @@ import { ImportCreationModal } from "@/components/shared/ImportCreationModal";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { ModuleUsageBadges } from "@/components/shared/ModuleUsageBadges";
 import { NatyLoadingOverlay, PlanWizardShell } from "@/components/plans";
+import { NatyPlanChatDemo } from "@/components/plans/NatyPlanChatDemo";
 import { ActionDockItem } from "@/components/ui/ActionDock";
 import { fetchApi, getApiUrl } from "@/lib/api-base";
 import { fetchCreation, saveCreation } from "@/lib/workflow";
@@ -47,6 +49,7 @@ import { cn } from "@/lib/utils";
 import { FoodReferenceBook } from "@/components/foods/FoodReferenceBook";
 import { getTodayDateInputValue } from "@/features/patients/utils/patient-helpers";
 import { isGuestMode } from "@/lib/demo-local-api";
+import type { QuickRecipesPdfData } from "@/features/pdf/QuickRecipesPdfDocument";
 
 type QuickIngredient = {
   id: string;
@@ -71,6 +74,8 @@ type QuickDish = {
   fats: string;
   ingredients: QuickIngredient[];
 };
+
+type RecipeCreationMode = "general" | "diet" | "patient";
 
 type QuickPatient = {
   id?: string;
@@ -149,7 +154,54 @@ const MEAL_SECTIONS = [
 const DEFAULT_TITLE = "Entregable rápido";
 const DEFAULT_DIET_NAME = "Plan nutricional personalizado";
 const DRAFT_KEY = "nutri_quick_recipes_draft";
-const WIZARD_STEPS = ["Información general", "Instrucciones", "Generación", "Platos", "Resumen"];
+const WIZARD_STEPS = ["Instrucciones", "Generación", "Platos", "Resumen"];
+
+const buildPatientRecipesExamplePdf = (): QuickRecipesPdfData => ({
+  title: "Recetario personalizado — Ejemplo paciente",
+  dietName: "Recetas recomendadas para el paciente",
+  patientName: "Paciente ejemplo",
+  nutritionistNotes: "Ejemplo de documento generado desde el módulo Recetas para paciente.",
+  planObjective: "Proponer preparaciones simples y personalizadas según el contexto clínico.",
+  showPlanObjectiveInPdf: true,
+  allowedFoodsMain: ["Avena", "Pollo", "Frutas", "Verduras", "Legumbres"],
+  restrictedFoods: ["Bebidas azucaradas", "Frituras"],
+  specialConsiderations: "Priorizar preparaciones caseras, porciones realistas y buena adherencia.",
+  dishes: [
+    {
+      title: "Avena cremosa con fruta y semillas",
+      mealSection: "Desayuno",
+      description: "Preparación simple y saciante para comenzar el día.",
+      preparation: "Cocinar la avena, agregar yogurt natural, fruta picada y semillas.",
+      recommendedPortion: "1 bowl",
+      calories: 320,
+      protein: 15,
+      carbs: 45,
+      fats: 9,
+      ingredients: [
+        { name: "Avena", quantity: "1/2 taza" },
+        { name: "Fruta de estación", quantity: "1 taza" },
+        { name: "Semillas", quantity: "1 cucharada" },
+      ],
+    },
+    {
+      title: "Pollo al horno con quinoa y ensalada",
+      mealSection: "Almuerzo",
+      description: "Plato equilibrado con proteína magra, cereal y verduras.",
+      preparation: "Hornear el pollo y servir con quinoa cocida y ensalada fresca.",
+      recommendedPortion: "1 plato",
+      calories: 510,
+      protein: 38,
+      carbs: 48,
+      fats: 16,
+      ingredients: [
+        { name: "Pechuga de pollo", quantity: "120 g" },
+        { name: "Quinoa cocida", quantity: "3/4 taza" },
+        { name: "Ensalada de verduras", quantity: "1 plato" },
+      ],
+    },
+  ],
+  generatedAt: new Date().toLocaleDateString("es-CL"),
+});
 const DISHES_PER_CATEGORY_PAGE = 4;
 const WEEKLY_CORE_SECTIONS = ["Desayuno", "Almuerzo", "Once", "Cena"];
 const DEFAULT_DISH_IMAGE =
@@ -465,10 +517,19 @@ export default function QuickRecipesClient() {
   const [expandedDishId, setExpandedDishId] = useState<string | null>(null);
   const [showDishesSection, setShowDishesSection] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<QuickPatient | null>(null);
+  const [recipeCreationMode, setRecipeCreationMode] = useState<RecipeCreationMode>("patient");
   const [isManualPatientExpanded, setIsManualPatientExpanded] = useState(false);
   const [hasGeneratedDishes, setHasGeneratedDishes] = useState(false);
   const [skipInstructions, setSkipInstructions] = useState(false);
-  const [allowExternalFoods, setAllowExternalFoods] = useState(false);
+  const [allowExternalFoods, setAllowExternalFoods] = useState(true);
+  const [useMyRecipes, setUseMyRecipes] = useState(true);
+  const [includeGeneratedImages, setIncludeGeneratedImages] = useState(false);
+  const [generalDishCount, setGeneralDishCount] = useState(3);
+  const [generalMealSection, setGeneralMealSection] = useState("Almuerzo");
+  const [includeInstructions, setIncludeInstructions] = useState(true);
+  const [includeNutrients, setIncludeNutrients] = useState(true);
+  const [useDietAsAbsoluteTruth, setUseDietAsAbsoluteTruth] = useState(false);
+  const instructionsOptional = recipeCreationMode === "patient" || recipeCreationMode === "general";
 
   const missingGenerationFields = {
     allowedFoodsMain: parseLines(allowedFoodsMainText).length === 0,
@@ -478,8 +539,8 @@ export default function QuickRecipesClient() {
 
   const isExportDisabled = useMemo(() => {
     const hasAtLeastOneDish = dishes.some(d => d.title.trim().length > 0);
-    return !hasAtLeastOneDish || !selectedPatient?.fullName?.trim() || !hasGeneratedDishes;
-  }, [dishes, hasGeneratedDishes, selectedPatient]);
+    return !hasAtLeastOneDish || (recipeCreationMode === "patient" && !selectedPatient?.fullName?.trim()) || !hasGeneratedDishes;
+  }, [dishes, hasGeneratedDishes, selectedPatient, recipeCreationMode]);
 
   const meaningfulDishes = useMemo(
     () => dishes.filter((dish) => isDishMeaningful(dish)),
@@ -522,9 +583,12 @@ export default function QuickRecipesClient() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isGeneratingWeekly, setIsGeneratingWeekly] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
+  const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
   const [isHydrating, setIsHydrating] = useState(true);
   const [currentStep, setCurrentStep] = useState(0);
   const [isFoodReferenceBookOpen, setIsFoodReferenceBookOpen] = useState(false);
+  const [isNatyChatOpen, setIsNatyChatOpen] = useState(false);
   const [dishToDelete, setDishToDelete] = useState<QuickDish | null>(null);
   const [editingDishId, setEditingDishId] = useState<string | null>(null);
   const [editingDishForm, setEditingDishForm] = useState<QuickDish | null>(null);
@@ -726,6 +790,11 @@ export default function QuickRecipesClient() {
     try {
       const parsed = JSON.parse(draft) as Record<string, unknown>;
       setTitle(typeof parsed.title === "string" ? parsed.title : DEFAULT_TITLE);
+      setRecipeCreationMode(
+        parsed.recipeCreationMode === "general" || parsed.recipeCreationMode === "diet"
+          ? parsed.recipeCreationMode
+          : "patient",
+      );
       setDietName(
         typeof parsed.dietName === "string" && parsed.dietName.trim()
           ? parsed.dietName
@@ -778,6 +847,7 @@ export default function QuickRecipesClient() {
       DRAFT_KEY,
       JSON.stringify({
         title,
+        recipeCreationMode,
         dietName,
         nutritionistNotes,
         deliveryDate,
@@ -801,6 +871,7 @@ export default function QuickRecipesClient() {
     );
   }, [
     title,
+    recipeCreationMode,
     dietName,
     nutritionistNotes,
     deliveryDate,
@@ -1096,7 +1167,7 @@ export default function QuickRecipesClient() {
     );
   };
 
-  const generateWithAi = async (mode: "single" | "weekly"): Promise<boolean> => {
+  const generateWithAi = async (mode: "single" | "weekly", targetsOverride?: MealGenerationTarget[]): Promise<boolean> => {
     if (isHydrating) return false;
     if (mode === "single") {
       setIsGenerating(true);
@@ -1105,7 +1176,8 @@ export default function QuickRecipesClient() {
     }
 
     try {
-      const hasValidTarget = mealGenerationTargets.some(
+      const generationTargets = targetsOverride || mealGenerationTargets;
+      const hasValidTarget = generationTargets.some(
         (target) => target.enabled && target.count > 0,
       );
       if (!hasValidTarget) {
@@ -1121,7 +1193,7 @@ export default function QuickRecipesClient() {
         : [];
       const userRestricted = parseLines(restrictedFoodsText);
       const normalizedCore = new Set(WEEKLY_CORE_SECTIONS.map(normalizeMealSectionKey));
-      const effectiveTargets = mealGenerationTargets.map((target) => {
+      const effectiveTargets = generationTargets.map((target) => {
         if (mode !== "weekly") return target;
         const isCore = normalizedCore.has(normalizeMealSectionKey(target.mealSection));
         if (!isCore) return target;
@@ -1307,7 +1379,7 @@ export default function QuickRecipesClient() {
             : "Platos generados correctamente con IA.",
         );
       }
-      setCurrentStep(3);
+      setCurrentStep(2);
       return true;
     } catch (error) {
       console.error("Quick AI generation error", error);
@@ -1326,7 +1398,18 @@ export default function QuickRecipesClient() {
       }
     }
   };
+
+  const generateGeneralRecipes = () => {
+    const targets = MEAL_SECTIONS.map((section) => ({
+      mealSection: section,
+      enabled: section === generalMealSection,
+      count: section === generalMealSection ? generalDishCount : 0,
+    }));
+    void generateWithAi("single", targets);
+  };
+
   const buildContent = () => ({
+    recipeCreationMode,
     title,
     dietName,
     nutritionistNotes,
@@ -1472,6 +1555,8 @@ export default function QuickRecipesClient() {
   const handleReset = () => {
     if (isHydrating) return;
     setTitle(DEFAULT_TITLE);
+    setRecipeCreationMode("patient");
+    setSelectedPatient(null);
     setDietName(DEFAULT_DIET_NAME);
     setNutritionistNotes("");
     setDeliveryDate(getTodayDateInputValue());
@@ -1538,7 +1623,7 @@ export default function QuickRecipesClient() {
       toast.error("Has alcanzado el límite mensual de PDFs generados de tu plan. Actualiza tu membresía para descargar más PDFs.");
       return;
     }
-    if (!selectedPatient) {
+    if (recipeCreationMode === "patient" && !selectedPatient) {
       toast.error("Primero importa un paciente para exportar el PDF.");
       return;
     }
@@ -1561,6 +1646,69 @@ export default function QuickRecipesClient() {
     } finally {
       setIsExportingPdf(false);
     }
+  };
+
+  const handleDownloadPdf = async () => {
+    if (isHydrating || isExportDisabled) return;
+    setIsExportingPdf(true);
+    try {
+      const { downloadQuickRecipesPdf } = await import("@/features/pdf/quickRecipesPdfExport");
+      await downloadQuickRecipesPdf(buildPdfData());
+      toast.success("PDF descargado correctamente.");
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error?.message || "No se pudo descargar el PDF.");
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
+  const handlePreviewPdf = async () => {
+    if (isHydrating || isExportDisabled) return;
+    setIsGeneratingPreview(true);
+    try {
+      const [{ pdf }, { QuickRecipesPdfDocument }] = await Promise.all([
+        import("@react-pdf/renderer"),
+        import("@/features/pdf/QuickRecipesPdfDocument"),
+      ]);
+      const blob = await pdf(
+        React.createElement(QuickRecipesPdfDocument, { data: buildPdfData() }) as any,
+      ).toBlob();
+      if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
+      setPreviewPdfUrl(URL.createObjectURL(blob));
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error?.message || "No se pudo generar la vista previa.");
+    } finally {
+      setIsGeneratingPreview(false);
+    }
+  };
+
+  const handlePatientModeExamplePreview = async () => {
+    setIsGeneratingPreview(true);
+    try {
+      const [{ pdf }, { QuickRecipesPdfDocument }] = await Promise.all([
+        import("@react-pdf/renderer"),
+        import("@/features/pdf/QuickRecipesPdfDocument"),
+      ]);
+      const blob = await pdf(
+        React.createElement(QuickRecipesPdfDocument, {
+          data: buildPatientRecipesExamplePdf(),
+        }) as any,
+      ).toBlob();
+      if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
+      setPreviewPdfUrl(URL.createObjectURL(blob));
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error?.message || "No se pudo generar la vista previa del ejemplo.");
+    } finally {
+      setIsGeneratingPreview(false);
+    }
+  };
+
+  const closePreviewPdf = () => {
+    if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
+    setPreviewPdfUrl(null);
   };
 
 
@@ -1640,7 +1788,7 @@ export default function QuickRecipesClient() {
   };
   const handleWizardNext = async () => {
     if (isHydrating) return;
-    if (currentStep === 2) {
+    if (currentStep === 1) {
       if (!hasGeneratedDishes || meaningfulDishes.length === 0) {
         await generateWithAi("single");
         return;
@@ -1648,7 +1796,7 @@ export default function QuickRecipesClient() {
       goNext();
       return;
     }
-    if (currentStep === 3 && (!hasGeneratedDishes || meaningfulDishes.length === 0)) {
+    if (currentStep === 2 && (!hasGeneratedDishes || meaningfulDishes.length === 0)) {
       toast.error("Genera los platos con Naty antes de continuar.");
       return;
     }
@@ -1657,14 +1805,14 @@ export default function QuickRecipesClient() {
   const handleStepClick = (step: number) => {
     if (isHydrating) return;
     if (
-      step >= 2 &&
-      !skipInstructions &&
+      step >= 1 &&
+      !instructionsOptional && !skipInstructions &&
       Object.values(missingGenerationFields).some(Boolean)
     ) {
       toast.error("Completa las instrucciones o selecciona el modo de omitirlas.");
       return;
     }
-    if (step >= 3 && (!hasGeneratedDishes || meaningfulDishes.length === 0)) {
+    if (step >= 2 && (!hasGeneratedDishes || meaningfulDishes.length === 0)) {
       toast.error("Genera los platos con Naty antes de avanzar a esta etapa.");
       return;
     }
@@ -1674,7 +1822,9 @@ export default function QuickRecipesClient() {
   const buildRecipesPromptPayload = () => ({
     payload: {
       dietName: dietName.trim() || DEFAULT_DIET_NAME,
-      notes: skipInstructions ? "Naty debe completar las instrucciones con el contexto disponible." : "Ser creativo para que no se aburran.",
+      notes: !includeInstructions || skipInstructions
+        ? "Naty debe completar las instrucciones con el contexto disponible."
+        : "Ser creativo para que no se aburran.",
       allowedFoodsMain: parseLines(allowedFoodsMainText),
       restrictedFoods: Array.from(
         new Set([
@@ -1712,6 +1862,9 @@ export default function QuickRecipesClient() {
       existingDishes: dishes
         .filter((dish) => dish.title.trim())
         .map((dish) => ({ title: dish.title.trim(), mealSection: dish.mealSection })),
+      referenceDishes: useMyRecipes
+        ? dishes.filter((dish) => dish.title.trim()).map((dish) => dish.title.trim())
+        : [],
     },
   });
 
@@ -1727,10 +1880,21 @@ export default function QuickRecipesClient() {
     },
     {
       id: "import",
-      icon: Library,
-      label: "Importar dieta",
+      icon: Filter,
+      label: "Importar creación",
+      description: "Importar creación no disponible por ahora",
       variant: "indigo",
-      onClick: () => setIsImportCreationModalOpen(true),
+      disabled: true,
+      onClick: () => undefined,
+    },
+    {
+      id: "naty-chat",
+      icon: Sparkles,
+      customIcon: <Image src="/circle_logo.webp" alt="Naty" width={48} height={48} className="-m-1.5 h-10 w-10 rounded-full object-contain md:-m-2 md:h-12 md:w-12" />,
+      label: "Hablar con Naty",
+      description: "Abrir chat demo de Naty",
+      variant: "indigo",
+      onClick: () => setIsNatyChatOpen(true),
     },
     {
       id: "food-reference-book",
@@ -1739,26 +1903,6 @@ export default function QuickRecipesClient() {
       description: "Abrir manual de alimentos",
       variant: "amber",
       onClick: () => setIsFoodReferenceBookOpen(true),
-    },
-    { id: "separator", icon: ChefHat, label: "", isSeparator: true, onClick: () => undefined },
-    {
-      id: "pdf",
-      icon: isExportingPdf ? Loader2 : Download,
-      label: "Descargar y guardar PDF",
-      description: isPdfLimitReached
-        ? "Límite mensual de PDFs alcanzado"
-        : isExportDisabled
-          ? "Agrega un paciente y al menos un plato"
-          : "Descargar y guardar PDF en Mis Creaciones",
-      variant: "indigo",
-      disabled: isExportingPdf || isExportDisabled || isPdfLimitReached,
-      onClick: () => {
-        if (isPdfLimitReached) {
-          toast.error("Has alcanzado el límite mensual de PDFs generados de tu plan. Actualiza tu membresía para descargar más PDFs.");
-          return;
-        }
-        void handleExportPdf();
-      },
     },
     {
       id: "reset",
@@ -1782,42 +1926,158 @@ export default function QuickRecipesClient() {
             isDemo={isGuestMode()}
           />
         )}
+        <NatyPlanChatDemo isOpen={isNatyChatOpen} onClose={() => setIsNatyChatOpen(false)} />
         <FoodReferenceBook isOpen={isFoodReferenceBookOpen} onClose={() => setIsFoodReferenceBookOpen(false)} />
       <ModuleLayout
         title="Recetas"
-        description="Genera recetas rápidas reutilizando contexto clínico, restricciones y preferencias."
-        step={{ number: "Express", label: "Receta rápida", icon: ChefHat, color: "text-amber-600" }}
+        titleAction={recipeCreationMode === "patient" ? (
+          <button
+            type="button"
+            onClick={() => void handlePatientModeExamplePreview()}
+            className="cursor-pointer text-xs font-bold text-purple-700 underline decoration-purple-300 underline-offset-4 transition-colors hover:text-purple-900 hover:decoration-purple-600"
+            title="Ver cómo se verá el documento de recetas para paciente"
+          >
+            Ver vista previa del plan
+          </button>
+        ) : undefined}
+        description={recipeCreationMode === "patient"
+          ? "Crea un documento especial para un paciente que contenga recetas y platos recomendados y personalizados."
+          : "Crea y guarda nuevas recetas y platos para tener en tu biblioteca, y así re utilizarlos o compartirlos."}
         rightContent={<ModuleUsageBadges />}
          rightNavItems={isHydrating ? [] : actionItems}
         rightNavDesktopBreakpoint="lg"
         className="max-w-[68rem]"
-      >
-         {isHydrating ? (
+       >
+          {isHydrating ? (
            <div className="flex min-h-[24rem] items-center justify-center rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
              <div className="flex items-center gap-3 text-sm font-semibold text-slate-500">
                <Loader2 className="h-5 w-5 animate-spin text-amber-600" />
                Preparando las recetas...
              </div>
            </div>
-         ) : <PlanWizardShell
+          ) : <>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-[#20212B]">Modo de funcionamiento</p>
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
+                <button type="button" onClick={() => { setRecipeCreationMode("patient"); setCurrentStep(0); }} className={cn("rounded-xl border p-3 text-left text-xs transition-all", recipeCreationMode === "patient" ? "border-purple-300 bg-purple-50 text-purple-800" : "border-slate-200 bg-white text-slate-600 hover:border-purple-200")}>
+                  <span className="font-bold">Recetas para paciente</span>
+                  <span className="mt-1 block text-[10px] leading-4">Crea un documento especial para un paciente que contenga recetas y platos recomendados y personalizados.</span>
+                </button>
+                <button type="button" disabled className="cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 p-3 text-left text-xs text-slate-400 opacity-75">
+                  <span className="font-bold">Documento basado en dieta</span>
+                  <span className="mt-1 block text-[10px] leading-4">Bloqueado por ahora.</span>
+                </button>
+                <button type="button" onClick={() => { setRecipeCreationMode("general"); setSelectedPatient(null); setCurrentStep(0); }} className={cn("rounded-xl border p-3 text-left text-xs transition-all", recipeCreationMode === "general" ? "border-purple-300 bg-purple-50 text-purple-800" : "border-slate-200 bg-white text-slate-600 hover:border-purple-200")}>
+                  <span className="font-bold">Recetas y platos generales</span>
+                  <span className="mt-1 block text-[10px] leading-4 opacity-75">Crea y guarda nuevas recetas y platos para tener en tu biblioteca, y así re utilizarlos o compartirlos.</span>
+                </button>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className={cn("space-y-1.5", recipeCreationMode === "general" && "hidden")}>
+                <p className="text-xs font-semibold text-[#20212B]">Título <span className="text-rose-500">*</span></p>
+                <Input
+                  value={title}
+                  onChange={(event) => setTitle(event.target.value)}
+                  placeholder="Recetario rápido"
+                  className="h-10 rounded-xl border-[#E9E5E7] bg-white text-sm"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <p className="text-xs font-semibold text-[#20212B]">Hashtags</p>
+                <TagInput
+                  value={quickHashtags.split(",").map((tag) => tag.trim()).filter(Boolean)}
+                  onChange={(tags) => setQuickHashtags(tags.join(", "))}
+                  fetchSuggestionsUrl={`${getApiUrl()}/tags`}
+                  helperText=""
+                  placeholder="Ej: práctico, hipertrofia"
+                  className="h-10 rounded-xl border-[#E9E5E7] bg-white text-xs"
+                />
+                {recipeCreationMode === "general" && (
+                  <p className="text-[11px] leading-4 text-slate-500">
+                    Estos hashtags se colocarán en cada plato o receta creada.
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className={cn("grid grid-cols-1 gap-4 md:grid-cols-2", recipeCreationMode === "general" && "hidden")}>
+              <div className="space-y-1.5">
+                <p className="text-xs font-semibold text-[#20212B]">Descripción</p>
+                <Textarea value={quickDescription} onChange={(event) => setQuickDescription(event.target.value)} className="min-h-[64px] rounded-xl border-[#E9E5E7] bg-white text-xs" placeholder="Notas internas sobre este recetario..." />
+              </div>
+              <div className="space-y-1.5">
+                <p className="text-xs font-semibold text-[#20212B]">Objetivo del plan</p>
+                <Textarea value={planObjective} onChange={(event) => setPlanObjective(event.target.value)} className="min-h-[64px] rounded-xl border-[#E9E5E7] bg-white text-xs" placeholder="Ej: recetas simples y equilibradas" />
+              </div>
+            </div>
+            {recipeCreationMode === "patient" && (
+              <>
+              <div className="flex items-center justify-between gap-4 rounded-xl bg-slate-50 px-4 py-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#F0F5DF] text-[#668E20]">
+                    <User className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Paciente importado</p>
+                    <p className="truncate text-sm font-bold text-slate-900">{selectedPatient?.fullName || "Sin paciente vinculado"}</p>
+                  </div>
+                </div>
+                <Button type="button" variant="outline" onClick={openPatientModal} className="h-9 shrink-0 rounded-xl border-[#DDE7B8] bg-white px-3 text-xs font-bold text-[#668E20] hover:bg-[#F0F5DF]">
+                  Cambiar paciente
+                </Button>
+              </div>
+              <details className="group rounded-xl bg-white">
+                <summary className="flex cursor-pointer list-none items-center justify-between py-2 text-xs font-bold text-slate-600 [&::-webkit-details-marker]:hidden">
+                  Ver información clínica
+                  <span className="text-[11px] text-purple-600 transition-transform group-open:rotate-180">⌄</span>
+                </summary>
+                <div className="grid gap-2 border-t border-slate-100 pt-3 sm:grid-cols-2 lg:grid-cols-3">
+                  <div><p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Edad</p><p className="text-xs font-semibold text-slate-800">{selectedPatient?.birthDate ? `${calculateAge(selectedPatient.birthDate) || "—"} años` : selectedPatient?.ageYears ? `${selectedPatient.ageYears} años` : "—"}</p></div>
+                  <div><p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Sexo</p><p className="text-xs font-semibold text-slate-800">{selectedPatient?.gender || "—"}</p></div>
+                  <div><p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Peso / estatura</p><p className="text-xs font-semibold text-slate-800">{selectedPatient?.weight ? `${selectedPatient.weight} kg` : "—"} · {selectedPatient?.height ? `${selectedPatient.height} cm` : "—"}</p></div>
+                  <div><p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Objetivo</p><p className="text-xs font-semibold text-slate-800">{selectedPatient?.nutritionalFocus || selectedPatient?.fitnessGoals || "Sin registro"}</p></div>
+                  <div><p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Restricciones</p><p className="text-xs font-semibold text-slate-800">{(selectedPatient?.dietRestrictions || selectedPatient?.tags || []).join(", ") || "Sin registro"}</p></div>
+                  <div><p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Calorías estimadas</p><p className="text-xs font-semibold text-slate-800">{patientTargets?.dailyCalories ? `${patientTargets.dailyCalories} kcal` : "Sin cálculo"}</p></div>
+                  {selectedPatient?.clinicalSummary ? <div className="sm:col-span-2 lg:col-span-3"><p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Contexto clínico</p><p className="text-xs font-semibold text-slate-800">{selectedPatient.clinicalSummary}</p></div> : null}
+                </div>
+              </details>
+              </>
+            )}
+          </div>
+          {recipeCreationMode === "patient" && !selectedPatient ? (
+            <div className="rounded-2xl border-2 border-dashed border-purple-200 bg-purple-50/60 p-8 text-center">
+              <User className="mx-auto h-10 w-10 text-purple-500" />
+              <h2 className="mt-3 text-base font-black text-purple-900">Importa un paciente para comenzar</h2>
+              <p className="mx-auto mt-2 max-w-md text-xs leading-5 text-purple-700">
+                Naty necesita el contexto del paciente para crear recetas personalizadas y seguras.
+              </p>
+              <Button type="button" onClick={openPatientModal} className="mt-5 rounded-xl bg-purple-600 px-5 text-xs font-bold text-white hover:bg-purple-700">
+                <User className="mr-2 h-4 w-4" />
+                Importar paciente
+              </Button>
+            </div>
+          ) : (
+          <>
+          <PlanWizardShell
           steps={WIZARD_STEPS}
           currentStep={currentStep}
           completedSteps={completedSteps}
           onStepClick={handleStepClick}
           onBack={goBack}
-          onNext={handleWizardNext}
-          isLastStep={currentStep === WIZARD_STEPS.length - 1}
-          nextDisabled={
-            (currentStep === 0 && (!title.trim() || !dietName.trim())) ||
-            (currentStep === 1 && (instructionsMode === "creation" ? !selectedBaseCreation : (!skipInstructions && Object.values(missingGenerationFields).some(Boolean)))) ||
-            (currentStep === 2 && !hasGenerationTarget) ||
-            (currentStep === 3 && (!hasGeneratedDishes || meaningfulDishes.length === 0))
+           onNext={handleWizardNext}
+           isLastStep={currentStep === WIZARD_STEPS.length - 1}
+           nextDisabled={
+             (currentStep === 0 && !instructionsOptional && (instructionsMode === "creation" ? !selectedBaseCreation : (!skipInstructions && Object.values(missingGenerationFields).some(Boolean)))) ||
+             (currentStep === 1 && !hasGenerationTarget) ||
+             (currentStep === 2 && (!hasGeneratedDishes || meaningfulDishes.length === 0))
           }
-          lockFutureSteps
+           hideControls={recipeCreationMode === "general"}
+           lockFutureSteps
           onReset={handleReset}
         >
         <div className="space-y-6">
-          {currentStep === 0 && <div ref={generalSectionRef} className="space-y-4">
+           {currentStep === -1 && <div ref={generalSectionRef} className="space-y-4">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="space-y-1.5">
                 <p className="text-xs font-semibold text-[#20212B]">Título <span className="text-rose-500">*</span></p>
@@ -1926,51 +2186,7 @@ export default function QuickRecipesClient() {
                   </div>
                 </div>
               </details>
-            ) : (
-              <div className="mt-5 rounded-2xl border border-dashed border-[#DDE7B8] bg-[#F0F5DF]/50 p-6">
-                <div className="flex flex-col items-center gap-5 text-center">
-                  <div className="max-w-2xl">
-                    <p className="text-sm font-bold leading-6 text-slate-900">Puedes generar platos sin paciente o importar uno para personalizar mejor la IA.</p>
-                    <p className="mt-2 text-xs leading-5 text-slate-600">
-                      Si importas un paciente, Naty considerará sus restricciones, objetivos y contexto clínico. El PDF sigue requiriendo un paciente vinculado.
-                    </p>
-                  </div>
-                  <div className="flex w-full flex-col justify-center gap-3 sm:w-auto sm:flex-row flex-wrap">
-                    <Button
-                      variant="outline"
-                      className="h-10 min-w-44 justify-center rounded-xl border-[#DDE7B8] bg-[#F0F5DF] text-[#668E20] hover:bg-[#E8EFCB] shadow-2xs font-bold cursor-pointer"
-                      onClick={openPatientModal}
-                    >
-                      <User className="mr-2 h-4 w-4 text-[#86A83C]" />
-                      Importar paciente
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="h-10 min-w-44 justify-center rounded-xl border-[#E9E5E7] bg-white text-slate-700 hover:border-[#86A83C] hover:bg-[#F0F5DF]/60 hover:text-[#668E20] shadow-2xs cursor-pointer"
-                      onClick={startManualPatientEntry}
-                    >
-                      <FileText className="mr-2 h-4 w-4" />
-                      Rellenar manualmente
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="h-10 min-w-44 justify-center rounded-xl border-[#E9E5E7] bg-white text-slate-700 hover:border-[#86A83C] hover:bg-[#F0F5DF]/60 hover:text-[#668E20] shadow-2xs cursor-pointer"
-                      onClick={() => {
-                        setSelectedPatient({
-                          ...createEmptyQuickPatient(),
-                          fullName: "Paciente General",
-                          nutritionalFocus: "General / Recetas Express",
-                        });
-                        toast.info("Modo recetas generales activado. Puedes continuar generando recetas sin seleccionar un paciente específico.");
-                      }}
-                    >
-                      <Sparkles className="mr-2 h-4 w-4 text-[#86A83C]" />
-                      Continuar sin paciente
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            )}
+            ) : null}
             {isManualPatientExpanded && (
               <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/80 p-5">
                 <div className="grid gap-4 md:grid-cols-3">
@@ -2062,12 +2278,12 @@ export default function QuickRecipesClient() {
             )}
           </div>}
 
-          {currentStep === 1 && <div
+           {currentStep === 0 && <div
             ref={instructionsSectionRef}
             className="space-y-4"
           >
             {/* Mode Tabs */}
-            <div className="flex items-center gap-2 border-b border-[#F0ECEE] pb-3">
+            <div className={cn("flex items-center gap-2 border-b border-[#F0ECEE] pb-3", recipeCreationMode === "general" && "hidden")}>
               <button
                 type="button"
                 onClick={() => setInstructionsMode("manual")}
@@ -2083,9 +2299,11 @@ export default function QuickRecipesClient() {
               </button>
               <button
                 type="button"
+                disabled={recipeCreationMode === "patient"}
                 onClick={() => setInstructionsMode("creation")}
                 className={cn(
                   "flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold uppercase tracking-wider transition-all cursor-pointer",
+                  recipeCreationMode === "patient" && "cursor-not-allowed opacity-45",
                   instructionsMode === "creation"
                     ? "bg-[#F0F5DF] text-[#668E20] border border-[#DDE7B8] shadow-2xs"
                     : "bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-700",
@@ -2159,10 +2377,10 @@ export default function QuickRecipesClient() {
               </div>
             )}
             {/* Mode Content */}
-            {instructionsMode === "manual" ? (
+            {recipeCreationMode !== "general" && instructionsMode === "manual" ? (
               <>
                 <div className={cn(
-                  "flex flex-col gap-3 rounded-2xl border p-4 sm:flex-row sm:items-center sm:justify-between",
+                  "hidden flex-col gap-3 rounded-2xl border p-4 sm:flex-row sm:items-center sm:justify-between",
                   skipInstructions
                     ? "border-indigo-200 bg-indigo-50/70"
                     : "border-slate-200 bg-slate-50/80",
@@ -2190,7 +2408,7 @@ export default function QuickRecipesClient() {
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div>
                     <label
-                      className={`mb-1.5 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest ${missingGenerationFields.allowedFoodsMain
+                      className={`mb-1.5 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest ${missingGenerationFields.allowedFoodsMain && !instructionsOptional
                           ? "text-rose-600"
                           : "text-slate-400"
                         }`}
@@ -2201,7 +2419,7 @@ export default function QuickRecipesClient() {
                       value={allowedFoodsMainText}
                       onChange={(event) => setAllowedFoodsMainText(event.target.value)}
                       placeholder="Ej: pollo, huevo, yogurt griego, avena (uno por línea o separados por coma)"
-                      className={`min-h-[96px] rounded-xl bg-slate-50 text-sm ${missingGenerationFields.allowedFoodsMain
+                      className={`min-h-[96px] rounded-xl bg-slate-50 text-sm ${missingGenerationFields.allowedFoodsMain && !instructionsOptional
                           ? "border-rose-300 ring-1 ring-rose-100 focus-visible:ring-rose-300"
                           : "border-slate-200"
                         }`}
@@ -2209,7 +2427,7 @@ export default function QuickRecipesClient() {
                   </div>
                   <div>
                     <label
-                      className={`mb-1.5 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest ${missingGenerationFields.restrictedFoods
+                      className={`mb-1.5 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest ${missingGenerationFields.restrictedFoods && !instructionsOptional
                           ? "text-rose-600"
                           : "text-slate-400"
                         }`}
@@ -2220,7 +2438,7 @@ export default function QuickRecipesClient() {
                       value={restrictedFoodsText}
                       onChange={(event) => setRestrictedFoodsText(event.target.value)}
                       placeholder="Ej: mariscos, frituras, lactosa"
-                      className={`min-h-[96px] rounded-xl bg-slate-50 text-sm ${missingGenerationFields.restrictedFoods
+                      className={`min-h-[96px] rounded-xl bg-slate-50 text-sm ${missingGenerationFields.restrictedFoods && !instructionsOptional
                           ? "border-rose-300 ring-1 ring-rose-100 focus-visible:ring-rose-300"
                           : "border-slate-200"
                         }`}
@@ -2228,7 +2446,7 @@ export default function QuickRecipesClient() {
                   </div>
                 </div>
               </>
-            ) : selectedBaseCreation ? (
+            ) : recipeCreationMode !== "general" && selectedBaseCreation ? (
               <div className="space-y-3">
                 <div>
                   <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">
@@ -2251,9 +2469,41 @@ export default function QuickRecipesClient() {
                 </div>
               </div>
             ) : null}
+            {recipeCreationMode === "general" && (
+              <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs">
+                <div>
+                  <h2 className="text-base font-black text-slate-900">Instrucciones para generar</h2>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">Completa lo que quieras considerar. Todo es opcional y Naty usará el contexto disponible.</p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5"><label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Alimentos permitidos</label><Textarea value={allowedFoodsMainText} onChange={(event) => setAllowedFoodsMainText(event.target.value)} placeholder="Ej: avena, pollo, frutas..." className="min-h-24 rounded-xl border-slate-200 bg-slate-50 text-sm" /></div>
+                  <div className="space-y-1.5"><label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Alimentos no permitidos</label><Textarea value={restrictedFoodsText} onChange={(event) => setRestrictedFoodsText(event.target.value)} placeholder="Ej: frituras, azúcar refinada..." className="min-h-24 rounded-xl border-slate-200 bg-slate-50 text-sm" /></div>
+                </div>
+                <div className="space-y-1.5"><label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Consideraciones</label><Textarea value={specialConsiderations} onChange={(event) => setSpecialConsiderations(event.target.value)} placeholder="Ej: preparaciones simples y económicas..." className="min-h-20 rounded-xl border-slate-200 bg-slate-50 text-sm" /></div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5"><label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Cantidad de platos</label><Input type="number" min={1} max={14} value={generalDishCount} onChange={(event) => setGeneralDishCount(Math.max(1, Math.min(14, Number(event.target.value) || 1)))} className="h-10 rounded-xl border-slate-200 bg-slate-50" /></div>
+                  <div className="space-y-1.5"><label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Categoría</label><select value={generalMealSection} onChange={(event) => setGeneralMealSection(event.target.value)} className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm"><option value="">Como Naty prefiera</option>{MEAL_SECTIONS.map((section) => <option key={section} value={section}>{section}</option>)}</select></div>
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex flex-wrap gap-3">
+                  <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs font-bold text-slate-700"><input type="checkbox" checked={includeInstructions} onChange={(event) => setIncludeInstructions(event.target.checked)} className="h-4 w-4 rounded border-slate-300 text-indigo-600" /> Incluir instrucciones</label>
+                  <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs font-bold text-slate-700"><input type="checkbox" checked={includeNutrients} onChange={(event) => setIncludeNutrients(event.target.checked)} className="h-4 w-4 rounded border-slate-300 text-indigo-600" /> Incluir calorías y nutrientes</label>
+                  </div>
+                  <Button type="button" onClick={generateGeneralRecipes} disabled={isGenerating} className="h-10 w-auto shrink-0 rounded-xl bg-purple-600 px-5 font-bold text-white hover:bg-purple-700"><Sparkles className="mr-2 h-4 w-4" />Generar</Button>
+                </div>
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-purple-200 bg-purple-50/70 p-3">
+                  <div><p className="text-sm font-bold text-purple-900">Importar dieta</p><p className="mt-0.5 text-xs text-purple-700">Filtra automáticamente recetas según una dieta importada.</p></div>
+                  <button type="button" disabled className="inline-flex shrink-0 cursor-not-allowed items-center gap-1.5 rounded-xl bg-slate-200 px-3 py-2 text-xs font-bold text-slate-500">Bloqueado <Lock className="h-3.5 w-3.5" /></button>
+                </div>
+                <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/80 p-3 text-sm text-slate-700"><input type="checkbox" checked={allowExternalFoods} onChange={(event) => setAllowExternalFoods(event.target.checked)} className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600" /><span><span className="font-bold">Permitir alimentos fuera de la lista</span><span className="mt-0.5 block text-xs text-slate-500">Se considerará siempre lo que indiques.</span></span></label>
+                <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/80 p-3 text-sm text-slate-700"><input type="checkbox" checked={useMyRecipes} onChange={(event) => setUseMyRecipes(event.target.checked)} className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600" /><span><span className="font-bold">Considerar mis platos</span><span className="mt-0.5 block text-xs text-slate-500">Naty evitará repetir exactamente tus platos existentes.</span></span></label>
+              </div>
+            )}
+            {recipeCreationMode !== "general" && (
             <div>
+            <div className={cn(recipeCreationMode === "general" && "hidden")}>
               <label
-                className={`mb-1.5 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest ${missingGenerationFields.specialConsiderations
+                className={`mb-1.5 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest ${missingGenerationFields.specialConsiderations && !instructionsOptional
                     ? "text-rose-600"
                     : "text-slate-400"
                   }`}
@@ -2264,7 +2514,7 @@ export default function QuickRecipesClient() {
                 value={specialConsiderations}
                 onChange={(event) => setSpecialConsiderations(event.target.value)}
                 placeholder="Ej: máximo 20 min por preparación, usar ingredientes de bajo costo..."
-                className={`min-h-[80px] rounded-xl bg-slate-50 text-sm ${missingGenerationFields.specialConsiderations
+                className={`min-h-[80px] rounded-xl bg-slate-50 text-sm ${missingGenerationFields.specialConsiderations && !instructionsOptional
                     ? "border-rose-300 ring-1 ring-rose-100 focus-visible:ring-rose-300"
                     : "border-slate-200"
                   }`}
@@ -2272,7 +2522,9 @@ export default function QuickRecipesClient() {
               />
             </div>
             <p className="text-xs text-slate-500">
-              Las instrucciones de arriba se usan directamente para generar con IA.
+              {instructionsOptional
+                ? "Opcional: Naty considera toda la información clínica del paciente seleccionado."
+                : "Las instrucciones de arriba se usan directamente para generar con IA."}
             </p>
             <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/80 p-3 text-sm text-slate-700">
               <input
@@ -2286,9 +2538,51 @@ export default function QuickRecipesClient() {
                 <span className="mt-0.5 block text-xs text-slate-500">Los condimentos básicos podrán aparecer como opcionales.</span>
               </span>
             </label>
+            <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/80 p-3 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={useMyRecipes}
+                onChange={(event) => setUseMyRecipes(event.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              <span>
+                <span className="font-bold">Utilizar mis platos</span>
+                <span className="mt-0.5 block text-xs text-slate-500">Naty podrá considerar tus recetas guardadas.</span>
+              </span>
+            </label>
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-purple-200 bg-purple-50/70 p-3">
+              <div>
+                <p className="text-sm font-bold text-purple-900">Importar dieta</p>
+                <p className="mt-0.5 text-xs text-purple-700">Filtra automáticamente recetas según la dieta del paciente seleccionado.</p>
+              </div>
+              <button type="button" disabled className="inline-flex shrink-0 cursor-not-allowed items-center gap-1.5 rounded-xl bg-slate-200 px-3 py-2 text-xs font-bold text-slate-500">
+                Bloqueado <Lock className="h-3.5 w-3.5" aria-hidden="true" />
+              </button>
+            </div>
+            {recipeCreationMode === "general" && (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/80 p-3 text-sm text-slate-700">
+                  <input type="checkbox" checked={includeInstructions} onChange={(event) => setIncludeInstructions(event.target.checked)} className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+                  <span><span className="font-bold">Incluir instrucciones</span><span className="mt-0.5 block text-xs text-slate-500">Añade preparación y pasos a cada receta.</span></span>
+                </label>
+                <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/80 p-3 text-sm text-slate-700">
+                  <input type="checkbox" checked={includeNutrients} onChange={(event) => setIncludeNutrients(event.target.checked)} className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+                  <span><span className="font-bold">Incluir información nutricional</span><span className="mt-0.5 block text-xs text-slate-500">Calorías, proteínas y nutrientes estimados.</span></span>
+                </label>
+              </div>
+            )}
+            {recipeCreationMode === "patient" && (
+              <label className="flex cursor-not-allowed items-start gap-3 rounded-xl border border-slate-200 bg-slate-100/80 p-3 text-sm text-slate-400">
+                <input type="checkbox" checked={includeGeneratedImages} disabled className="mt-0.5 h-4 w-4 rounded border-slate-300" />
+                <span><span className="font-bold">Incluir imágenes generadas</span><span className="mt-0.5 block text-xs">Disponible próximamente para ilustrar cada receta.</span></span>
+                <Lock className="ml-auto mt-0.5 h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" />
+              </label>
+            )}
+            </div>
+            )}
           </div>}
 
-          {currentStep === 2 && <div ref={generationSectionRef} className="space-y-4">
+           {currentStep === 1 && <div ref={generationSectionRef} className="space-y-4">
             <div className="rounded-2xl border border-[#E9E5E7] bg-white p-5 shadow-2xs">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h3 className="text-sm font-bold text-slate-900">
@@ -2360,7 +2654,7 @@ export default function QuickRecipesClient() {
 
           </div>}
 
-          {currentStep === 3 && <div ref={dishesSectionRef} className="space-y-4">
+           {currentStep === 2 && <div ref={dishesSectionRef} className="space-y-4">
             {showDishesSection && meaningfulDishes.length > 0 ? (
               <>
                 <div className="flex flex-wrap items-center gap-2">
@@ -2777,7 +3071,7 @@ export default function QuickRecipesClient() {
             )}
           </div>}
 
-          {currentStep === 4 && (
+           {currentStep === 3 && (
             <section className="space-y-4">
               <div>
                 <h2 className="text-base sm:text-lg font-bold text-slate-900">Revisa tu entrega antes de continuar</h2>
@@ -2802,19 +3096,63 @@ export default function QuickRecipesClient() {
                 </div>
               </div>
               <div className="flex flex-wrap gap-2 pt-2">
-                <Button
-                  onClick={handleExportPdf}
-                  disabled={isExportingPdf || isExportDisabled}
-                  className="h-10 rounded-xl bg-[#86A83C] px-5 font-bold text-white hover:bg-[#78A82F] shadow-2xs cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {isExportingPdf ? "Guardando y generando..." : "Descargar y guardar PDF"}
-                </Button>
+                {isGuestMode() ? (
+                  <>
+                    <Button disabled title="Guardar creaciones está inhabilitado en la demo" className="h-10 cursor-not-allowed rounded-xl bg-slate-200 px-4 font-bold text-slate-500 disabled:opacity-100">
+                      <Lock className="mr-2 h-4 w-4" /> Descargar y guardar PDF
+                    </Button>
+                    <Button disabled title="Guardar creaciones está inhabilitado en la demo" className="h-10 cursor-not-allowed rounded-xl bg-slate-200 px-4 font-bold text-slate-500 disabled:opacity-100">
+                      <Lock className="mr-2 h-4 w-4" /> Guardar
+                    </Button>
+                    <Button onClick={() => void handlePreviewPdf()} disabled={isGeneratingPreview || isExportDisabled} className="h-10 rounded-xl border border-purple-200 bg-purple-50 px-4 font-bold text-purple-700 hover:bg-purple-100 disabled:cursor-not-allowed disabled:opacity-50">
+                      {isGeneratingPreview ? "Generando vista previa..." : "Generar vista previa"}
+                    </Button>
+                    <Button onClick={() => void handleDownloadPdf()} disabled={isExportingPdf || isExportDisabled} className="h-10 rounded-xl bg-purple-600 px-4 font-bold text-white hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50">
+                      {isExportingPdf ? "Descargando..." : "Descargar PDF"}
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    onClick={handleExportPdf}
+                    disabled={isExportingPdf || isExportDisabled}
+                    className="h-10 rounded-xl bg-[#86A83C] px-5 font-bold text-white hover:bg-[#78A82F] shadow-2xs cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {isExportingPdf ? "Guardando y generando..." : "Descargar y guardar PDF"}
+                  </Button>
+                )}
               </div>
             </section>
           )}
         </div>
-      </PlanWizardShell>}
+        </PlanWizardShell>
+        {recipeCreationMode === "general" && currentStep === 2 && hasGeneratedDishes && (
+          <div className="flex justify-end pt-2">
+            <Button disabled title="Guardar en biblioteca está inhabilitado en la demo" className="h-10 cursor-not-allowed rounded-xl bg-slate-200 px-5 font-bold text-slate-500 disabled:opacity-100">
+              <Lock className="mr-2 h-4 w-4" /> Guardar en biblioteca
+            </Button>
+          </div>
+        )}
+        </>
+        )}
+        </>}
     </ModuleLayout>
+
+      <Modal
+        isOpen={Boolean(previewPdfUrl)}
+        onClose={closePreviewPdf}
+        title="Vista previa del PDF"
+        className="max-w-5xl"
+      >
+        {previewPdfUrl && (
+          <div className="h-[70vh] overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+            <iframe
+              src={`${previewPdfUrl}#toolbar=1&navpanes=0`}
+              title="Vista previa del recetario PDF"
+              className="h-full w-full border-0"
+            />
+          </div>
+        )}
+      </Modal>
 
       <Modal
         isOpen={isPatientModalOpen}

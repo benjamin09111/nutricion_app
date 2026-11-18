@@ -1,16 +1,14 @@
 "use client";
 
-import React, { useState } from "react";
-import { FileCode, LucideIcon } from "lucide-react";
+import { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/context/ThemeContext";
-import { Modal } from "@/components/ui/Modal";
-import { readQuickPlanDraft } from "@/features/plan-context/storage/plan-context-storage";
-import { buildWorkflowContextPreview } from "@/features/plan-context/adapters/build-workflow-context-preview";
 
 export interface ActionDockItem {
   id: string;
   icon: LucideIcon;
+  customIcon?: ReactNode;
   label: string;
   description?: string;
   onClick: () => void;
@@ -27,90 +25,7 @@ interface ActionDockProps {
 
 export function ActionDock({ items, className, desktopBreakpoint = "md" }: ActionDockProps) {
   const { isDarkMode } = useTheme();
-  const [isJsonModalOpen, setIsJsonModalOpen] = useState(false);
-  const [currentJson, setCurrentJson] = useState<Record<string, unknown> | null>(null);
-  const [jsonView, setJsonView] = useState<"context" | "ai" | "diagnostic">("context");
-
-  const readCurrentJson = () => {
-    const readStorageJson = (key: string) => {
-      const rawValue = window.localStorage.getItem(key);
-      if (!rawValue) return null;
-
-      try {
-        return JSON.parse(rawValue);
-      } catch {
-        return { _error: `No se pudo leer ${key}` };
-      }
-    };
-
-    const activeDraft = readStorageJson("nutri_active_draft");
-    const quickDeliverableDraft = readQuickPlanDraft();
-    const isQuickDeliverableRoute = window.location.pathname === "/dashboard/rapido";
-    const planContext = isQuickDeliverableRoute
-      ? quickDeliverableDraft?.planContext
-      : activeDraft?.planContext;
-    const normalizedWorkflowContext = !isQuickDeliverableRoute && activeDraft
-      ? buildWorkflowContextPreview(activeDraft)
-      : null;
-    const diagnostic = {
-      activeDraft,
-      ...(isQuickDeliverableRoute
-        ? { quickDeliverableDraft }
-        : {}),
-      patient: readStorageJson("nutri_patient"),
-    };
-
-    return {
-      planContext: planContext || normalizedWorkflowContext,
-      diagnostic,
-    };
-  };
-
-  const dockItems: ActionDockItem[] = [
-    ...items,
-    {
-      id: "current-json",
-      icon: FileCode,
-      label: "Mostrar JSON actual acumulado",
-      description: "Ver el estado acumulado del flujo en formato JSON",
-      variant: "slate",
-      onClick: () => {
-        setCurrentJson(readCurrentJson());
-        setJsonView("context");
-        setIsJsonModalOpen(true);
-      },
-    },
-  ];
-
-  const planContext = currentJson?.planContext as {
-    patient?: Record<string, unknown>;
-    creation?: Record<string, unknown>;
-    plan?: Record<string, any>;
-    metadata?: Record<string, unknown>;
-  } | undefined;
-  const aiPreview = planContext
-    ? {
-        patient: planContext.patient,
-        creation: planContext.creation,
-        plan: planContext.plan
-          ? {
-              ...planContext.plan,
-              resources: Array.isArray(planContext.plan.resources)
-                ? planContext.plan.resources.map((resource: Record<string, unknown>) => ({
-                    resourceId: resource.resourceId,
-                    title: resource.title,
-                  }))
-                : [],
-            }
-          : undefined,
-      }
-    : null;
-  const displayedJson =
-    jsonView === "ai"
-      ? aiPreview
-      : jsonView === "diagnostic"
-        ? currentJson
-        : planContext || currentJson;
+  const dockItems = items;
   const desktopPositionClasses = desktopBreakpoint === "lg"
     ? "lg:bottom-auto lg:left-auto lg:right-4 lg:top-1/2 lg:-translate-y-1/2 lg:max-w-none lg:mx-0 xl:right-8"
     : "md:bottom-auto md:left-auto md:right-4 md:top-1/2 md:-translate-y-1/2 md:max-w-none md:mx-0 xl:right-8";
@@ -198,7 +113,7 @@ export function ActionDock({ items, className, desktopBreakpoint = "md" }: Actio
                 )}
                 title={item.description || item.label}
               >
-                <Icon className="h-5 w-5 md:h-6 md:w-6 transition-transform group-hover:scale-110 shrink-0" />
+                 {item.customIcon || <Icon className="h-5 w-5 md:h-6 md:w-6 transition-transform group-hover:scale-110 shrink-0" />}
 
                 {/* Tooltip para escritorios */}
                 <span
@@ -218,41 +133,6 @@ export function ActionDock({ items, className, desktopBreakpoint = "md" }: Actio
         </div>
       </div>
 
-      <Modal
-        isOpen={isJsonModalOpen}
-        onClose={() => {
-          setIsJsonModalOpen(false);
-          setJsonView("context");
-        }}
-        title="JSON actual acumulado"
-        description="Estado local reunido durante el flujo actual."
-        className="max-w-4xl"
-      >
-        <div className="mb-4 flex flex-wrap gap-2 rounded-2xl bg-slate-50 p-2">
-          {([
-            ["context", "Contexto canónico"],
-            ["ai", "Payload compacto IA"],
-            ["diagnostic", "Diagnóstico"],
-          ] as const).map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setJsonView(value)}
-              className={cn(
-                "rounded-xl px-3 py-2 text-xs font-bold transition-colors",
-                jsonView === value
-                  ? "bg-slate-900 text-white"
-                  : "text-slate-500 hover:bg-white hover:text-slate-900",
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        <pre className="max-h-[60vh] overflow-auto rounded-2xl bg-slate-950 p-4 text-left text-xs leading-5 text-emerald-200">
-          {JSON.stringify(displayedJson, null, 2)}
-        </pre>
-      </Modal>
     </div>
   );
 }

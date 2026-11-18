@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import {
   AlertCircle,
   Plus,
@@ -38,6 +39,7 @@ import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { ModuleUsageBadges } from "@/components/shared/ModuleUsageBadges";
 import { WorkflowContextBanner } from "@/components/shared/WorkflowContextBanner";
 import { PlanWizardShell, NatyLoadingOverlay, NatyButton } from "@/components/plans";
+import { NatyPlanChatDemo } from "@/components/plans/NatyPlanChatDemo";
 import { ActionDockItem } from "@/components/ui/ActionDock";
 import { CalculatedMetricsPanel } from "@/components/patient-form/CalculatedMetricsPanel";
 import { fetchApi, getApiUrl } from "@/lib/api-base";
@@ -57,6 +59,7 @@ import { isGuestMode } from "@/lib/demo-local-api";
 import { buildQuickPlanContext } from "@/features/plan-context/builders/build-quick-plan-context";
 import { buildPautaAiPayload, buildQuickPlanAiPayload } from "@/features/plan-context/adapters/plan-context-to-ai";
 import { planContextToFastDeliverablePdf } from "@/features/plan-context/adapters/plan-context-to-pdf";
+import type { FastDeliverablePdfData } from "@/features/pdf/FastDeliverablePdfDocument";
 import { creationToPlanContext } from "@/features/plan-context/migrations/creation-to-plan-context";
 import {
   clearQuickPlanDraft,
@@ -82,6 +85,7 @@ type QuickMeal = {
 type QuickAvoidFoodRow = {
   id: string;
   value: string;
+  category?: string;
 };
 
 type QuickParagraphFood = {
@@ -231,6 +235,59 @@ const QUICK_PORTION_GUIDE = [
 
 const DEFAULT_TITLE = "Entregable rápido";
 
+const DEMO_NATY_AVOID_FOODS = [
+  { value: "Bebidas azucaradas y jugos procesados", category: "Bebidas" },
+  { value: "Frituras y ultraprocesados", category: "Grasas y Aceites" },
+  { value: "Exceso de azúcares simples", category: "Azúcares y Miel" },
+];
+
+const DEMO_NATY_RESOURCES = [
+  {
+    resourceId: "naty-demo-hydration",
+    title: "Hidratación diaria",
+    content: "Distribuye el consumo de agua durante el día y ajusta la cantidad según actividad física, clima y contexto clínico.",
+    variables: {},
+  },
+  {
+    resourceId: "naty-demo-adherence",
+    title: "Claves de adherencia",
+    content: "Prioriza preparaciones simples, horarios realistas y cambios sostenibles que puedan mantenerse durante la semana.",
+    variables: {},
+  },
+];
+
+const buildModuleExamplePdfData = (): FastDeliverablePdfData => ({
+  name: "Pauta Express — Ejemplo de módulo Rápido",
+  patientName: "Paciente ejemplo",
+  contentMode: "both" as const,
+  tableMode: "simple" as const,
+  planObjective: "Organizar horarios, porciones y elecciones simples para una pauta diaria.",
+  showPlanObjectiveInPdf: true,
+  meals: [
+    { id: "example-breakfast", section: "Desayuno", time: "08:00", mealText: "Avena con yogurt natural, fruta y semillas.", portion: "1 porción" },
+    { id: "example-lunch", section: "Almuerzo", time: "13:30", mealText: "Pollo a la plancha, arroz integral y ensalada variada.", portion: "1 plato" },
+    { id: "example-dinner", section: "Cena", time: "20:30", mealText: "Tortilla de verduras y ensalada fresca.", portion: "1 porción" },
+  ],
+  paragraphs: [
+    {
+      title: "Verduras y hortalizas",
+      subtitle: "Mínimo 3 porciones al día",
+      foods: ["1 plato de hojas verdes", "1 taza de verduras cocidas", "Tomate, pepino o zanahoria a elección"],
+      imagePath: null,
+    },
+    {
+      title: "Frutas frescas",
+      subtitle: "2 porciones al día",
+      foods: ["1 unidad mediana", "1 taza de fruta picada", "Preferir fruta entera sobre jugos"],
+      imagePath: null,
+    },
+  ],
+  avoidFoods: ["Bebidas azucaradas", "Frituras frecuentes", "Exceso de productos ultraprocesados"],
+  resources: [],
+  portionGuide: [],
+  generatedAt: new Date().toLocaleDateString("es-CL"),
+});
+
 const WIZARD_STEPS = ["Comidas", "Evitar", "Recursos", "Porciones", "Resumen"];
 
 const createMeal = (section: QuickSection | "" = ""): QuickMeal => ({
@@ -261,6 +318,7 @@ const CATEGORY_IMAGE_MAP: Record<string, string> = {
   Lácteos: "/imag_categories/lacteos.png",
   Huevos: "/imag_categories/huevos.png",
   "Carnes y Vísceras": "/imag_categories/carnes_visceras.png",
+  "Proteínas magras": "/imag_categories/carnes_visceras.png",
   "Pescados y Mariscos": "/imag_categories/pescados_mariscos.png",
   "Semillas y Nueces": "/imag_categories/semillas_nueces.png",
   "Cereales y Derivados": "/imag_categories/cereales.png",
@@ -295,6 +353,35 @@ export function resolveCategoryImage(category = ""): string {
   return found ? found[1] : "";
 }
 
+export function resolveCategoryName(category = ""): string {
+  if (!category?.trim()) return "";
+  if (CATEGORY_IMAGE_MAP[category]) return category;
+
+  const normalized = category
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+  const aliases: Array<[RegExp, string]> = [
+    [/lacte|bebida vegetal/, "Lácteos"],
+    [/prote|carne|pescado|huevo|legumbre/, "Carnes y Vísceras"],
+    [/verdura|hortaliza/, "Verduras"],
+    [/fruta/, "Frutas"],
+    [/cereal|tuberculo|harina/, "Cereales y Derivados"],
+    [/grasa|aceite|semilla|nuez/, "Grasas y Aceites"],
+  ];
+  const alias = aliases.find(([pattern]) => pattern.test(normalized));
+  if (alias) return alias[1];
+
+  const found = Object.keys(CATEGORY_IMAGE_MAP).find((key) => {
+    const normalizedKey = key
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+    return normalized.includes(normalizedKey) || normalizedKey.includes(normalized);
+  });
+  return found || "";
+}
+
 const createParagraph = (category = ""): QuickParagraph => ({
   id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
   category,
@@ -310,9 +397,10 @@ const createFoodItem = (portion = "", food = ""): QuickParagraphFood => ({
   food,
 });
 
-const createAvoidFoodRow = (value = ""): QuickAvoidFoodRow => ({
+const createAvoidFoodRow = (value = "", category = ""): QuickAvoidFoodRow => ({
   id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
   value,
+  ...(category ? { category } : {}),
 });
 
 const formatPdfParagraphFood = (portion: string, food: string) => {
@@ -630,6 +718,16 @@ export default function QuickDeliverableClient() {
   const [isLoadingResources, setIsLoadingResources] = useState(false);
   const [isResourceModalOpen, setIsResourceModalOpen] = useState(false);
   const [isCreatedRecipesModalOpen, setIsCreatedRecipesModalOpen] = useState(false);
+  const [natyWizardStep, setNatyWizardStep] = useState<1 | 2>(1);
+  const [natyConsiderPatient, setNatyConsiderPatient] = useState(true);
+  const [natyOnlyEmpty, setNatyOnlyEmpty] = useState(true);
+  const [natyCanAddSections, setNatyCanAddSections] = useState(true);
+  const [natyIncludeTable, setNatyIncludeTable] = useState(true);
+  const [natyMealsCount, setNatyMealsCount] = useState("auto");
+  const [natyIncludeCategories, setNatyIncludeCategories] = useState(true);
+  const [natyCategoriesCount, setNatyCategoriesCount] = useState("auto");
+  const [natyUseMyRecipes, setNatyUseMyRecipes] = useState(true);
+  const [highlightPatientInput, setHighlightPatientInput] = useState(false);
   const [isLoadingCreatedRecipes, setIsLoadingCreatedRecipes] = useState(false);
   const [createdRecipes, setCreatedRecipes] = useState<CreatedRecipeSummary[]>([]);
   const [createdRecipesSearch, setCreatedRecipesSearch] = useState("");
@@ -645,10 +743,13 @@ export default function QuickDeliverableClient() {
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
+  const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
   const [isHydrating, setIsHydrating] = useState(true);
   const [showValidationHighlights, setShowValidationHighlights] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [isFoodReferenceBookOpen, setIsFoodReferenceBookOpen] = useState(false);
+  const [isNatyChatOpen, setIsNatyChatOpen] = useState(false);
   const identitySectionRef = useRef<HTMLElement | null>(null);
   const mealsSectionRef = useRef<HTMLElement | null>(null);
   const avoidFoodsSectionRef = useRef<HTMLElement | null>(null);
@@ -759,7 +860,12 @@ export default function QuickDeliverableClient() {
         : parsed.portionGuideRows;
       setPortionGuideRows(
         Array.isArray(draftPortionGuideRows) && draftPortionGuideRows.length > 0
-          ? draftPortionGuideRows
+          ? draftPortionGuideRows.map((row: { category?: string; portion?: string }) =>
+              createPortionGuideRow({
+                category: row.category || "",
+                portion: row.portion || "",
+              }),
+            )
           : QUICK_PORTION_GUIDE.map((row) => createPortionGuideRow(row)),
       );
       setSelectedPatient(
@@ -797,6 +903,7 @@ export default function QuickDeliverableClient() {
           paragraphs,
           meals,
           avoidFoods: avoidFoods.map((food) => food.value),
+          avoidFoodCategories: avoidFoods.map((food) => ({ name: food.value, category: food.category })),
           portionGuideRows,
           resources: selectedResourcesForDraft,
           includeMeals,
@@ -912,9 +1019,12 @@ export default function QuickDeliverableClient() {
 
         let avoidList: QuickAvoidFoodRow[] = [createAvoidFoodRow()];
         if (migratedPlanContext.plan.avoidFoods.length > 0) {
-          avoidList = migratedPlanContext.plan.avoidFoods.map((item) =>
-            typeof item === "string" ? createAvoidFoodRow(item) : item,
-          );
+          avoidList = migratedPlanContext.plan.avoidFoods.map((item) => {
+            const category = migratedPlanContext.plan.avoidFoodCategories.find(
+              (entry) => entry.name === item,
+            )?.category || "";
+            return createAvoidFoodRow(item, category);
+          });
         } else if (typeof content.avoidFoods === "string" && content.avoidFoods.trim()) {
           avoidList = content.avoidFoods
             .split(",")
@@ -1090,6 +1200,7 @@ export default function QuickDeliverableClient() {
         paragraphs,
         meals,
         avoidFoods: avoidFoods.map((food) => food.value),
+        avoidFoodCategories: avoidFoods.map((food) => ({ name: food.value, category: food.category })),
         portionGuideRows,
         resources: selectedResolvedResources,
         includeMeals,
@@ -1283,7 +1394,7 @@ export default function QuickDeliverableClient() {
         const formattedParagraphs: QuickParagraph[] = data.paragraphs.map(
           (p: any) => ({
             id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-            category: p.category || "",
+            category: resolveCategoryName(p.category || ""),
             categoryOptional: p.categoryOptional || "",
             portionsPerDay: p.portionsPerDay || "",
             foods:
@@ -1294,7 +1405,7 @@ export default function QuickDeliverableClient() {
                     food: f.food || "",
                   }))
                 : [{ id: `${Date.now()}-1`, portion: "", food: "" }],
-            imagePath: p.category ? resolveCategoryImage(p.category) : null,
+            imagePath: p.category ? resolveCategoryImage(resolveCategoryName(p.category)) : null,
           }),
         );
 
@@ -1672,9 +1783,41 @@ export default function QuickDeliverableClient() {
     toast.success("Tus platos creados se usaron para rellenar la tabla.");
   };
 
+  const applyDemoNatyExtras = () => {
+    if (!isGuestMode()) return;
+    setAvoidFoods(
+      DEMO_NATY_AVOID_FOODS.map((item) => createAvoidFoodRow(item.value, item.category)),
+    );
+    setIncludeAvoidFoods(true);
+    setResolvedResourcePages(DEMO_NATY_RESOURCES);
+    setSelectedResourceKeys(
+      DEMO_NATY_RESOURCES.map((resource, index) => getResolvedResourceKey(resource, index)),
+    );
+    setIncludeResources(true);
+  };
+
   const generateMealsWithAi = async () => {
     if (isHydrating) return;
-    if (quickAiMealTargets.length === 0) {
+    setContentMode(
+      natyIncludeTable && natyIncludeCategories
+        ? "both"
+        : natyIncludeCategories
+          ? "paragraphs"
+          : "table",
+    );
+
+    if (!natyIncludeTable) {
+      setIsCreatedRecipesModalOpen(false);
+      if (natyIncludeCategories) {
+        await generatePautaWithAi();
+      } else {
+        toast.info("Selecciona al menos una sección para completar con Naty.");
+      }
+      applyDemoNatyExtras();
+      return;
+    }
+
+    if (quickAiMealTargets.length === 0 && !natyIncludeCategories) {
       toast.error("No hay espacios vacios con categoria para rellenar.");
       return;
     }
@@ -1731,11 +1874,16 @@ export default function QuickDeliverableClient() {
             for (let dishIndex = remaining.length - 1; dishIndex >= 0; dishIndex -= 1) {
               const dish = remaining[dishIndex];
               if (dish.slotId !== meal.id || dish.optionIndex < 0 || dish.optionIndex >= optionCount) continue;
-              if ((originalOptions[dish.optionIndex] || "").trim() || (nextOptions[dish.optionIndex] || "").trim()) continue;
+              if (natyOnlyEmpty && ((originalOptions[dish.optionIndex] || "").trim() || (nextOptions[dish.optionIndex] || "").trim())) continue;
               nextOptions[dish.optionIndex] = dish.title;
               remaining.splice(dishIndex, 1);
             }
-            return { ...meal, optionTexts: nextOptions };
+            return {
+              ...meal,
+              optionTexts: nextOptions,
+              time: natyOnlyEmpty && meal.time ? meal.time : "13:30",
+              portion: natyOnlyEmpty && meal.portion ? meal.portion : "1 porción",
+            };
           }
 
           if (planMode === "single") {
@@ -1744,15 +1892,25 @@ export default function QuickDeliverableClient() {
             );
             if (
               targetDishIndex === -1 ||
-              meal.mealText.trim() ||
-              (original?.mealText || "").trim()
+              (natyOnlyEmpty && (meal.mealText.trim() || (original?.mealText || "").trim()))
             ) {
               return meal;
             }
             const [selectedDish] = remaining.splice(targetDishIndex, 1);
+            const defaultTimeBySection: Record<string, string> = {
+              Desayuno: "08:00",
+              "Colación AM": "11:00",
+              Almuerzo: "13:30",
+              "Colación PM": "17:00",
+              Once: "18:30",
+              Cena: "20:30",
+              "Post entreno": "21:30",
+            };
             return {
               ...meal,
               mealText: selectedDish.title,
+              time: natyOnlyEmpty && meal.time ? meal.time : defaultTimeBySection[meal.section] || "13:30",
+              portion: natyOnlyEmpty && meal.portion ? meal.portion : "1 porción",
             };
           }
 
@@ -1760,7 +1918,7 @@ export default function QuickDeliverableClient() {
           QUICK_WEEK_DAYS.forEach((day) => {
             const originalText = original?.weeklyMealTexts?.[day] || "";
             const currentText = nextWeeklyTexts[day] || "";
-            if (originalText.trim() || currentText.trim()) return;
+            if (natyOnlyEmpty && (originalText.trim() || currentText.trim())) return;
             const targetDishIndex = remaining.findIndex(
               (dish) => getCreatedRecipeMatchScore({ id: "", name: dish.title, mealSection: dish.mealSection }, meal.section as QuickSection) >= 80,
             );
@@ -1772,9 +1930,16 @@ export default function QuickDeliverableClient() {
           return {
             ...meal,
             weeklyMealTexts: nextWeeklyTexts,
+            time: natyOnlyEmpty && meal.time ? meal.time : "08:00",
+            portion: natyOnlyEmpty && meal.portion ? meal.portion : "1 porción",
           };
         });
       });
+
+      if (natyIncludeCategories) {
+        await generatePautaWithAi();
+      }
+      applyDemoNatyExtras();
 
       if (result?.meta?.isDemo || isGuestMode()) {
         toast.success("Opciones generadas con éxito (Modo Demo)", {
@@ -1838,7 +2003,14 @@ export default function QuickDeliverableClient() {
     try {
       const response = await fetchApi(`/resources`);
       if (!response.ok) return;
-      const data = await response.json();
+      const payload = await response.json();
+      const data = Array.isArray(payload)
+        ? payload
+        : Array.isArray(payload?.data)
+          ? payload.data
+          : Array.isArray(payload?.resources)
+            ? payload.resources
+            : [];
       setResources(data);
     } catch (error) {
       console.error("Error loading resources", error);
@@ -2249,6 +2421,87 @@ export default function QuickDeliverableClient() {
     }
   };
 
+  const handleDownloadPdf = async () => {
+    if (isHydrating) return;
+    if (!validateRequiredSections()) {
+      toast.error("Completa las secciones marcadas para generar el PDF.");
+      return;
+    }
+    setIsExportingPdf(true);
+    try {
+      await downloadFastDeliverablePdf(await buildPdfPayload());
+      toast.success("PDF descargado correctamente.");
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error?.message || "No se pudo descargar el PDF.");
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
+  const handlePreviewPdf = async () => {
+    if (isHydrating) return;
+    if (!validateRequiredSections()) {
+      toast.error("Completa las secciones marcadas para generar la vista previa.");
+      return;
+    }
+    setIsGeneratingPreview(true);
+    try {
+      const [{ pdf }, { FastDeliverablePdfDocument }] = await Promise.all([
+        import("@react-pdf/renderer"),
+        import("@/features/pdf/FastDeliverablePdfDocument"),
+      ]);
+      const blob = await pdf(
+        React.createElement(FastDeliverablePdfDocument, {
+          data: await buildPdfPayload(),
+        }) as any,
+      ).toBlob();
+      if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
+      setPreviewPdfUrl(URL.createObjectURL(blob));
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error?.message || "No se pudo generar la vista previa.");
+    } finally {
+      setIsGeneratingPreview(false);
+    }
+  };
+
+  const handleModuleExamplePreview = async () => {
+    setIsGeneratingPreview(true);
+    try {
+      const [{ pdf }, { FastDeliverablePdfDocument }] = await Promise.all([
+        import("@react-pdf/renderer"),
+        import("@/features/pdf/FastDeliverablePdfDocument"),
+      ]);
+      const exampleData = buildModuleExamplePdfData();
+      exampleData.paragraphs = await Promise.all(
+        (exampleData.paragraphs || []).map(async (paragraph) => ({
+          ...paragraph,
+          imagePath: await convertPdfImageToPng(
+            resolveCategoryImage(paragraph.title),
+          ),
+        })),
+      );
+      const blob = await pdf(
+        React.createElement(FastDeliverablePdfDocument, {
+          data: exampleData,
+        }) as any,
+      ).toBlob();
+      if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
+      setPreviewPdfUrl(URL.createObjectURL(blob));
+    } catch (error: any) {
+      console.error(error);
+      toast.error(error?.message || "No se pudo cargar el ejemplo del módulo.");
+    } finally {
+      setIsGeneratingPreview(false);
+    }
+  };
+
+  const closePreviewPdf = () => {
+    if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
+    setPreviewPdfUrl(null);
+  };
+
   const handleSaveToCreations = async () => {
     if (isHydrating) return;
     if (!validateRequiredSections()) {
@@ -2304,6 +2557,11 @@ export default function QuickDeliverableClient() {
     toast.success("Entregable rápido reiniciado.");
   };
 
+  const openNatyWizard = () => {
+    setNatyWizardStep(1);
+    setIsCreatedRecipesModalOpen(true);
+  };
+
   const actionItems: ActionDockItem[] = useMemo(
     () => [
       {
@@ -2331,6 +2589,24 @@ export default function QuickDeliverableClient() {
         onClick: () => setIsImportCreationModalOpen(true),
       },
       {
+        id: "complete-with-naty",
+        icon: isGeneratingQuickAi ? Loader2 : Sparkles,
+        label: "Completar con Naty",
+        description: "Rellenar comidas vacías con asistencia de Naty",
+        variant: "indigo",
+        disabled: isGeneratingQuickAi,
+        onClick: openNatyWizard,
+      },
+      {
+        id: "naty-chat",
+        icon: Sparkles,
+        customIcon: <Image src="/circle_logo.webp" alt="Naty" width={48} height={48} className="-m-1.5 h-10 w-10 rounded-full object-contain md:-m-2 md:h-12 md:w-12" />,
+        label: "Hablar con Naty",
+        description: "Abrir chat demo de Naty",
+        variant: "indigo",
+        onClick: () => setIsNatyChatOpen(true),
+      },
+      {
         id: "food-reference-book",
         icon: Apple,
         label: "Manual de alimentos",
@@ -2346,22 +2622,39 @@ export default function QuickDeliverableClient() {
         onClick: () => setIsResetConfirmOpen(true),
       },
     ],
-    [selectedPatient.fullName, isLoadingPatients, missingRequirements, hasChanges, isExportingPdf, isHydrating],
+    [selectedPatient.fullName, isLoadingPatients, missingRequirements, hasChanges, isExportingPdf, isHydrating, isGeneratingQuickAi],
   );
 
   return (
     <>
       {isGeneratingQuickAi && (
         <NatyLoadingOverlay
-          title="Naty está preparando..."
-          subtitle="Generando opciones de comidas para tu entregable rápido"
+          title="Naty está diseñando el plan..."
+          subtitle="Terminando los últimos detalles..."
+          steps={[
+            "Revisando tus reglas y preferencias...",
+            "Organizando comidas y categorías...",
+            "Terminando los últimos detalles...",
+            "Listo para revisar",
+          ]}
           isDemo={isGuestMode()}
         />
       )}
+      <NatyPlanChatDemo isOpen={isNatyChatOpen} onClose={() => setIsNatyChatOpen(false)} />
       <FoodReferenceBook isOpen={isFoodReferenceBookOpen} onClose={() => setIsFoodReferenceBookOpen(false)} />
-      <ModuleLayout
-        title="Rápido"
-        description="Crea un entregable express de una sola hoja con horarios, indicaciones, alimentos a evitar, recursos y una guía breve de porciones."
+       <ModuleLayout
+         title="Rápido"
+         titleAction={
+           <button
+             type="button"
+             onClick={() => void handleModuleExamplePreview()}
+             className="cursor-pointer text-xs font-bold text-purple-700 underline decoration-purple-300 underline-offset-4 transition-colors hover:text-purple-900 hover:decoration-purple-600"
+             title="Ver cómo se verá el PDF de este plan"
+           >
+             Vista previa de este plan
+           </button>
+         }
+         description="Crea un entregable express de una sola hoja con horarios, indicaciones, alimentos a evitar, recursos y una guía breve de porciones."
         rightContent={<ModuleUsageBadges />}
         className="max-w-[68rem]"
          rightNavItems={isHydrating ? [] : actionItems}
@@ -2744,6 +3037,17 @@ export default function QuickDeliverableClient() {
             onBack={goBack}
             onNext={goNext}
             isLastStep={currentStep === WIZARD_STEPS.length - 1}
+            centerAction={currentStep === 0 ? (
+              <button
+                type="button"
+                onClick={openNatyWizard}
+                disabled={isGeneratingQuickAi}
+                className="inline-flex items-center gap-2 rounded-xl border border-purple-200 bg-purple-50 px-4 py-2 text-xs font-bold text-purple-700 transition-colors hover:bg-purple-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Sparkles className="h-4 w-4" />
+                Completar con Naty
+              </button>
+            ) : undefined}
             hideNextOnLastStep
             nextDisabled={
               currentStep === 0 && (
@@ -2888,15 +3192,6 @@ export default function QuickDeliverableClient() {
                       </div>
 
                       <div className="flex items-center gap-2 flex-wrap">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => setIsAiModalOpen(true)}
-                          className="h-10 rounded-xl border border-[#86A83C]/30 bg-[#F0F5DF]/60 px-4 text-[#668E20] hover:bg-[#F0F5DF] font-medium text-xs transition-all"
-                        >
-                          <Sparkles className="mr-2 h-4 w-4 text-[#86A83C]" />
-                          Generar con Naty
-                        </Button>
                         <Button
                           type="button"
                           onClick={addParagraph}
@@ -3087,19 +3382,6 @@ export default function QuickDeliverableClient() {
                               : "Completa hora, indicación y porción para cada tiempo de comida."}
                           </p>
                         </div>
-                        <button
-                          type="button"
-                          className="h-10 rounded-xl border border-[#DDE7B8] bg-[#F0F5DF] px-4 text-[#668E20] hover:bg-[#E8EFCB] transition-all font-semibold text-xs flex items-center justify-center gap-2 w-full md:w-auto md:self-start cursor-pointer shadow-2xs"
-                          onClick={() => setIsCreatedRecipesModalOpen(true)}
-                          title="Rellenar con Naty"
-                        >
-                          {isGeneratingQuickAi ? (
-                            <Loader2 className="h-4 w-4 animate-spin text-[#86A83C]" />
-                          ) : (
-                            <Sparkles className="h-4 w-4 text-[#86A83C]" />
-                          )}
-                          <span>Rellenar con Naty</span>
-                        </button>
                       </div>
 
                       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -3535,13 +3817,26 @@ export default function QuickDeliverableClient() {
                 <div className="block md:hidden space-y-2 mt-4">
                   {avoidFoods.map((food) => (
                     <div key={food.id} className="flex items-center gap-2">
-                      <Input
-                        value={food.value}
-                        onChange={(e) => updateAvoidFood(food.id, e.target.value)}
-                        className="h-10 flex-1 rounded-xl border-[#E9E5E7] bg-white text-xs font-normal text-[#20212B]"
-                        placeholder="Ej: bebidas azucaradas, frituras, alcohol..."
-                        disabled={!includeAvoidFoods}
-                      />
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <Input
+                          value={food.value}
+                          onChange={(e) => updateAvoidFood(food.id, e.target.value)}
+                          className="h-10 w-full rounded-xl border-[#E9E5E7] bg-white text-xs font-normal text-[#20212B]"
+                          placeholder="Ej: bebidas azucaradas, frituras, alcohol..."
+                          disabled={!includeAvoidFoods}
+                        />
+                        <select
+                          value={food.category || ""}
+                          onChange={(e) => setAvoidFoods((current) => current.map((item) => item.id === food.id ? { ...item, category: e.target.value } : item))}
+                          className="h-8 w-full rounded-xl border border-slate-200 bg-white px-2 text-[11px] text-slate-600"
+                          disabled={!includeAvoidFoods}
+                        >
+                          <option value="">Categoría de imagen (opcional)</option>
+                          {Object.keys(CATEGORY_IMAGE_MAP).map((category) => (
+                            <option key={category} value={category}>{category}</option>
+                          ))}
+                        </select>
+                      </div>
                       <button
                         type="button"
                         onClick={() => removeAvoidFood(food.id)}
@@ -3572,7 +3867,10 @@ export default function QuickDeliverableClient() {
                         <th className="px-4 py-2.5 text-left text-xs font-semibold text-[#626573]">
                           Alimento / restricción
                         </th>
-                        <th className="px-4 py-2.5 text-left text-xs font-semibold text-[#626573] w-20">
+                         <th className="px-4 py-2.5 text-left text-xs font-semibold text-[#626573] w-52">
+                           Categoría de imagen
+                         </th>
+                         <th className="px-4 py-2.5 text-left text-xs font-semibold text-[#626573] w-20">
                           Acción
                         </th>
                       </tr>
@@ -3592,6 +3890,19 @@ export default function QuickDeliverableClient() {
                             />
                           </td>
                           <td className="px-4 py-2.5">
+                            <select
+                              value={food.category || ""}
+                              onChange={(e) => setAvoidFoods((current) => current.map((item) => item.id === food.id ? { ...item, category: e.target.value } : item))}
+                              className="h-10 w-full rounded-xl border border-[#E9E5E7] bg-white px-2 text-xs text-[#20212B]"
+                              disabled={!includeAvoidFoods}
+                            >
+                              <option value="">Automática</option>
+                              {Object.keys(CATEGORY_IMAGE_MAP).map((category) => (
+                                <option key={category} value={category}>{category}</option>
+                              ))}
+                            </select>
+                          </td>
+                          <td className="px-4 py-2.5">
                             <button
                               type="button"
                               onClick={() => removeAvoidFood(food.id)}
@@ -3606,7 +3917,7 @@ export default function QuickDeliverableClient() {
                     </tbody>
                     <tfoot>
                       <tr className="border-t border-slate-100 bg-slate-50/40">
-                        <td colSpan={2} className="px-4 py-3">
+                         <td colSpan={3} className="px-4 py-3">
                           <button
                             type="button"
                             onClick={addAvoidFoodRow}
@@ -4033,21 +4344,73 @@ export default function QuickDeliverableClient() {
                 )}
 
                 <div className="flex flex-wrap gap-2 pt-2">
-                  <Button
-                    onClick={handleExportPdf}
-                    disabled={isExportingPdf || missingRequirements.length > 0}
-                    title={missingRequirements.length > 0 ? "Completa los pendientes para descargar el PDF" : undefined}
-                    className="h-11 rounded-2xl bg-emerald-600 px-6 text-white font-bold disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isExportingPdf ? "Guardando y generando..." : "Descargar y guardar PDF"}
-                  </Button>
+                  {isGuestMode() ? (
+                    <>
+                      <Button
+                        disabled
+                        title="Guardar creaciones está inhabilitado en la demo"
+                        className="h-11 cursor-not-allowed rounded-2xl bg-slate-200 px-5 font-bold text-slate-500 disabled:opacity-100"
+                      >
+                        <Lock className="mr-2 h-4 w-4" />
+                        Descargar y guardar PDF
+                      </Button>
+                      <Button
+                        disabled
+                        title="Guardar creaciones está inhabilitado en la demo"
+                        className="h-11 cursor-not-allowed rounded-2xl bg-slate-200 px-5 font-bold text-slate-500 disabled:opacity-100"
+                      >
+                        <Lock className="mr-2 h-4 w-4" />
+                        Guardar
+                      </Button>
+                      <Button
+                        onClick={() => void handlePreviewPdf()}
+                        disabled={isGeneratingPreview || missingRequirements.length > 0}
+                        className="h-11 rounded-2xl border border-purple-200 bg-purple-50 px-5 font-bold text-purple-700 hover:bg-purple-100 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {isGeneratingPreview ? "Generando vista previa..." : "Generar vista previa"}
+                      </Button>
+                      <Button
+                        onClick={() => void handleDownloadPdf()}
+                        disabled={isExportingPdf || missingRequirements.length > 0}
+                        className="h-11 rounded-2xl bg-purple-600 px-5 font-bold text-white hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {isExportingPdf ? "Descargando..." : "Descargar PDF"}
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      onClick={handleExportPdf}
+                      disabled={isExportingPdf || missingRequirements.length > 0}
+                      title={missingRequirements.length > 0 ? "Completa los pendientes para descargar el PDF" : undefined}
+                      className="h-11 rounded-2xl bg-emerald-600 px-6 font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {isExportingPdf ? "Guardando y generando..." : "Descargar y guardar PDF"}
+                    </Button>
+                  )}
                 </div>
               </section>
               )}
         </PlanWizardShell>
          </div>
          </>}
-        </ModuleLayout>
+         </ModuleLayout>
+
+       <Modal
+         isOpen={Boolean(previewPdfUrl)}
+         onClose={closePreviewPdf}
+         title="Vista previa del PDF"
+         className="max-w-5xl"
+       >
+         {previewPdfUrl && (
+           <div className="h-[70vh] overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+             <iframe
+               src={`${previewPdfUrl}#toolbar=1&navpanes=0`}
+               title="Vista previa del entregable PDF"
+               className="h-full w-full border-0"
+             />
+           </div>
+         )}
+       </Modal>
 
       <ConfirmationModal
         isOpen={pendingOptionCount !== null}
@@ -4229,34 +4592,70 @@ export default function QuickDeliverableClient() {
 
       <Modal
         isOpen={isCreatedRecipesModalOpen}
-        onClose={() => setIsCreatedRecipesModalOpen(false)}
-        title="Rellenar comidas con Naty"
-        description="Asistente clínico inteligente para sugerir y completar platos."
+        onClose={() => {
+          setIsCreatedRecipesModalOpen(false);
+          setNatyWizardStep(1);
+        }}
+        title="Completar con Naty"
+        description="Demo de asistencia inteligente para diseñar este plan."
         className="max-w-xl"
       >
-        <div className="space-y-5">
-          <div className="inline-flex rounded-xl bg-slate-100 p-1">
-            <button
-              type="button"
-              onClick={() => setQuickAiMode("ai")}
-              className={cn(
-                "rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all cursor-pointer",
-                quickAiMode === "ai"
-                  ? "bg-white text-[#20212B] shadow-2xs"
-                  : "text-[#626573] hover:text-[#20212B]"
-              )}
-            >
-              Generar con IA (Naty)
-            </button>
-            <button
-              type="button"
-              disabled
-              className="inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-semibold text-slate-400 cursor-not-allowed"
-            >
-              <span>Usar mis platos</span>
-              <Lock className="h-3 w-3" aria-label="Bloqueado" />
-            </button>
+        {natyWizardStep === 1 ? (
+          <div className="space-y-5">
+            <div className="rounded-2xl border border-purple-100 bg-purple-50/70 p-4">
+              <p className="text-sm font-black text-purple-900">Esto es una demo</p>
+              <p className="mt-1 text-xs leading-5 text-purple-700">
+                Naty mostrará una simulación rápida. En esta demo, el resultado final seguirá un ejemplo predeterminado.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Paso 1 · Reglas del plan</p>
+              <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-700">
+                <input type="checkbox" checked={natyConsiderPatient} onChange={(e) => setNatyConsiderPatient(e.target.checked)} className="mt-0.5 h-4 w-4 rounded border-slate-300 text-purple-600" />
+                <span>
+                  Considerar al paciente{" "}
+                  {selectedPatient.fullName?.trim() ? <strong>{selectedPatient.fullName}</strong> : <span className="font-bold text-amber-700">(no seleccionado)</span>}
+                  {!selectedPatient.fullName?.trim() && (
+                    <button type="button" onClick={() => { setIsCreatedRecipesModalOpen(false); setHighlightPatientInput(true); }} className="ml-1 font-bold text-purple-700 underline underline-offset-2">elegir paciente</button>
+                  )}
+                  {!selectedPatient.fullName?.trim() && <span className="block mt-1 text-[11px] text-slate-500">La respuesta será menos específica.</span>}
+                </span>
+              </label>
+              <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-700">
+                <input type="checkbox" checked={natyOnlyEmpty} onChange={(e) => setNatyOnlyEmpty(e.target.checked)} className="mt-0.5 h-4 w-4 rounded border-slate-300 text-purple-600" />
+                <span><strong>Rellenar solo espacios vacíos</strong><span className="block mt-1 text-[11px] text-slate-500">No reemplaza lo que ya escribiste.</span></span>
+              </label>
+              <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-700">
+                <input type="checkbox" checked={natyCanAddSections} onChange={(e) => setNatyCanAddSections(e.target.checked)} className="mt-0.5 h-4 w-4 rounded border-slate-300 text-purple-600" />
+                <span><strong>Puede incluir más secciones</strong><span className="block mt-1 text-[11px] text-slate-500">Naty puede agregar categorías si lo considera necesario.</span></span>
+              </label>
+              <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-700">
+                <input type="checkbox" checked={natyUseMyRecipes} onChange={(e) => setNatyUseMyRecipes(e.target.checked)} className="mt-0.5 h-4 w-4 rounded border-slate-300 text-purple-600" />
+                <span><strong>Usar mis platos</strong><span className="block mt-1 text-[11px] text-slate-500">Naty podrá considerar tus platos guardados.</span></span>
+              </label>
+            </div>
+
+            <div className="space-y-3 rounded-2xl bg-slate-50 p-4">
+              <p className="text-xs font-black text-slate-800">¿Qué quieres incluir?</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="space-y-1 text-xs text-slate-700">
+                  <span className="flex items-center gap-2"><input type="checkbox" checked={natyIncludeTable} onChange={(e) => setNatyIncludeTable(e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-purple-600" /> Tabla de comidas</span>
+                  <select value={natyMealsCount} onChange={(e) => setNatyMealsCount(e.target.value)} disabled={!natyIncludeTable} className="h-9 w-full rounded-xl border border-slate-200 bg-white px-2 text-xs disabled:opacity-50"><option value="auto">Como Naty prefiera</option><option value="3">3 comidas</option><option value="4">4 comidas</option><option value="5">5 comidas</option></select>
+                </label>
+                <label className="space-y-1 text-xs text-slate-700">
+                  <span className="flex items-center gap-2"><input type="checkbox" checked={natyIncludeCategories} onChange={(e) => setNatyIncludeCategories(e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-purple-600" /> Categorías por alimento</span>
+                  <select value={natyCategoriesCount} onChange={(e) => setNatyCategoriesCount(e.target.value)} disabled={!natyIncludeCategories} className="h-9 w-full rounded-xl border border-slate-200 bg-white px-2 text-xs disabled:opacity-50"><option value="auto">Como Naty prefiera</option><option value="3">3 categorías</option><option value="4">4 categorías</option><option value="5">5 categorías</option></select>
+                </label>
+              </div>
+            </div>
+
+            <div className="flex justify-end border-t border-slate-100 pt-4">
+              <Button type="button" onClick={() => setNatyWizardStep(2)} className="rounded-xl bg-purple-600 px-5 text-xs font-bold text-white hover:bg-purple-700">Siguiente</Button>
+            </div>
           </div>
+        ) : (
+        <div className="space-y-5">
           {quickAiMode === "ai" && (
             <div className="space-y-4">
               <div className="rounded-2xl bg-[#F0F5DF]/70 border border-[#DDE7B8] p-3.5 flex items-start gap-3">
@@ -4270,31 +4669,17 @@ export default function QuickDeliverableClient() {
                   </p>
                 </div>
               </div>
-              <div className="grid gap-3.5 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-[#20212B]">
-                    Alimentos preferidos
-                  </label>
-                  <Textarea
-                    value={aiAllowedFoods}
-                    onChange={(e) => setAiAllowedFoods(e.target.value)}
-                    placeholder="Ej: avena, pollo, frutas, legumbres..."
-                    className="min-h-24 rounded-xl border border-[#E9E5E7] bg-white text-xs text-[#20212B] placeholder:text-[#848792] focus:border-[#86A83C] focus:ring-2 focus:ring-[#86A83C]/15"
-                  />
-                  <span className="text-[11px] text-slate-400">Ingredientes clave a priorizar.</span>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-[#20212B]">
-                    Notas adicionales
-                  </label>
-                  <Textarea
-                    value={aiNotes}
-                    onChange={(e) => setAiNotes(e.target.value)}
-                    placeholder="Ej: opciones prácticas, más salado, colaciones simples..."
-                    className="min-h-24 rounded-xl border border-[#E9E5E7] bg-white text-xs text-[#20212B] placeholder:text-[#848792] focus:border-[#86A83C] focus:ring-2 focus:ring-[#86A83C]/15"
-                  />
-                  <span className="text-[11px] text-slate-400">Pautas de preparación o contexto.</span>
-                </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-[#20212B]">
+                  ¿Hay algo que deba considerar Naty?
+                </label>
+                <Textarea
+                  value={aiNotes}
+                  onChange={(e) => setAiNotes(e.target.value)}
+                  placeholder="Ej: preparaciones simples, más opciones saladas, colaciones prácticas..."
+                  className="min-h-28 rounded-xl border border-[#E9E5E7] bg-white text-xs text-[#20212B] placeholder:text-[#848792] focus:border-[#86A83C] focus:ring-2 focus:ring-[#86A83C]/15"
+                />
+                <span className="text-[11px] text-slate-400">Puedes escribir cualquier indicación adicional para este plan.</span>
               </div>
               <p className="text-[11px] text-slate-400 leading-normal">
                 Nota: Las preparaciones sugeridas son un borrador editable que podrás revisar y ajustar antes de guardar el plan.
@@ -4439,12 +4824,13 @@ export default function QuickDeliverableClient() {
                   onClick={fillMealsWithCreatedRecipes}
                   disabled={isLoadingCreatedRecipes || filteredCreatedRecipes.length === 0}
                 >
-                  Rellenar tabla
+                 Rellenar tabla
                 </Button>
               </div>
             </>
           )}
         </div>
+        )}
       </Modal>
 
       {/* Modal Naty AI Pautas */}

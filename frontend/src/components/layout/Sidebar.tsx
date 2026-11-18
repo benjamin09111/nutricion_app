@@ -7,6 +7,7 @@ import {
   Users,
   Apple,
   ChefHat,
+  ShoppingCart,
   CalendarDays,
   FileText,
   NotebookText,
@@ -78,12 +79,14 @@ const groups: SidebarGroup[] = [
       { name: "Personalizado", href: "/dashboard/dieta", icon: Apple, tutorialPath: "/dashboard/dieta" },
       { name: "Recetas", href: "/dashboard/rapido/recetas", icon: ChefHat },
       { name: "Dietas", href: "/dashboard/dietas", icon: Utensils, tutorialPath: "/dashboard/dietas" },
+      { name: "Carrito del super", href: "/dashboard/carrito", icon: ShoppingCart, locked: true },
     ],
   },
   {
     title: "Nutrición",
     items: [
       { name: "Tabla de composición", href: "/dashboard/alimentos", icon: Apple, tutorialPath: "/dashboard/alimentos" },
+      { name: "Platos y Recetas", href: "/dashboard/platos", icon: ChefHat, locked: true },
       { name: "Grupos", href: "/dashboard/alimentos/grupos", icon: FolderPlus, locked: true },
       { name: "Intercambios", href: "/dashboard/herramientas/porciones-intercambio", icon: Calculator, tutorialPath: "/dashboard/herramientas/porciones-intercambio" },
       { name: "Calculadora", href: "/dashboard/herramientas/calculos", icon: Calculator, tutorialPath: "/dashboard/herramientas/calculos" },
@@ -347,6 +350,8 @@ export function Sidebar({ onItemClick, isMobile = false }: SidebarProps = {}) {
 
                       const isActive = pathname === item.href;
                       const isLocked = item.locked;
+
+                      if (shouldCollapse && isLocked) return null;
 
                       return (
                         <li key={item.name}>

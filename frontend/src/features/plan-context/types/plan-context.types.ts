@@ -81,6 +81,7 @@ export interface PlanContext {
     paragraphs: PlanParagraph[];
     meals: PlanMeal[];
     avoidFoods: string[];
+    avoidFoodCategories: Array<{ name: string; category?: string }>;
     portionGuide: Array<{ category: string; portion: string }>;
     resources: PlanResource[];
     visibility: {

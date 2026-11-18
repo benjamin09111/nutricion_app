@@ -198,7 +198,7 @@ export function PatientDashboardClient() {
       />
 
       {/* 3. Contenido Principal (Flujo directo sin barra de pestañas intermedia) */}
-      <main className="flex-1 max-w-6xl w-full mx-auto px-3 sm:px-6 py-3 sm:py-6 space-y-4 sm:space-y-6 pb-32 sm:pb-36">
+      <main className="flex-1 w-full max-w-md mx-auto px-5 py-5 space-y-5 pb-32">
         {/* Banner con Naty, Saludo, Consejo de la Nutri en acordeón y recordatorio de comida */}
         <NatyWelcomeBanner
           patientName={profile.fullName}
