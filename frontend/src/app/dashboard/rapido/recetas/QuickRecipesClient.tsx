@@ -46,6 +46,7 @@ import { FeatureGate } from "@/components/memberships/FeatureGate";
 import { cn } from "@/lib/utils";
 import { FoodReferenceBook } from "@/components/foods/FoodReferenceBook";
 import { getTodayDateInputValue } from "@/features/patients/utils/patient-helpers";
+import { isGuestMode } from "@/lib/demo-local-api";
 
 type QuickIngredient = {
   id: string;
@@ -1290,11 +1291,22 @@ export default function QuickRecipesClient() {
       }
       setCategoryPageMap({});
       setActiveMealSectionFilter("Todos");
-      toast.success(
-        mode === "weekly"
-          ? "Plan semanal generado con IA según categorías."
-          : "Platos generados correctamente con IA.",
-      );
+      if (isGuestMode()) {
+        toast.success(
+          mode === "weekly"
+            ? "Plan semanal generado con éxito (Modo Demo)"
+            : "Platos generados con éxito (Modo Demo)",
+          {
+            description: "Simulación clínica activa con canasta chilena y arquetipos. Inicia sesión para conectar IA en vivo.",
+          },
+        );
+      } else {
+        toast.success(
+          mode === "weekly"
+            ? "Plan semanal generado con IA según categorías."
+            : "Platos generados correctamente con IA.",
+        );
+      }
       setCurrentStep(3);
       return true;
     } catch (error) {
@@ -1764,7 +1776,11 @@ export default function QuickRecipesClient() {
     >
       <>
         {(isGenerating || isGeneratingWeekly) && (
-          <NatyLoadingOverlay title="Naty está cocinando..." subtitle="Generando recetas basadas en tus instrucciones y contexto del paciente" />
+          <NatyLoadingOverlay
+            title="Naty está cocinando..."
+            subtitle="Generando recetas basadas en tus instrucciones y contexto del paciente"
+            isDemo={isGuestMode()}
+          />
         )}
         <FoodReferenceBook isOpen={isFoodReferenceBookOpen} onClose={() => setIsFoodReferenceBookOpen(false)} />
       <ModuleLayout

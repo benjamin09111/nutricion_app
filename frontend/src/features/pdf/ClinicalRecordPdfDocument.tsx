@@ -193,6 +193,54 @@ export function ClinicalRecordPdfDocument({ data }: { data: ClinicalRecordPdfDat
     data.patientGender ? { label: "Sexo", value: data.patientGender } : null,
   ].filter(Boolean) as Array<{ label: string; value: string }>;
 
+  const hasAnthro1 = Boolean(
+    data.weightHabitual ||
+    data.manualCaloriesAdjustment ||
+    data.activityLevel ||
+    data.waistCircumference ||
+    data.hipCircumference
+  );
+  const hasAnthro2 = Boolean(
+    data.tricipital ||
+    data.bicipital ||
+    data.subescapular ||
+    data.suprailiac ||
+    data.armCircumference ||
+    data.kneeHeight ||
+    data.calfCircumference
+  );
+
+  const hasGeneral1 = Boolean(data.occupation || data.sleepQuality || data.weeklyExercise || data.workSchedule);
+  const hasGeneral2 = Boolean(data.diagnosedPathologies || data.medications || data.supplementsOrDrugs || data.familyHistory);
+
+  const cleanAvoidFoods = React.useMemo(() => {
+    if (!data.dietRestrictions || !Array.isArray(data.dietRestrictions)) return [];
+    const nonFoodKeywords = ["cocina", "poco tiempo", "tiempo", "rapida", "rápida", "presupuesto", "horario", "pesado"];
+    const seen = new Set<string>();
+    const result: string[] = [];
+
+    for (const r of data.dietRestrictions) {
+      if (!r || typeof r !== "string") continue;
+      const lower = r.toLowerCase().trim();
+      if (nonFoodKeywords.some((kw) => lower.includes(kw))) continue;
+
+      let canonical = r.trim();
+      if (lower.includes("lact") || lower.includes("leche") || lower.includes("queso")) {
+        canonical = "Lácteos enteros y derivados";
+      } else if (lower.includes("gluten") || lower.includes("trigo") || lower.includes("celiac")) {
+        canonical = "Gluten / Harinas de trigo";
+      } else if (lower.includes("azucar") || lower.includes("azúcar")) {
+        canonical = "Azúcares refinados y dulces";
+      }
+
+      if (!seen.has(canonical.toLowerCase())) {
+        seen.add(canonical.toLowerCase());
+        result.push(canonical);
+      }
+    }
+    return result;
+  }, [data.dietRestrictions]);
+
   return (
     <Document>
       <Page size="A4" style={S.page}>
@@ -235,41 +283,77 @@ export function ClinicalRecordPdfDocument({ data }: { data: ClinicalRecordPdfDat
         {/* Antropometría y Pliegues */}
         <View style={S.section}>
           <PdfSectionHeader title="Antropometría y Mediciones" icon="clinical" />
-          <View style={S.twoCol}>
-            <View style={[S.col, S.cardBox]}>
+          {hasAnthro1 && hasAnthro2 ? (
+            <View style={S.twoCol}>
+              <View style={[S.col, S.cardBox]}>
+                <DataRow label="Peso habitual" value={data.weightHabitual ? `${data.weightHabitual} kg` : null} />
+                <DataRow label="Ajuste calórico" value={data.manualCaloriesAdjustment ? `${data.manualCaloriesAdjustment} kcal` : null} />
+                <DataRow label="Nivel de actividad" value={data.activityLevel} />
+                <DataRow label="Circ. cintura" value={data.waistCircumference ? `${data.waistCircumference} cm` : null} />
+                <DataRow label="Circ. cadera" value={data.hipCircumference ? `${data.hipCircumference} cm` : null} />
+              </View>
+              <View style={[S.col, S.cardBox]}>
+                <DataRow label="Pliegue Tricipital" value={data.tricipital ? `${data.tricipital} mm` : null} />
+                <DataRow label="Pliegue Bicipital" value={data.bicipital ? `${data.bicipital} mm` : null} />
+                <DataRow label="Pliegue Subescapular" value={data.subescapular ? `${data.subescapular} mm` : null} />
+                <DataRow label="Pliegue Suprailiaco" value={data.suprailiac ? `${data.suprailiac} mm` : null} />
+                <DataRow label="Circ. braquial" value={data.armCircumference ? `${data.armCircumference} cm` : null} />
+                <DataRow label="Altura rodilla" value={data.kneeHeight ? `${data.kneeHeight} cm` : null} />
+                <DataRow label="Circ. pantorrilla" value={data.calfCircumference ? `${data.calfCircumference} cm` : null} />
+              </View>
+            </View>
+          ) : hasAnthro1 || hasAnthro2 ? (
+            <View style={S.cardBox}>
               <DataRow label="Peso habitual" value={data.weightHabitual ? `${data.weightHabitual} kg` : null} />
               <DataRow label="Ajuste calórico" value={data.manualCaloriesAdjustment ? `${data.manualCaloriesAdjustment} kcal` : null} />
               <DataRow label="Nivel de actividad" value={data.activityLevel} />
               <DataRow label="Circ. cintura" value={data.waistCircumference ? `${data.waistCircumference} cm` : null} />
               <DataRow label="Circ. cadera" value={data.hipCircumference ? `${data.hipCircumference} cm` : null} />
-            </View>
-            <View style={[S.col, S.cardBox]}>
               <DataRow label="Pliegue Tricipital" value={data.tricipital ? `${data.tricipital} mm` : null} />
               <DataRow label="Pliegue Bicipital" value={data.bicipital ? `${data.bicipital} mm` : null} />
               <DataRow label="Pliegue Subescapular" value={data.subescapular ? `${data.subescapular} mm` : null} />
               <DataRow label="Pliegue Suprailiaco" value={data.suprailiac ? `${data.suprailiac} mm` : null} />
               <DataRow label="Circ. braquial" value={data.armCircumference ? `${data.armCircumference} cm` : null} />
+              <DataRow label="Altura rodilla" value={data.kneeHeight ? `${data.kneeHeight} cm` : null} />
+              <DataRow label="Circ. pantorrilla" value={data.calfCircumference ? `${data.calfCircumference} cm` : null} />
             </View>
-          </View>
+          ) : (
+            <View style={S.cardBox}>
+              <Text style={{ fontSize: 7.5, color: colors.slate500, fontStyle: "italic" }}>
+                Sin mediciones o pliegues adicionales registrados; evaluación fundamentada en peso y talla clínicos.
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Anamnesis General y Hábitos */}
         <View style={S.section}>
           <PdfSectionHeader title="Anamnesis General & Estilo de Vida" icon="chart" />
-          <View style={S.cardBox}>
-            <View style={S.twoCol}>
-              <View style={S.col}>
-                <DataRow label="Ocupación" value={data.occupation} />
-                <DataRow label="Calidad de sueño" value={data.sleepQuality} />
-                <DataRow label="Ejercicio semanal" value={data.weeklyExercise} />
-              </View>
-              <View style={S.col}>
-                <DataRow label="Patologías" value={data.diagnosedPathologies} />
-                <DataRow label="Medicamentos" value={data.medications} />
-                <DataRow label="Suplementos" value={data.supplementsOrDrugs} />
+          {hasGeneral1 || hasGeneral2 ? (
+            <View style={S.cardBox}>
+              <View style={S.twoCol}>
+                <View style={S.col}>
+                  <DataRow label="Ocupación" value={data.occupation} />
+                  <DataRow label="Jornada" value={data.workSchedule} />
+                  <DataRow label="Calidad de sueño" value={data.sleepQuality} />
+                  <DataRow label="Ejercicio semanal" value={data.weeklyExercise} />
+                  <DataRow label="Estrés percibido" value={data.perceivedStress} />
+                </View>
+                <View style={S.col}>
+                  <DataRow label="Patologías" value={data.diagnosedPathologies} />
+                  <DataRow label="Medicamentos" value={data.medications} />
+                  <DataRow label="Suplementos" value={data.supplementsOrDrugs} />
+                  <DataRow label="Antecedentes fam." value={data.familyHistory} />
+                </View>
               </View>
             </View>
-          </View>
+          ) : (
+            <View style={S.cardBox}>
+              <Text style={{ fontSize: 7.5, color: colors.slate500, fontStyle: "italic" }}>
+                Sin antecedentes médicos o hábitos de estilo de vida reportados.
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Gestación (si aplica) */}
@@ -305,8 +389,8 @@ export function ClinicalRecordPdfDocument({ data }: { data: ClinicalRecordPdfDat
         </View>
 
         {/* Alimentos a evitar si hay restricciones */}
-        {data.dietRestrictions && data.dietRestrictions.length > 0 && (
-          <PdfAvoidFoodsSection avoidFoods={data.dietRestrictions} title="Restricciones alimentarias críticas" />
+        {cleanAvoidFoods.length > 0 && (
+          <PdfAvoidFoodsSection avoidFoods={cleanAvoidFoods} title="Restricciones alimentarias críticas" />
         )}
 
         {/* Footer Canva */}

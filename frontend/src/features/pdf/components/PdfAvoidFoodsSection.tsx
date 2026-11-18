@@ -145,7 +145,7 @@ function resolveAvoidFoodImage(rawName: string): string | undefined {
     return getCategoryB64("semillas_nueces");
   }
 
-  return getCategoryB64(rawName) || undefined;
+  return undefined;
 }
 
 const DEFAULT_AVOID_CATEGORIES = [

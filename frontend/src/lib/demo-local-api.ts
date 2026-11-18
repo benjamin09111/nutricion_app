@@ -8,10 +8,10 @@ import {
 } from "@/features/foods/local-catalog";
 
 const STORAGE_KEYS = {
-  PATIENTS: "nutrinet_demo_patients_v5",
-  CONSULTATIONS: "nutrinet_demo_consultations_v5",
-  CLINICAL_RECORDS: "nutrinet_demo_clinical_records_v2",
-  CREATIONS: "nutrinet_demo_creations_v6",
+  PATIENTS: "nutrinet_demo_patients_v7",
+  CONSULTATIONS: "nutrinet_demo_consultations_v7",
+  CLINICAL_RECORDS: "nutrinet_demo_clinical_records_v4",
+  CREATIONS: "nutrinet_demo_creations_v7",
   FOODS: "nutrinet_demo_foods_v3",
   RESOURCES: "nutrinet_demo_resources_v3",
   SUPPORT: "nutrinet_demo_support_v3",
@@ -1489,7 +1489,7 @@ export function calculateDemoClinical(inputs: any) {
  * Intercepta llamadas de fetchApi y responde directamente con localStorage
  * cuando se navega en modo demo sin iniciar sesión.
  */
-export function handleDemoApi(path: string, init?: RequestInit): Response | null {
+export function handleDemoApi(path: string, init?: RequestInit): Response | Promise<Response> | null {
   if (!isDemoMode()) return null;
 
   const cleanPath = path.split("?")[0];
@@ -1859,9 +1859,13 @@ export function handleDemoApi(path: string, init?: RequestInit): Response | null
     }
   }
 
-  // 7.2. Generación con IA para Pautas (/pautas/ai-generate)
+  // 7.2. Generación con IA para Pautas (/pautas/ai-generate) - Simulación Inteligente en Demo
   if (cleanPath === "/pautas/ai-generate") {
     const mockPauta = {
+      meta: {
+        isDemo: true,
+        note: "Pauta generada con arquetipo clínico en Modo Demostración por el Copiloto Naty.",
+      },
       paragraphs: [
         {
           category: "Lácteos y Bebidas Vegetales",
@@ -1925,37 +1929,579 @@ export function handleDemoApi(path: string, init?: RequestInit): Response | null
         },
       ],
     };
-    return makeMockResponse(mockPauta);
+    return new Promise<Response>((resolve) => {
+      setTimeout(() => {
+        resolve(makeMockResponse(mockPauta));
+      }, 2400);
+    });
   }
 
-  // 7.3. Generación con IA para Recetas / Platos (/recipes/quick-ai-fill)
+  // 7.3. Generación con IA para Recetas / Platos (/recipes/quick-ai-fill) - Motor de Agente Clínico Naty (Demo)
   if (cleanPath === "/recipes/quick-ai-fill") {
     try {
       const parsed = init?.body ? JSON.parse(init.body as string) : {};
-      const targets = parsed?.payload?.mealSectionTargets || [];
-      const dishes = targets.map((target: any, idx: number) => ({
-        slotId: target.slotId || `slot-${idx}`,
-        optionIndex: target.optionIndex ?? 0,
-        mealSection: target.mealSection || "Almuerzo",
-        title: target.mealSection?.toLowerCase().includes("desayuno")
-          ? "Bowl de avena tibia con chía, canela y berries"
-          : target.mealSection?.toLowerCase().includes("cena")
-          ? "Filete de reineta al horno con ensalada tibia de zapallito"
-          : "Pechuga de pollo a la plancha con quinoa y mix de hojas verdes",
-        description: "Opción equilibrada en macronutrientes y micronutrientes esenciales.",
-        preparation: "Cocinar a fuego medio, sazonar con especias naturales y limón.",
-        recommendedPortion: "1 porción individual",
-        portions: 1,
-        calories: 420,
-        protein: 32,
-        carbs: 45,
-        fats: 12,
-        ingredients: [
-          { name: "Proteína principal", amount: 150, unit: "g" },
-          { name: "Acompañamiento vegetal", amount: 100, unit: "g" },
-        ],
-      }));
-      return makeMockResponse({
+      const payload = parsed?.payload || {};
+      const patient = payload.patient || {};
+      const patientId = payload.patientId || "";
+      const rawTargets = payload.mealSectionTargets || [];
+      const notes = (payload.notes || "").toLowerCase();
+      const restrictions = Array.isArray(patient.restrictions)
+        ? patient.restrictions.join(" ").toLowerCase()
+        : "";
+      const clinicalSummary = (patient.clinicalSummary || "").toLowerCase();
+      const fitnessGoals = (patient.fitnessGoals || "").toLowerCase();
+
+      // Detección de Arquetipo Clínico para Personalización Real del Agente
+      const isInsulinResistance =
+        patientId === "pat-1" ||
+        restrictions.includes("insulina") ||
+        clinicalSummary.includes("homa") ||
+        restrictions.includes("lactosa") ||
+        restrictions.includes("lácteos") ||
+        notes.includes("insulina");
+
+      const isHypertension =
+        patientId === "pat-2" ||
+        restrictions.includes("hipertensión") ||
+        restrictions.includes("hipertension") ||
+        restrictions.includes("sodio") ||
+        clinicalSummary.includes("cardioprotector") ||
+        clinicalSummary.includes("tensional");
+
+      const isHypertrophy =
+        patientId === "pat-3" ||
+        notes.includes("hipertrofia") ||
+        notes.includes("masa muscular") ||
+        fitnessGoals.includes("muscular");
+
+      const isVegetarian =
+        patientId === "pat-4" ||
+        restrictions.includes("vegetariano") ||
+        restrictions.includes("vegano") ||
+        notes.includes("vegetariano");
+
+      // Catálogo gastronómico clínico chileno por sección y opción (0, 1, 2)
+      const getClinicalDish = (sectionRaw: string, optionIndex: number) => {
+        const sec = sectionRaw.toLowerCase().trim();
+        const opt = Math.max(0, Math.min(2, optionIndex || 0));
+
+        if (isInsulinResistance) {
+          // Valentina Miranda: Resistencia a la Insulina + Sin Lácteos
+          if (sec.includes("desayuno")) {
+            const options = [
+              {
+                title: "Tostadas de masa madre con palta Hass y huevo pochado",
+                description: "Sin lácteos. Baja carga glicémica con grasa monoinsaturada y proteína saciante.",
+                prep: "Tostar el pan de masa madre, moler la palta con limón y coronar con huevo pochado.",
+                portion: "1 rebanada con 1 huevo",
+                cal: 310, prot: 14, carbs: 24, fats: 18,
+                reason: "Bajo índice glicémico para evitar peak de insulina matutino; 100% libre de lácteos.",
+                ing: [
+                  { name: "Pan de masa madre", quantity: "1 rebanada (50g)", amount: 50, unit: "g" },
+                  { name: "Palta Hass", quantity: "2 cdas (50g)", amount: 50, unit: "g" },
+                  { name: "Huevo fresco", quantity: "1 unidad", amount: 60, unit: "g" },
+                ],
+              },
+              {
+                title: "Porridge de avena integral con leche vegetal, chía y canela",
+                description: "Avena machacada con bebida de almendras y semillas ricas en omega-3.",
+                prep: "Cocinar la avena con la bebida de almendras y canela en rama a fuego bajo por 5 min.",
+                portion: "1 bowl mediano",
+                cal: 280, prot: 10, carbs: 38, fats: 9,
+                reason: "Fibra soluble (betaglucanos) para mejorar la sensibilidad a la insulina.",
+                ing: [
+                  { name: "Avena integral machacada", quantity: "1/2 taza (40g)", amount: 40, unit: "g" },
+                  { name: "Bebida de almendras sin azúcar", quantity: "200 ml", amount: 200, unit: "ml" },
+                  { name: "Semillas de chía", quantity: "1 cda (10g)", amount: 10, unit: "g" },
+                ],
+              },
+              {
+                title: "Omelette de claras y espinacas con champiñones al oliva",
+                description: "Preparación normoproteica ligera sin lácteos añadidos.",
+                prep: "Saltear las espinacas y champiñones con gotas de oliva, agregar los huevos batidos y dorar.",
+                portion: "1 omelette individual",
+                cal: 220, prot: 18, carbs: 6, fats: 14,
+                reason: "Aporte de colina y polifenoles antiinflamatorios sin carga de carbohidratos.",
+                ing: [
+                  { name: "Huevos frescos", quantity: "2 unidades", amount: 120, unit: "g" },
+                  { name: "Espinacas baby", quantity: "1 taza", amount: 60, unit: "g" },
+                  { name: "Champiñones frescos", quantity: "1/2 taza", amount: 50, unit: "g" },
+                  { name: "Aceite de oliva extra virgen", quantity: "1 cdta", amount: 5, unit: "ml" },
+                ],
+              },
+            ];
+            return options[opt];
+          }
+
+          if (sec.includes("almuerzo")) {
+            const options = [
+              {
+                title: "Pechuga de pollo a la plancha con quinoa tricolor y zapallito italiano",
+                description: "Plato metabólico balanceado con proteína magra y vegetales antiinflamatorios.",
+                prep: "Grillar la pechuga a fuego medio con hierbas; servir con quinoa cocida y zapallitos salteados.",
+                portion: "1 plato completo",
+                cal: 440, prot: 38, carbs: 36, fats: 12,
+                reason: "Control estricto de carga glicémica y saciedad prolongada para evitar fatiga postprandial.",
+                ing: [
+                  { name: "Pechuga de pollo deshuesada", quantity: "150g", amount: 150, unit: "g" },
+                  { name: "Quinoa tricolor cocida", quantity: "3/4 taza (120g)", amount: 120, unit: "g" },
+                  { name: "Zapallito italiano salteado", quantity: "1 taza", amount: 100, unit: "g" },
+                  { name: "Aceite de oliva", quantity: "1 cdta", amount: 5, unit: "ml" },
+                ],
+              },
+              {
+                title: "Filete de reineta al vapor con puré rústico de coliflor y ensalada verde",
+                description: "Pescado blanco magro con guarnición vegetal baja en carbohidratos.",
+                prep: "Cocinar la reineta al vapor con limón y orégano; procesar la coliflor al vapor con gotas de oliva.",
+                portion: "1 filete con 1 taza de puré",
+                cal: 360, prot: 35, carbs: 18, fats: 11,
+                reason: "Densidad de micronutrientes sin elevar glucosa; ácidos grasos protectores.",
+                ing: [
+                  { name: "Filete de reineta fresca", quantity: "160g", amount: 160, unit: "g" },
+                  { name: "Coliflor cocida al vapor", quantity: "1.5 tazas", amount: 150, unit: "g" },
+                  { name: "Mix de hojas verdes (lechuga, rúcula)", quantity: "1 plato", amount: 80, unit: "g" },
+                ],
+              },
+              {
+                title: "Salmón al horno con papas nativas al vapor y ensalada de espinacas",
+                description: "Omega-3 marino con carbohidrato complejo de índice glicémico moderado.",
+                prep: "Hornear el salmón a 180°C por 15 min; acompañar con papas nativas con piel y hojas verdes.",
+                portion: "1 porción completa",
+                cal: 460, prot: 34, carbs: 28, fats: 21,
+                reason: "Ácidos grasos EPA/DHA para modular resistencia a la insulina y perfil lipídico.",
+                ing: [
+                  { name: "Salmón fresco", quantity: "140g", amount: 140, unit: "g" },
+                  { name: "Papas nativas con piel", quantity: "1 papa mediana (100g)", amount: 100, unit: "g" },
+                  { name: "Espinacas tiernas", quantity: "1 taza", amount: 60, unit: "g" },
+                ],
+              },
+            ];
+            return options[opt];
+          }
+
+          if (sec.includes("once")) {
+            const options = [
+              {
+                title: "Pan pita integral con pasta de huevo duro y ciboulette",
+                description: "Once tradicional chilena adaptada sin mayonesa ni lácteos.",
+                prep: "Moler el huevo duro con mostaza natural y ciboulette picado; rellenar la pita integral tostada.",
+                portion: "1 unidad",
+                cal: 260, prot: 14, carbs: 26, fats: 9,
+                reason: "Reemplazo saludable y saciante sin grasas saturadas inflamatorias.",
+                ing: [
+                  { name: "Pan pita integral", quantity: "1 unidad (50g)", amount: 50, unit: "g" },
+                  { name: "Huevo duro", quantity: "1 unidad", amount: 60, unit: "g" },
+                  { name: "Ciboulette fresco", quantity: "1 cda", amount: 5, unit: "g" },
+                ],
+              },
+              {
+                title: "Pudín de chía con leche de almendras y semillas de girasol",
+                description: "Preparación refrescante alta en fibra mucilaginosa.",
+                prep: "Hidratar la chía en leche vegetal fría con canela y esencia de vainilla por 30 min.",
+                portion: "1 frasco mediano",
+                cal: 230, prot: 8, carbs: 16, fats: 13,
+                reason: "Fibra que retarda el vaciamiento gástrico y estabiliza la curva de glucosa.",
+                ing: [
+                  { name: "Semillas de chía", quantity: "2 cdas (20g)", amount: 20, unit: "g" },
+                  { name: "Bebida de almendras", quantity: "180 ml", amount: 180, unit: "ml" },
+                  { name: "Semillas de girasol", quantity: "1 cdta", amount: 5, unit: "g" },
+                ],
+              },
+              {
+                title: "Tostada de centeno con hummus casero y semillas de sésamo",
+                description: "Snack saciante de proteína vegetal y fibra.",
+                prep: "Tostar el pan de centeno y untar con 2 cucharadas de hummus casero.",
+                portion: "1 tostada grande",
+                cal: 240, prot: 9, carbs: 30, fats: 8,
+                reason: "Carbohidratos complejos de absorción lenta y libres de alérgenos lácteos.",
+                ing: [
+                  { name: "Pan de centeno integral", quantity: "1 rebanada grande", amount: 50, unit: "g" },
+                  { name: "Hummus de garbanzos", quantity: "2 cdas (40g)", amount: 40, unit: "g" },
+                ],
+              },
+            ];
+            return options[opt];
+          }
+
+          if (sec.includes("cena")) {
+            const options = [
+              {
+                title: "Pechuga de pavo asada a las hierbas con salteado de verduras",
+                description: "Cena liviana de digestión rápida para favorecer el descanso nocturno.",
+                prep: "Sellar el pavo con ajo y orégano; saltear pimientos, zapallito y zanahoria al dente.",
+                portion: "1 plato tendido",
+                cal: 320, prot: 34, carbs: 14, fats: 10,
+                reason: "Aporte proteico nocturno sin sobrecarga digestiva ni glicémica.",
+                ing: [
+                  { name: "Pechuga de pavo", quantity: "140g", amount: 140, unit: "g" },
+                  { name: "Mix de verduras salteadas", quantity: "1.5 tazas", amount: 150, unit: "g" },
+                  { name: "Aceite de oliva", quantity: "1 cdta", amount: 5, unit: "ml" },
+                ],
+              },
+              {
+                title: "Tortilla de acelga y zanahoria con ensalada fresca de pepino y palta",
+                description: "Preparación casera chilena rica en magnesio y fibra.",
+                prep: "Picar la acelga cocida, mezclar con huevos batidos y cuajar al sartén sin quemar.",
+                portion: "1 porción individual",
+                cal: 290, prot: 16, carbs: 12, fats: 18,
+                reason: "Magnesio biodisponible para apoyar la vía de señalización del receptor de insulina.",
+                ing: [
+                  { name: "Acelgas frescas cocidas", quantity: "1 taza", amount: 100, unit: "g" },
+                  { name: "Huevos frescos", quantity: "2 unidades", amount: 120, unit: "g" },
+                  { name: "Palta Hass en cubos", quantity: "1/4 unidad", amount: 40, unit: "g" },
+                ],
+              },
+              {
+                title: "Filete de merluza al horno con ensalada tibia de porotos verdes",
+                description: "Proteína marina magra con vegetales verdes ricos en folatos.",
+                prep: "Hornear el filete con limón y perejil; blanquear los porotos verdes al dente.",
+                portion: "1 filete con 1 taza de vegetales",
+                cal: 280, prot: 32, carbs: 10, fats: 8,
+                reason: "Bajo en calorías y nulo en azúcares para optimizar la oxidación lipídica nocturna.",
+                ing: [
+                  { name: "Merluza fresca", quantity: "150g", amount: 150, unit: "g" },
+                  { name: "Porotos verdes", quantity: "1 taza (100g)", amount: 100, unit: "g" },
+                ],
+              },
+            ];
+            return options[opt];
+          }
+        }
+
+        if (isHypertension) {
+          // Don Luis Mansilla: Cardioprotector, Reducción de Sodio, DM2
+          if (sec.includes("desayuno")) {
+            const options = [
+              {
+                title: "Avena machacada con manzana rallada, canela y nueces chilenas",
+                description: "Desayuno cardioprotector 100% libre de sodio añadido.",
+                prep: "Hidratar la avena con agua tibia o leche descremada; añadir manzana rallada y nueces picadas.",
+                portion: "1 bowl mediano",
+                cal: 310, prot: 11, carbs: 42, fats: 10,
+                reason: "Potasio y fibra soluble para control de presión arterial y absorción de glucosa.",
+                ing: [
+                  { name: "Avena integral machacada", quantity: "1/2 taza (40g)", amount: 40, unit: "g" },
+                  { name: "Manzana verde rallada", quantity: "1/2 unidad", amount: 70, unit: "g" },
+                  { name: "Nueces chilenas", quantity: "3 unidades", amount: 15, unit: "g" },
+                ],
+              },
+              {
+                title: "Pan de masa madre sin sal añadida con palta molida y orégano",
+                description: "Grasas monoinsaturadas cardioprotectoras con hierbas aromáticas.",
+                prep: "Tostar el pan, cubrir con palta molida y sazonar exclusivamente con orégano fresco.",
+                portion: "1 rebanada con 50g palta",
+                cal: 270, prot: 6, carbs: 28, fats: 15,
+                reason: "Ácido oleico y fitoesteroles protectores del endotelio vascular.",
+                ing: [
+                  { name: "Pan de masa madre sin sal", quantity: "1 rebanada (50g)", amount: 50, unit: "g" },
+                  { name: "Palta Hass", quantity: "2 cdas (50g)", amount: 50, unit: "g" },
+                ],
+              },
+              {
+                title: "Yogurt descremado sin azúcar con semillas de chía y arándanos",
+                description: "Aporte de calcio y polifenoles sin sodio oculto.",
+                prep: "Mezclar el yogurt con chía y arándanos frescos de estación.",
+                portion: "1 pocillo individual",
+                cal: 220, prot: 12, carbs: 24, fats: 6,
+                reason: "Antocianinas vasoprotectoras y calcio para regulación tensional.",
+                ing: [
+                  { name: "Yogurt natural descremado", quantity: "1 pote (150g)", amount: 150, unit: "g" },
+                  { name: "Arándanos frescos", quantity: "1/2 taza", amount: 50, unit: "g" },
+                  { name: "Semillas de chía", quantity: "1 cdta", amount: 5, unit: "g" },
+                ],
+              },
+            ];
+            return options[opt];
+          }
+
+          if (sec.includes("almuerzo")) {
+            const options = [
+              {
+                title: "Merluza austral al horno con papas nativas al vapor y orégano chilote",
+                description: "Plato costero tradicional bajo en sodio con papas nativas ricas en potasio.",
+                prep: "Hornear la merluza con gotas de oliva, ajo y orégano; servir con papas al vapor con piel.",
+                portion: "1 porción completa",
+                cal: 420, prot: 36, carbs: 38, fats: 10,
+                reason: "Balance sodio/potasio ideal para optimizar la función endotelial y renal.",
+                ing: [
+                  { name: "Merluza austral", quantity: "160g", amount: 160, unit: "g" },
+                  { name: "Papas nativas al vapor", quantity: "1 unidad mediana", amount: 120, unit: "g" },
+                  { name: "Ensalada de espinacas y pepino", quantity: "1 plato", amount: 80, unit: "g" },
+                ],
+              },
+              {
+                title: "Lentejas guisadas con zapallo, arroz integral y ensalada de betarraga",
+                description: "Plato de cuchara tradicional chileno alto en fibra y nitratos naturales.",
+                prep: "Cocinar las lentejas con zapallo y verduras sin caldo concentrado; servir con betarraga cocida.",
+                portion: "1 plato hondo",
+                cal: 450, prot: 22, carbs: 64, fats: 8,
+                reason: "Nitratos dietéticos de la betarraga que promueven vasodilatación saludable.",
+                ing: [
+                  { name: "Lentejas cocidas", quantity: "1 taza", amount: 160, unit: "g" },
+                  { name: "Zapallo camote", quantity: "1/2 taza", amount: 80, unit: "g" },
+                  { name: "Arroz integral", quantity: "1/2 taza", amount: 80, unit: "g" },
+                ],
+              },
+              {
+                title: "Pechuga de pavo asada al romero con puré rústico de papas y tomate",
+                description: "Carne blanca magra condimentada con hierbas de huerto.",
+                prep: "Dorar el pavo con romero fresco y aceite de oliva; acompañar con puré sin mantequilla.",
+                portion: "1 plato individual",
+                cal: 410, prot: 35, carbs: 36, fats: 11,
+                reason: "Proteína magra sin conservantes ni salitre de embutidos comerciales.",
+                ing: [
+                  { name: "Pechuga de pavo", quantity: "150g", amount: 150, unit: "g" },
+                  { name: "Papas cocidas con piel", quantity: "1 mediana", amount: 110, unit: "g" },
+                  { name: "Tomate natural con orégano", quantity: "1 unidad", amount: 100, unit: "g" },
+                ],
+              },
+            ];
+            return options[opt];
+          }
+
+          if (sec.includes("once")) {
+            const options = [
+              {
+                title: "Tostadas de centeno integral con tomate natural y orégano sin sal",
+                description: "Colación tradicional con fibra y licopeno cardioprotector.",
+                prep: "Tostar el pan, frotar un diente de ajo suavemente y disponer rodajas de tomate maduro.",
+                portion: "1 tostada grande",
+                cal: 210, prot: 6, carbs: 32, fats: 6,
+                reason: "Cero sodio añadido y licopeno antioxidante para salud cardiovascular.",
+                ing: [
+                  { name: "Pan de centeno integral", quantity: "1 rebanada", amount: 50, unit: "g" },
+                  { name: "Tomate maduro", quantity: "1/2 unidad", amount: 60, unit: "g" },
+                ],
+              },
+              {
+                title: "Avena cocida con leche descremada tibia y canela en rama",
+                description: "Preparación cálida tradicional del sur de Chile.",
+                prep: "Cocer la avena en leche descremada a fuego lento sin azúcar.",
+                portion: "1 taza",
+                cal: 230, prot: 10, carbs: 36, fats: 4,
+                reason: "Suavidad gástrica y aporte de calcio con bajo índice glicémico.",
+                ing: [
+                  { name: "Avena", quantity: "1/3 taza", amount: 30, unit: "g" },
+                  { name: "Leche descremada", quantity: "1 taza", amount: 200, unit: "ml" },
+                ],
+              },
+              {
+                title: "Pan de molde integral con queso fresco bajo en sodio y albahaca",
+                description: "Alternativa equilibrada para la once sin embutidos.",
+                prep: "Disponer el queso fresco bajo en sodio con hojas de albahaca fresca.",
+                portion: "1 porción",
+                cal: 220, prot: 11, carbs: 24, fats: 8,
+                reason: "Aporte de proteína láctea de bajo tenor graso y sin exceso de cloruro de sodio.",
+                ing: [
+                  { name: "Pan integral de molde", quantity: "1 rebanada", amount: 40, unit: "g" },
+                  { name: "Queso fresco bajo en sodio", quantity: "40g", amount: 40, unit: "g" },
+                ],
+              },
+            ];
+            return options[opt];
+          }
+
+          if (sec.includes("cena")) {
+            const options = [
+              {
+                title: "Crema casera de zapallo y zanahoria con filete de pavo a las hierbas",
+                description: "Cena suave, digestiva y reconfortante.",
+                prep: "Procesar el zapallo y zanahoria cocidos con caldo de verduras casero; acompañar con pavo.",
+                portion: "1 bowl de crema con 100g de pavo",
+                cal: 310, prot: 28, carbs: 24, fats: 9,
+                reason: "Carotenoides y agua vegetal para hidratación celular y descanso nocturno.",
+                ing: [
+                  { name: "Zapallo y zanahoria", quantity: "1.5 tazas", amount: 150, unit: "g" },
+                  { name: "Pechuga de pavo", quantity: "110g", amount: 110, unit: "g" },
+                ],
+              },
+              {
+                title: "Jurel al vapor con verduras salteadas al oliva y limón",
+                description: "Pescado azul chileno con alto contenido de ácidos grasos omega-3.",
+                prep: "Cocinar el jurel con hojas de laurel al vapor; saltear zanahoria, zapallito y pimientos.",
+                portion: "1 filete con 1 taza de verduras",
+                cal: 340, prot: 32, carbs: 12, fats: 16,
+                reason: "Cardioprotección profunda por su ratio EPA/DHA de origen pelágico.",
+                ing: [
+                  { name: "Jurel fresco", quantity: "140g", amount: 140, unit: "g" },
+                  { name: "Verduras salteadas", quantity: "1 taza", amount: 100, unit: "g" },
+                ],
+              },
+              {
+                title: "Sopa casera de verduras con huevo pochado y crutones de centeno",
+                description: "Caldo casero sin cubos concentrados, enriquecido con proteína de huevo.",
+                prep: "Hervir apio, puerro y zanahoria; verter sobre plato hondo con 1 huevo pochado encima.",
+                portion: "1 plato hondo",
+                cal: 250, prot: 14, carbs: 22, fats: 11,
+                reason: "Hidratación nocturna y aminoácidos esenciales sin hipertensión secundaria.",
+                ing: [
+                  { name: "Caldo de verduras naturales", quantity: "1 taza", amount: 250, unit: "ml" },
+                  { name: "Huevo fresco", quantity: "1 unidad", amount: 60, unit: "g" },
+                ],
+              },
+            ];
+            return options[opt];
+          }
+        }
+
+        // Caso General / Fallback Equilibrado
+        const defaults: Record<string, any[]> = {
+          desayuno: [
+            {
+              title: "Bowl de avena tibia con chía, canela y berries frescos",
+              description: "Desayuno energético de carbohidratos complejos y antioxidantes.",
+              prep: "Cocer la avena con agua o leche descremada por 3 min y decorar con frutos del bosque.",
+              portion: "1 bowl mediano",
+              cal: 320, prot: 12, carbs: 48, fats: 8,
+              reason: "Energía sostenida y fibra prebiótica para salud digestiva.",
+              ing: [{ name: "Avena integral", quantity: "1/2 taza", amount: 40, unit: "g" }],
+            },
+            {
+              title: "Tostadas integrales con palta Hass y huevo revuelto",
+              description: "Clásico desayuno chileno balanceado en macronutrientes.",
+              prep: "Tostar el pan, montar la palta molida y acompañar con huevo preparado con gotas de aceite.",
+              portion: "1 rebanada con 1 huevo",
+              cal: 290, prot: 13, carbs: 24, fats: 16,
+              reason: "Excelente ratio proteico-lipídico con alta saciedad matutina.",
+              ing: [{ name: "Pan integral", quantity: "1 rebanada", amount: 45, unit: "g" }],
+            },
+            {
+              title: "Yogurt natural con granola casera y frutas de la estación",
+              description: "Opción fresca y crocante rica en probióticos y fibra.",
+              prep: "Verter el yogurt en pocillo y mezclar con granola de avena y frutos secos.",
+              portion: "1 pote con 2 cdas granola",
+              cal: 280, prot: 14, carbs: 36, fats: 9,
+              reason: "Probióticos activos para microbiota intestinal y densidad de calcio.",
+              ing: [{ name: "Yogurt natural", quantity: "1 pote (150g)", amount: 150, unit: "g" }],
+            },
+          ],
+          almuerzo: [
+            {
+              title: "Pechuga de pollo a la plancha con quinoa y mix de hojas verdes",
+              description: "Plato principal magro de alto valor biológico.",
+              prep: "Dorar la pechuga sazonada con hierbas y servir con quinoa cocida y ensalada fresca.",
+              portion: "1 plato tendido",
+              cal: 440, prot: 38, carbs: 36, fats: 12,
+              reason: "Perfil de aminoácidos completo con carbohidratos de absorción gradual.",
+              ing: [{ name: "Pechuga de pollo", quantity: "150g", amount: 150, unit: "g" }],
+            },
+            {
+              title: "Filete de reineta al horno con papas cocidas y ensalada chilena",
+              description: "Pescado blanco tradicional con vegetales frescos y papas con piel.",
+              prep: "Hornear la reineta con limón y sal marina moderada; acompañar con papas y tomate.",
+              portion: "1 filete con 1 papa mediana",
+              cal: 410, prot: 35, carbs: 34, fats: 11,
+              reason: "Bajo en grasas saturadas, alto en fósforo y de digestibilidad óptima.",
+              ing: [{ name: "Reineta fresca", quantity: "160g", amount: 160, unit: "g" }],
+            },
+            {
+              title: "Guiso de lentejas con zapallo camote y arroz integral",
+              description: "Combinación de legumbre y cereal para proteína vegetal completa.",
+              prep: "Cocinar las lentejas a fuego lento con zapallo y verduras; mezclar con arroz al dente.",
+              portion: "1 plato hondo",
+              cal: 460, prot: 24, carbs: 66, fats: 8,
+              reason: "Fibra fermentable y minerales esenciales (hierro y magnesio).",
+              ing: [{ name: "Lentejas", quantity: "1 taza cocida", amount: 150, unit: "g" }],
+            },
+          ],
+          once: [
+            {
+              title: "Pan marraqueta tostada con palta y tomate fresco",
+              description: "La once más clásica de Chile adaptada nutricionalmente.",
+              prep: "Tostar 1/2 marraqueta sin miga y rellenar con palta molida y rodajas de tomate.",
+              portion: "1/2 unidad (diente)",
+              cal: 240, prot: 5, carbs: 32, fats: 10,
+              reason: "Aporte energético vespertino con grasas cardioprotectoras naturales.",
+              ing: [{ name: "Pan marraqueta", quantity: "1/2 unidad (50g)", amount: 50, unit: "g" }],
+            },
+            {
+              title: "Yogurt batido con semillas de chía y frutillas laminadas",
+              description: "Once ligera y saciante con antioxidantes naturales.",
+              prep: "Mezclar el yogurt con chía y coronar con frutillas frescas lavadas.",
+              portion: "1 pocillo",
+              cal: 210, prot: 11, carbs: 26, fats: 6,
+              reason: "Aporte de calcio y vitamina C sin saturar la digestión.",
+              ing: [{ name: "Yogurt descremado", quantity: "150g", amount: 150, unit: "g" }],
+            },
+            {
+              title: "Pan de molde integral con huevo duro molido y ciboulette",
+              description: "Proteína magra para mantener la saciedad hasta la cena.",
+              prep: "Tostar el pan y montar el huevo duro molido con gotas de limón y ciboulette.",
+              portion: "1 rebanada",
+              cal: 220, prot: 10, carbs: 22, fats: 9,
+              reason: "Saciedad estable y prevención de picoteo nocturno.",
+              ing: [{ name: "Huevo duro", quantity: "1 unidad", amount: 60, unit: "g" }],
+            },
+          ],
+          cena: [
+            {
+              title: "Filete de reineta al vapor con ensalada tibia de zapallito y zanahoria",
+              description: "Cena liviana y reconfortante.",
+              prep: "Cocinar el pescado con hierbas aromáticas; saltear los zapallitos en tiras finas.",
+              portion: "1 filete con 1.5 tazas de verdura",
+              cal: 310, prot: 32, carbs: 14, fats: 11,
+              reason: "Digestión rápida para asegurar calidad del sueño profundo.",
+              ing: [{ name: "Reineta", quantity: "150g", amount: 150, unit: "g" }],
+            },
+            {
+              title: "Pechuga de pavo grillada con ensalada fresca de espinacas y palta",
+              description: "Proteína magra nocturna con grasas esenciales.",
+              prep: "Grillar la pechuga a la plancha; mezclar hojas verdes con láminas de palta.",
+              portion: "1 plato tendido",
+              cal: 330, prot: 34, carbs: 8, fats: 16,
+              reason: "Triptófano precursor de melatonina y nulo estímulo insulínico.",
+              ing: [{ name: "Pechuga de pavo", quantity: "140g", amount: 140, unit: "g" }],
+            },
+            {
+              title: "Tortilla de verduras con ensalada fresca de tomate y pepino",
+              description: "Plato vegetariano tibio de preparación rápida.",
+              prep: "Batir 2 huevos con acelgas y zanahoria rallada; cocinar al sartén antiadherente.",
+              portion: "1 porción individual",
+              cal: 270, prot: 15, carbs: 12, fats: 17,
+              reason: "Aporte equilibrado de micronutrientes y proteína de fácil asimilación.",
+              ing: [{ name: "Huevos", quantity: "2 unidades", amount: 120, unit: "g" }],
+            },
+          ],
+        };
+
+        const secKey = sec.includes("desayuno")
+          ? "desayuno"
+          : sec.includes("once")
+          ? "once"
+          : sec.includes("cena")
+          ? "cena"
+          : "almuerzo";
+        const list = defaults[secKey] || defaults.almuerzo;
+        return list[opt] || list[0];
+      };
+
+      const dishes = rawTargets.map((target: any, idx: number) => {
+        const mealSection = target.mealSection || "Almuerzo";
+        const optionIndex = Number.isInteger(target.optionIndex) ? target.optionIndex : 0;
+        const slotId = target.slotId || `slot-${idx}`;
+        const clinicalDish = getClinicalDish(mealSection, optionIndex);
+
+        return {
+          slotId,
+          optionIndex,
+          mealSection,
+          title: clinicalDish.title,
+          description: clinicalDish.description,
+          preparation: clinicalDish.prep,
+          recommendedPortion: clinicalDish.portion,
+          portions: 1,
+          calories: clinicalDish.cal,
+          protein: clinicalDish.prot,
+          carbs: clinicalDish.carbs,
+          fats: clinicalDish.fats,
+          clinicalReasoning: clinicalDish.reason,
+          ingredients: clinicalDish.ing || [
+            { name: "Alimento base", quantity: "1 porción", amount: 100, unit: "g" },
+          ],
+        };
+      });
+
+      const responsePayload = {
         dishes: dishes.length > 0 ? dishes : [
           {
             slotId: "slot-default",
@@ -1970,13 +2516,32 @@ export function handleDemoApi(path: string, init?: RequestInit): Response | null
             protein: 38,
             carbs: 42,
             fats: 11,
-            ingredients: [],
+            clinicalReasoning: "Aporte balanceado normoproteico para el objetivo clínico.",
+            ingredients: [
+              { name: "Pechuga de pollo", quantity: "150g", amount: 150, unit: "g" },
+              { name: "Quinoa", quantity: "1 taza", amount: 120, unit: "g" },
+            ],
           },
         ],
-        meta: { note: "Generación asistida NutriNet IA en modo demo." },
+        meta: {
+          isDemo: true,
+          note: "Generación asistida y auditada por Agente Clínico Naty (Modo Demo inteligente).",
+          clinicalAudit: {
+            passed: true,
+            isDemo: true,
+            verifiedRestrictions: Array.isArray(patient.restrictions) ? patient.restrictions : [],
+            clinicalSummary: patient.clinicalSummary || "Perfil analizado y verificado por el agente clínico.",
+          },
+        },
+      };
+
+      return new Promise<Response>((resolve) => {
+        setTimeout(() => {
+          resolve(makeMockResponse(responsePayload));
+        }, 2800);
       });
     } catch {
-      return makeMockResponse({ dishes: [], meta: { note: "Demo fallback" } });
+      return makeMockResponse({ dishes: [], meta: { isDemo: true, note: "Demo fallback" } });
     }
   }
 

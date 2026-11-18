@@ -53,6 +53,7 @@ import { useDashboardShell } from "@/context/DashboardShellContext";
 import { getCurrentUser } from "@/lib/current-user";
 import { FoodReferenceBook } from "@/components/foods/FoodReferenceBook";
 import { getTodayDateInputValue } from "@/features/patients/utils/patient-helpers";
+import { isGuestMode } from "@/lib/demo-local-api";
 import { buildQuickPlanContext } from "@/features/plan-context/builders/build-quick-plan-context";
 import { buildPautaAiPayload, buildQuickPlanAiPayload } from "@/features/plan-context/adapters/plan-context-to-ai";
 import { planContextToFastDeliverablePdf } from "@/features/plan-context/adapters/plan-context-to-pdf";
@@ -1775,7 +1776,14 @@ export default function QuickDeliverableClient() {
         });
       });
 
-      toast.success("Naty rellenó los espacios vacíos de alimentos.");
+      if (result?.meta?.isDemo || isGuestMode()) {
+        toast.success("Opciones generadas con éxito (Modo Demo)", {
+          description: "Simulación clínica activa con canasta chilena y arquetipos. Inicia sesión para conectar IA en vivo.",
+          duration: 5000,
+        });
+      } else {
+        toast.success("Naty rellenó los espacios vacíos de alimentos.");
+      }
     } catch (error) {
       console.error("Error generating meals with AI", error);
       toast.error(error instanceof Error ? error.message : "No se pudo generar con IA.");
@@ -2344,7 +2352,11 @@ export default function QuickDeliverableClient() {
   return (
     <>
       {isGeneratingQuickAi && (
-        <NatyLoadingOverlay title="Naty está preparando..." subtitle="Generando opciones de comidas para tu entregable rápido" />
+        <NatyLoadingOverlay
+          title="Naty está preparando..."
+          subtitle="Generando opciones de comidas para tu entregable rápido"
+          isDemo={isGuestMode()}
+        />
       )}
       <FoodReferenceBook isOpen={isFoodReferenceBookOpen} onClose={() => setIsFoodReferenceBookOpen(false)} />
       <ModuleLayout

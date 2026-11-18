@@ -10,15 +10,17 @@ import { createOpenAI } from '@ai-sdk/openai';
 import type { ZodTypeAny } from 'zod';
 import { PrismaService } from '../../prisma/prisma.service';
 
-export type AiProvider = 'gemini' | 'deepseek' | 'openai';
+export type AiProvider = 'openrouter' | 'gemini' | 'openai' | 'deepseek';
 
 const STRICT_CLINICAL_SYSTEM_PROMPT = [
-  'Actúa exclusivamente como un nutricionista clínico experto.',
-  'Aplica de forma estricta y prioritaria todas las restricciones médicas, alergias, intolerancias y contraindicaciones indicadas en el contexto.',
-  'Nunca inventes, sustituyas ni agregues alimentos que contradigan una restricción médica.',
+  'Actúa como Naty, el Agente y Copiloto Nutricional Clínico experto de NutriNet (Chile).',
+  'Aplica un proceso agéntico de auto-verificación clínica antes de emitir cualquier recomendación.',
+  'Aplica de forma estricta, prioritaria y no negociable todas las restricciones médicas, alergias, intolerancias y contraindicaciones del paciente.',
+  'NUNCA inventes, sustituyas ni agregues alimentos que contradigan una patología o restricción clínica.',
+  'Basa todas las preparaciones en la gastronomía cotidiana chilena y en el Sistema de Porciones de Intercambio (porciones realistas y accesibles en ferias y supermercados de Chile).',
   'Respeta la lista de alimentos permitidos y la política de alimentos externos definida en el pedido.',
-  'Si existe conflicto entre objetivo, preferencias y seguridad clínica, siempre gana la seguridad clínica.',
-  'La respuesta debe cumplir exactamente el esquema estructurado recibido; no agregues campos ni texto libre.',
+  'Si existe conflicto entre objetivo estético, preferencias del paciente y seguridad clínica, SIEMPRE prevalece la seguridad clínica.',
+  'La respuesta debe cumplir exactamente el esquema estructurado recibido; no agregues campos ni texto libre fuera de schema.',
 ].join(' ');
 
 interface AiModelConfig {
@@ -48,6 +50,13 @@ function calculateCostInCents(
   } else if (modelLower.includes('deepseek')) {
     promptRatePerM = 0.14;
     completionRatePerM = 0.28;
+  } else if (modelLower.includes('claude-3-5') || modelLower.includes('claude-3.5')) {
+    promptRatePerM = 0.8;
+    completionRatePerM = 4.0;
+  } else {
+    // OpenRouter generic routing rate estimate
+    promptRatePerM = 0.15;
+    completionRatePerM = 0.6;
   }
 
   const totalCostUSD =
@@ -63,6 +72,24 @@ export class AiService {
   constructor(@Optional() private readonly prisma?: PrismaService) {}
 
   resolveModelConfig(provider: AiProvider): AiModelConfig | null {
+    if (provider === 'openrouter') {
+      const apiKey = process.env.OPENROUTER_API_KEY;
+      if (!apiKey) return null;
+      const modelId =
+        process.env.OPENROUTER_MODEL || 'google/gemini-2.0-flash-001';
+      const baseURL =
+        process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1';
+      const openrouter = createOpenAI({
+        apiKey,
+        baseURL,
+        headers: {
+          'HTTP-Referer': process.env.APP_URL || 'https://nutrinet.cl',
+          'X-Title': 'NutriNet Clinical Copilot',
+        },
+      });
+      return { provider, model: openrouter(modelId), modelId };
+    }
+
     if (provider === 'gemini') {
       const apiKey =
         process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
@@ -91,7 +118,7 @@ export class AiService {
   }
 
   resolvePreferredModelConfig(
-    providers: AiProvider[] = ['gemini', 'openai', 'deepseek'],
+    providers: AiProvider[] = ['openrouter', 'gemini', 'openai', 'deepseek'],
   ): AiModelConfig | null {
     for (const provider of providers) {
       const config = this.resolveModelConfig(provider);
@@ -104,7 +131,7 @@ export class AiService {
   private async runWithFallback<T>(
     taskName: string,
     runner: (config: AiModelConfig) => Promise<T>,
-    providers: AiProvider[] = ['gemini', 'openai', 'deepseek'],
+    providers: AiProvider[] = ['openrouter', 'gemini', 'openai', 'deepseek'],
   ): Promise<{ provider: AiProvider; modelId: string; result: T }> {
     const errors: string[] = [];
 
@@ -157,7 +184,7 @@ export class AiService {
     object: TSchema['_output'];
   }> {
     const temperature = options?.temperature ?? 0.2;
-    const providers = options?.providers ?? ['gemini', 'openai', 'deepseek'];
+    const providers = options?.providers ?? ['openrouter', 'gemini', 'openai', 'deepseek'];
     const maxTokens = options?.maxTokens ?? 2000;
 
     return this.runWithFallback(

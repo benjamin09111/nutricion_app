@@ -26,7 +26,10 @@ function formatRestrictions(restrictions?: string[], primaryCondition?: string) 
   if (!Array.isArray(restrictions) || restrictions.length === 0) {
     return [];
   }
-  const trimmed = restrictions.map((r) => r.trim()).filter(Boolean);
+  const nonFoodKeywords = ["cocina", "poco tiempo", "tiempo", "rapida", "rápida", "presupuesto", "horario"];
+  const trimmed = restrictions
+    .map((r) => r.trim())
+    .filter((r) => Boolean(r) && !nonFoodKeywords.some((kw) => r.toLowerCase().includes(kw)));
   if (primaryCondition) {
     return trimmed.filter((r) => r.toLowerCase() !== primaryCondition.toLowerCase());
   }

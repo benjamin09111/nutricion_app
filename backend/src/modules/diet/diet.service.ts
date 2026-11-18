@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { VerifyFoodsDto } from './dto/verify-foods.dto';
 import { GenerateBaseDietDto } from './dto/generate-base-diet.dto';
-import { AiService } from '../../common/services/ai.service';
+import { AiService, type AiProvider } from '../../common/services/ai.service';
 import { PlanUsageService } from '../permissions/plan-usage.service';
 import {
   dietVerifyResponseSchema,
@@ -19,7 +19,7 @@ type RestrictionConflict = {
 
 type VerifyResponse = {
   ok: boolean;
-  source: 'gemini' | 'deepseek' | 'openai' | 'heuristic';
+  source: 'openrouter' | 'gemini' | 'deepseek' | 'openai' | 'heuristic';
   checkedFoods: number;
   checkedRestrictions: number;
   conflicts: RestrictionConflict[];
@@ -143,7 +143,7 @@ export class DietService {
     restrictions: string[],
   ): Promise<{
     conflicts: RestrictionConflict[];
-    provider: 'gemini' | 'deepseek' | 'openai';
+    provider: AiProvider;
   } | null> {
     const prompt = [
       'Eres un validador nutricional estricto.',

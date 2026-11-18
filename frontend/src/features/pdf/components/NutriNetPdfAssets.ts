@@ -28,7 +28,7 @@ export function getCategoryB64(categoryName: string): string | undefined {
   const normalized = categoryName.toLowerCase().trim().replace(/\s+/g, '_');
   if (CATEGORY_ICONS_B64[normalized]) return CATEGORY_ICONS_B64[normalized];
   for (const [key, val] of Object.entries(CATEGORY_ICONS_B64)) {
-    if (normalized.includes(key) || key.includes(normalized)) {
+    if (key.length >= 4 && normalized.includes(key)) {
       return val;
     }
   }

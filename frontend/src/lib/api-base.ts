@@ -31,7 +31,7 @@ export async function fetchApi(
   path: string,
   init?: RequestInit,
 ): Promise<Response> {
-  const demoResponse = handleDemoApi(path, init);
+  const demoResponse = await handleDemoApi(path, init);
   if (demoResponse) {
     return demoResponse;
   }

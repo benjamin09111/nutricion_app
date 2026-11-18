@@ -23,7 +23,9 @@ import {
   Lock,
   Info,
   RefreshCw,
-  Sparkles,
+  Calculator,
+  FlaskConical,
+  RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
@@ -363,7 +365,7 @@ export default function CalculosClient() {
 
   const handleQuickValues = () => {
     setActiveModules({
-      edema: true,
+      edema: false,
       blackburn: true,
       protein: true,
       chumlea: true,
@@ -372,16 +374,18 @@ export default function CalculosClient() {
     });
     setIsTargetBmiCustom(false);
     setGender("Masculino");
-    setAge("68");
-    setKneeHeight("50");
-    setCalfCircumference("35");
-    setArmCircumference("25");
-    setSubescapularFold("15");
-    setUsualWeight("76");
-    setWeight("68");
-    setHeight("165");
-    setWeightLossPeriodWeeks("4");
-    setProteinProfile("adulto_mayor");
+    setAge("42");
+    setKneeHeight("52");
+    setCalfCircumference("37.5");
+    setArmCircumference("31.0");
+    setSubescapularFold("16.0");
+    setUsualWeight("80");
+    setWeight("78");
+    setHeight("175");
+    setWeightLossPeriodWeeks("12");
+    setProteinProfile("adulto_sano");
+    setTmbFormula("mifflin-st-jeor");
+    setActivityLevel("1.375");
   };
 
   const openPatientImportModal = async () => {
@@ -527,51 +531,28 @@ export default function CalculosClient() {
             onClick={handleQuickValues}
             className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-[#F0F5DF] hover:bg-[#E4ECC8] text-[#668E20] border border-[#DDE7B8] text-xs sm:text-sm font-semibold transition-all shadow-2xs hover:shadow-xs active:scale-98 cursor-pointer"
           >
-            <Sparkles className="w-4 h-4 text-[#86A83C]" />
+            <FlaskConical className="w-4 h-4 text-[#86A83C]" />
             <span>Simular caso de ejemplo</span>
           </button>
         </div>
       </div>
 
       {/* ========================================================================= */}
-      {/* HERO RESULT BANNER CON OVERRIDE CLÍNICO DE RIESGO DE PACIENTE             */}
+      {/* HERO RESULT BANNER - RESULTADOS CLÍNICOS UNIFICADOS NUTRINET             */}
       {/* ========================================================================= */}
       {result && (
         <div className="bg-white rounded-2xl p-5 sm:p-6 mb-6 shadow-2xs space-y-4 animate-in fade-in duration-200 border border-[#E9E5E7]">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
             <div className="flex items-center gap-3">
-              <span
-                className={cn(
-                  "w-10 h-10 rounded-xl border flex items-center justify-center shrink-0",
-                  isCriticalAlert
-                    ? "bg-rose-50 text-rose-600 border-rose-200"
-                    : isModerateAlert
-                      ? "bg-amber-50 text-amber-600 border-amber-200"
-                      : "bg-[#F0F5DF] text-[#668E20] border-[#DDE7B8]"
-                )}
-              >
-                {isCriticalAlert ? (
-                  <ShieldAlert className="w-5 h-5 text-rose-600" />
-                ) : isModerateAlert ? (
-                  <AlertTriangle className="w-5 h-5 text-amber-600" />
-                ) : (
-                  <Zap className="w-5 h-5 text-[#86A83C]" />
-                )}
+              <span className="w-10 h-10 rounded-xl border border-[#DDE7B8] bg-[#F0F5DF] text-[#668E20] flex items-center justify-center shrink-0">
+                <Calculator className="w-5 h-5 text-[#86A83C]" />
               </span>
               <div>
-                <h2 className="text-sm font-bold text-[#20212B] tracking-tight leading-tight">
-                  {isCriticalAlert
-                    ? "Riesgo Nutricional Alto — Pérdida Aguda Grave / Desnutrición"
-                    : isModerateAlert
-                      ? "Riesgo Nutricional Moderado — Seguimiento Requerido"
-                      : "Diagnóstico Nutricional Principal"}
+                <h2 className="text-sm sm:text-base font-extrabold text-[#20212B] tracking-tight leading-tight">
+                  Resultados del Cálculo Nutricional
                 </h2>
                 <p className="text-xs text-[#626573] mt-0.5">
-                  {isSevereWeightLoss
-                    ? `Pérdida catabólica involuntaria de ${result.weightLoss?.percentLoss}% (${result.weightLoss?.lossKg} kg) en ${result.weightLoss?.periodLabel}.`
-                    : isMalnourishedMna
-                      ? `Evaluación MNA® (${mnaResult?.score}/30 pts) confirma Desnutrición Pediátrica/Geriátrica.`
-                      : `Fórmula TMB: ${result.energy?.formula || "Mifflin-St Jeor (1990)"}`}
+                  Fórmula TMB: {result.energy?.formula || "Mifflin-St Jeor (1990)"} • Factor actividad: {activityLevel || "1.2"}
                 </p>
               </div>
             </div>
@@ -642,10 +623,10 @@ export default function CalculosClient() {
                         {result.bmi.classification}
                       </span>
                     </div>
-                    {isCriticalAlert && result.bmi.classification.includes("Normopeso") && (
-                      <div className="flex items-center gap-1.5 text-[11px] font-medium text-amber-800 bg-amber-50/80 px-2.5 py-1.5 rounded-lg border border-amber-200/80 mt-2">
-                        <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                        <span>IMC estático condicionado por pérdida aguda de peso</span>
+                    {result.weightLoss && Number(result.weightLoss.percentLoss) > 0 && (
+                      <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-600 bg-white px-2.5 py-1.5 rounded-lg border border-slate-200 mt-2">
+                        <Info className="w-3.5 h-3.5 text-[#86A83C] shrink-0" />
+                        <span>Variación: {result.weightLoss.percentLoss}% ({result.weightLoss.lossKg} kg) en {result.weightLoss.periodLabel}</span>
                       </div>
                     )}
                   </div>
@@ -655,49 +636,27 @@ export default function CalculosClient() {
               </div>
             </div>
 
-            {/* PRIORIDAD CLÍNICA / PESO IDEAL */}
+            {/* RANGO PESO SALUDABLE */}
             <div className="bg-slate-50/70 p-4 rounded-xl border border-[#E9E5E7]/70 flex flex-col justify-between">
-              {isCriticalAlert ? (
-                <div>
-                  <span className="text-[10px] font-bold uppercase text-rose-700 tracking-wider block mb-1">
-                    Prioridad Asistencial Inmediata
-                  </span>
-                  <p className="text-base font-bold text-[#20212B] tracking-tight leading-snug">
-                    Frenar Catabolismo y Estabilizar Peso
-                  </p>
-                  <p className="text-xs text-[#626573] mt-1">
-                    Peso Habitual: <strong className="text-[#20212B] font-semibold">{result.weightLoss?.usualWeight ?? "--"} kg</strong> (Ref. inmediata)
-                  </p>
-                </div>
-              ) : isModerateAlert ? (
-                <div>
-                  <span className="text-[10px] font-bold uppercase text-amber-700 tracking-wider block mb-1">
-                    Enfoque Asistencial
-                  </span>
-                  <p className="text-base font-bold text-[#20212B] tracking-tight leading-snug">
-                    Monitorear Ingesta Proteico-Calórica
-                  </p>
-                  <p className="text-xs text-[#626573] mt-1">
-                    Peso Habitual: <strong className="text-[#20212B] font-semibold">{result.weightLoss?.usualWeight ?? "--"} kg</strong>
-                  </p>
-                </div>
-              ) : (
-                <div>
-                  <span className="text-[11px] font-bold uppercase text-[#626573] tracking-wider block mb-1">
-                    Rango Peso Ideal Recomendado
-                  </span>
-                  {result.idealWeight && result.idealWeight.supported ? (
-                    <div>
-                      <p className="text-2xl sm:text-3xl font-extrabold text-[#668E20] tracking-tight">
-                        {result.idealWeight.min} – {result.idealWeight.max} <span className="text-xs font-semibold text-[#626573]">kg</span>
-                      </p>
-                      <p className="text-xs text-[#626573] mt-1">{result.idealWeight.reference}</p>
-                    </div>
-                  ) : (
-                    <p className="text-xs text-[#626573]">Normopeso estándar</p>
-                  )}
-                </div>
-              )}
+              <div>
+                <span className="text-[10px] font-bold uppercase text-[#626573] tracking-wider block mb-1">
+                  Rango Peso Saludable (OMS / Lipschitz)
+                </span>
+                {result.idealWeight && result.idealWeight.supported ? (
+                  <div>
+                    <p className="text-2xl sm:text-3xl font-extrabold text-[#668E20] tracking-tight">
+                      {result.idealWeight.min} – {result.idealWeight.max} <span className="text-xs font-semibold text-[#626573]">kg</span>
+                    </p>
+                    <p className="text-xs text-[#626573] mt-1">
+                      {result.weightLoss?.usualWeight
+                        ? `Peso habitual registrado: ${result.weightLoss.usualWeight} kg`
+                        : result.idealWeight.reference}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-xs text-[#626573]">Normopeso estándar</p>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -732,7 +691,7 @@ export default function CalculosClient() {
                     {calculatorLocked ? (
                       <Lock className="w-3.5 h-3.5 text-amber-300" />
                     ) : (
-                      <Sparkles className="w-3.5 h-3.5 text-white" />
+                      <Calculator className="w-3.5 h-3.5 text-white" />
                     )}
                     <span>Calcular</span>
                   </>
@@ -857,7 +816,7 @@ export default function CalculosClient() {
                       className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#668E20] hover:underline cursor-pointer"
                       title="Restablecer IMC objetivo según criterio clínico OMS/Lipschitz"
                     >
-                      <Sparkles className="w-3 h-3 text-[#86A83C]" />
+                      <RotateCcw className="w-3 h-3 text-[#86A83C]" />
                       <span>Auto</span>
                     </button>
                   ) : (
