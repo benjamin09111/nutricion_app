@@ -2491,7 +2491,7 @@ export default function QuickRecipesClient() {
                   </div>
                   <Button type="button" onClick={generateGeneralRecipes} disabled={isGenerating} className="h-10 w-auto shrink-0 rounded-xl bg-purple-600 px-5 font-bold text-white hover:bg-purple-700"><Sparkles className="mr-2 h-4 w-4" />Generar</Button>
                 </div>
-                <div className="flex items-center justify-between gap-3 rounded-xl border border-purple-200 bg-purple-50/70 p-3">
+             <div className="flex items-center justify-between gap-3 rounded-xl border border-purple-200 bg-purple-50/70 p-3">
                   <div><p className="text-sm font-bold text-purple-900">Importar dieta</p><p className="mt-0.5 text-xs text-purple-700">Filtra automáticamente recetas según una dieta importada.</p></div>
                   <button type="button" disabled className="inline-flex shrink-0 cursor-not-allowed items-center gap-1.5 rounded-xl bg-slate-200 px-3 py-2 text-xs font-bold text-slate-500">Bloqueado <Lock className="h-3.5 w-3.5" /></button>
                 </div>
@@ -2501,7 +2501,7 @@ export default function QuickRecipesClient() {
             )}
             {recipeCreationMode !== "general" && (
             <div>
-            <div className={cn(recipeCreationMode === "general" && "hidden")}>
+            <div>
               <label
                 className={`mb-1.5 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest ${missingGenerationFields.specialConsiderations && !instructionsOptional
                     ? "text-rose-600"
@@ -2559,7 +2559,7 @@ export default function QuickRecipesClient() {
                 Bloqueado <Lock className="h-3.5 w-3.5" aria-hidden="true" />
               </button>
             </div>
-            {recipeCreationMode === "general" && (
+             {false && (
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/80 p-3 text-sm text-slate-700">
                   <input type="checkbox" checked={includeInstructions} onChange={(event) => setIncludeInstructions(event.target.checked)} className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
