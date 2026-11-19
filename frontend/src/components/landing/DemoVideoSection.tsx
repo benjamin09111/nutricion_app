@@ -104,7 +104,7 @@ export function DemoVideoSection({
           <div className="relative aspect-video w-full bg-black">
             {isPlaying ? (
               <iframe
-                src={`https://www.youtube-nocookie.com/embed/${YOUTUBE_VIDEO_ID}?autoplay=1&start=${startSeconds}&rel=0`}
+                src={`https://www.youtube.com/embed/${YOUTUBE_VIDEO_ID}?autoplay=1&start=${startSeconds}&rel=0`}
                 title="Demostración oficial NutriNet"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                 allowFullScreen
