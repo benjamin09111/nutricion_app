@@ -12,7 +12,6 @@ import { UserRole } from '@prisma/client';
   UserRole.ADMIN,
   UserRole.ADMIN_MASTER,
   UserRole.ADMIN_GENERAL,
-  UserRole.NUTRITIONIST_DEVELOPER,
 )
 export class AiUsageController {
   constructor(private readonly aiUsageService: AiUsageService) {}

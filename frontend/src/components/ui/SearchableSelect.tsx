@@ -87,95 +87,89 @@ export function SearchableSelect({
         onClick={() => setOpen(!open)}
         disabled={disabled}
         className={cn(
-          "w-full h-11 flex items-center justify-between rounded-xl border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed",
+          "w-full h-11 flex items-center justify-between rounded-xl border border-[#E9E5E7] bg-white px-3.5 text-sm font-medium transition-all shadow-2xs focus:outline-none focus:ring-2 focus:ring-[#7842D4]/15 focus:border-[#7842D4] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer",
           isDarkMode
             ? "border-emerald-400/12 bg-slate-950/65 text-emerald-50"
-            : "border-slate-200 bg-white text-slate-900",
+            : "border-[#E9E5E7] bg-white text-[#20212B]",
           triggerClassName,
         )}
       >
         <span
           className={cn(
-            "truncate flex-1 text-left",
+            "truncate flex-1 text-left font-medium",
             !value
-              ? "text-slate-400 font-normal"
+              ? "text-[#848792]"
               : isDarkMode
-                ? "text-emerald-50 font-bold"
-                : "text-slate-900 font-bold",
+                ? "text-emerald-50"
+                : "text-[#20212B]",
           )}
         >
           {selectedLabel || placeholder}
         </span>
-        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 text-[#848792] opacity-60" />
       </button>
 
       {open && (
-        <div className={cn(
-          "absolute z-50 left-0 w-full overflow-auto overscroll-contain rounded-xl py-1 text-base shadow-lg ring-1 focus:outline-none sm:text-sm animate-in fade-in zoom-in-95 duration-100",
-          openUpward ? "bottom-full mb-1" : "top-full mt-1",
-          isDarkMode ? "bg-slate-950 ring-emerald-400/10" : "bg-white ring-black/5",
-        )}
-        style={{ maxHeight: "min(14rem, calc(100vh - 14rem))" }}>
-          <div className={cn(
-            "sticky top-0 z-10 px-2 py-1.5 border-b border-slate-100",
-            isDarkMode ? "bg-slate-950 border-emerald-400/10" : "bg-white",
-          )}>
+        <div
+          className={cn(
+            "absolute z-[100] left-0 w-full min-w-[200px] overflow-auto overscroll-contain rounded-2xl border border-[#E9E5E7] bg-white p-1.5 text-sm shadow-xl shadow-purple-950/5 ring-1 ring-black/5 animate-in fade-in zoom-in-95 duration-100",
+            openUpward ? "bottom-full mb-1.5" : "top-full mt-1.5",
+            isDarkMode && "bg-slate-950 border-emerald-400/10 ring-emerald-400/10",
+          )}
+          style={{ maxHeight: "min(16rem, calc(100vh - 14rem))" }}
+        >
+          <div className="sticky top-0 z-10 px-1 pb-1.5 pt-0.5 bg-white border-b border-[#F0ECEE] mb-1">
             <div className="relative">
-              <Search className={cn("absolute left-2 top-2 h-3.5 w-3.5 text-slate-400", isDarkMode && "text-emerald-100/45")} />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#848792]" />
               <input
                 type="text"
-                className={cn(
-                  "w-full rounded-md border py-1.5 pl-8 pr-2 text-xs focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500",
-                  isDarkMode
-                    ? "border-emerald-400/12 bg-slate-900 text-emerald-50"
-                    : "border-slate-200 bg-slate-50 text-slate-900",
-                )}
-                placeholder="Buscar..."
+                className="w-full rounded-lg border border-[#E9E5E7] bg-[#F8F9FB] py-1.5 pl-8 pr-2.5 text-xs font-medium text-[#20212B] placeholder:text-[#848792] focus:border-[#7842D4] focus:outline-none focus:ring-1 focus:ring-[#7842D4]"
+                placeholder="Buscar opción..."
                 value={search}
                 onChange={(e) => handleSearchChange(e.target.value)}
                 autoFocus
               />
             </div>
           </div>
+
           {isLoading ? (
-            <div className={cn("relative cursor-default select-none px-4 py-2 text-xs text-center italic", isDarkMode ? "text-emerald-100/60" : "text-slate-500")}>
-              Cargando...
+            <div className="py-3 px-3 text-xs text-center text-[#626573] italic">
+              Buscando opciones...
             </div>
           ) : filteredOptions.length === 0 ? (
-            <div className={cn("relative cursor-default select-none px-4 py-2 text-xs text-center italic", isDarkMode ? "text-emerald-100/60" : "text-slate-500")}>
+            <div className="py-3 px-3 text-xs text-center text-[#848792]">
               {search.length === 0 && onSearch
                 ? "Escribe para buscar..."
-                : "No encontrado."}
+                : "No se encontraron resultados"}
             </div>
           ) : (
-            filteredOptions.map((option) => (
-              <div
-                key={option.value}
-                className={cn(
-                  "relative cursor-pointer select-none py-2.5 pl-3 pr-9 hover:bg-emerald-50 hover:text-emerald-700 transition-colors text-sm",
-                  value === option.value
-                    ? isDarkMode
-                      ? "bg-emerald-500/12 text-emerald-200 font-bold"
-                      : "bg-emerald-50 text-emerald-700 font-bold"
-                    : isDarkMode
-                      ? "text-emerald-50 hover:bg-emerald-500/8 hover:text-emerald-200"
-                      : "text-slate-900",
-                )}
-                onClick={() => {
-                  onChange(option.value);
-                  setOpen(false);
-                  // Keep search or reset? Clearing it is usually better for next open
-                  // setSearch("");
-                }}
-              >
-                <span className="block truncate">{option.label}</span>
-                {value === option.value && (
-                  <span className="absolute inset-y-0 right-0 flex items-center pr-3 text-emerald-600">
-                    <Check className="h-3.5 w-3.5" />
-                  </span>
-                )}
-              </div>
-            ))
+            filteredOptions.map((option) => {
+              const isSelected = value === option.value;
+              return (
+                <div
+                  key={option.value}
+                  className={cn(
+                    "relative cursor-pointer select-none rounded-xl px-3 py-2 text-xs sm:text-sm font-medium transition-colors flex items-center justify-between",
+                    isSelected
+                      ? isDarkMode
+                        ? "bg-emerald-500/12 text-emerald-200"
+                        : "bg-[#F3ECFC] text-[#7842D4] font-semibold"
+                      : isDarkMode
+                        ? "text-emerald-50 hover:bg-emerald-500/8 hover:text-emerald-200"
+                        : "text-[#20212B] hover:bg-[#F8F9FB] hover:text-[#7842D4]",
+                  )}
+                  onClick={() => {
+                    onChange(option.value);
+                    setOpen(false);
+                  }}
+                >
+                  <span className="block truncate">{option.label}</span>
+                  {isSelected && (
+                    <Check className="ml-2 h-4 w-4 shrink-0 text-[#7842D4]" />
+                  )}
+                </div>
+              );
+            })
           )}
         </div>
       )}

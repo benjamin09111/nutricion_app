@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import Image from "next/image";
 import {
   ChefHat,
   Plus,
@@ -13,11 +12,10 @@ import {
   ChevronUp,
   Clock,
   ArrowRight,
-  Filter,
   Pencil,
   Scale,
-  Loader2,
   X,
+  Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -403,45 +401,18 @@ export function DietRecipesSection({
 
   return (
     <>
-      {isGeneratingAiDishes ? (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/45 backdrop-blur-sm">
-          <div className="mx-4 flex max-w-sm flex-col items-center rounded-3xl bg-white px-8 py-7 text-center shadow-2xl">
-            <Image
-              src="/nutria.webp"
-              alt="Nati está cocinando"
-              width={112}
-              height={112}
-              className="h-28 w-28 animate-pulse object-contain"
-            />
-            <p className="mt-4 text-[11px] font-black uppercase tracking-[0.28em] text-emerald-600">
-              Nati está cocinando
-            </p>
-            <h3 className="mt-2 text-2xl font-black text-slate-900">
-              Creando preparaciones con tu dieta
-            </h3>
-            <p className="mt-2 text-sm font-medium text-slate-500">
-              Naty está diseñando platos personalizados basados en los alimentos de la pauta.
-            </p>
-            <div className="mt-5 flex items-center gap-2 rounded-full bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-700">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Generando platos
-            </div>
-          </div>
-        </div>
-      ) : null}
-
       {/* Sección Única: Estructura de Comidas y Platos (Estilo NutriNet / Entregables) */}
-      <div className="space-y-5 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="space-y-5">
         {/* Selector de Categorías de Comida del Día (Checkboxes) */}
-        <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 space-y-2.5">
+        <div className="rounded-2xl border border-[#E9E5E7] bg-white p-4 space-y-2.5 shadow-2xs">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <Utensils className="h-4 w-4 text-emerald-600" />
-              <span className="text-xs font-black uppercase tracking-wider text-slate-800">
+              <Utensils className="h-4 w-4 text-[#86A83C]" />
+              <span className="text-xs font-semibold uppercase tracking-wider text-[#20212B]">
                 Categorías de comida en el día
               </span>
             </div>
-            <span className="text-[11px] font-semibold text-slate-500">
+            <span className="text-[11px] font-medium text-[#626573]">
               (Marcar/desmarcar para incluir en la pauta • Desayuno, Almuerzo y Cena por defecto)
             </span>
           </div>
@@ -456,10 +427,10 @@ export function DietRecipesSection({
               return (
                 <label
                   key={cat.id}
-                  className={`group flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-bold transition-all ${
+                  className={`group flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-semibold transition-all ${
                     isChecked
-                      ? "border-emerald-300 bg-emerald-50/90 text-emerald-900 shadow-2xs"
-                      : "border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50"
+                      ? "border-[#DDE7B8] bg-[#F0F5DF] text-[#668E20] shadow-2xs"
+                      : "border-[#E9E5E7] bg-white text-[#626573] hover:border-slate-300 hover:bg-slate-50"
                   }`}
                 >
                   <input
@@ -472,11 +443,11 @@ export function DietRecipesSection({
                         setEnabledCategories((prev) => prev.filter((id) => id !== cat.id));
                       }
                     }}
-                    className="h-4 w-4 rounded-md border-slate-300 text-emerald-600 focus:ring-emerald-500 accent-emerald-600 cursor-pointer"
+                    className="h-4 w-4 rounded-md border-[#DDE7B8] text-[#86A83C] focus:ring-[#86A83C] accent-[#86A83C] cursor-pointer"
                   />
                   <span>{cat.label}</span>
                   {mealsCountInCat > 0 && (
-                    <span className="rounded-full bg-emerald-200/80 px-1.5 py-0.2 text-[10px] font-black text-emerald-900">
+                    <span className="rounded-full bg-[#E8EFCB] px-1.5 py-0.2 text-[10px] font-semibold text-[#668E20]">
                       {mealsCountInCat}
                     </span>
                   )}
@@ -487,7 +458,7 @@ export function DietRecipesSection({
         </div>
 
         {/* Subheader & Naty IA trigger */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#F0ECEE] pb-4">
           <div className="flex flex-wrap items-center gap-2">
             {availableTabs.map((tab) => {
               const count =
@@ -506,10 +477,10 @@ export function DietRecipesSection({
                     setActiveTab(tab);
                     setCurrentPage(1);
                   }}
-                  className={`rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all cursor-pointer ${
+                  className={`rounded-xl px-3.5 py-1.5 text-xs font-semibold transition-all cursor-pointer ${
                     activeTab === tab
-                      ? "bg-slate-900 text-white shadow-xs"
-                      : "bg-slate-50 text-slate-600 hover:bg-slate-100"
+                      ? "bg-[#20212B] text-white shadow-2xs"
+                      : "bg-slate-100 text-[#626573] hover:bg-slate-200/70 hover:text-[#20212B]"
                   }`}
                 >
                   {tab} ({count})
@@ -524,22 +495,10 @@ export function DietRecipesSection({
                 type="button"
                 onClick={() => setIsDishesModalOpen(true)}
                 disabled={isGeneratingAiDishes}
-                className="h-9 rounded-xl bg-emerald-600 text-xs font-bold text-white hover:bg-emerald-700 shadow-xs cursor-pointer transition-all"
+                className="h-9 rounded-xl bg-[#86A83C] text-xs font-semibold text-white hover:bg-[#78A82F] shadow-2xs cursor-pointer transition-all"
               >
-                <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-200" />
+                <Sparkles className="mr-1.5 h-3.5 w-3.5 text-emerald-100" />
                 {isGeneratingAiDishes ? "Nati está cocinando..." : "Generar platos con Naty IA"}
-              </Button>
-            )}
-
-            {onImportRecipe && (
-              <Button
-                type="button"
-                onClick={onImportRecipe}
-                variant="outline"
-                className="h-9 rounded-xl border-indigo-200 bg-white text-xs font-bold text-indigo-700 hover:bg-indigo-50 shadow-xs cursor-pointer"
-              >
-                <Filter className="mr-1.5 h-3.5 w-3.5 text-indigo-600" />
-                Importar receta
               </Button>
             )}
           </div>
@@ -557,7 +516,7 @@ export function DietRecipesSection({
             return (
               <details
                 key={cat.id}
-                className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden transition-all duration-300"
+                className="group bg-white rounded-2xl border border-[#E9E5E7] shadow-2xs overflow-hidden transition-all duration-300"
                 open={isCatOpen}
                 onToggle={(e) => {
                   const isOpen = e.currentTarget.open;
@@ -568,18 +527,18 @@ export function DietRecipesSection({
                   );
                 }}
               >
-                <summary className="list-none cursor-pointer select-none bg-slate-50/80 p-4 border-b border-slate-100 flex items-center justify-between [&::-webkit-details-marker]:hidden hover:bg-slate-100/70 transition-colors">
+                <summary className="list-none cursor-pointer select-none bg-slate-50/80 p-4 border-b border-[#F0ECEE] flex items-center justify-between [&::-webkit-details-marker]:hidden hover:bg-slate-100/70 transition-colors">
                   <div className="flex items-center gap-3">
-                    <ChevronDown className="h-4 w-4 text-emerald-600 transition-transform group-open:rotate-180" />
+                    <ChevronDown className="h-4 w-4 text-[#86A83C] transition-transform group-open:rotate-180" />
                     <div className="flex items-center gap-2">
-                      <h3 className="font-bold text-slate-800 uppercase tracking-wide text-xs">
+                      <h3 className="font-semibold text-[#20212B] uppercase tracking-wide text-xs">
                         {cat.label}
                       </h3>
-                      <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-black text-slate-700">
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-[#626573]">
                         {categoryMeals.length}
                       </span>
                     </div>
-                    <span className="hidden sm:inline-block text-[10px] font-semibold text-slate-400">
+                    <span className="hidden sm:inline-block text-[10px] font-normal text-[#626573]">
                       • Horario recomendado: {cat.defaultTime}
                     </span>
                   </div>
@@ -588,13 +547,14 @@ export function DietRecipesSection({
                     <Button
                       type="button"
                       size="sm"
+                      variant="outline"
                       onClick={(e) => {
                         e.stopPropagation();
                         addMealBlock(cat.id, cat.defaultTime);
                       }}
-                      className="h-8 rounded-xl bg-slate-900 px-3 text-xs font-bold text-white hover:bg-slate-800 shadow-2xs cursor-pointer"
+                      className="h-8 rounded-xl border-[#E9E5E7] bg-white px-3 text-xs font-semibold text-[#20212B] hover:border-[#86A83C] hover:bg-[#F0F5DF] hover:text-[#668E20] shadow-2xs cursor-pointer transition-colors"
                     >
-                      <Plus className="mr-1 h-3.5 w-3.5" />
+                      <Plus className="mr-1 h-3.5 w-3.5 text-[#86A83C]" />
                       Agregar plato
                     </Button>
                   </div>
@@ -602,16 +562,16 @@ export function DietRecipesSection({
 
                 <div className="p-4 space-y-3 bg-slate-50/30">
                   {categoryMeals.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white p-5 text-center">
+                    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-[#E9E5E7] bg-white p-6 text-center">
                       <Utensils className="h-6 w-6 text-slate-300" />
-                      <p className="mt-1.5 text-xs font-bold text-slate-600">
-                        No hay preparaciones creadas en {cat.label} ({categoryMeals.length})
+                      <p className="mt-1.5 text-xs font-medium text-[#626573]">
+                        No hay preparaciones creadas en {cat.label}
                       </p>
                       <Button
                         type="button"
                         size="sm"
                         onClick={() => addMealBlock(cat.id, cat.defaultTime)}
-                        className="mt-2.5 h-8 rounded-xl bg-indigo-600 px-3 text-xs font-bold text-white hover:bg-indigo-700 shadow-2xs cursor-pointer"
+                        className="mt-3 h-8 rounded-xl border border-[#DDE7B8] bg-[#F0F5DF] px-3.5 text-xs font-semibold text-[#668E20] hover:bg-[#E8EFCB] shadow-2xs cursor-pointer transition-colors"
                       >
                         <Plus className="mr-1.5 h-3.5 w-3.5" />
                         Crear plato en {cat.label}
@@ -627,8 +587,8 @@ export function DietRecipesSection({
                           key={dish.id}
                           className={`overflow-hidden rounded-2xl border transition-all ${
                             isExpanded
-                              ? "border-amber-300 bg-white shadow-sm ring-1 ring-amber-200/50"
-                              : "border-slate-200 bg-white hover:border-amber-200 hover:shadow-xs"
+                              ? "border-[#DDE7B8] bg-white shadow-2xs ring-1 ring-[#86A83C]/30"
+                              : "border-[#E9E5E7] bg-white hover:border-[#86A83C]/40 hover:shadow-2xs"
                           }`}
                         >
                           {/* Vista Simple Minimalista (Clickeable) */}
@@ -640,20 +600,20 @@ export function DietRecipesSection({
                             className="flex cursor-pointer flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
                           >
                             <div className="flex items-center gap-3 min-w-0 flex-1">
-                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-800">
+                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#F0F5DF] text-[#668E20]">
                                 <ChefHat className="h-5 w-5" />
                               </div>
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-2">
-                                  <span className="rounded-full bg-amber-100/80 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-widest text-amber-800">
+                                  <span className="rounded-full border border-[#DDE7B8] bg-[#F0F5DF] px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[#668E20]">
                                     {dish.section || "Plato"}
                                   </span>
-                                  <span className="flex items-center gap-1 text-[11px] font-bold text-slate-400">
+                                  <span className="flex items-center gap-1 text-[11px] font-medium text-slate-400">
                                     <Clock className="h-3 w-3" />
                                     {dish.time}
                                   </span>
                                 </div>
-                                <h3 className="mt-0.5 truncate text-base font-bold text-slate-900">
+                                <h3 className="mt-0.5 truncate text-base font-bold text-[#20212B]">
                                   {dish.name.trim() || "Plato sin nombre"}
                                 </h3>
                               </div>
@@ -662,129 +622,128 @@ export function DietRecipesSection({
                             <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
                               {/* Nutrientes Badges: Kcal, Prot, Grasas, Carbos */}
                               <div className="flex items-center gap-1.5 text-xs">
-                                <div className="rounded-xl border border-slate-100 bg-slate-50 px-2.5 py-1 text-center">
-                                  <span className="block font-black text-slate-800">{dish.calories || "0"}</span>
-                                  <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Kcal</span>
+                                <div className="rounded-xl border border-[#E9E5E7] bg-slate-50 px-2.5 py-1 text-center">
+                                  <span className="block font-semibold text-[#20212B]">{dish.calories || "0"}</span>
+                                  <span className="text-[9px] font-semibold uppercase tracking-wider text-[#626573]">Kcal</span>
                                 </div>
-                                <div className="rounded-xl border border-slate-100 bg-slate-50 px-2.5 py-1 text-center">
-                                  <span className="block font-black text-slate-800">{dish.protein || "0"}g</span>
-                                  <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Prot.</span>
+                                <div className="rounded-xl border border-[#E9E5E7] bg-slate-50 px-2.5 py-1 text-center">
+                                  <span className="block font-semibold text-[#20212B]">{dish.protein || "0"}g</span>
+                                  <span className="text-[9px] font-semibold uppercase tracking-wider text-[#626573]">Prot.</span>
                                 </div>
-                                <div className="rounded-xl border border-slate-100 bg-slate-50 px-2.5 py-1 text-center">
-                                  <span className="block font-black text-slate-800">{dish.fats || "0"}g</span>
-                                  <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Grasas</span>
+                                <div className="rounded-xl border border-[#E9E5E7] bg-slate-50 px-2.5 py-1 text-center">
+                                  <span className="block font-semibold text-[#20212B]">{dish.fats || "0"}g</span>
+                                  <span className="text-[9px] font-semibold uppercase tracking-wider text-[#626573]">Grasas</span>
                                 </div>
-                                <div className="rounded-xl border border-slate-100 bg-slate-50 px-2.5 py-1 text-center hidden md:block">
-                                  <span className="block font-black text-slate-800">{dish.carbs || "0"}g</span>
-                                  <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Carbos</span>
+                                <div className="rounded-xl border border-[#E9E5E7] bg-slate-50 px-2.5 py-1 text-center hidden md:block">
+                                  <span className="block font-semibold text-[#20212B]">{dish.carbs || "0"}g</span>
+                                  <span className="text-[9px] font-semibold uppercase tracking-wider text-[#626573]">Carbos</span>
                                 </div>
                               </div>
 
-                              {/* Botones de acción */}
+                              {/* Botones de acción (Icon-only per Rule 22) */}
                               <div className="flex items-center gap-1">
-                                <Button
+                                <button
                                   type="button"
-                                  variant="ghost"
-                                  size="sm"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setEditingMealId(isEditing ? null : dish.id);
                                     if (!isExpanded) setExpandedMealId(dish.id);
                                   }}
-                                  className="h-8 rounded-xl px-2.5 text-xs font-bold text-slate-600 hover:bg-amber-50 hover:text-amber-700"
+                                  className="flex h-8 w-8 items-center justify-center rounded-xl border border-[#E9E5E7] text-slate-500 hover:border-[#86A83C] hover:bg-[#F0F5DF] hover:text-[#668E20] transition-colors cursor-pointer"
+                                  title={isEditing ? "Guardar edición" : "Editar plato"}
+                                  aria-label={isEditing ? "Guardar edición" : "Editar plato"}
                                 >
-                                  <Pencil className="mr-1 h-3.5 w-3.5" />
-                                  {isEditing ? "Listo" : "Editar"}
-                                </Button>
-                                <Button
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </button>
+                                <button
                                   type="button"
-                                  variant="ghost"
-                                  size="sm"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     removeMealBlock(dish.id);
                                   }}
-                                  className="h-8 w-8 rounded-xl p-0 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                                  className="flex h-8 w-8 items-center justify-center rounded-xl border border-[#E9E5E7] text-slate-400 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 transition-colors cursor-pointer"
+                                  title="Eliminar plato"
+                                  aria-label="Eliminar plato"
                                 >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                                <Button
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                                <button
                                   type="button"
-                                  variant="ghost"
-                                  size="sm"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setExpandedMealId(isExpanded ? null : dish.id);
                                   }}
-                                  className="h-8 w-8 rounded-xl p-0 text-slate-400 hover:bg-slate-100"
+                                  className="flex h-8 w-8 items-center justify-center rounded-xl border border-[#E9E5E7] text-slate-400 hover:bg-slate-100 transition-colors cursor-pointer"
+                                  title={isExpanded ? "Contraer" : "Expandir"}
+                                  aria-label={isExpanded ? "Contraer" : "Expandir"}
                                 >
                                   {isExpanded ? (
-                                    <ChevronUp className="h-4 w-4" />
+                                    <ChevronUp className="h-3.5 w-3.5" />
                                   ) : (
-                                    <ChevronDown className="h-4 w-4" />
+                                    <ChevronDown className="h-3.5 w-3.5" />
                                   )}
-                                </Button>
+                                </button>
                               </div>
                             </div>
                           </div>
 
                           {/* Vista Desplegada (Detalles del Plato e Instrucciones) */}
                           {isExpanded && (
-                            <div className="border-t border-slate-100 bg-slate-50/50 p-5 space-y-4">
+                            <div className="border-t border-[#F0ECEE] bg-slate-50/50 p-5 space-y-4">
                               {/* Modo Edición Encabezado / Nutrientes */}
                               {isEditing ? (
                                 <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
                                   <div>
-                                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                                    <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-[#626573]">
                                       Sección / Tiempo
                                     </label>
                                     <Input
                                       value={dish.section}
                                       onChange={(e) => updateMealBlock(dish.id, "section", e.target.value)}
-                                      className="h-9 rounded-xl border-slate-200 bg-white text-xs font-bold"
+                                      className="h-9 rounded-xl border-[#E9E5E7] bg-white text-xs font-normal text-[#20212B] focus:border-[#86A83C] focus:ring-1 focus:ring-[#86A83C]"
                                     />
                                   </div>
                                   <div>
-                                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                                    <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-[#626573]">
                                       Horario
                                     </label>
                                     <Input
                                       type="time"
                                       value={dish.time}
                                       onChange={(e) => updateMealBlock(dish.id, "time", e.target.value)}
-                                      className="h-9 rounded-xl border-slate-200 bg-white text-xs font-bold"
+                                      className="h-9 rounded-xl border-[#E9E5E7] bg-white text-xs font-normal text-[#20212B] focus:border-[#86A83C] focus:ring-1 focus:ring-[#86A83C]"
                                     />
                                   </div>
                                   <div>
-                                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                                    <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-[#626573]">
                                       Nombre del plato
                                     </label>
                                     <Input
                                       value={dish.name}
                                       onChange={(e) => updateMealBlock(dish.id, "name", e.target.value)}
                                       placeholder="Nombre del plato"
-                                      className="h-9 rounded-xl border-slate-200 bg-white text-xs font-semibold"
+                                      className="h-9 rounded-xl border-[#E9E5E7] bg-white text-xs font-normal text-[#20212B] focus:border-[#86A83C] focus:ring-1 focus:ring-[#86A83C]"
                                     />
                                   </div>
                                   <div>
-                                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                                    <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-[#626573]">
                                       Porción medida
                                     </label>
                                     <Input
                                       value={dish.portion}
                                       onChange={(e) => updateMealBlock(dish.id, "portion", e.target.value)}
                                       placeholder="Ej: 1 plato chico"
-                                      className="h-9 rounded-xl border-slate-200 bg-white text-xs"
+                                      className="h-9 rounded-xl border-[#E9E5E7] bg-white text-xs font-normal text-[#20212B] focus:border-[#86A83C] focus:ring-1 focus:ring-[#86A83C]"
                                     />
                                   </div>
                                 </div>
                               ) : null}
 
                               {/* Porción recomendada */}
-                              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/60 pb-3">
+                              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#F0ECEE] pb-3">
                                 <div className="flex items-center gap-2">
-                                  <span className="text-xs font-bold text-slate-700">Porción recomendada:</span>
-                                  <span className="rounded-lg bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-800">
+                                  <span className="text-xs font-semibold text-[#20212B]">Porción recomendada:</span>
+                                  <span className="rounded-xl border border-[#DDE7B8] bg-[#F0F5DF] px-2.5 py-1 text-xs font-semibold text-[#668E20]">
                                     {dish.portion || "1 porción estándar"}
                                   </span>
                                 </div>
@@ -793,7 +752,7 @@ export function DietRecipesSection({
                               {/* Formulario Ingredientes & Instrucciones */}
                               <div className="grid gap-4 md:grid-cols-2">
                                 <div>
-                                  <label className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                                  <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-[#626573]">
                                     Ingredientes
                                   </label>
                                   <IngredientChipInput
@@ -804,14 +763,14 @@ export function DietRecipesSection({
                                 </div>
 
                                 <div>
-                                  <label className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                                  <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-[#626573]">
                                     Instrucciones de preparación / notas
                                   </label>
                                   <Textarea
                                     value={dish.instructions}
                                     onChange={(e) => updateMealBlock(dish.id, "instructions", e.target.value)}
                                     placeholder="Cocinar a la plancha con gotas de aceite de oliva..."
-                                    className="min-h-[90px] rounded-xl border-slate-200 bg-white text-xs text-slate-800 shadow-2xs"
+                                    className="min-h-[90px] rounded-xl border-[#E9E5E7] bg-white text-xs font-normal text-[#20212B] focus:border-[#86A83C] shadow-2xs"
                                   />
                                 </div>
                               </div>

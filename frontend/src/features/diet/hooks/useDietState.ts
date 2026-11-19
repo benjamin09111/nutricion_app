@@ -2,10 +2,16 @@ import { useState, useMemo, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { DEFAULT_CONSTRAINTS } from "@/lib/constants";
-import { MarketPrice } from "@/features/foods";
+import {
+  MarketPrice,
+  OFFICIAL_MARKET_PRICES,
+  normalizeSearchText,
+} from "@/features/foods";
+
 import { useDashboardShell } from "@/context/DashboardShellContext";
 import { fetchApi } from "@/lib/api-base";
 import { hasActiveSession } from "@/lib/auth-token";
+import { isGuestMode } from "@/lib/demo-local-api";
 import {
   buildProjectAwarePath,
   createProject,
@@ -138,9 +144,18 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
   const [macroSettings, setMacroSettings] = useState<MacroSettings>(
     createDefaultMacroSettings(),
   );
+  const [useDefaultDiet, setUseDefaultDiet] = useState<boolean>(true);
   const [foodStatus, setFoodStatus] = useState<
     Record<string, "base" | "favorite" | "removed" | "added">
-  >({});
+  >(() => {
+    const initialStatuses: Record<string, "base" | "favorite" | "removed" | "added"> = {};
+    if (Array.isArray(initialFoods)) {
+      initialFoods.forEach((f) => {
+        initialStatuses[f.producto] = startEmpty ? "removed" : "base";
+      });
+    }
+    return initialStatuses;
+  });
   const [manualAdditions, setManualAdditions] = useState<MarketPrice[]>([]);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showSupplementsDrawer, setShowSupplementsDrawer] = useState(false);
@@ -151,7 +166,10 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
   const [newConstraintLabel, setNewConstraintLabel] = useState("");
   const [customGroups, setCustomGroups] = useState<string[]>([]);
   const [deletedBaseGroups, setDeletedBaseGroups] = useState<string[]>([]);
-  const [dbCatalogFoods, setDbCatalogFoods] = useState<MarketPrice[]>([]);
+  const [dbCatalogFoods, setDbCatalogFoods] = useState<MarketPrice[]>(
+    OFFICIAL_MARKET_PRICES as unknown as MarketPrice[],
+  );
+
   const [isDeleteGroupConfirmOpen, setIsDeleteGroupConfirmOpen] =
     useState(false);
   const [groupToDelete, setGroupToDelete] = useState<string | null>(null);
@@ -167,6 +185,8 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
   const [isCreatingManualFood, setIsCreatingManualFood] = useState(false);
   const [isApplyingPreferences, setIsApplyingPreferences] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
+  const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
   const [isExportConfirmOpen, setIsExportConfirmOpen] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
@@ -192,6 +212,7 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
   // Flow & Step 3/4 State
   const [currentStep, setCurrentStep] = useState(0);
   const [meals, setMeals] = useState<any[]>([]);
+  const [includeRecipesSection, setIncludeRecipesSection] = useState(true);
   const [includeMealsSection, setIncludeMealsSection] = useState(true);
   const [includeExchangeGuideInPdf, setIncludeExchangeGuideInPdf] = useState(true);
   const [includeCartSection, setIncludeCartSection] = useState(true);
@@ -545,6 +566,7 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
         activeConstraints,
         macroSettings,
         macroTargets,
+        useDefaultDiet,
         foodStatus,
         manualAdditions,
         customGroups,
@@ -1173,8 +1195,19 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
         if (draft.customGroups) setCustomGroups(draft.customGroups);
         if (draft.customConstraints)
           setCustomConstraints(draft.customConstraints);
+        if (typeof draft.useDefaultDiet === "boolean") {
+          setUseDefaultDiet(draft.useDefaultDiet);
+        }
         if (draft.selectedPatient) setSelectedPatient(draft.selectedPatient);
-        if (draft.foodStatus) setFoodStatus({ ...statuses, ...draft.foodStatus });
+        if (draft.foodStatus) {
+          if (draft.useDefaultDiet === false) {
+            setFoodStatus(draft.foodStatus);
+          } else {
+            setFoodStatus({ ...statuses, ...draft.foodStatus });
+          }
+        } else if (draft.useDefaultDiet !== false) {
+          setFoodStatus(statuses);
+        }
         if (typeof draft.currentStep === "number") setCurrentStep(draft.currentStep);
         if (Array.isArray(draft.meals)) setMeals(draft.meals);
         if (Array.isArray(draft.dietMealsTableData)) setDietMealsTableData(draft.dietMealsTableData);
@@ -1379,6 +1412,10 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
           overrides.selectedPatient !== undefined
             ? overrides.selectedPatient
             : selectedPatient,
+        useDefaultDiet:
+          overrides.useDefaultDiet !== undefined
+            ? overrides.useDefaultDiet
+            : useDefaultDiet,
         foodStatus:
           overrides.foodStatus !== undefined
             ? overrides.foodStatus
@@ -1467,6 +1504,7 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
     macroSettings,
     manualAdditions,
     foodStatus,
+    useDefaultDiet,
     currentStep,
     meals,
     dietMealsTableData,
@@ -1684,6 +1722,176 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
     );
   }, [manualAdditions, foodStatus]);
 
+  const buildPdfPayload = async () => {
+    const { DIET_RESOURCES_CATALOG } = await import(
+      "@/features/diet/components/DietResourcesSection"
+    );
+
+    const patientDetails = selectedPatient
+      ? {
+          name: selectedPatient.fullName || null,
+          ageYears: selectedPatient.age ? Number(selectedPatient.age) : null,
+          weight: selectedPatient.weight ? Number(selectedPatient.weight) : null,
+          height: selectedPatient.height ? Number(selectedPatient.height) : null,
+          bmi:
+            selectedPatient.weight && selectedPatient.height
+              ? Number(
+                  (
+                    selectedPatient.weight /
+                    Math.pow(selectedPatient.height / 100, 2)
+                  ).toFixed(1)
+                )
+              : null,
+        }
+      : null;
+
+    const allRestrictionsList = Array.from(
+      new Set([
+        ...activeConstraints,
+        ...(selectedPatient?.dietRestrictions || []),
+        ...(selectedPatient?.tags || []),
+      ].filter(Boolean))
+    );
+    const clinicalRestrictionStr =
+      allRestrictionsList.length > 0 ? allRestrictionsList.join(", ") : null;
+
+    const formattedMeals = (dietMealsTableData || [])
+      .filter((m: any) => m.mealText || m.section)
+      .map((m: any, idx: number) => ({
+        id: m.id || `meal-${idx}`,
+        section: m.section || `Comida ${idx + 1}`,
+        time: m.time || "12:00",
+        mealText: m.mealText || "Sin plato asignado",
+        portion: m.portion || "1 porción",
+      }));
+
+    const resolvedResources = includeResourcesSection
+      ? ((selectedResourceIds || [])
+          .map((id) => {
+            const item = DIET_RESOURCES_CATALOG.find((r) => r.id === id);
+            if (!item) return null;
+            return {
+              resourceId: item.id,
+              title: item.title,
+              content: `
+            <h2>${item.title}</h2>
+            <p><strong>Categoría:</strong> ${item.category}</p>
+            <p>${item.description}</p>
+            ${
+              item.recommendationReason
+                ? `<p><em>${item.recommendationReason}</em></p>`
+                : ""
+            }
+          `.trim(),
+            };
+          })
+          .filter(Boolean) as any[])
+      : [];
+
+    const recipesForPdf = includeRecipesSection
+      ? (meals || [])
+          .filter((m: any) => m?.name?.trim())
+          .map((m: any, idx: number) => {
+        const ingredients =
+          Array.isArray(m.ingredientDetails) && m.ingredientDetails.length > 0
+            ? m.ingredientDetails
+                .map((ing: any) => (typeof ing?.name === "string" ? ing.name.trim() : ""))
+                .filter(Boolean)
+            : typeof m.ingredients === "string" && m.ingredients.trim()
+              ? m.ingredients
+                  .split(/[\n,;]+/)
+                  .map((i: string) => i.trim())
+                  .filter(Boolean)
+              : [];
+        return {
+          id: m.id || `recipe-${idx}`,
+          name: m.name,
+          section: m.section,
+          time: m.time,
+          portion: m.portion,
+          ingredients,
+          instructions: m.instructions,
+          calories: m.calories,
+          protein: m.protein,
+          carbs: m.carbs,
+          fats: m.fats,
+        };
+      })
+      : [];
+
+    const cartForPdf = includeCartSection
+      ? autoCartItems.map((item) => ({
+          name: item.name,
+          category: item.category,
+          sources: item.sources,
+          quantity: "1 unid.",
+          estimatedPrice: "-",
+        }))
+      : [];
+
+    const currentUser = getCurrentUser();
+    const nutritionistName =
+      currentUser?.nutritionist?.fullName || currentUser?.name || null;
+    const nutritionistEmail = currentUser?.email || null;
+
+    const portionGuideRows = includeExchangeGuideInPdf
+      ? buildExchangeGuideForPatient().map((row) => ({
+          category: row.category,
+          portion: row.portion,
+        }))
+      : [];
+
+    const paragraphsForPdf = includeFoodTableSection
+      ? Object.entries(allGroupsToRender || {})
+          .filter(([_, foods]) => Array.isArray(foods) && foods.length > 0)
+          .map(([groupName, foods]) => ({
+            title: groupName,
+            foods: foods.map((f: any) => f.name || f.nameBase || "").filter(Boolean),
+          }))
+      : [];
+
+    return {
+      name: dietName,
+      patientName: selectedPatient?.fullName || null,
+      patient: patientDetails,
+      clinicalRestriction: clinicalRestrictionStr,
+      contentMode: "table" as const,
+      tableMode: "simple" as const,
+      planObjective: planObjective.trim() || undefined,
+      showPlanObjectiveInPdf,
+      nutritionistName,
+      nutritionistEmail,
+      intro:
+        includeIntroInPdf && introMessage.trim()
+          ? { greetingName: selectedPatient?.fullName || null, message: introMessage.trim() }
+          : null,
+      meals: includeMealsSection
+        ? formattedMeals.length > 0
+          ? formattedMeals
+          : [
+              {
+                id: "1",
+                section: "Plan Alimentario",
+                time: "08:00",
+                mealText: dietName,
+                portion: "Ver guía de porciones",
+              },
+            ]
+        : [],
+      paragraphs: [],
+      avoidFoods: includeAvoidFoodsInPdf ? avoidFoods : [],
+      recipes: recipesForPdf,
+      cart: cartForPdf,
+      resources: resolvedResources,
+      portionGuide: portionGuideRows,
+      closing:
+        includeClosingInPdf && closingMessage.trim()
+          ? { message: closingMessage.trim() }
+          : null,
+      generatedAt: new Date().toLocaleDateString("es-CL"),
+    };
+  };
+
   const performExportPdf = async () => {
     if (isHydrating) return;
     if (!includedFoods.length && !meals.length && !dietMealsTableData?.length) {
@@ -1706,161 +1914,9 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
       const { downloadFastDeliverablePdf } = await import(
         "@/features/pdf/fastDeliverablePdfExport"
       );
-      const { DIET_RESOURCES_CATALOG } = await import(
-        "@/features/diet/components/DietResourcesSection"
-      );
 
-      const patientDetails = selectedPatient
-        ? {
-            name: selectedPatient.fullName || null,
-            ageYears: selectedPatient.age ? Number(selectedPatient.age) : null,
-            weight: selectedPatient.weight ? Number(selectedPatient.weight) : null,
-            height: selectedPatient.height ? Number(selectedPatient.height) : null,
-            bmi:
-              selectedPatient.weight && selectedPatient.height
-                ? Number(
-                    (
-                      selectedPatient.weight /
-                      Math.pow(selectedPatient.height / 100, 2)
-                    ).toFixed(1)
-                  )
-                : null,
-          }
-        : null;
-
-      const allRestrictionsList = Array.from(
-        new Set([
-          ...activeConstraints,
-          ...(selectedPatient?.dietRestrictions || []),
-          ...(selectedPatient?.tags || []),
-        ].filter(Boolean))
-      );
-      const clinicalRestrictionStr =
-        allRestrictionsList.length > 0 ? allRestrictionsList.join(", ") : null;
-
-      const formattedMeals = (dietMealsTableData || [])
-        .filter((m: any) => m.mealText || m.section)
-        .map((m: any, idx: number) => ({
-          id: m.id || `meal-${idx}`,
-          section: m.section || `Comida ${idx + 1}`,
-          time: m.time || "12:00",
-          mealText: m.mealText || "Sin plato asignado",
-          portion: m.portion || "1 porción",
-        }));
-
-      const resolvedResources = includeResourcesSection
-        ? ((selectedResourceIds || [])
-            .map((id) => {
-              const item = DIET_RESOURCES_CATALOG.find((r) => r.id === id);
-              if (!item) return null;
-              return {
-                resourceId: item.id,
-                title: item.title,
-                content: `
-              <h2>${item.title}</h2>
-              <p><strong>Categoría:</strong> ${item.category}</p>
-              <p>${item.description}</p>
-              ${
-                item.recommendationReason
-                  ? `<p><em>${item.recommendationReason}</em></p>`
-                  : ""
-              }
-            `.trim(),
-              };
-            })
-            .filter(Boolean) as any[])
-        : [];
-
-      const recipesForPdf = (meals || [])
-        .filter((m: any) => m?.name?.trim())
-        .map((m: any, idx: number) => {
-          const ingredients =
-            Array.isArray(m.ingredientDetails) && m.ingredientDetails.length > 0
-              ? m.ingredientDetails
-                  .map((ing: any) => (typeof ing?.name === "string" ? ing.name.trim() : ""))
-                  .filter(Boolean)
-              : typeof m.ingredients === "string" && m.ingredients.trim()
-                ? m.ingredients
-                    .split(/[\n,;]+/)
-                    .map((i: string) => i.trim())
-                    .filter(Boolean)
-                : [];
-          return {
-            id: m.id || `recipe-${idx}`,
-            name: m.name,
-            section: m.section,
-            time: m.time,
-            portion: m.portion,
-            ingredients,
-            instructions: m.instructions,
-            calories: m.calories,
-            protein: m.protein,
-            carbs: m.carbs,
-            fats: m.fats,
-          };
-        });
-
-      const cartForPdf = includeCartSection
-        ? autoCartItems.map((item) => ({
-            name: item.name,
-            category: item.category,
-            sources: item.sources,
-          }))
-        : [];
-
-      const currentUser = getCurrentUser();
-      const nutritionistName =
-        currentUser?.nutritionist?.fullName || currentUser?.name || null;
-      const nutritionistEmail = currentUser?.email || null;
-
-      // Guía de porciones de intercambio real (clínica), no un listado repetido
-      // de los alimentos de la dieta. Respeta el toggle "Incluir en el PDF final"
-      // de la sección "Guía de Porciones de Intercambio" del paso Comidas.
-      const portionGuideRows = includeExchangeGuideInPdf
-        ? buildExchangeGuideForPatient().map((row) => ({
-            category: row.category,
-            portion: row.portion,
-          }))
-        : [];
-
-      await downloadFastDeliverablePdf({
-        name: dietName,
-        patientName: selectedPatient?.fullName || null,
-        patient: patientDetails,
-        clinicalRestriction: clinicalRestrictionStr,
-        contentMode: "table",
-        tableMode: "simple",
-        planObjective: planObjective.trim() || undefined,
-        showPlanObjectiveInPdf,
-        nutritionistName,
-        nutritionistEmail,
-        intro:
-          includeIntroInPdf && introMessage.trim()
-            ? { greetingName: selectedPatient?.fullName || null, message: introMessage.trim() }
-            : null,
-        meals:
-          formattedMeals.length > 0
-            ? formattedMeals
-            : [
-                {
-                  id: "1",
-                  section: "Plan Alimentario",
-                  time: "08:00",
-                  mealText: dietName,
-                  portion: "Ver guía de porciones",
-                },
-              ],
-        avoidFoods: includeAvoidFoodsInPdf ? avoidFoods : [],
-        recipes: recipesForPdf,
-        cart: cartForPdf,
-        resources: resolvedResources,
-        portionGuide: portionGuideRows,
-        closing:
-          includeClosingInPdf && closingMessage.trim()
-            ? { message: closingMessage.trim() }
-            : null,
-        generatedAt: new Date().toLocaleDateString("es-CL"),
-      });
+      const payload = await buildPdfPayload();
+      await downloadFastDeliverablePdf(payload);
 
       toast.success("PDF exportado correctamente.", { id: toastId });
     } catch (e: any) {
@@ -1889,6 +1945,41 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
     } finally {
       setIsExportingPdf(false);
     }
+  };
+
+  const handlePreviewPdf = async () => {
+    if (isHydrating) return;
+    if (!selectedPatient) {
+      toast.error("Debes seleccionar un paciente antes de generar la vista previa.");
+      return;
+    }
+    setIsGeneratingPreview(true);
+    const toastId = toast.loading("Generando vista previa...");
+    try {
+      const payload = await buildPdfPayload();
+      const [{ pdf }, { FastDeliverablePdfDocument }, React] = await Promise.all([
+        import("@react-pdf/renderer"),
+        import("@/features/pdf/FastDeliverablePdfDocument"),
+        import("react"),
+      ]);
+      const blob = await pdf(
+        React.createElement(FastDeliverablePdfDocument, { data: payload }) as any
+      ).toBlob();
+      if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
+      const url = URL.createObjectURL(blob);
+      setPreviewPdfUrl(url);
+      toast.success("Vista previa generada.", { id: toastId });
+    } catch (error: any) {
+      console.error("Error generando vista previa:", error);
+      toast.error(error?.message || "No se pudo generar la vista previa.", { id: toastId });
+    } finally {
+      setIsGeneratingPreview(false);
+    }
+  };
+
+  const closePreviewPdf = () => {
+    if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
+    setPreviewPdfUrl(null);
   };
 
   const handleExportPdf = async () => {
@@ -1981,7 +2072,7 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
     },
     setMeals?: React.Dispatch<React.SetStateAction<any[]>>
   ) => {
-    if (!hasActiveSession()) {
+    if (!hasActiveSession() && !isGuestMode()) {
       if (typeof window !== "undefined") {
         window.location.href = "/login";
       }
@@ -2280,26 +2371,48 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
   }, [defaultBaseGroups, deletedBaseGroups, includedFoods, customGroups]);
 
   useEffect(() => {
-    if (!isAddFoodModalOpen || !foodSearchQuery.trim()) {
+    if (!isAddFoodModalOpen) {
       setSearchResultFoods([]);
       setIsSearchingFoods(false);
       return;
     }
 
+    if (!foodSearchQuery.trim()) {
+      const targetGroup = normalizeGroupName(activeGroupForAddition || "Varios");
+      const categoryMatches = initialFoods.filter(
+        (food) => normalizeGroupName(food.grupo || "Varios") === targetGroup,
+      );
+      setSearchResultFoods(categoryMatches.slice(0, 100));
+      setIsSearchingFoods(false);
+      return;
+    }
+
+    // 1. Búsqueda instantánea en memoria (0ms latencia)
+    const normQuery = normalizeSearchText(foodSearchQuery);
+    const normalizedTargetGroup = normalizeGroupName(
+      activeGroupForAddition || "Varios",
+    );
+    const isCustomTargetGroup = customGroups.some(
+      (group) => normalizeGroupName(group) === normalizedTargetGroup,
+    );
+
+    const instantMatches = fullCatalogFoods.filter((f) => {
+      const matchName = normalizeSearchText(f.producto).includes(normQuery);
+      if (!matchName) return false;
+      if (isCustomTargetGroup) return true;
+      return normalizeGroupName(f.grupo || "Varios") === normalizedTargetGroup;
+    });
+
+    if (instantMatches.length > 0) {
+      setSearchResultFoods(instantMatches.slice(0, 30));
+    }
+
     const fetchFoods = async () => {
-      setIsSearchingFoods(true);
       try {
         const res = await fetchApi(
           `/foods?search=${foodSearchQuery}&limit=20`,);
         if (res.ok) {
           const data = await res.json();
-          const normalizedTargetGroup = normalizeGroupName(
-            activeGroupForAddition || "Varios",
-          );
-          const isCustomTargetGroup = customGroups.some(
-            (group) => normalizeGroupName(group) === normalizedTargetGroup,
-          );
-
           const filteredByGroup = isCustomTargetGroup
             ? data
             : data.filter((ing: any) => {
@@ -2309,21 +2422,23 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
                 return ingredientGroup === normalizedTargetGroup;
               });
 
-          setSearchResultFoods(
-            filteredByGroup.map((ing: any) => ({
-              id: ing.id,
-              producto: ing.name,
-              grupo: ing.category?.name || "Varios",
-              unidad: ing.unit || "g",
-              precioPromedio: ing.price || 0,
-              calorias: ing.calories || 0,
-              proteinas: ing.proteins || 0,
-              carbohidratos: ing.carbs || 0,
-              lipidos: ing.lipids || 0,
-              tags: ing.tags?.map((t: any) => t.name) || [],
-              isDraft: !!ing.isDraft,
-            })),
-          );
+          if (Array.isArray(filteredByGroup) && filteredByGroup.length > 0) {
+            setSearchResultFoods(
+              filteredByGroup.map((ing: any) => ({
+                id: ing.id,
+                producto: ing.name,
+                grupo: ing.category?.name || "Varios",
+                unidad: ing.unit || "g",
+                precioPromedio: ing.price || 0,
+                calorias: ing.calories || 0,
+                proteinas: ing.proteins || 0,
+                carbohidratos: ing.carbs || 0,
+                lipidos: ing.lipids || 0,
+                tags: ing.tags?.map((t: any) => t.name) || [],
+                isDraft: !!ing.isDraft,
+              })),
+            );
+          }
         }
       } catch (e) {
         console.error(e);
@@ -2332,13 +2447,15 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
       }
     };
 
-    const timeoutId = setTimeout(fetchFoods, 300);
+    const timeoutId = setTimeout(fetchFoods, 200);
     return () => clearTimeout(timeoutId);
   }, [
     isAddFoodModalOpen,
     foodSearchQuery,
     activeGroupForAddition,
     customGroups,
+    fullCatalogFoods,
+    initialFoods,
   ]);
 
   useEffect(() => {
@@ -2348,14 +2465,35 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
       return;
     }
 
+    // 1. Búsqueda instantánea en memoria (0ms latencia)
+    const normQuery = normalizeSearchText(smartSearchQuery);
+    const instantSmart = fullCatalogFoods.filter((f) =>
+      normalizeSearchText(f.producto).includes(normQuery),
+    );
+    if (instantSmart.length > 0) {
+      setSmartSearchResults(
+        instantSmart.slice(0, 30).map((f) => ({
+          id: f.id,
+          name: f.producto,
+          category: { name: f.grupo },
+          unit: f.unidad,
+          calories: f.calorias,
+          proteins: f.proteinas,
+          carbs: f.carbohidratos,
+          lipids: f.lipidos,
+        })),
+      );
+    }
+
     const fetchFoods = async () => {
-      setIsSearchingInSmart(true);
       try {
         const res = await fetchApi(
           `/foods?search=${smartSearchQuery}&limit=20`,);
         if (res.ok) {
           const data = await res.json();
-          setSmartSearchResults(data);
+          if (Array.isArray(data) && data.length > 0) {
+            setSmartSearchResults(data);
+          }
         }
       } catch (e) {
         console.error(e);
@@ -2364,9 +2502,10 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
       }
     };
 
-    const timeoutId = setTimeout(fetchFoods, 300);
+    const timeoutId = setTimeout(fetchFoods, 200);
     return () => clearTimeout(timeoutId);
-  }, [smartAddTab, smartSearchQuery]);
+  }, [smartAddTab, smartSearchQuery, fullCatalogFoods]);
+
 
   const createBaseFoodStatus = () => {
     const nextStatus: Record<string, "base" | "removed"> = {};
@@ -2377,13 +2516,14 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
   };
 
   const applyBaseFoods = () => {
+    setUseDefaultDiet(true);
     const nextStatus: Record<string, "base"> = {};
     initialFoods.forEach((food) => {
       nextStatus[food.producto] = "base";
     });
     setFoodStatus(nextStatus);
-    saveDraft({ foodStatus: nextStatus });
-    toast.success("Ingredientes base aplicados a la dieta.");
+    saveDraft({ useDefaultDiet: true, foodStatus: nextStatus });
+    toast.success("Dieta base por defecto aplicada.");
   };
 
   const clearDietDraftStorage = () => {
@@ -2443,6 +2583,40 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
     clearDietDraftStorage();
     resetDietState();
     toast.success("Dieta reiniciada.");
+  };
+
+  const removeImportedDiet = () => {
+    setEditingCreationId(null);
+    setManualAdditions([]);
+    setCustomGroups([]);
+    setDeletedBaseGroups([]);
+    setFoodStatus(createBaseFoodStatus());
+    setDietName("");
+    setDietTags([]);
+    setPlanObjective("");
+    setCurrentStep(1);
+    toast.success("Dieta importada quitada. Se restauró la plantilla base.");
+  };
+
+  const startFromZero = () => {
+    if (isHydrating) return;
+    setUseDefaultDiet(false);
+    const emptyStatus: Record<string, "removed"> = {};
+    initialFoods.forEach((food) => {
+      emptyStatus[food.producto] = "removed";
+    });
+    setManualAdditions([]);
+    setFoodStatus(emptyStatus);
+    saveDraft({ useDefaultDiet: false, foodStatus: emptyStatus, manualAdditions: [] });
+    toast.info("Dieta base vaciada. Puedes armar tu selección de alimentos desde cero.");
+  };
+
+  const handleToggleDefaultDiet = (enabled: boolean) => {
+    if (enabled) {
+      applyBaseFoods();
+    } else {
+      startFromZero();
+    }
   };
 
   const handlePatientLoad = () => {
@@ -3055,6 +3229,11 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
     setIsApplyingPreferences,
     isExportingPdf,
     setIsExportingPdf,
+    previewPdfUrl,
+    setPreviewPdfUrl,
+    isGeneratingPreview,
+    handlePreviewPdf,
+    closePreviewPdf,
     isResetConfirmOpen,
     setIsResetConfirmOpen,
     isExportConfirmOpen,
@@ -3113,6 +3292,8 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
     setCurrentStep,
     meals,
     setMeals,
+    includeRecipesSection,
+    setIncludeRecipesSection,
     dietMealsTableData,
     setDietMealsTableData,
     includeMealsSection,
@@ -3234,6 +3415,11 @@ export function useDietState({ initialFoods, startEmpty = false }: UseDietStateP
     handleContinue,
     confirmDeleteGroup,
     resetDiet,
+    useDefaultDiet,
+    setUseDefaultDiet,
+    handleToggleDefaultDiet,
+    startFromZero,
+    removeImportedDiet,
     applyBaseFoods,
     applyNutritionistPreferences,
     handlePatientLoad,

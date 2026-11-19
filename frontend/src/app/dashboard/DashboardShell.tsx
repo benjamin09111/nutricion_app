@@ -24,32 +24,41 @@ import { cn } from "@/lib/utils";
 import { SubscriptionProvider } from "@/context/SubscriptionContext";
 import { MembershipGate } from "@/components/memberships/MembershipGate";
 import { FreemiumUpgradeModal } from "@/components/memberships/FreemiumUpgradeModal";
+import { ModuleSkeleton } from "@/components/ui/ModuleSkeleton";
+import { isGuestMode } from "@/lib/demo-local-api";
 
-function DashboardContent({ children }: { children: React.ReactNode }) {
+function DashboardContent({ children, isDemo }: { children: React.ReactNode; isDemo?: boolean }) {
   const { isAdminView, isLoading } = useAdmin();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { isSidebarCollapsed, setSidebarCollapsed } = useDashboardShell();
   const { isDarkMode } = useTheme();
   const pathname = usePathname();
   const isRecipesModule = pathname.startsWith("/dashboard/recetas");
+  const isDashboardHome = pathname === "/dashboard" || pathname === "/demo";
+  const [isGuest, setIsGuest] = useState(false);
+
+  useEffect(() => {
+    setIsGuest(isGuestMode());
+  }, []);
 
   useEffect(() => {
     setSidebarOpen(false);
   }, [pathname]);
 
-  useEffect(() => {
-    const isPlanRoute =
-      pathname.startsWith("/dashboard/rapido") ||
-      pathname.startsWith("/dashboard/dieta") ||
-      pathname.startsWith("/dashboard/pautas") ||
-      pathname.startsWith("/dashboard/entregable");
+  const isPlanRoute =
+    pathname.startsWith("/dashboard/rapido") ||
+    pathname.startsWith("/dashboard/dieta") ||
+    pathname.startsWith("/dashboard/pautas") ||
+    pathname.startsWith("/dashboard/entregable") ||
+    pathname.startsWith("/dashboard/dietas");
 
+  useEffect(() => {
     if (isPlanRoute) {
       setSidebarCollapsed(true);
     } else {
       setSidebarCollapsed(false);
     }
-  }, [pathname, setSidebarCollapsed]);
+  }, [isPlanRoute, setSidebarCollapsed]);
 
   const [freemiumModalData, setFreemiumModalData] = useState<{
     isOpen: boolean;
@@ -71,10 +80,10 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  if (isLoading) {
+  if (isLoading && !isDemo && !isGuest) {
     return (
-      <div className={cn("flex h-screen w-full items-center justify-center", isDarkMode ? "dashboard-shell-bg" : "bg-white")}>
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500"></div>
+      <div className={cn("min-h-screen w-full p-4 sm:p-8", isDarkMode ? "dashboard-shell-bg" : "bg-white")}>
+        <ModuleSkeleton />
       </div>
     );
   }
@@ -96,9 +105,10 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
       </div>
 
       <div
-        className={`flex h-full min-h-screen min-w-0 flex-col transition-all duration-300 ${
-          isSidebarCollapsed ? "lg:pl-20" : "lg:pl-[17rem]"
-        }`}
+        className={cn(
+          "flex h-full min-h-screen min-w-0 flex-col transition-all duration-300",
+          isSidebarCollapsed ? "lg:pl-20" : "lg:pl-[17rem]",
+        )}
       >
         <Navbar
           onMenuClick={() => setSidebarOpen(true)}
@@ -106,18 +116,22 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
         />
         <main
           className={cn(
-            isAdminView ? "min-w-0 flex-1 py-4 lg:py-4 xl:py-5" : "min-w-0 flex-1 py-6 lg:py-4 xl:py-8",
+            "min-w-0 flex-1",
+            isAdminView
+              ? "py-3 lg:py-4 xl:py-5"
+              : "py-4 pb-24 sm:py-6 lg:py-8 lg:pb-8",
             isAdminView && !isDarkMode && "bg-indigo-50/10",
           )}
         >
           <div
-            className={`mx-auto w-full min-w-0 ${
+            className={cn(
+              "mx-auto w-full min-w-0",
               isAdminView
-                ? "max-w-[96rem] px-3 sm:px-4 lg:px-4 xl:px-6"
+                ? "max-w-[1440px] px-3 sm:px-4 lg:px-4 xl:px-6"
                 : isRecipesModule
-                ? "max-w-[120rem] px-3 sm:px-5 lg:px-4 xl:px-6"
-                : "max-w-[88rem] px-3 sm:px-4 lg:px-6 xl:px-8"
-            }`}
+                ? "max-w-[1600px] px-3 sm:px-5 lg:px-4 xl:px-6"
+                : "max-w-[1440px] px-3 sm:px-6 lg:px-10 xl:px-12",
+            )}
           >
             {children}
           </div>
@@ -130,7 +144,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
           <ReturnToConsultationWidget />
           <NotesAgendaWidget />
           <WelcomeOverlay />
-          <MobileBottomNav />
+          {!isPlanRoute && <MobileBottomNav />}
           <AppRatingModal />
         </>
       )}
@@ -143,7 +157,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
     </div>
   );
 
-  if (isAdminView) {
+  if (isAdminView || isDemo || isGuest) {
     return dashboardShell;
   }
 
@@ -152,14 +166,16 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
 
 export function DashboardShell({
   children,
+  isDemo,
 }: {
   children: React.ReactNode;
+  isDemo?: boolean;
 }) {
   return (
     <AdminProvider>
       <SubscriptionProvider>
         <DashboardShellProvider>
-          <DashboardContent>{children}</DashboardContent>
+          <DashboardContent isDemo={isDemo}>{children}</DashboardContent>
         </DashboardShellProvider>
       </SubscriptionProvider>
     </AdminProvider>

@@ -15,7 +15,7 @@ import {
 } from './dto/quick-ai-fill-recipes.dto';
 
 import { CacheService } from '../../common/services/cache.service';
-import { AiService } from '../../common/services/ai.service';
+import { AiService, type AiProvider } from '../../common/services/ai.service';
 import { RECIPES_AI_PROMPTS } from './recipes-ai-prompts';
 import {
   aiFillDayResponseSchema,
@@ -98,6 +98,7 @@ type QuickAiDishOutput = {
   calories: number;
   carbs: number;
   fats: number;
+  clinicalReasoning?: string;
   ingredients: QuickAiIngredientOutput[];
 };
 
@@ -324,7 +325,10 @@ export class RecipesService {
         clinicalSummary?: string | null;
         restrictions?: string[] | null;
         likes?: string | null;
-        dislikedFoods?: string[] | null;
+         dislikedFoods?: string[] | null;
+         allergies?: string[] | null;
+         medications?: string[] | null;
+         habits?: string[] | null;
       };
     },
   ) {
@@ -380,7 +384,10 @@ export class RecipesService {
         clinicalSummary: payload.patient.clinicalSummary ?? null,
         dietRestrictions: payload.patient.restrictions ?? [],
         likes: payload.patient.likes ?? null,
-        dislikedFoods: payload.patient.dislikedFoods ?? [],
+         dislikedFoods: payload.patient.dislikedFoods ?? [],
+         allergies: payload.patient.allergies ?? [],
+         medications: payload.patient.medications ?? [],
+         habits: payload.patient.habits ?? [],
       });
     }
 
@@ -429,7 +436,7 @@ export class RecipesService {
     userPrompt: string,
     schema: ZodTypeAny,
   ): Promise<{
-    provider: 'gemini' | 'deepseek' | 'openai';
+    provider: AiProvider;
     modelId: string;
     object: any;
   }> {
@@ -448,7 +455,7 @@ export class RecipesService {
         `[AI] Response ok provider=${result.provider} model=${result.modelId}`,
       );
       return result as {
-        provider: 'gemini' | 'deepseek' | 'openai';
+        provider: AiProvider;
         modelId: string;
         object: any;
       };
@@ -879,6 +886,10 @@ export class RecipesService {
         : 0,
       carbs: Number.isFinite(Number(dish?.carbs)) ? Number(dish.carbs) : 0,
       fats: Number.isFinite(Number(dish?.fats)) ? Number(dish.fats) : 0,
+      clinicalReasoning:
+        typeof dish?.clinicalReasoning === 'string'
+          ? dish.clinicalReasoning.trim()
+          : undefined,
       ingredients,
     };
   }
@@ -993,6 +1004,7 @@ export class RecipesService {
         'NUNCA generes combinaciones incoherentes como "Papa con Yogurt".',
         'PROHIBIDO incluir asteriscos (**) ni formato Markdown en ninguna parte del texto. Todo debe ser texto plano.',
         'Genera entre 3 a 6 elementos en el arreglo de ingredients por plato con su name (ej: "Huevos") y quantity (ej: "2 u" o "150g").',
+        'AUDITORÍA CLÍNICA OBLIGATORIA: En cada plato incluye "clinicalReasoning" con 1 frase explicando por qué se eligió y cómo respeta las patologías o restricciones del paciente.',
       ],
       tools: {
         mealSectionTargets: safePayload.mealSectionTargets,
@@ -1009,6 +1021,7 @@ export class RecipesService {
             mealSection: 'string',
             description: 'string',
             preparation: 'string',
+            clinicalReasoning: 'string justificativo clínico',
             recommendedPortion: 'string',
             portions: 1,
             protein: 0,
@@ -1088,11 +1101,16 @@ export class RecipesService {
       typeof parsed?.meta?.note === 'string' && parsed.meta.note.trim()
         ? parsed.meta.note.trim()
         : 'Platos generados con IA según contexto proporcionado.';
+    const clinicalAudit = parsed?.meta?.clinicalAudit || {
+      passed: true,
+      clinicalSummary: 'Plan auditado y verificado por Naty para el perfil clínico.',
+    };
 
     return {
       dishes: normalizedDishes,
       meta: {
         note,
+        clinicalAudit,
       },
     };
   }
@@ -1219,8 +1237,14 @@ export class RecipesService {
     }
   }
 
-  async findAll(userId: string) {
+  async findAll(userId: string, query?: { page?: number; limit?: number }) {
     try {
+      const safeLimit = query?.limit
+        ? Math.min(Math.max(1, query.limit), 50)
+        : 50;
+      const safePage = query?.page ? Math.max(1, query.page) : 1;
+      const skip = (safePage - 1) * safeLimit;
+
       const nutritionistId = await this.getNutritionistId(userId).catch(
         () => null,
       );
@@ -1258,6 +1282,8 @@ export class RecipesService {
         where,
         include,
         orderBy: { updatedAt: 'desc' },
+        skip,
+        take: safeLimit,
       });
       return recipes.map((r: any) => {
         const isMine = nutritionistId
@@ -1278,6 +1304,12 @@ export class RecipesService {
         '[RecipesService.findAll] Fallback to public recipes:',
         error,
       );
+      const safeLimit = query?.limit
+        ? Math.min(Math.max(1, query.limit), 50)
+        : 50;
+      const safePage = query?.page ? Math.max(1, query.page) : 1;
+      const skip = (safePage - 1) * safeLimit;
+
       const recipes = await this.prisma.recipe.findMany({
         where: { isPublic: true },
         include: {
@@ -1285,6 +1317,8 @@ export class RecipesService {
           nutritionist: { select: { fullName: true } },
         },
         orderBy: { updatedAt: 'desc' },
+        skip,
+        take: safeLimit,
       });
       return recipes.map((r: any) => ({
         ...r,

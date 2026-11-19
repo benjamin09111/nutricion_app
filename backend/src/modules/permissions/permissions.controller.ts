@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Body,
   Controller,
   Post,
@@ -9,6 +10,7 @@ import {
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { PlanUsageService } from './plan-usage.service';
 import { PLAN_ENTITLEMENT_KEYS } from '../memberships/plan-entitlements';
+import { isAdminRole } from './permissions.constants';
 
 @Controller('permissions')
 @UseGuards(AuthGuard)
@@ -38,8 +40,8 @@ export class PermissionsController {
 
   @Post('reset-pdf-dev')
   async resetPdfDev(@Request() req: any) {
-    if (req.user.email !== 'benjaminmoralespizarro763@gmail.com') {
-      throw new BadRequestException('Operación no permitida');
+    if (process.env.NODE_ENV === 'production' || !isAdminRole(req.user?.role)) {
+      throw new ForbiddenException('Operación no permitida');
     }
 
     await this.planUsageService.resetPdfQuota(req.user.id);
@@ -48,8 +50,8 @@ export class PermissionsController {
 
   @Post('reset-ai-dev')
   async resetAiDev(@Request() req: any) {
-    if (req.user.email !== 'benjaminmoralespizarro763@gmail.com') {
-      throw new BadRequestException('Operación no permitida');
+    if (process.env.NODE_ENV === 'production' || !isAdminRole(req.user?.role)) {
+      throw new ForbiddenException('Operación no permitida');
     }
 
     await this.planUsageService.resetAiQuota(req.user.id);

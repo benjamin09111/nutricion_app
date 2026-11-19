@@ -54,9 +54,11 @@ export const setCurrentUser = (user: CurrentUser) => {
     expires: 30,
     secure: process.env.NODE_ENV === "production",
     sameSite: "strict",
+    path: "/",
   });
 };
 
 export const clearCurrentUser = () => {
+  Cookies.remove("user", { path: "/" });
   Cookies.remove("user");
 };

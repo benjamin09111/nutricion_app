@@ -13,6 +13,8 @@ import {
   BadRequestException,
   Res,
   Req,
+  Logger,
+  HttpException,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateAccountDto } from './dto/create-account.dto';
@@ -26,6 +28,11 @@ import { resolveRequiredUrl } from '../../common/utils/runtime-url.util';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ResendVerificationDto } from './dto/resend-verification.dto';
+import {
+  VerifyTotpLoginDto,
+  Confirm2faDto,
+  Disable2faDto,
+} from './dto/totp-auth.dto';
 import { resolveSafePostAuthPath } from '../../common/utils/safe-redirect.util';
 import {
   AUTH_SESSION_COOKIE,
@@ -51,6 +58,8 @@ const readCookie = (request: ExpressRequest, name: string) => {
 
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(
     private readonly authService: AuthService,
     private readonly googleIntegrationService: GoogleIntegrationService,
@@ -120,13 +129,13 @@ export class AuthController {
       const targetUrl = `${frontendUrl}/auth/callback?ticket=${encodeURIComponent(ticket)}&next=${encodeURIComponent(resolveSafePostAuthPath(callback.next))}`;
       return res.redirect(targetUrl);
     } catch (error: any) {
-      const rawMsg =
-        error?.response?.message ||
-        error?.message ||
-        'No fue posible iniciar sesión con Google. Intenta nuevamente.';
-      const formattedMsg = Array.isArray(rawMsg) ? rawMsg[0] : rawMsg;
+      this.logger.error('Error in Google OAuth callback:', error);
+      const safeMsg =
+        error instanceof HttpException
+          ? error.message
+          : 'No fue posible iniciar sesión con Google. Intenta nuevamente.';
       return res.redirect(
-        `${frontendUrl}/login?error=${encodeURIComponent(formattedMsg)}`,
+        `${frontendUrl}/login?error=${encodeURIComponent(safeMsg)}`,
       );
     }
   }
@@ -169,15 +178,27 @@ export class AuthController {
 
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  logout(@Res({ passthrough: true }) res: Response) {
-    // Current session cookies
-    res.clearCookie(AUTH_SESSION_COOKIE, { path: '/' });
-    res.clearCookie(AUTH_PRESENCE_COOKIE, { path: '/' });
+  async logout(
+    @Req() req: ExpressRequest,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const sessionToken =
+      readCookie(req, AUTH_SESSION_COOKIE) ||
+      readCookie(req, 'auth_session') ||
+      readCookie(req, LEGACY_AUTH_SESSION_COOKIE);
+
+    if (sessionToken) {
+      await this.authService.revokeSessionFromToken(sessionToken);
+    }
+
+    // Current session cookies destroyed with full security options
+    res.clearCookie(AUTH_SESSION_COOKIE, authSessionCookieOptions());
+    res.clearCookie(AUTH_PRESENCE_COOKIE, authPresenceCookieOptions());
     // Legacy cookie names (clean-up for existing sessions)
-    res.clearCookie(LEGACY_AUTH_SESSION_COOKIE, { path: '/' });
+    res.clearCookie(LEGACY_AUTH_SESSION_COOKIE, authSessionCookieOptions());
     res.clearCookie(LEGACY_SENTINEL_COOKIE, { path: '/' });
-    res.clearCookie(LEGACY_NUTRINET_SESSION_COOKIE, { path: '/' });
-    res.clearCookie('auth_session', { path: '/' });
+    res.clearCookie(LEGACY_NUTRINET_SESSION_COOKIE, authSessionCookieOptions());
+    res.clearCookie('auth_session', authSessionCookieOptions());
     return { success: true };
   }
 
@@ -209,6 +230,10 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const result = await this.authService.login(loginDto);
+    if ('requiresTotp' in result) {
+      return result;
+    }
+
     const maxAge = loginDto.rememberMe
       ? 30 * 24 * 60 * 60 * 1000
       : 24 * 60 * 60 * 1000;
@@ -224,6 +249,49 @@ export class AuthController {
     res.cookie(AUTH_PRESENCE_COOKIE, '1', authPresenceCookieOptions(maxAge));
 
     return result;
+  }
+
+  @Post('login/totp')
+  @HttpCode(HttpStatus.OK)
+  async loginTotp(
+    @Body() body: VerifyTotpLoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.verifyTotpLogin(
+      body.tempToken,
+      body.code,
+    );
+    const maxAge = 30 * 24 * 60 * 60 * 1000;
+
+    res.cookie(
+      AUTH_SESSION_COOKIE,
+      result.access_token,
+      authSessionCookieOptions(maxAge),
+    );
+    res.cookie(AUTH_PRESENCE_COOKIE, '1', authPresenceCookieOptions(maxAge));
+
+    return result;
+  }
+
+  @UseGuards(AuthGuard)
+  @Post('2fa/setup')
+  @HttpCode(HttpStatus.OK)
+  async setup2fa(@Request() req: any) {
+    return this.authService.setup2fa(req.user.id);
+  }
+
+  @UseGuards(AuthGuard)
+  @Post('2fa/verify')
+  @HttpCode(HttpStatus.OK)
+  async confirm2fa(@Request() req: any, @Body() body: Confirm2faDto) {
+    return this.authService.confirm2fa(req.user.id, body.code);
+  }
+
+  @UseGuards(AuthGuard)
+  @Post('2fa/disable')
+  @HttpCode(HttpStatus.OK)
+  async disable2fa(@Request() req: any, @Body() body: Disable2faDto) {
+    return this.authService.disable2fa(req.user.id, body.password);
   }
 
   @UseGuards(AuthGuard, RolesGuard)

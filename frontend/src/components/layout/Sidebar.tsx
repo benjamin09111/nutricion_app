@@ -7,6 +7,7 @@ import {
   Users,
   Apple,
   ChefHat,
+  ShoppingCart,
   CalendarDays,
   FileText,
   NotebookText,
@@ -32,13 +33,19 @@ import {
   Megaphone,
   Sparkles,
   Star,
+  FlaskConical,
+  User,
+  NotebookPen,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useDashboardShell } from "@/context/DashboardShellContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useAdmin } from "@/context/AdminContext";
-import { useState } from "react";
+import { useNotifications } from "@/context/NotificationsContext";
+import { isGuestMode } from "@/lib/demo-local-api";
+import { getCurrentUser } from "@/lib/current-user";
+import { useState, useEffect } from "react";
 
 interface SidebarItem {
   name: string;
@@ -62,30 +69,27 @@ const groups: SidebarGroup[] = [
     items: [
       { name: "Pacientes", href: "/dashboard/pacientes", icon: Users, tutorialPath: "/dashboard/pacientes" },
       { name: "Consultas", href: "/dashboard/consultas", icon: CalendarDays, tutorialPath: "/dashboard/consultas" },
-      { name: "Fichas clínicas", href: "/dashboard/fichas-clinicas", icon: FileText, hidden: true },
       { name: "Citas", href: "/dashboard/citas", icon: CalendarDays, locked: true },
     ],
   },
   {
-    title: "Crecimiento",
+    title: "Dietética",
     items: [
-      { name: "Marketing", href: "/dashboard/marketing", icon: Megaphone, locked: true },
+      { name: "Rápido", href: "/dashboard/rapido", icon: NotebookText },
+      { name: "Personalizado", href: "/dashboard/dieta", icon: Apple, tutorialPath: "/dashboard/dieta" },
+      { name: "Recetas", href: "/dashboard/rapido/recetas", icon: ChefHat },
+      { name: "Dietas", href: "/dashboard/dietas", icon: Utensils, tutorialPath: "/dashboard/dietas" },
+      { name: "Carrito del super", href: "/dashboard/carrito", icon: ShoppingCart, locked: true },
     ],
   },
   {
-      title: "Nutrición y Dietética",
-      items: [
-        { name: "Principal", isSubHeader: true },
-        { name: "Dietas", href: "/dashboard/dietas", icon: Utensils, tutorialPath: "/dashboard/dietas" },
-        { name: "Entregable Rápido", href: "/dashboard/rapido", icon: NotebookText },
-        { name: "Recetas", href: "/dashboard/rapido/recetas", icon: ChefHat },
-        { name: "Entregables personalizados", href: "/dashboard/dieta", icon: Apple, tutorialPath: "/dashboard/dieta" },
-        { name: "Fitness", href: "/dashboard/fitness", icon: Dumbbell, locked: true },
-        { name: "Evaluación antropométrica", href: "/dashboard/evaluacion-antropometrica", icon: Calculator, locked: true },
-      { name: "Alimentos", isSubHeader: true },
+    title: "Nutrición",
+    items: [
       { name: "Tabla de composición", href: "/dashboard/alimentos", icon: Apple, tutorialPath: "/dashboard/alimentos" },
-      { name: "Platos", href: "/dashboard/platos", icon: ChefHat, tutorialPath: "/dashboard/platos", hidden: true },
-      { name: "Grupos", href: "/dashboard/alimentos/grupos", icon: FolderPlus },
+      { name: "Platos y Recetas", href: "/dashboard/platos", icon: ChefHat, locked: true },
+      { name: "Grupos", href: "/dashboard/alimentos/grupos", icon: FolderPlus, locked: true },
+      { name: "Intercambios", href: "/dashboard/herramientas/porciones-intercambio", icon: Calculator, tutorialPath: "/dashboard/herramientas/porciones-intercambio" },
+      { name: "Calculadora", href: "/dashboard/herramientas/calculos", icon: Calculator, tutorialPath: "/dashboard/herramientas/calculos" },
     ],
   },
   {
@@ -93,41 +97,11 @@ const groups: SidebarGroup[] = [
     items: [
       { name: "Creaciones", href: "/dashboard/creaciones", icon: Folder, tutorialPath: "/dashboard/creaciones" },
       { name: "Recursos", href: "/dashboard/recursos", icon: FileText, tutorialPath: "/dashboard/recursos" },
-      { name: "Calculadora", href: "/dashboard/herramientas/calculos", icon: Calculator, tutorialPath: "/dashboard/herramientas/calculos" },
-      { name: "Tests", href: "/dashboard/herramientas/tests", icon: ClipboardCheck, tutorialPath: "/dashboard/herramientas/tests" },
-      { name: "Configuración Clínica", href: "/dashboard/detalles", icon: Settings, tutorialPath: "/dashboard/detalles" },
+      { name: "Exámenes", href: "/dashboard/herramientas/examenes", icon: FlaskConical, locked: true },
+      { name: "Tests", href: "/dashboard/herramientas/tests", icon: ClipboardCheck, tutorialPath: "/dashboard/herramientas/tests", locked: true },
     ],
   },
-  {
-    title: "Ejercicio y Deporte",
-    items: [
-      { name: "Rutinas de ejercicios", href: "/dashboard/ejercicio/rutinas", icon: Dumbbell, locked: true },
-      { name: "Suplementos", href: "/dashboard/ejercicio/suplementos", icon: Pill, locked: true },
-    ],
-  },
-  {
-    title: "Agentes & IA",
-    items: [
-      { name: "Chatbots", href: "/dashboard/chatbots", icon: MessageCircle, locked: true, hidden: true },
-      { name: "Agentes", href: "/dashboard/agentes", icon: Bot, locked: true, hidden: true },
-    ],
-  },
-  {
-    title: "Ajustes",
-    items: [
-      { name: "Notificaciones", href: "/dashboard/ajustes/notificaciones", icon: Bell },
-      { name: "Feedback & Soporte", href: "/dashboard/feedback", icon: MessageSquare },
-    ],
-  },
-  {
-    title: "Ayuda",
-    items: [
-      { name: "Guía de uso", href: "/dashboard/uso-recomendado", icon: BookOpen },
-      { name: "Futuras funciones", href: "/dashboard/actualizaciones", icon: Sparkles },
-      { name: "Información de Cálculos", href: "/dashboard/herramientas/porciones-intercambio", icon: BookOpen },
-      { name: "Preguntas frecuentes", href: "/dashboard/preguntas-frecuentes", icon: HelpCircle },
-    ],
-  },
+
 ];
 
 interface SidebarProps {
@@ -140,30 +114,39 @@ export function Sidebar({ onItemClick, isMobile = false }: SidebarProps = {}) {
   const { isSidebarCollapsed, toggleSidebarCollapsed, isSidebarToggleHighlighted } = useDashboardShell();
   const { isDarkMode } = useTheme();
   const { isAdmin, toggleViewMode } = useAdmin();
+  const { unreadCount } = useNotifications();
+  const [isGuest, setIsGuest] = useState(true);
+  const [userEmail, setUserEmail] = useState<string>("usuario@demo.com");
   const shouldCollapse = !isMobile && isSidebarCollapsed && !onItemClick;
+
+  useEffect(() => {
+    setIsGuest(isGuestMode());
+    const stored = getCurrentUser();
+    if (stored?.email) setUserEmail(stored.email);
+  }, []);
 
   const SIDEBAR_GROUPS_STORAGE_KEY = "nutri_dashboard_sidebar_open_groups";
 
-  const getInitialOpenGroups = (): Record<string, boolean> => {
-    if (typeof window === "undefined") {
-      return { "Administración": true, "Crecimiento": true };
-    }
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
+    "Administración": true,
+    "Dietética": true,
+    "Nutrición": true,
+    "Herramientas": true,
+  });
+
+  useEffect(() => {
     try {
       const stored = localStorage.getItem(SIDEBAR_GROUPS_STORAGE_KEY);
-      if (stored === null) {
-        return { "Administración": true, "Crecimiento": true };
+      if (stored) {
+        const parsed = JSON.parse(stored) as Record<string, boolean>;
+        if (typeof parsed === "object" && parsed !== null) {
+          setOpenGroups((prev) => ({ ...prev, ...parsed }));
+        }
       }
-      const parsed = JSON.parse(stored) as Record<string, boolean>;
-      if (typeof parsed !== "object" || parsed === null) {
-        return { "Administración": true, "Crecimiento": true };
-      }
-      return { "Administración": true, "Crecimiento": true, ...parsed };
     } catch {
-      return { "Administración": true, "Crecimiento": true };
+      // Ignorar error al leer de localStorage
     }
-  };
-
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(getInitialOpenGroups);
+  }, []);
 
   const toggleGroup = (title: string) => {
     if (isSidebarCollapsed) return;
@@ -178,12 +161,9 @@ export function Sidebar({ onItemClick, isMobile = false }: SidebarProps = {}) {
 
   const getGroupPriority = (group: SidebarGroup) => {
     if (group.title === "Administración") return 0;
-    if (group.title === "Crecimiento") return 1;
-    if (group.title === "Nutrición y Dietética") return 2;
-    if (group.title === "Ejercicio y Deporte") return 3;
-    if (group.title === "Herramientas") return 4;
-    if (group.title === "Agentes & IA") return 5;
-    if (group.title === "Ayuda") return 6;
+    if (group.title === "Dietética") return 1;
+    if (group.title === "Nutrición") return 2;
+    if (group.title === "Herramientas") return 3;
     return 10;
   };
 
@@ -211,7 +191,8 @@ export function Sidebar({ onItemClick, isMobile = false }: SidebarProps = {}) {
       >
         <Link
           href="/dashboard"
-          className="flex min-w-0 items-center rounded-xl transition-colors hover:opacity-90"
+          onClick={onItemClick}
+          className="flex min-w-0 items-center rounded-xl transition-colors hover:opacity-90 cursor-pointer"
           aria-label="Ir al dashboard"
           title="Ir al dashboard"
         >
@@ -220,7 +201,7 @@ export function Sidebar({ onItemClick, isMobile = false }: SidebarProps = {}) {
             alt="NutriNet"
             width={shouldCollapse ? 72 : 180}
             height={shouldCollapse ? 23 : 57}
-            className={cn("h-auto w-auto object-contain", shouldCollapse ? "max-w-[72px]" : "max-w-[180px]")}
+            className={cn("h-auto w-auto object-contain cursor-pointer", shouldCollapse ? "max-w-[72px]" : "max-w-[180px]")}
             style={{ height: "auto" }}
             priority
           />
@@ -232,9 +213,9 @@ export function Sidebar({ onItemClick, isMobile = false }: SidebarProps = {}) {
           className={cn(
             "hidden lg:inline-flex items-center justify-center rounded-xl p-2 transition-all transition-colors",
             isDarkMode
-              ? "text-indigo-100/50 hover:text-indigo-50 hover:bg-indigo-500/10"
-              : "text-slate-400 hover:text-indigo-600 hover:bg-slate-50",
-            isSidebarToggleHighlighted && "animate-pulse ring-2 ring-indigo-500/20",
+              ? "text-slate-400 hover:text-emerald-300 hover:bg-emerald-500/10"
+              : "text-slate-400 hover:text-[#668E20] hover:bg-[#F0F5DF]/60",
+            isSidebarToggleHighlighted && "animate-pulse ring-2 ring-[#86A83C]/30",
           )}
           title={isSidebarCollapsed ? "Mostrar menú" : "Contraer menú"}
         >
@@ -254,6 +235,64 @@ export function Sidebar({ onItemClick, isMobile = false }: SidebarProps = {}) {
         </button>
       )}
 
+      {/* Mobile Top Actions: Iniciar sesión / Perfil, Mis notas, Notificaciones (Minimalista) */}
+      {isMobile && (
+        <div className="space-y-2 pb-3 mb-2 border-b border-[#F0ECEE] px-1">
+          {/* Iniciar sesión o Perfil */}
+          {isGuest ? (
+            <Link
+              href="/login"
+              onClick={onItemClick}
+              className="flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl bg-[#86A83C] hover:bg-[#78A82F] text-white text-xs font-semibold shadow-2xs cursor-pointer w-full transition-all active:scale-98"
+            >
+              <User className="w-4 h-4 text-white shrink-0" />
+              <span>Iniciar sesión</span>
+            </Link>
+          ) : (
+            <Link
+              href="/dashboard/configuraciones"
+              onClick={onItemClick}
+              className="flex items-center justify-between px-3.5 py-2.5 rounded-xl border border-[#E9E5E7] bg-slate-50 text-[#20212B] text-xs font-semibold cursor-pointer w-full transition-all hover:bg-slate-100"
+            >
+              <div className="flex items-center gap-2 truncate min-w-0">
+                <User className="w-4 h-4 text-[#86A83C] shrink-0" />
+                <span className="truncate">{userEmail || "Mi Perfil y Configuración"}</span>
+              </div>
+              <Settings className="w-4 h-4 text-[#848792] shrink-0" />
+            </Link>
+          )}
+
+          {/* Fila: Mis Notas + Notificaciones (Estilo minimalista blanco con borde #E9E5E7) */}
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                onItemClick?.();
+                window.dispatchEvent(new CustomEvent("toggle-notes-agenda"));
+              }}
+              className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border border-[#E9E5E7] bg-white text-[#20212B] text-xs font-medium cursor-pointer transition-all hover:bg-slate-50 hover:border-[#86A83C] shadow-2xs active:scale-98"
+            >
+              <NotebookPen className="w-4 h-4 text-[#86A83C] shrink-0" />
+              <span>Mis notas</span>
+            </button>
+
+            <Link
+              href="/dashboard/ajustes/notificaciones"
+              onClick={onItemClick}
+              className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border border-[#E9E5E7] bg-white text-[#20212B] text-xs font-medium cursor-pointer transition-all hover:bg-slate-50 hover:border-[#86A83C] shadow-2xs active:scale-98"
+            >
+              <Bell className="w-4 h-4 text-[#848792] shrink-0" />
+              <span>Notificaciones</span>
+              {unreadCount > 0 && (
+                <span className="ml-1 px-1.5 py-0.5 rounded-full bg-rose-500 text-white text-[10px] font-bold leading-none">
+                  {unreadCount}
+                </span>
+              )}
+            </Link>
+          </div>
+        </div>
+      )}
+
       <nav className="flex flex-1 flex-col mt-2">
         <ul role="list" className="flex flex-1 flex-col gap-y-2">
           {visibleGroups.map((group) => {
@@ -266,8 +305,8 @@ export function Sidebar({ onItemClick, isMobile = false }: SidebarProps = {}) {
                   onItemClick ? (
                     <div
                       className={cn(
-                        "mb-1 pl-2 text-[0.7rem] font-bold uppercase tracking-wider",
-                        isDarkMode ? "text-indigo-100/55" : "text-slate-400",
+                        "mb-1.5 pl-2 text-xs font-bold uppercase tracking-wider",
+                        isDarkMode ? "text-indigo-200/70" : "text-slate-500",
                       )}
                     >
                       {group.title}
@@ -277,16 +316,16 @@ export function Sidebar({ onItemClick, isMobile = false }: SidebarProps = {}) {
                       type="button"
                       onClick={() => toggleGroup(group.title)}
                       className={cn(
-                        "flex w-full items-center justify-between mb-1 pl-2 text-[0.7rem] font-bold uppercase tracking-wider transition-colors",
-                        isDarkMode ? "text-indigo-100/55 hover:text-indigo-100/80" : "text-slate-400 hover:text-slate-600",
+                        "flex w-full items-center justify-between mb-1.5 pl-2 text-xs font-bold uppercase tracking-wider transition-colors",
+                        isDarkMode ? "text-indigo-200/70 hover:text-indigo-100" : "text-slate-500 hover:text-slate-800",
                       )}
                     >
                       <span>{group.title}</span>
                       <div className="flex items-center pr-1">
                         {isOpen ? (
-                          <ChevronDown className="h-3 w-3" />
+                          <ChevronDown className="h-3.5 w-3.5" />
                         ) : (
-                          <ChevronRight className="h-3 w-3" />
+                          <ChevronRight className="h-3.5 w-3.5" />
                         )}
                       </div>
                     </button>
@@ -300,8 +339,8 @@ export function Sidebar({ onItemClick, isMobile = false }: SidebarProps = {}) {
                         return (
                           <li key={item.name} className="mt-4 mb-1 px-3">
                             <div className={cn(
-                              "px-3 text-[10px] font-bold uppercase tracking-widest",
-                              isDarkMode ? "text-indigo-300/40" : "text-slate-400/80"
+                              "px-3 text-[11px] font-bold uppercase tracking-widest",
+                              isDarkMode ? "text-indigo-300/60" : "text-slate-500"
                             )}>
                               {item.name}
                             </div>
@@ -311,6 +350,8 @@ export function Sidebar({ onItemClick, isMobile = false }: SidebarProps = {}) {
 
                       const isActive = pathname === item.href;
                       const isLocked = item.locked;
+
+                      if (shouldCollapse && isLocked) return null;
 
                       return (
                         <li key={item.name}>
@@ -332,15 +373,14 @@ export function Sidebar({ onItemClick, isMobile = false }: SidebarProps = {}) {
                             className={cn(
                               isActive
                                 ? isDarkMode
-                                  ? "bg-indigo-500/12 text-indigo-50 font-bold"
-                                  : "bg-slate-50 text-indigo-600 font-bold"
+                                  ? "bg-emerald-500/15 text-emerald-300 font-bold"
+                                  : "bg-[#F0F5DF] text-[#668E20] font-bold"
                                 : isDarkMode
-                                  ? "text-indigo-100/72 hover:bg-indigo-500/8 hover:text-indigo-50 font-medium"
-                                  : "text-slate-600 hover:text-indigo-600 hover:bg-slate-50 font-medium",
-                              isLocked && "cursor-not-allowed grayscale opacity-50",
-                              "group flex min-w-0 cursor-pointer items-center gap-x-2 rounded-md p-2 leading-5 transition-colors",
+                                  ? "text-slate-300 hover:bg-slate-800 hover:text-white font-medium"
+                                  : "text-slate-700 hover:text-[#668E20] hover:bg-[#F0F5DF]/60 font-medium",
+                              isLocked && "cursor-not-allowed opacity-60",
+                              "group flex min-w-0 cursor-pointer items-center gap-x-3 rounded-xl px-3 py-2.5 min-h-[40px] leading-5 transition-all text-sm",
                               shouldCollapse && "justify-center",
-                              !shouldCollapse && group.title === "Nutrición y Dietética" && "pl-4"
                             )}
                             title={item.name}
                           >
@@ -350,19 +390,19 @@ export function Sidebar({ onItemClick, isMobile = false }: SidebarProps = {}) {
                                   className={cn(
                                     isActive
                                       ? isDarkMode
-                                        ? "text-indigo-300"
-                                        : "text-indigo-600"
+                                        ? "text-emerald-300"
+                                        : "text-[#668E20]"
                                       : isDarkMode
-                                        ? "text-indigo-100/35 group-hover:text-indigo-300"
-                                        : "text-slate-400 group-hover:text-indigo-600",
-                                    "h-4 w-4 shrink-0",
+                                        ? "text-slate-400 group-hover:text-emerald-300"
+                                        : "text-slate-500 group-hover:text-[#668E20]",
+                                    "h-4.5 w-4.5 shrink-0 transition-colors",
                                   )}
                                   aria-hidden="true"
                                 />
                               )}
                             </span>
                             {!shouldCollapse && <span className="min-w-0 flex-1 truncate">{item.name}</span>}
-                            {isLocked && <Lock className={cn("h-3 w-3", isDarkMode ? "text-indigo-100/35" : "text-slate-400")} />}
+                            {isLocked && <Lock className={cn("h-3.5 w-3.5 shrink-0 ml-auto", isDarkMode ? "text-slate-400" : "text-slate-400")} />}
                           </Link>
                         </li>
                       );
@@ -374,6 +414,13 @@ export function Sidebar({ onItemClick, isMobile = false }: SidebarProps = {}) {
           })}
         </ul>
       </nav>
+
+      {/* Bottom Circular Initial Badge */}
+      <div className={cn("pt-2 pb-1 border-t border-slate-100 flex items-center", shouldCollapse ? "justify-center" : "justify-start px-2")}>
+        <div className="h-8 w-8 rounded-full bg-slate-900 text-white font-bold text-xs flex items-center justify-center shadow-xs">
+          N
+        </div>
+      </div>
     </div>
   );
 }

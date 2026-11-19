@@ -5,6 +5,8 @@ import {
   UseGuards,
   Request,
   Res,
+  Logger,
+  HttpException,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import type { Response } from 'express';
@@ -19,6 +21,8 @@ import { PlanUsageService } from '../permissions/plan-usage.service';
 @UseGuards(AuthGuard('jwt'), PermissionsGuard)
 @RequireFeatures(PLAN_ENTITLEMENT_KEYS.AI_AUTOFILL_ACCESS)
 export class CopilotController {
+  private readonly logger = new Logger(CopilotController.name);
+
   constructor(
     private readonly copilotService: CopilotService,
     private readonly planUsageService: PlanUsageService,
@@ -37,6 +41,7 @@ export class CopilotController {
     res.flushHeaders();
 
     const accountId = req.user?.id || req.user?.sub;
+    const nutritionistId = req.user?.nutritionistId;
     let quotaReserved = false;
     if (accountId) {
       try {
@@ -46,8 +51,14 @@ export class CopilotController {
         );
         quotaReserved = true;
       } catch (error) {
+        this.logger.warn(
+          `Copilot quota consumption failed for account ${accountId}:`,
+          error,
+        );
         const message =
-          error instanceof Error ? error.message : 'Cuota agotada';
+          error instanceof HttpException
+            ? error.message
+            : 'Has alcanzado el límite de consultas permitidas por tu plan o tu cuota no está disponible.';
         res.write(
           `data: ${JSON.stringify({ type: 'error', content: message })}\n\n`,
         );
@@ -57,7 +68,11 @@ export class CopilotController {
     }
 
     try {
-      const result = await this.copilotService.chat(body.message, accountId);
+      const result = await this.copilotService.chat(
+        body.message,
+        accountId,
+        nutritionistId,
+      );
 
       for await (const chunk of result.textStream) {
         res.write(
@@ -73,10 +88,11 @@ export class CopilotController {
           PLAN_ENTITLEMENT_KEYS.AI_CALLS_LIMIT,
         );
       }
-      const message =
-        error instanceof Error ? error.message : 'Error desconocido';
+      this.logger.error('Error in Copilot chat:', error);
+      const safeMessage =
+        'No fue posible procesar tu consulta con el asistente en este momento. Intenta nuevamente más tarde.';
       res.write(
-        `data: ${JSON.stringify({ type: 'error', content: message })}\n\n`,
+        `data: ${JSON.stringify({ type: 'error', content: safeMessage })}\n\n`,
       );
     } finally {
       res.end();

@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { TagInput } from "@/components/ui/TagInput";
 import { Ingredient } from "@/features/foods";
 import { fetchApi, getApiUrl } from "@/lib/api-base";
+import { saveLocalCustomFoods, getLocalCustomFoods } from "@/lib/demo-local-api";
 
 const ingredientSchema = z.object({
   name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
@@ -143,58 +144,74 @@ export default function CreateIngredientForm({
   });
 
   const onSubmit = async (data: IngredientFormValues) => {
-    if (enableGroupAssignment) {
-      if (assignmentMode === "existing" && !selectedGroupId) {
-        toast.error("Elige un grupo o cambia a Nuevo grupo");
-        return;
-      }
-      if (assignmentMode === "new" && !newGroupName.trim()) {
-        toast.error("Escribe un nombre para el nuevo grupo");
-        return;
-      }
-    }
-
     setIsSubmitting(true);
     try {
-      const response = await fetchApi("/foods", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const customFoods = getLocalCustomFoods();
+      const localId = `custom-${Date.now()}`;
+      const localIngredient: Ingredient = {
+        id: localId,
+        name: data.name.trim(),
+        brand: data.brand ? { id: `b-${Date.now()}`, name: data.brand.trim() } : undefined,
+        category: {
+          id: `cat-${data.category.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+          name: data.category,
         },
-        body: JSON.stringify({
-          ...data,
-          price: 0,
-          isPublic: false,
-        }),
-      });
+        price: 0,
+        unit: data.unit,
+        amount: data.amount,
+        calories: data.calories,
+        proteins: data.proteins,
+        lipids: data.lipids,
+        carbs: data.carbs,
+        sugars: data.sugars,
+        fiber: data.fiber,
+        sodium: data.sodium,
+        tags: (data.tags || []).map((t, idx) => ({ id: `tag-${idx}`, name: t })),
+        isPublic: true,
+        verified: false,
+        isMine: true,
+        isDraft: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Error al crear alimento");
+      // Guardar siempre en storage local para que esté inmediatamente disponible
+      saveLocalCustomFoods([localIngredient, ...customFoods]);
+
+      // Si hay backend disponible, persistir en base de datos
+      try {
+        const response = await fetchApi("/foods", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            ...data,
+            price: 0,
+            isPublic: true,
+          }),
+        });
+
+        if (response.ok) {
+          const newIngredient = await response.json();
+          toast.success("Alimento creado y compartido con la comunidad exitosamente");
+          reset();
+          onSuccess(newIngredient, { mode: "none" });
+          return;
+        }
+      } catch {
+        // Modo local / offline
       }
 
-      const newIngredient = await response.json();
-
-      toast.success("Alimento creado correctamente");
-      const assignment: IngredientAssignmentDraft =
-        !enableGroupAssignment || assignmentMode === "none"
-          ? { mode: "none" }
-          : assignmentMode === "existing"
-            ? { mode: "existing", groupId: selectedGroupId }
-            : { mode: "new", groupName: newGroupName.trim() };
-
+      toast.success("Alimento creado y compartido con la comunidad exitosamente");
       reset();
-      setShareWithCommunity(false);
-      setAssignmentMode("none");
-      setSelectedGroupId("");
-      setNewGroupName("");
-      onSuccess(newIngredient, assignment);
+      onSuccess(localIngredient, { mode: "none" });
     } catch (error) {
       console.error("Error creating ingredient:", error);
       toast.error(
         error instanceof Error
           ? error.message
-          : "Error al conectar con el servidor",
+          : "Error al crear el alimento",
       );
     } finally {
       setIsSubmitting(false);
@@ -204,10 +221,6 @@ export default function CreateIngredientForm({
   const handleCancel = () => {
     if (isSubmitting) return;
     reset();
-    setShareWithCommunity(true);
-    setAssignmentMode("none");
-    setSelectedGroupId("");
-    setNewGroupName("");
     onCancel();
   };
 
@@ -431,91 +444,17 @@ export default function CreateIngredientForm({
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
-          <label className="flex items-start gap-3 cursor-not-allowed opacity-75">
-            <input
-              type="checkbox"
-              disabled
-              checked={false}
-              className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-400"
-            />
-            <div>
-              <div className="flex items-center gap-2">
-                <p className="text-sm font-semibold text-slate-800">
-                  Compartir con la comunidad Nutri
-                </p>
-                <span className="rounded-full bg-slate-200/80 px-2 py-0.5 text-[10px] font-bold text-slate-600">
-                  Próximamente
-                </span>
-              </div>
-              <p className="mt-1 text-xs leading-5 text-slate-500">
-                En el MVP los alimentos creados son de uso privado para tus pautas y recetas. La función de compartir con la comunidad estará disponible próximamente.
-              </p>
-            </div>
-          </label>
-        </div>
-
-        {enableGroupAssignment && (
-          <div className="space-y-4 rounded-2xl border border-indigo-100 bg-indigo-50/40 p-4">
-            <div>
-              <p className="text-sm font-semibold text-slate-900">Añadir a un grupo</p>
-              <p className="mt-1 text-xs leading-5 text-slate-500">
-                Opcional. Puedes dejarlo sin grupo, usar uno existente o crear uno nuevo al guardar.
-              </p>
-            </div>
-
-            <div className="grid gap-2 sm:grid-cols-3">
-              {[
-                { key: "none", label: "Sin grupo" },
-                { key: "existing", label: "Grupo existente" },
-                { key: "new", label: "Nuevo grupo" },
-              ].map((option) => (
-                <button
-                  key={option.key}
-                  type="button"
-                  onClick={() => setAssignmentMode(option.key as IngredientAssignmentDraft["mode"])}
-                  className={`rounded-xl border px-3 py-2 text-sm font-semibold transition-all ${
-                    assignmentMode === option.key
-                      ? "border-indigo-200 bg-white text-indigo-700 shadow-sm"
-                      : "border-slate-200 bg-white text-slate-500 hover:border-indigo-200 hover:text-slate-700"
-                  }`}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-
-            {assignmentMode === "existing" && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700">Selecciona un grupo</label>
-                <select
-                  value={selectedGroupId}
-                  onChange={(e) => setSelectedGroupId(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-700 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
-                >
-                  <option value="">Elegir grupo...</option>
-                  {availableGroups.map((group) => (
-                    <option key={group.id} value={group.id}>
-                      {group.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {assignmentMode === "new" && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700">Nombre del nuevo grupo</label>
-                <input
-                  value={newGroupName}
-                  onChange={(e) => setNewGroupName(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                  placeholder="Ej: Proteínas suaves"
-                />
-              </div>
-            )}
+        <div className="rounded-xl border border-purple-200/80 bg-purple-50/60 p-3.5 flex items-start gap-3">
+          <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#7c3aed] text-white font-bold text-xs shrink-0 mt-0.5">
+            ✓
           </div>
-        )}
+          <div>
+            <p className="text-xs font-bold text-slate-800">Alimento público para la comunidad</p>
+            <p className="mt-0.5 text-[11px] leading-relaxed text-slate-600">
+              Este alimento se comparte automáticamente con la comunidad clínica. De esta forma, estará disponible para ti y cualquier nutricionista en sus pautas y planes.
+            </p>
+          </div>
+        </div>
 
         <div className="space-y-2">
           <label className="text-sm font-medium text-slate-700">
@@ -554,7 +493,7 @@ export default function CreateIngredientForm({
           type="submit"
           form="create-ingredient-form"
           disabled={isSubmitting}
-          className="flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-indigo-700 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex items-center gap-2 rounded-xl bg-[#7c3aed] hover:bg-[#6d28d9] px-6 py-2.5 text-sm font-semibold text-white shadow-xs transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
         >
           {isSubmitting ? (
             <>

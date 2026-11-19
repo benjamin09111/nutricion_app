@@ -85,7 +85,7 @@ export default function PrivacyPolicyPage() {
     <LegalPage
       title="Política de Privacidad"
       description="Este documento explica cómo NutriNet trata los datos personales y clínicos dentro de la plataforma."
-      lastUpdated="17 de agosto de 2026"
+      lastUpdated="17 de octubre de 2026"
       sections={sections}
     />
   );

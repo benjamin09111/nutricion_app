@@ -22,7 +22,7 @@ export async function downloadFastDeliverablePdf(
   }
 
   const safeName =
-    data.name.replace(/\s+/g, "_").replace(/[^\w-]/g, "") ||
+    (data.name || "entregable_rapido").replace(/\s+/g, "_").replace(/[^\w-]/g, "") ||
     "entregable_rapido";
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");

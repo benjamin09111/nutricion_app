@@ -16,6 +16,9 @@ interface PlanWizardShellProps {
   isLastStep: boolean;
   nextLabel?: string;
   nextDisabled?: boolean;
+  centerAction?: React.ReactNode;
+  controlsAfterChildrenOnStep?: number;
+  hideControls?: boolean;
   hideNextOnLastStep?: boolean;
   onReset?: () => void;
   lockFutureSteps?: boolean;
@@ -33,6 +36,9 @@ export function PlanWizardShell({
   isLastStep,
   nextLabel,
   nextDisabled = false,
+  centerAction,
+  controlsAfterChildrenOnStep,
+  hideControls = false,
   hideNextOnLastStep = false,
   onReset,
   lockFutureSteps = true,
@@ -81,18 +87,21 @@ export function PlanWizardShell({
     onNext();
   };
 
-  return (
-    <div ref={wizardRef} className={cn("scroll-mt-24 space-y-6 flex-1", className)}>
-      {/* Control Superior */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full pb-4 border-b border-slate-100">
-        <WizardStepper
-          steps={steps}
-          currentStep={currentStep}
-          completedSteps={completedSteps}
-          onStepClick={handleStepClick}
-          lockFutureSteps={lockFutureSteps}
-          className="mb-0 pb-0"
-        />
+  const wizardControls = (
+    <div className="space-y-4 w-full pb-4 border-b border-[#E9E5E7]/70">
+      <WizardStepper
+        steps={steps}
+        currentStep={currentStep}
+        completedSteps={completedSteps}
+        onStepClick={handleStepClick}
+        lockFutureSteps={lockFutureSteps}
+        className="w-full"
+      />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <span className="text-xs text-[#626573] font-medium">
+          Paso {currentStep + 1} de {steps.length}: <strong className="text-[#20212B] font-semibold">{steps[currentStep]}</strong>
+        </span>
+        {centerAction}
         <FormNavigationFooter
           onBack={onBack}
           onNext={handleNext}
@@ -100,11 +109,22 @@ export function PlanWizardShell({
           nextDisabled={nextDisabled}
           nextLabel={nextLabel || (isLastStep ? "Finalizar" : "Continuar")}
           hideNext={hideNextOnLastStep && isLastStep}
+          className="mt-0 w-auto"
         />
       </div>
+    </div>
+  );
 
-      {/* Contenido del Paso */}
-      <div className="w-full">{children}</div>
+  const wizardContent = <div className="w-full">{children}</div>;
+  const placeControlsAfterChildren = currentStep === controlsAfterChildrenOnStep;
+
+  return (
+    <div ref={wizardRef} className={cn("scroll-mt-24 space-y-6 flex-1", className)}>
+      {hideControls
+        ? wizardContent
+        : placeControlsAfterChildren
+          ? <>{wizardContent}{wizardControls}</>
+          : <>{wizardControls}{wizardContent}</>}
 
       {/* Control Inferior */}
       <div className="flex items-center justify-between pt-6 border-t border-slate-100">

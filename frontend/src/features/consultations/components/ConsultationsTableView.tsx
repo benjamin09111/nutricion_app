@@ -11,7 +11,7 @@ interface ConsultationsTableViewProps {
   onViewConsultation: (id: string) => void;
   onViewPatient?: (patientId: string) => void;
   onEdit?: (id: string) => void;
-  onDelete: (id: string) => void;
+  onDelete?: (id: string) => void;
   isInsidePatient?: boolean;
   footer?: React.ReactNode;
 }
@@ -33,14 +33,12 @@ export function ConsultationsTableView({
           {
             header: "Paciente",
             render: (item: Consultation) => (
-              <div className="flex items-center">
-                <div className="h-10 w-10 shrink-0">
-                  <div className="h-10 w-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-semibold border border-indigo-100 shadow-sm">
-                    {item.patientName?.charAt(0) || "P"}
-                  </div>
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-xl bg-[#F0F5DF] flex items-center justify-center text-[#668E20] font-bold text-sm shrink-0 border border-[#DDE7B8]">
+                  {item.patientName?.charAt(0) || "P"}
                 </div>
-                <div className="ml-4 min-w-0">
-                  <div className="text-sm font-semibold text-slate-900 leading-none mb-1 truncate">
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold text-slate-900 leading-tight mb-0.5 truncate group-hover:text-[#668E20] transition-colors">
                     {item.patientName}
                   </div>
                   {onViewPatient && (
@@ -49,7 +47,7 @@ export function ConsultationsTableView({
                         e.stopPropagation();
                         onViewPatient(item.patientId);
                       }}
-                      className="text-xs text-slate-500 font-medium hover:text-indigo-600 transition-colors text-left cursor-pointer"
+                      className="text-xs text-slate-500 font-normal hover:text-[#668E20] transition-colors text-left cursor-pointer"
                     >
                       Ver ficha del paciente
                     </button>
@@ -62,8 +60,8 @@ export function ConsultationsTableView({
     {
       header: "Fecha",
       render: (item: Consultation) => (
-        <div className="flex items-center gap-2 text-slate-500 font-semibold text-xs">
-          <CalendarDays className="w-4 h-4 text-indigo-400" />
+        <div className="flex items-center gap-2 text-slate-700 font-medium text-sm">
+          <CalendarDays className="w-4 h-4 text-[#86A83C] shrink-0" />
           {formatDateOnlyForLocale(item.date, {
             day: "numeric",
             month: "short",
@@ -75,7 +73,7 @@ export function ConsultationsTableView({
     {
       header: "Sesión",
       render: (item: Consultation) => (
-        <span className="text-sm font-semibold text-slate-800 tracking-tight block max-w-xs truncate">
+        <span className="text-sm font-medium text-slate-800 tracking-tight block max-w-xs truncate">
           {item.title}
         </span>
       ),
@@ -85,41 +83,43 @@ export function ConsultationsTableView({
       className: "text-right",
       render: (item: Consultation) => (
         <div
-          className="flex items-center justify-end gap-1"
+          className="flex items-center justify-end gap-1.5 text-slate-400"
           onClick={(e) => e.stopPropagation()}
         >
           {!isInsidePatient && onViewPatient && (
             <button
               onClick={() => onViewPatient(item.patientId)}
-              className="group relative p-2.5 text-slate-400 hover:text-sky-600 hover:bg-sky-50 rounded-xl transition-all cursor-pointer"
+              className="p-1.5 text-slate-400 hover:text-[#668E20] hover:bg-[#F0F5DF] rounded-lg transition-colors cursor-pointer"
               title="Ver Paciente"
             >
-              <User className="w-4.5 h-4.5" />
+              <User className="w-4 h-4" />
             </button>
           )}
           {onEdit && (
             <button
               onClick={() => onEdit(item.id)}
-              className="group relative p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all cursor-pointer"
+              className="p-1.5 text-slate-400 hover:text-[#668E20] hover:bg-[#F0F5DF] rounded-lg transition-colors cursor-pointer"
               title="Editar Consulta"
             >
-              <Edit2 className="w-4.5 h-4.5" />
+              <Edit2 className="w-4 h-4" />
             </button>
           )}
           <button
             onClick={() => onViewConsultation(item.id)}
-            className="group relative p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all cursor-pointer"
+            className="p-1.5 text-slate-400 hover:text-[#668E20] hover:bg-[#F0F5DF] rounded-lg transition-colors cursor-pointer"
             title="Ver Consulta"
           >
-            <Eye className="w-4.5 h-4.5" />
+            <Eye className="w-4 h-4" />
           </button>
-          <button
-            onClick={() => onDelete(item.id)}
-            className="group relative p-2.5 text-slate-400 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
-            title="Eliminar"
-          >
-            <Trash2 className="w-4.5 h-4.5 text-rose-500" />
-          </button>
+          {onDelete && (
+            <button
+              onClick={() => onDelete(item.id)}
+              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50/70 rounded-lg transition-colors cursor-pointer"
+              title="Eliminar"
+            >
+              <Trash2 className="w-4 h-4 text-slate-400 hover:text-rose-500" />
+            </button>
+          )}
         </div>
       ),
     },
@@ -160,19 +160,19 @@ export function ConsultationsTableView({
             <div
               key={item.id}
               onClick={() => onViewConsultation(item.id)}
-              className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm active:scale-[0.99] transition-all space-y-3 cursor-pointer"
+              className="bg-white p-4 rounded-2xl border border-[#E9E5E7] shadow-2xs active:scale-[0.99] transition-all space-y-3 cursor-pointer"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="h-10 w-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold border border-indigo-100 shrink-0">
+                  <div className="h-10 w-10 rounded-xl bg-[#F0F5DF] flex items-center justify-center text-[#668E20] font-bold border border-[#DDE7B8] shrink-0">
                     {item.patientName?.charAt(0) || "P"}
                   </div>
                   <div className="min-w-0">
-                    <h3 className="font-bold text-slate-900 text-sm truncate">
+                    <h3 className="font-bold text-[#20212B] text-sm truncate">
                       {item.patientName || "Paciente"}
                     </h3>
-                    <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium mt-0.5">
-                      <CalendarDays className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                    <div className="flex items-center gap-1.5 text-xs text-[#626573] font-medium mt-0.5">
+                      <CalendarDays className="w-3.5 h-3.5 text-[#86A83C] shrink-0" />
                       <span>
                         {formatDateOnlyForLocale(item.date, {
                           day: "numeric",
@@ -186,26 +186,27 @@ export function ConsultationsTableView({
               </div>
 
               {item.title && (
-                <div className="rounded-xl bg-slate-50 border border-slate-100 px-3 py-2 text-xs font-semibold text-slate-700">
+                <div className="rounded-xl bg-slate-50 border border-[#E9E5E7] px-3 py-1.5 text-xs font-semibold text-slate-700">
                   {item.title}
                 </div>
               )}
 
-              <div className="flex items-center justify-between pt-2 border-t border-slate-100" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between pt-2 border-t border-[#F0ECEE]" onClick={(e) => e.stopPropagation()}>
                 {!isInsidePatient && onViewPatient ? (
                   <button
                     onClick={() => onViewPatient(item.patientId)}
-                    className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 cursor-pointer"
+                    className="text-xs font-bold text-[#668E20] hover:text-[#527518] flex items-center gap-1.5 cursor-pointer py-1 px-2 rounded-lg hover:bg-[#F0F5DF] transition-colors"
                   >
-                    Ver Ficha <User className="w-3.5 h-3.5" />
+                    <span>Ver Ficha</span>
+                    <User className="w-3.5 h-3.5" />
                   </button>
                 ) : <div />}
 
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1.5">
                   {onEdit && (
                     <button
                       onClick={() => onEdit(item.id)}
-                      className="p-2 text-slate-400 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 rounded-xl transition-all"
+                      className="p-2 text-[#848792] hover:text-[#668E20] bg-slate-50 hover:bg-[#F0F5DF] rounded-xl transition-all cursor-pointer"
                       title="Editar"
                     >
                       <Edit2 className="w-4 h-4" />
@@ -213,30 +214,33 @@ export function ConsultationsTableView({
                   )}
                   <button
                     onClick={() => onViewConsultation(item.id)}
-                    className="p-2 text-slate-400 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 rounded-xl transition-all"
-                    title="Ver"
+                    className="p-2 text-[#848792] hover:text-[#668E20] bg-slate-50 hover:bg-[#F0F5DF] rounded-xl transition-all cursor-pointer flex items-center gap-1.5 text-xs font-semibold"
+                    title="Ver Consulta"
                   >
-                    <Eye className="w-4 h-4" />
+                    <Eye className="w-4 h-4 text-[#86A83C]" />
+                    <span>Ver consulta</span>
                   </button>
-                  <button
-                    onClick={() => onDelete(item.id)}
-                    className="p-2 text-slate-400 hover:text-rose-600 bg-slate-50 hover:bg-rose-50 rounded-xl transition-all"
-                    title="Eliminar"
-                  >
-                    <Trash2 className="w-4 h-4 text-rose-500" />
-                  </button>
+                  {onDelete && (
+                    <button
+                      onClick={() => onDelete(item.id)}
+                      className="p-2 text-[#848792] hover:text-rose-600 bg-slate-50 hover:bg-rose-50 rounded-xl transition-all cursor-pointer"
+                      title="Eliminar"
+                    >
+                      <Trash2 className="w-4 h-4 text-rose-500" />
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
           ))
         ) : (
-          <div className="bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 p-8 text-center">
+          <div className="bg-slate-50 rounded-2xl border-2 border-dashed border-[#E9E5E7] p-8 text-center">
             <CalendarDays className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-            <p className="text-slate-500 text-sm font-medium">Sin consultas registradas</p>
+            <p className="text-[#626573] text-sm font-medium">Sin consultas registradas</p>
           </div>
         )}
 
-        {footer && <div className="pt-2">{footer}</div>}
+        {footer && <div className="pt-3 flex justify-center">{footer}</div>}
       </div>
     </div>
   );

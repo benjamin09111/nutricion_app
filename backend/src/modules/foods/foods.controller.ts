@@ -76,6 +76,8 @@ export class FoodsController {
   }
 
   @Get('market-prices')
+  @UseGuards(AuthGuard, PermissionsGuard)
+  @RequireFeatures(SPECIAL_FEATURES.MEMBERSHIP_SELECTED)
   getMarketPrices(@Query('limit') limit?: string) {
     return this.foodsService.getMarketPrices(limit ? Number(limit) : 7);
   }

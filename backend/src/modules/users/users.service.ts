@@ -20,6 +20,7 @@ import { DiscountCodesService } from '../discount-codes/discount-codes.service';
 import { ADMIN_ROLES } from '../permissions/permissions.constants';
 import { normalizeMembershipPlanKey } from '../memberships/plan-entitlements';
 import { resolveAccountPlanFromMembershipPlan } from '../memberships/account-plan';
+import { MatchNutritionistDto } from './dto/match-nutritionist.dto';
 
 const isAdminRole = (role: string) => ADMIN_ROLES.includes(role as any);
 const NUTRITIONIST_ROLES = ['NUTRITIONIST', 'NUTRITIONIST_DEVELOPER'] as const;
@@ -1333,6 +1334,234 @@ export class UsersService {
   /**
    * Get public nutritionist by slug
    */
+  /**
+   * Fast SQL match algorithm for top 3 public nutritionists
+   */
+  async matchPublicNutritionists(dto: MatchNutritionistDto) {
+    const {
+      goal,
+      mode,
+      location,
+      timePreference,
+      insurance,
+      smartSearch,
+      smartNotes,
+    } = dto;
+
+    const nutritionists = await this.prisma.nutritionist.findMany({
+      where: {
+        account: {
+          role: { in: [...NUTRITIONIST_ROLES] },
+          status: 'ACTIVE',
+        },
+        publicProfileEnabled: true,
+      },
+      select: {
+        id: true,
+        publicSlug: true,
+        fullName: true,
+        specialty: true,
+        phone: true,
+        avatarUrl: true,
+        headline: true,
+        bio: true,
+        consultationMode: true,
+        location: true,
+        publicProfileEnabled: true,
+        settings: true,
+        appointmentCalendars: {
+          select: {
+            id: true,
+            timeZone: true,
+            timeSlots: {
+              where: { isAvailable: true },
+              select: { dayOfWeek: true, hour: true },
+            },
+          },
+        },
+      },
+      orderBy: { fullName: 'asc' },
+    });
+
+    if (!nutritionists.length) {
+      return { totalEvaluated: 0, matches: [] };
+    }
+
+    const goalKeywords: Record<string, string[]> = {
+      peso: ['peso', 'grasa', 'sobrepeso', 'obesidad', 'composicion', 'deficit', 'bajar', 'control'],
+      deporte: ['deport', 'rendimiento', 'musculo', 'fitness', 'antropometria', 'atleta', 'isak', 'gimnasio', 'crossfit'],
+      digestivo: ['digestiv', 'colon', 'fodmap', 'sibo', 'gastritis', 'reflujo', 'inflamacion', 'gastro', 'intestino'],
+      clinico: ['clinica', 'diabetes', 'insulina', 'hipertension', 'colesterol', 'tiroides', 'renal', 'cronica'],
+      vegetariano: ['vegan', 'vegetarian', 'plant based', 'suplementacion', 'b12', 'vegetal'],
+      maternidad: ['embarazo', 'lactancia', 'pediat', 'infantil', 'postparto', 'materno', 'familiar'],
+    };
+
+    const targetKeywords = goal && goalKeywords[goal] ? goalKeywords[goal] : [];
+
+    const scored = nutritionists.map((nutri) => {
+      const sanitized = this.sanitizePublicProfile(nutri);
+      const settings = (nutri.settings as Record<string, any>) || {};
+      const calendar = nutri.appointmentCalendars?.[0] || null;
+      const slots = calendar?.timeSlots || [];
+
+      let score = 40;
+      const reasons: string[] = [];
+
+      // 1. Goal / Specialty (max 35 pts)
+      if (goal && targetKeywords.length > 0) {
+        const fullSearchText = [
+          sanitized.specialty || '',
+          sanitized.headline || '',
+          sanitized.bio || '',
+          ...(sanitized.specialties || []),
+          settings.conditionsTreated || '',
+          settings.patientTypes || '',
+        ].join(' ').toLowerCase();
+
+        let keywordHits = 0;
+        for (const kw of targetKeywords) {
+          if (fullSearchText.includes(kw)) {
+            keywordHits++;
+          }
+        }
+
+        if (keywordHits > 0) {
+          const goalPoints = Math.min(35, 20 + keywordHits * 5);
+          score += goalPoints;
+          if (goal === 'peso') reasons.push('Especialista en control de peso y grasa corporal');
+          else if (goal === 'deporte') reasons.push('Especialista en nutrición deportiva');
+          else if (goal === 'digestivo') reasons.push('Experiencia en salud digestiva y colon');
+          else if (goal === 'clinico') reasons.push('Enfoque en patologías y salud clínica');
+          else if (goal === 'vegetariano') reasons.push('Experiencia en dietas vegetarianas/veganas');
+          else if (goal === 'maternidad') reasons.push('Especialidad en nutrición materna e infantil');
+        } else {
+          score += 10;
+        }
+      } else {
+        score += 20;
+      }
+
+      // 2. Mode (max 25 pts)
+      const nutriMode = sanitized.consultationMode || 'online';
+      if (mode === 'online') {
+        if (nutriMode === 'online' || nutriMode === 'both') {
+          score += 25;
+          reasons.push('Consultas 100% online por videollamada');
+        } else {
+          score += 5;
+        }
+      } else if (mode === 'presencial') {
+        if (nutriMode === 'presencial' || nutriMode === 'both') {
+          score += 25;
+          reasons.push('Atención presencial en consulta');
+        } else {
+          score += 5;
+        }
+      } else {
+        score += 20;
+      }
+
+      // 3. Location (max 20 pts)
+      if (mode === 'presencial' && location && location.trim()) {
+        const locLower = location.toLowerCase().trim();
+        const nutriLoc = (sanitized.location || settings.officeAddress || '').toLowerCase();
+        if (nutriLoc.includes(locLower)) {
+          score += 20;
+          reasons.push(`Consulta en ${sanitized.location || location}`);
+        } else {
+          score += 5;
+        }
+      } else {
+        score += 15;
+      }
+
+      // 4. Schedule & Availability (max 15 pts)
+      if (sanitized.bookingEnabled && calendar && slots.length > 0) {
+        score += 5;
+        if (timePreference === 'morning') {
+          const hasMorning = slots.some((s) => s.hour >= 8 && s.hour < 13);
+          if (hasMorning) {
+            score += 10;
+            reasons.push('Horarios disponibles en la mañana');
+          } else {
+            score += 5;
+          }
+        } else if (timePreference === 'afternoon') {
+          const hasAfternoon = slots.some((s) => s.hour >= 13 && s.hour <= 20);
+          if (hasAfternoon) {
+            score += 10;
+            reasons.push('Horarios disponibles en la tarde');
+          } else {
+            score += 5;
+          }
+        } else if (timePreference === 'weekend') {
+          const hasWeekend = slots.some((s) => s.dayOfWeek === 0 || s.dayOfWeek === 6);
+          if (hasWeekend) {
+            score += 10;
+            reasons.push('Atención disponible los fines de semana');
+          } else {
+            score += 5;
+          }
+        } else {
+          score += 10;
+          reasons.push('Agenda online abierta con disponibilidad inmediata');
+        }
+      } else {
+        score += 5;
+      }
+
+      // 5. Insurance (max 5 pts)
+      if (insurance && insurance.trim()) {
+        const insLower = insurance.toLowerCase().trim();
+        const accepted = (settings.acceptedInsurance || '').toLowerCase();
+        if (accepted.includes(insLower)) {
+          score += 5;
+          reasons.push(`Acepta reembolso ${insurance.toUpperCase()}`);
+        }
+      } else {
+        score += 3;
+      }
+
+      // Smart notes bonus
+      if (smartSearch && smartNotes && smartNotes.trim()) {
+        const userNotes = smartNotes.toLowerCase();
+        const fullSearchText = [
+          sanitized.specialty || '',
+          sanitized.headline || '',
+          sanitized.bio || '',
+        ].join(' ').toLowerCase();
+
+        const words = userNotes.split(/\s+/).filter((w) => w.length > 3);
+        const matches = words.filter((w) => fullSearchText.includes(w));
+        if (matches.length > 0) {
+          score += 10;
+          reasons.push('Alta afinidad con tus especificaciones personalizadas');
+        }
+      }
+
+      // Normalize score to 86 - 99
+      const matchPercentage = Math.min(99, Math.max(86, Math.round((score / 140) * 100)));
+      const matchReason = reasons.slice(0, 2).join(' · ') || 'Excelente perfil profesional y disponibilidad';
+
+      return {
+        nutritionist: sanitized,
+        calendarId: calendar?.id || null,
+        availableSlotsCount: slots.length,
+        matchScore: score,
+        matchPercentage,
+        matchReason,
+      };
+    });
+
+    scored.sort((a, b) => b.matchScore - a.matchScore);
+    const top3 = scored.slice(0, 3);
+
+    return {
+      totalEvaluated: nutritionists.length,
+      matches: top3,
+    };
+  }
+
   async resolvePublicNutritionistBySlug(slug: string) {
     const nutritionist = await this.prisma.nutritionist.findUnique({
       where: { publicSlug: slug },

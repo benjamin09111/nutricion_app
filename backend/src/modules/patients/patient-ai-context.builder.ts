@@ -32,6 +32,9 @@ export type PatientAiContextSource = {
   dietRestrictions?: unknown;
   likes?: string | null;
   dislikedFoods?: unknown;
+  allergies?: unknown;
+  medications?: unknown;
+  habits?: unknown;
   customVariables?: unknown;
   clinicalRecord?: PatientAiClinicalRecord | null;
   consultations?: PatientAiConsultation[] | null;
@@ -263,6 +266,9 @@ export function buildPatientAiContext(
     dietRestrictions: normalizeDietRestrictions(source.dietRestrictions),
     likes: source.likes,
     dislikedFoods: normalizeStringList(source.dislikedFoods),
+    allergies: normalizeStringList(source.allergies),
+    medications: normalizeStringList(source.medications),
+    habits: normalizeStringList(source.habits),
     nutritionalFocus: source.nutritionalFocus,
     fitnessGoals: source.fitnessGoals,
     anamnesis: clinicalRecord?.nutritionalAnamnesis,

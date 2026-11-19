@@ -93,3 +93,5 @@ export enum FoodGroup {
   LACTEOS = "Lácteos",
   VARIOS = "Varios",
 }
+
+export * from "./local-catalog";

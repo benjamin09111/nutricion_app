@@ -827,7 +827,7 @@ export default function ConsultationFormClient({ id }: ConsultationFormProps) {
                                 </span>
                                 <ArrowUpRight className="w-4 h-4 text-slate-400 group-hover:text-white group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
                             </div>
-                            <span className="font-bold text-sm text-white">Entregable Rápido</span>
+                            <span className="font-bold text-sm text-white">Rápido</span>
                             <span className="text-[11px] text-slate-300 mt-0.5">Arma una pauta express o minuta rápida</span>
                         </Link>
 

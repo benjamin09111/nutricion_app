@@ -578,8 +578,8 @@ export class FoodsService {
             }
           : {}),
       },
-      skip: (page - 1) * limit,
-      take: limit,
+      skip: (Math.max(1, Number(page) || 1) - 1) * Math.min(Math.max(1, Number(limit) || 20), 50),
+      take: Math.min(Math.max(1, Number(limit) || 20), 50),
       orderBy: { name: 'asc' },
     });
 

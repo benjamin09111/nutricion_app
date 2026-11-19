@@ -53,12 +53,27 @@ import { PatientProgressTab } from "@/features/patients/components/PatientProgre
 import { PatientAcompanamientoTab } from "@/features/patients/components/PatientAcompanamientoTab";
 import { PatientCreationsTab } from "@/features/patients/components/PatientCreationsTab";
 import { PatientTestsTab } from "@/features/patients/components/PatientTestsTab";
+import { ClinicalRecordPreviewModal } from "@/features/patients/components/ClinicalRecordPreviewModal";
 import { cn, formatDateOnlyForLocale } from "@/features/patients/utils/patient-helpers";
 import { formatPhone } from "@/lib/utils";
 
 interface PatientDetailClientProps {
   id: string;
 }
+
+const getBmiBadgeStyle = (classification?: string | null) => {
+  const lower = (classification || "").toLowerCase();
+  if (lower.includes("normopeso") || lower.includes("eutrófico")) {
+    return "bg-[#F0F5DF] text-[#668E20] border-[#DDE7B8]";
+  }
+  if (lower.includes("bajo") || lower.includes("enflaquecido") || lower.includes("desnutri")) {
+    return "bg-blue-50 text-blue-700 border-blue-200";
+  }
+  if (lower.includes("sobrepeso")) {
+    return "bg-amber-50 text-amber-700 border-amber-200";
+  }
+  return "bg-rose-50 text-rose-700 border-rose-200";
+};
 
 function getValidationAlerts(
   patient: Patient,
@@ -142,6 +157,7 @@ function getValidationAlerts(
 
 export default function PatientDetailClient({ id }: PatientDetailClientProps) {
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const [isClinicalRecordPdfOpen, setIsClinicalRecordPdfOpen] = useState(false);
   const router = useRouter();
   const state = usePatientDetailState({ id });
   const { currentPlan, can, plan } = useSubscription();
@@ -245,9 +261,9 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                 onClick={state.toggleStatus}
                 title={patient.status !== "Inactive" ? "Activo — clic para desactivar" : "Inactivo — clic para activar"}
                 className={cn(
-                  "w-2 h-2 rounded-full cursor-pointer transition-all border-2 shrink-0",
+                  "w-2.5 h-2.5 rounded-full cursor-pointer transition-all border-2 shrink-0",
                   patient.status !== "Inactive"
-                    ? "bg-emerald-500 border-emerald-200 shadow-[0_0_6px_rgba(16,185,129,0.5)]"
+                    ? "bg-[#668E20] border-[#DDE7B8] shadow-[0_0_6px_rgba(102,142,32,0.4)]"
                     : "bg-slate-300 border-slate-200",
                 )}
               />
@@ -262,25 +278,37 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
               <>
                 <button
                   onClick={() => router.push("/dashboard/consultas/nueva?patientId=" + patient.id)}
-                    className="h-8 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-all active:scale-95 cursor-pointer flex items-center gap-1.5"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Nueva consulta</span>
-                  </button>
+                  className="h-8 px-3 rounded-xl bg-[#86A83C] hover:bg-[#78A82F] text-white font-semibold text-xs transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Nueva consulta</span>
+                </button>
 
-                  <button
-                    onClick={() => {
-                      if (currentPlan?.key === "free") {
-                        setIsUpgradeModalOpen(true);
-                      } else {
-                        state.handleEdit();
-                      }
-                    }}
-                    className="h-8 w-8 rounded-xl border border-slate-200 text-slate-500 bg-white hover:bg-slate-50 hover:text-indigo-600 transition-all cursor-pointer flex items-center justify-center"
-                    title="Editar paciente"
-                  >
-                    <Edit2 className="w-3.5 h-3.5" />
-                  </button>
+                <button
+                  type="button"
+                  onClick={() => setIsClinicalRecordPdfOpen(true)}
+                  className="h-8 px-3 rounded-xl border border-slate-200 bg-white hover:bg-[#F0F5DF] text-[#668E20] hover:border-[#DDE7B8] font-semibold text-xs transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                  title="Ver ficha clínica en PDF"
+                >
+                  <FileText className="w-3.5 h-3.5 text-[#86A83C]" />
+                  <span className="hidden sm:inline">Ver ficha clínica en PDF</span>
+                  <span className="sm:hidden">Ficha PDF</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    if (currentPlan?.key === "free") {
+                      setIsUpgradeModalOpen(true);
+                    } else {
+                      state.handleEdit();
+                    }
+                  }}
+                  className="h-8 w-8 rounded-xl border border-slate-200 text-slate-500 bg-white hover:bg-[#F0F5DF] hover:text-[#668E20] hover:border-[#DDE7B8] transition-all cursor-pointer flex items-center justify-center"
+                  title="Editar paciente"
+                  aria-label="Editar paciente"
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                </button>
 
                   <div className="relative">
                     <button
@@ -403,8 +431,10 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
             <div className="flex flex-wrap items-center gap-2 pt-0.5">
               {bmi && (
                 <span
-                  className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full text-white"
-                  style={{ backgroundColor: bmi.color }}
+                  className={cn(
+                    "inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-lg border shadow-2xs",
+                    getBmiBadgeStyle(bmi.classification)
+                  )}
                 >
                   IMC {bmi.bmi} · {bmi.classification}
                 </span>
@@ -436,8 +466,8 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
             {/* Card 1: Estado nutricional */}
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
               <div className="flex items-center gap-2 mb-3">
-                <div className="p-1.5 bg-indigo-50 rounded-lg">
-                  <TrendingUp className="w-3.5 h-3.5 text-indigo-600" />
+                <div className="p-1.5 bg-[#F0F5DF] rounded-lg">
+                  <TrendingUp className="w-3.5 h-3.5 text-[#668E20]" />
                 </div>
                 <h3 className="text-[10px] font-black uppercase tracking-wider text-slate-500">Estado nutricional</h3>
               </div>
@@ -461,8 +491,10 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                     </div>
                   </div>
                   <span
-                    className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold text-white w-full text-center"
-                    style={{ backgroundColor: bmi.color }}
+                    className={cn(
+                      "inline-block px-2.5 py-1 rounded-lg text-xs font-semibold border shadow-2xs w-full text-center",
+                      getBmiBadgeStyle(bmi.classification)
+                    )}
                   >
                     {bmi.classification}
                   </span>
@@ -616,7 +648,7 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
                 tab.disabled || (isEditing && tab.label !== "Ficha clínica")
                   ? "text-slate-300 bg-transparent cursor-not-allowed"
                   : state.activeTab === tab.label
-                  ? "text-emerald-700 bg-white shadow-sm cursor-pointer"
+                  ? "text-[#668E20] bg-white shadow-2xs font-bold cursor-pointer"
                   : "text-slate-600 hover:bg-white/60 hover:text-slate-900 cursor-pointer",
               )}
             >
@@ -934,6 +966,12 @@ export default function PatientDetailClient({ id }: PatientDetailClientProps) {
         isOpen={isUpgradeModalOpen}
         onClose={() => setIsUpgradeModalOpen(false)}
         description="Editar la información de un paciente es una característica exclusiva de los planes de pago. Mejora tu plan para actualizar los datos de tus pacientes."
+      />
+
+      <ClinicalRecordPreviewModal
+        isOpen={isClinicalRecordPdfOpen}
+        onClose={() => setIsClinicalRecordPdfOpen(false)}
+        patient={patient}
       />
     </div>
   );

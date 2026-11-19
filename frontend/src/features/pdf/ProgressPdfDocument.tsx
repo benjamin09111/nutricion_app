@@ -1,6 +1,11 @@
 import React from "react";
 import { Document, Page, StyleSheet, Text, View, Image } from "@react-pdf/renderer";
-import { colors, shared } from "./styles/pdfStyles";
+import { colors } from "./styles/pdfStyles";
+import {
+  PdfBrandedHeader,
+  PdfSectionHeader,
+  PdfBrandedFooter,
+} from "./components";
 
 export interface MetricSummary {
   key: string;
@@ -23,321 +28,217 @@ export interface ProgressPdfData {
 
 const S = StyleSheet.create({
   page: {
-    ...shared.page,
-  },
-  coverHeader: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 32,
-    paddingTop: 18,
-    paddingBottom: 18,
-    marginHorizontal: -32,
-    marginTop: -30,
-    marginBottom: 16,
-  },
-  coverHeaderTop: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  coverBrand: {
-    fontSize: 22,
-    fontFamily: "Helvetica-Bold",
-    color: colors.white,
-    lineHeight: 1.2,
-  },
-  coverSubtitle: {
-    fontSize: 9,
-    color: "rgba(255,255,255,0.85)",
-    fontFamily: "Helvetica-Bold",
-    textTransform: "uppercase" as const,
-    letterSpacing: 0.8,
-    lineHeight: 1.2,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    marginBottom: 10,
-  },
-  coverHeaderBottom: {
-    flexDirection: "column",
-  },
-  patientName: {
-    fontSize: 18,
-    fontFamily: "Helvetica-Bold",
-    color: colors.white,
-    lineHeight: 1.25,
-    marginBottom: 4,
-  },
-  metaRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  metaText: {
-    fontSize: 8,
-    color: "rgba(255,255,255,0.75)",
+    backgroundColor: colors.white,
     fontFamily: "Helvetica",
-    lineHeight: 1.2,
+    paddingTop: 24,
+    paddingBottom: 24,
+    paddingHorizontal: 28,
+    fontSize: 9,
+    lineHeight: 1.4,
+    color: colors.slate800,
   },
-
-  // Charts grid — 2 per row
+  section: {
+    marginBottom: 8,
+  },
+  tableWrapper: {
+    borderWidth: 1,
+    borderColor: colors.slate200,
+    borderRadius: 8,
+    overflow: "hidden",
+    marginBottom: 8,
+  },
+  tableHeader: {
+    flexDirection: "row",
+    backgroundColor: colors.slate50,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.slate200,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+  },
+  tableHeaderCell: {
+    fontSize: 7.5,
+    fontFamily: "Helvetica-Bold",
+    color: colors.slate600,
+    textTransform: "uppercase",
+  },
+  tableRow: {
+    flexDirection: "row",
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.slate100,
+    alignItems: "center",
+  },
+  tableRowAlt: {
+    backgroundColor: colors.slate50,
+  },
+  tableCell: {
+    fontSize: 8,
+    color: colors.slate700,
+  },
+  tableCellBold: {
+    fontSize: 8,
+    color: colors.primaryDark,
+    fontFamily: "Helvetica-Bold",
+  },
+  // Charts grid
   chartsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 10,
-    marginTop: 6,
+    gap: 8,
+    marginTop: 4,
   },
   chartBlock: {
     width: "48%",
-    marginBottom: 12,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.slate200,
+    borderRadius: 10,
+    padding: 6,
+    marginBottom: 6,
   },
-
   chartTitle: {
-    fontSize: 10.5,
+    fontSize: 9,
     fontFamily: "Helvetica-Bold",
-    color: colors.slate900,
+    color: colors.primaryDark,
     marginBottom: 3,
-  },
-  chartUnit: {
-    fontSize: 7,
-    color: colors.slate500,
   },
   chartImage: {
     width: "100%",
-    height: 120,
-    borderRadius: 4,
-    objectFit: "contain" as const,
+    height: 100,
+    objectFit: "contain",
+    borderRadius: 6,
+    marginBottom: 4,
   },
-
-  // Stats inside chart block
   statsRow: {
     flexDirection: "row",
     gap: 4,
-    marginTop: 6,
   },
   statBox: {
     flex: 1,
     backgroundColor: colors.slate50,
     borderRadius: 4,
-    paddingVertical: 5,
-    paddingHorizontal: 4,
-    border: `1px solid ${colors.slate100}`,
+    padding: 3,
     alignItems: "center",
   },
-  statValue: {
-    fontSize: 12,
+  statVal: {
+    fontSize: 8,
     fontFamily: "Helvetica-Bold",
-    color: colors.slate900,
+    color: colors.primaryDark,
   },
-  statLabel: {
+  statLbl: {
     fontSize: 6,
     color: colors.slate500,
-    textTransform: "uppercase" as const,
-    textAlign: "center" as const,
-    marginTop: 1,
   },
-
-  // Summary table (kept as overview)
-  section: {
-    marginTop: 12,
-    marginBottom: 8,
-  },
-  sectionTitle: {
-    fontSize: 13,
-    fontFamily: "Helvetica-Bold",
-    color: colors.primary,
-    textTransform: "uppercase" as const,
-    letterSpacing: 0.5,
-    marginBottom: 6,
-    paddingBottom: 3,
-    borderBottom: `1px solid ${colors.primaryLight}`,
-  },
-  tableHeader: {
-    flexDirection: "row",
-    backgroundColor: colors.slate900,
-    borderRadius: 3,
-    paddingVertical: 4,
-    paddingHorizontal: 6,
-    marginBottom: 1,
-  },
-  tableHeaderCell: {
-    fontSize: 7,
-    color: colors.white,
-    fontFamily: "Helvetica-Bold",
-    textTransform: "uppercase" as const,
-    letterSpacing: 0.3,
-  },
-  tableRow: {
-    flexDirection: "row",
-    paddingVertical: 4,
-    paddingHorizontal: 6,
-    borderBottom: `1px solid ${colors.slate100}`,
-    alignItems: "center",
-  },
-  tableCell: {
-    fontSize: 8.5,
-    color: colors.slate700,
-  },
-  tableCellBold: {
-    fontSize: 8.5,
-    fontFamily: "Helvetica-Bold",
-    color: colors.slate900,
-  },
-
   emptyText: {
     fontSize: 8,
-    color: colors.slate500,
-    textAlign: "center" as const,
-    marginTop: 10,
-  },
-
-  pageFooter: {
-    position: "absolute",
-    bottom: 18,
-    left: 32,
-    right: 32,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    borderTop: `1px solid ${colors.slate300}`,
-    paddingTop: 6,
-  },
-  pageFooterText: {
-    fontSize: 8,
-    color: colors.slate500,
-  },
-  pageFooterBrand: {
-    fontSize: 8,
-    color: colors.primary,
-    fontFamily: "Helvetica-Bold",
+    color: colors.slate400,
+    fontStyle: "italic",
+    paddingVertical: 10,
+    textAlign: "center",
   },
 });
 
 export function ProgressPdfDocument({ data }: { data: ProgressPdfData }) {
-  const date = new Date(data.generatedAt).toLocaleDateString("es-ES", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  });
+  const chartKeys = Object.keys(data.chartImages);
 
-  const chartKeys = data.metrics.map((m) => m.key);
+  const extraMeta = [
+    { label: "Período", value: `${data.dateFrom || "Inicio"} — ${data.dateTo || "Hoy"}` },
+    { label: "Métricas", value: `${data.metrics.length}` },
+  ];
 
   return (
     <Document>
       <Page size="A4" style={S.page}>
-        {/* Header */}
-        <View style={S.coverHeader}>
-          <View style={S.coverHeaderTop}>
-            <Text style={S.coverBrand}>NutriNet</Text>
-            <Text style={S.coverSubtitle}>Informe de Evolución Biométrica</Text>
-          </View>
+        <PdfBrandedHeader
+          title="Informe de Evolución Biométrica"
+          subtitle="Seguimiento Histórico & Tendencias Clínicas"
+          badgeLabel="Progreso Clínico"
+          objective="Análisis comparativo de hitos antropométricos y progreso del paciente."
+          patientName={data.patientName}
+          date={data.generatedAt}
+          extraMeta={extraMeta}
+        />
 
-          <View style={S.divider} />
-
-          <View style={S.coverHeaderBottom}>
-            <Text style={S.patientName}>{data.patientName}</Text>
-            <View style={S.metaRow}>
-              <Text style={S.metaText}>Generado el {date}</Text>
-              {data.dateFrom && data.dateTo && (
-                <Text style={S.metaText}>
-                  Período: {data.dateFrom} — {data.dateTo}
-                </Text>
-              )}
-            </View>
-          </View>
-        </View>
-
-        {/* Summary Table */}
-        {data.metrics.length > 0 && (
+        {data.metrics.length > 0 ? (
           <View style={S.section}>
-            <Text style={S.sectionTitle}>Resumen de Cambios</Text>
-            <View style={S.tableHeader}>
-              <Text style={{ ...S.tableHeaderCell, flex: 2 }}>Métrica</Text>
-              <Text style={{ ...S.tableHeaderCell, flex: 1.3 }}>Inicio</Text>
-              <Text style={{ ...S.tableHeaderCell, flex: 1.3 }}>Actual</Text>
-              <Text style={{ ...S.tableHeaderCell, flex: 1 }}>Cambio</Text>
-            </View>
-            {data.metrics.map((m, i) => (
-              <View
-                key={m.key}
-                style={[
-                  S.tableRow,
-                  i % 2 === 1
-                    ? { backgroundColor: colors.slate50 } as any
-                    : {},
-                ]}
-              >
-                <Text style={{ ...S.tableCellBold, flex: 2 }}>{m.label}</Text>
-                <Text style={{ ...S.tableCell, flex: 1.3 }}>
-                  {m.firstValue} {m.unit}
-                </Text>
-                <Text style={{ ...S.tableCell, flex: 1.3 }}>
-                  {m.lastValue} {m.unit}
-                </Text>
-                <Text
-                  style={{
-                    ...S.tableCell,
-                    flex: 1,
-                    fontFamily: "Helvetica-Bold",
-                    color: m.diffColor,
-                  }}
-                >
-                  {m.diff}
-                </Text>
+            <PdfSectionHeader title="Resumen de Cambios & Hitos" icon="chart" />
+            <View style={S.tableWrapper}>
+              <View style={S.tableHeader}>
+                <Text style={{ ...S.tableHeaderCell, flex: 2 }}>Métrica</Text>
+                <Text style={{ ...S.tableHeaderCell, flex: 1.2, textAlign: "center" }}>Inicio</Text>
+                <Text style={{ ...S.tableHeaderCell, flex: 1.2, textAlign: "center" }}>Actual</Text>
+                <Text style={{ ...S.tableHeaderCell, flex: 1.2, textAlign: "center" }}>Variación</Text>
               </View>
-            ))}
+
+              {data.metrics.map((m, i) => (
+                <View key={m.key} style={[S.tableRow, i % 2 === 1 ? S.tableRowAlt : {}]}>
+                  <Text style={{ ...S.tableCellBold, flex: 2 }}>{m.label}</Text>
+                  <Text style={{ ...S.tableCell, flex: 1.2, textAlign: "center" }}>
+                    {m.firstValue} {m.unit}
+                  </Text>
+                  <Text style={{ ...S.tableCell, flex: 1.2, textAlign: "center" }}>
+                    {m.lastValue} {m.unit}
+                  </Text>
+                  <Text
+                    style={{
+                      ...S.tableCell,
+                      flex: 1.2,
+                      textAlign: "center",
+                      fontFamily: "Helvetica-Bold",
+                      color: m.diffColor || colors.secondaryDark,
+                    }}
+                  >
+                    {m.diff}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        ) : (
+          <Text style={S.emptyText}>Sin datos de evolución registrados para este paciente.</Text>
+        )}
+
+        {/* Gráficos de evolución */}
+        {chartKeys.length > 0 && (
+          <View style={S.section}>
+            <PdfSectionHeader title="Gráficos de Tendencia" icon="chart" />
+            <View style={S.chartsGrid}>
+              {chartKeys.map((key) => {
+                const m = data.metrics.find((mt) => mt.key === key);
+                const imgSrc = data.chartImages[key];
+                if (!imgSrc || !m) return null;
+
+                return (
+                  <View key={key} style={S.chartBlock} wrap={false}>
+                    <Text style={S.chartTitle}>
+                      {m.label} ({m.unit})
+                    </Text>
+                    <Image src={imgSrc} style={S.chartImage} />
+                    <View style={S.statsRow}>
+                      <View style={S.statBox}>
+                        <Text style={S.statVal}>{m.firstValue}</Text>
+                        <Text style={S.statLbl}>INICIAL</Text>
+                      </View>
+                      <View style={S.statBox}>
+                        <Text style={S.statVal}>{m.lastValue}</Text>
+                        <Text style={S.statLbl}>ACTUAL</Text>
+                      </View>
+                      <View style={S.statBox}>
+                        <Text style={{ ...S.statVal, color: m.diffColor || colors.secondaryDark }}>
+                          {m.diff}
+                        </Text>
+                        <Text style={S.statLbl}>CAMBIO</Text>
+                      </View>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
           </View>
         )}
 
-        {data.metrics.length === 0 && (
-          <Text style={S.emptyText}>
-            Sin datos de evolución registrados para este paciente.
-          </Text>
-        )}
-
-        {/* Charts — 2 per row */}
-        <View style={S.chartsGrid}>
-          {chartKeys.map((key) => {
-            const m = data.metrics.find((mt) => mt.key === key);
-            const imgSrc = data.chartImages[key];
-            if (!imgSrc || !m) return null;
-
-            return (
-              <View key={key} style={S.chartBlock} wrap={false}>
-                <Text style={S.chartTitle}>
-                  {m.label}{" "}
-                  <Text style={S.chartUnit}>({m.unit})</Text>
-                </Text>
-                <Image src={imgSrc} style={S.chartImage} />
-                <View style={S.statsRow}>
-                  <View style={S.statBox}>
-                    <Text style={S.statValue}>{m.firstValue}</Text>
-                    <Text style={S.statLabel}>INICIAL</Text>
-                  </View>
-                  <View style={S.statBox}>
-                    <Text style={S.statValue}>{m.lastValue}</Text>
-                    <Text style={S.statLabel}>ACTUAL</Text>
-                  </View>
-                  <View style={S.statBox}>
-                    <Text style={{ ...S.statValue, color: m.diffColor }}>
-                      {m.diff}
-                    </Text>
-                    <Text style={S.statLabel}>CAMBIO</Text>
-                  </View>
-                </View>
-              </View>
-            );
-          })}
-        </View>
-
-        {/* Footer */}
-        <View style={S.pageFooter} fixed>
-          <Text style={S.pageFooterText}>
-            NutriNet — Informe de Evolución Biométrica
-          </Text>
-          <Text style={S.pageFooterBrand}>NutriNet</Text>
-        </View>
+        <PdfBrandedFooter />
       </Page>
     </Document>
   );

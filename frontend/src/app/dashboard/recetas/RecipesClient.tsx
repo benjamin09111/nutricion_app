@@ -108,16 +108,19 @@ export default function RecipesClient() {
       />
 
       <ModuleLayout
-        title="Cuantificación: Recetas y Porciones"
+        title="Recetas y Porciones"
         description={
-          <div className="space-y-4">
-            <p>
+          <div className="space-y-1">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-[#668E20] -mt-0.5 mb-0.5">
+              <ChefHat className="w-4 h-4 text-[#86A83C]" />
+              <span className="tracking-wider uppercase text-[10px] font-bold">Cuantificación y Recetario</span>
+            </div>
+            <p className="text-sm sm:text-[15px] text-[#626573] leading-relaxed">
               Transforma tu estrategia en platos concretos. Navega por etapas para revisar el contexto, la configuración y el planificador sin perder espacio visual.
             </p>
           </div>
         }
         className="max-w-none"
-
       >
         <WorkflowContextBanner
           projectName={state.currentProjectName}

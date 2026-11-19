@@ -2,8 +2,8 @@ export enum CreationType {
   DIET = "Dieta",
   SHOPPING_LIST = "Lista de Compras",
   RECIPE = "Receta",
-  FAST_DELIVERABLE = "Entregable Rápido",
-  PAUTAS = "Pauta de Alimentación",
+  FAST_DELIVERABLE = "Rápido",
+  PAUTAS = "Personalizado",
   SCREENING_TEST = "Test de Tamizaje",
   OTHER = "Otro",
 }

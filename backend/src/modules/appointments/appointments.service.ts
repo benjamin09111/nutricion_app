@@ -474,7 +474,22 @@ export class AppointmentsService {
       where: { token },
       include: {
         calendar: {
-          include: { nutritionist: { include: { account: true } } },
+          select: {
+            id: true,
+            nutritionistId: true,
+            name: true,
+            title: true,
+            description: true,
+            timeZone: true,
+            nutritionist: {
+              select: {
+                id: true,
+                fullName: true,
+                avatarUrl: true,
+                specialty: true,
+              },
+            },
+          },
         },
       },
     });
@@ -484,8 +499,15 @@ export class AppointmentsService {
     }
 
     return {
-      ...bookingLink,
+      id: bookingLink.id,
       calendarId: bookingLink.calendarId,
+      token: bookingLink.token,
+      url: bookingLink.url,
+      allowedUses: bookingLink.allowedUses,
+      expiresAt: bookingLink.expiresAt,
+      metadata: bookingLink.metadata as Record<string, unknown> | null,
+      createdAt: bookingLink.createdAt,
+      updatedAt: bookingLink.updatedAt,
       nutritionistId: bookingLink.calendar.nutritionistId,
       nutritionistName:
         bookingLink.calendar.nutritionist?.fullName ||
@@ -494,7 +516,6 @@ export class AppointmentsService {
       description: bookingLink.calendar.description,
       timeZone: normalizeCalendarTimeZone(bookingLink.calendar.timeZone),
       timezone: normalizeCalendarTimeZone(bookingLink.calendar.timeZone),
-      metadata: bookingLink.metadata as Record<string, unknown> | null,
     };
   }
 
@@ -505,7 +526,6 @@ export class AppointmentsService {
       where: { id: query.calendarId },
       include: {
         timeSlots: true,
-        nutritionist: { include: { account: true } },
       },
     });
 

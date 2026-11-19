@@ -1,20 +1,34 @@
 import * as path from "path";
 import * as fs from "fs";
-import { MarketPrice } from "@/features/foods";
+import { MarketPrice, OFFICIAL_MARKET_PRICES } from "@/features/foods";
 
 export function getDietBaseFoods(): MarketPrice[] {
   try {
-    const filePath = path.resolve(process.cwd(), "dietabase.csv");
+    const candidatePaths = [
+      path.resolve(process.cwd(), "dietabase.csv"),
+      path.resolve(process.cwd(), "frontend", "dietabase.csv"),
+      path.resolve(__dirname, "../../dietabase.csv"),
+      path.resolve(__dirname, "../../../dietabase.csv"),
+      path.resolve(__dirname, "../../../../frontend/dietabase.csv"),
+    ];
 
-    if (!fs.existsSync(filePath)) {
-      console.error("Diet base file not found at:", filePath);
-      return [];
+    const filePath = candidatePaths.find((p) => {
+      try {
+        return fs.existsSync(p);
+      } catch {
+        return false;
+      }
+    });
+
+    if (!filePath) {
+      console.warn("Diet base CSV file not found in paths, using default catalog fallback.");
+      return (OFFICIAL_MARKET_PRICES || []).slice(0, 74) as unknown as MarketPrice[];
     }
 
     const fileContent = fs.readFileSync(filePath, "utf-8");
     const lines = fileContent.split("\n");
 
-    return lines
+    const parsed = lines
       .filter((line) => line.trim() !== "")
       .map((line, index) => {
         const parts = line.split(",");
@@ -32,12 +46,16 @@ export function getDietBaseFoods(): MarketPrice[] {
           fibra: parseFloat(parts[7]) || 0,
           sodio: parseFloat(parts[8]) || 0,
           unidad: parts[9]?.trim() || "g",
-          precioPromedio: 0, // No price in this base file for now
+          precioPromedio: 0,
           tags: [],
         };
-      });
+      })
+      .filter((food) => Boolean(food.producto));
+
+    if (parsed.length > 0) return parsed;
+    return (OFFICIAL_MARKET_PRICES || []).slice(0, 74) as unknown as MarketPrice[];
   } catch (error) {
-    console.error("Error reading diet base foods:", error);
-    return [];
+    console.error("Error reading diet base foods, using fallback:", error);
+    return (OFFICIAL_MARKET_PRICES || []).slice(0, 74) as unknown as MarketPrice[];
   }
 }

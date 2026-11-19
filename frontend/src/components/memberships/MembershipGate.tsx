@@ -5,12 +5,14 @@ import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { getCurrentUser } from "@/lib/current-user";
+import { isGuestMode } from "@/lib/demo-local-api";
 
 export function MembershipGate({ children }: { children: React.ReactNode }) {
   const { requiresPlanSelection, isLoading, membershipError, refreshSubscription } = useSubscription();
   const router = useRouter();
 
   useEffect(() => {
+    if (isGuestMode()) return;
     if (isLoading || membershipError) return;
 
     const user = getCurrentUser();
@@ -58,6 +60,10 @@ export function MembershipGate({ children }: { children: React.ReactNode }) {
         </div>
       </div>
     );
+  }
+
+  if (isGuestMode()) {
+    return <>{children}</>;
   }
 
   const currentUser = getCurrentUser();

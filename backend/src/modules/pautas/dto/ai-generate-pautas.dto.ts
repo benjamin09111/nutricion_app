@@ -45,6 +45,21 @@ export class PautaPatientDto {
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
+  allergies?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  medications?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  habits?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
   restrictions?: string[];
 
   @IsOptional()

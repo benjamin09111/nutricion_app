@@ -1,19 +1,20 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { GraduationCap, ChevronDown, ChevronUp, Calculator, User, Filter, Download, Loader2, RotateCcw, Lock, Save, Apple, MessageCircleHeart } from "lucide-react";
+import Image from "next/image";
+import { ChevronDown, ChevronUp, Calculator, User, Filter, Loader2, RotateCcw, Lock, Apple, MessageCircleHeart, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Textarea";
 import { ActionDockItem } from "@/components/ui/ActionDock";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { ModuleUsageBadges } from "@/components/shared/ModuleUsageBadges";
 import { WorkflowContextBanner } from "@/components/shared/WorkflowContextBanner";
-import { PlanWizardShell } from "@/components/plans";
+import { NatyLoadingOverlay, PlanWizardShell } from "@/components/plans";
+import { NatyPlanChatDemo } from "@/components/plans/NatyPlanChatDemo";
 import { MarketPrice } from "@/features/foods";
 
 import { useDietState } from "@/features/diet/hooks/useDietState";
 import { DietPatientSection } from "@/features/diet/components/DietPatientSection";
-import { DietTemplateImportSection } from "@/features/diet/components/DietTemplateImportSection";
 import { DietConstraintSection } from "@/features/diet/components/DietConstraintSection";
 import { DietMacroSection } from "@/features/diet/components/DietMacroSection";
 import { DietPlannerSection } from "@/features/diet/components/DietPlannerSection";
@@ -25,15 +26,16 @@ import { DietModals } from "@/features/diet/components/DietModals";
 import { FreemiumUpgradeModal } from "@/components/memberships/FreemiumUpgradeModal";
 import { FoodReferenceBook } from "@/components/foods/FoodReferenceBook";
 import { ImportCreationModal } from "@/components/shared/ImportCreationModal";
+import { Modal } from "@/components/ui/Modal";
 import {
   findNewlyAddedTag,
   hasTagInList,
   normalizeConstraintList,
   buildFoodInfoPreview,
 } from "@/features/diet/utils/diet-helpers";
-import { useRouter } from "next/navigation";
 import { getTodayDateInputValue } from "@/features/patients/utils/patient-helpers";
 import { toast } from "sonner";
+import { isGuestMode } from "@/lib/demo-local-api";
 
 import { DietMealsSection, DietMealTableRow } from "@/features/diet/components/DietMealsSection";
 
@@ -54,8 +56,7 @@ const WIZARD_STEPS = [
 const QUICK_WIZARD_STEPS = ["Info general", "Dieta", "Plan final"];
 
 export default function DietClient({ initialFoods }: DietClientProps) {
-  const router = useRouter();
-  const state = useDietState({ initialFoods, startEmpty: true });
+  const state = useDietState({ initialFoods, startEmpty: false });
   const wizardSteps = state.flowMode === "quick" ? QUICK_WIZARD_STEPS : WIZARD_STEPS;
   const finalStepIndex = wizardSteps.length - 1;
   const currentStep = state.currentStep;
@@ -64,6 +65,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
   const [showMacroCalculator, setShowMacroCalculator] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [isFoodReferenceBookOpen, setIsFoodReferenceBookOpen] = useState(false);
+  const [isNatyChatOpen, setIsNatyChatOpen] = useState(false);
 
   const [isImportRecipeModalOpen, setIsImportRecipeModalOpen] = useState(false);
 
@@ -75,7 +77,18 @@ export default function DietClient({ initialFoods }: DietClientProps) {
     }
 
     const newMeals: DietMealBlock[] = [];
-    const rawDishes = content.dishes || content.recipes || content.meals || [];
+    const canonicalMeals = content.planContext?.plan?.meals;
+    const rawDishes =
+      content.dishes ||
+      content.recipes ||
+      content.meals ||
+      (Array.isArray(canonicalMeals)
+        ? canonicalMeals.map((meal: any) => ({
+            ...meal,
+            name: meal.mealText || meal.section,
+            title: meal.mealText || meal.section,
+          }))
+        : []);
     if (Array.isArray(rawDishes) && rawDishes.length > 0) {
       rawDishes.forEach((dish: any, idx: number) => {
         const ingredientsList = Array.isArray(dish.ingredients)
@@ -170,7 +183,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
       : fullStepCompletion;
 
     return completion.reduce<number[]>((completed, isComplete, index) => {
-      if (isComplete) completed.push(index);
+      if (index < currentStep && isComplete) completed.push(index);
       return completed;
     }, []);
   }, [
@@ -189,20 +202,31 @@ export default function DietClient({ initialFoods }: DietClientProps) {
   const actionItems: ActionDockItem[] = useMemo(
     () => [
       {
-        id: "reset",
-        icon: RotateCcw,
-        label: "Reiniciar",
-        description: "Reiniciar plan",
-        variant: "rose",
-        onClick: () => state.setIsResetConfirmOpen(true),
+        id: "patient",
+        icon: state.isLoadingPatients ? Loader2 : User,
+        label: state.selectedPatient?.fullName || "Importar paciente",
+        description: state.selectedPatient ? "Cambiar paciente" : "Importar paciente",
+        variant: state.selectedPatient ? "emerald" : "slate",
+        disabled: state.isLoadingPatients,
+        onClick: () => state.setIsImportPatientModalOpen(true),
       },
       {
         id: "import",
         icon: Filter,
-        label: "Importar dieta creada",
-        description: "Cargar una dieta previamente guardada",
+        label: "Importar creación",
+        description: "Importar creación no disponible por ahora",
         variant: "indigo",
-        onClick: () => state.setIsImportCreationModalOpen(true),
+        disabled: true,
+        onClick: () => undefined,
+      },
+      {
+        id: "naty-chat",
+        icon: Sparkles,
+        customIcon: <Image src="/circle_logo.webp" alt="Naty" width={48} height={48} className="-m-1.5 h-10 w-10 rounded-full object-contain md:-m-2 md:h-12 md:w-12" />,
+        label: "Hablar con Naty",
+        description: "Abrir chat demo de Naty",
+        variant: "indigo",
+        onClick: () => setIsNatyChatOpen(true),
       },
       {
         id: "food-reference-book",
@@ -213,12 +237,12 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         onClick: () => setIsFoodReferenceBookOpen(true),
       },
       {
-        id: "pdf",
-        icon: Download,
-        label: "Descargar PDF",
-        description: "Descargar PDF de la pauta",
-        variant: "indigo",
-        onClick: () => void state.performExportPdf(),
+        id: "reset",
+        icon: RotateCcw,
+        label: "Reiniciar",
+        description: "Reiniciar plan",
+        variant: "rose",
+        onClick: () => state.setIsResetConfirmOpen(true),
       },
     ],
     [state, setIsFoodReferenceBookOpen],
@@ -226,19 +250,35 @@ export default function DietClient({ initialFoods }: DietClientProps) {
 
   return (
     <>
+      <NatyPlanChatDemo isOpen={isNatyChatOpen} onClose={() => setIsNatyChatOpen(false)} />
+      {state.isGeneratingAiDishes && (
+        <NatyLoadingOverlay
+          title="Naty está diseñando el plan..."
+          subtitle="Terminando los últimos detalles..."
+          steps={[
+            "Revisando la dieta base y el contexto clínico...",
+            "Organizando platos y porciones...",
+            "Auditando restricciones y combinaciones...",
+            "Listo para revisar",
+          ]}
+          isDemo={isGuestMode()}
+        />
+      )}
       <ModuleLayout
-        title={state.flowMode === "quick" ? "Entregable Rápido" : "Estrategia: Pauta Nutricional Unificada"}
+        title={state.flowMode === "quick" ? "Rápido" : "Pauta Nutricional Personalizada"}
         description={
-          state.flowMode === "quick"
-            ? "Crea una pauta rápida con la misma base nutricional, sin pasar por recetas ni carrito. Puedes ampliarla después."
-            : "Diseña la pauta nutricional completa de tu paciente paso a paso: Información General, Dieta, Recetas & Porciones, Carrito de Compras y Plan Final."
+          <div className="space-y-1">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-[#668E20] -mt-0.5 mb-0.5">
+              <Apple className="w-4 h-4 text-[#86A83C]" />
+              <span className="tracking-wider uppercase text-[10px] font-bold">Planificación Personalizada</span>
+            </div>
+            <p className="text-sm sm:text-[15px] text-[#626573] leading-relaxed">
+              {state.flowMode === "quick"
+                ? "Crea una pauta rápida con la misma base nutricional, sin pasar por recetas ni carrito. Puedes ampliarla después."
+                : "Diseña la pauta nutricional completa de tu paciente paso a paso: Información General, Dieta, Recetas & Porciones, Carrito de Compras y Plan Final."}
+            </p>
+          </div>
         }
-        step={{
-          number: currentStep + 1,
-          label: wizardSteps[currentStep],
-          icon: GraduationCap,
-          color: "text-emerald-600",
-        }}
         rightContent={<ModuleUsageBadges />}
         rightNavItems={state.isHydrating ? [] : actionItems}
         rightNavDesktopBreakpoint="lg"
@@ -263,6 +303,19 @@ export default function DietClient({ initialFoods }: DietClientProps) {
               patientRestrictions={state.selectedPatient?.dietRestrictions || state.selectedPatient?.tags || []}
             />
 
+            {!state.selectedPatient ? (
+              <div className="rounded-2xl border border-dashed border-[#DDE7B8] bg-[#F0F5DF]/50 p-8 text-center">
+                <User className="mx-auto h-10 w-10 text-[#86A83C]" />
+                <h2 className="mt-3 text-base font-bold text-[#20212B]">Importa un paciente para comenzar</h2>
+                <p className="mx-auto mt-2 max-w-md text-xs leading-5 text-[#626573]">
+                  Personalizado necesita el contexto del paciente para construir una dieta clínica segura y específica.
+                </p>
+                <Button type="button" onClick={() => state.setIsImportPatientModalOpen(true)} className="mt-5 rounded-xl bg-[#86A83C] px-5 text-xs font-semibold text-white hover:bg-[#78A82F] shadow-2xs cursor-pointer">
+                  <User className="mr-2 h-4 w-4" />
+                  Importar paciente
+                </Button>
+              </div>
+            ) : (
             <PlanWizardShell
               steps={wizardSteps}
               currentStep={currentStep}
@@ -316,14 +369,14 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                   />
 
                   {/* Introducción y Despedida del PDF */}
-                  <div className="space-y-5 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                  <div className="space-y-5 rounded-2xl border border-[#E9E5E7] bg-white p-5 sm:p-6 shadow-2xs">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-violet-50 text-violet-700">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#F0F5DF] text-[#668E20]">
                         <MessageCircleHeart className="h-5 w-5" />
                       </div>
                       <div>
-                        <h3 className="text-base font-black text-slate-900">Introducción y despedida</h3>
-                        <p className="text-xs text-slate-500">
+                        <h3 className="text-base font-bold text-[#20212B]">Introducción y despedida</h3>
+                        <p className="text-xs text-[#626573]">
                           Se generan automáticamente con el nombre de {state.selectedPatient?.fullName || "tu paciente"}; puedes editarlas libremente.
                         </p>
                       </div>
@@ -331,13 +384,13 @@ export default function DietClient({ initialFoods }: DietClientProps) {
 
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <label className="text-xs font-black uppercase tracking-wider text-slate-500">Introducción</label>
-                        <label className="flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50/70 px-3 py-1 text-[11px] font-bold text-violet-900 cursor-pointer hover:bg-violet-100/70 transition-colors">
+                        <label className="text-xs font-semibold uppercase tracking-wider text-[#626573]">Introducción</label>
+                        <label className="flex items-center gap-2 rounded-xl border border-[#DDE7B8] bg-[#F0F5DF] px-3 py-1 text-[11px] font-semibold text-[#668E20] cursor-pointer hover:bg-[#E8EFCB] transition-colors">
                           <input
                             type="checkbox"
                             checked={state.includeIntroInPdf}
                             onChange={(e) => state.setIncludeIntroInPdf(e.target.checked)}
-                            className="h-3.5 w-3.5 rounded border-violet-300 text-violet-600 focus:ring-violet-500 cursor-pointer"
+                            className="h-3.5 w-3.5 rounded border-[#86A83C] text-[#86A83C] focus:ring-[#86A83C] cursor-pointer"
                           />
                           Incluir en el PDF
                         </label>
@@ -346,19 +399,19 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                         value={state.introMessage}
                         onChange={(e) => state.updateIntroMessage(e.target.value)}
                         placeholder="Mensaje de bienvenida para el paciente..."
-                        className="min-h-[90px] rounded-xl text-sm"
+                        className="min-h-[90px] rounded-xl border-[#E9E5E7] text-xs font-normal text-[#20212B] focus:border-[#86A83C] focus:ring-1 focus:ring-[#86A83C]"
                       />
                     </div>
 
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <label className="text-xs font-black uppercase tracking-wider text-slate-500">Despedida</label>
-                        <label className="flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50/70 px-3 py-1 text-[11px] font-bold text-violet-900 cursor-pointer hover:bg-violet-100/70 transition-colors">
+                        <label className="text-xs font-semibold uppercase tracking-wider text-[#626573]">Despedida</label>
+                        <label className="flex items-center gap-2 rounded-xl border border-[#DDE7B8] bg-[#F0F5DF] px-3 py-1 text-[11px] font-semibold text-[#668E20] cursor-pointer hover:bg-[#E8EFCB] transition-colors">
                           <input
                             type="checkbox"
                             checked={state.includeClosingInPdf}
                             onChange={(e) => state.setIncludeClosingInPdf(e.target.checked)}
-                            className="h-3.5 w-3.5 rounded border-violet-300 text-violet-600 focus:ring-violet-500 cursor-pointer"
+                            className="h-3.5 w-3.5 rounded border-[#86A83C] text-[#86A83C] focus:ring-[#86A83C] cursor-pointer"
                           />
                           Incluir en el PDF
                         </label>
@@ -367,7 +420,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                         value={state.closingMessage}
                         onChange={(e) => state.updateClosingMessage(e.target.value)}
                         placeholder="Mensaje de cierre / despedida para el paciente..."
-                        className="min-h-[90px] rounded-xl text-sm"
+                        className="min-h-[90px] rounded-xl border-[#E9E5E7] text-xs font-normal text-[#20212B] focus:border-[#86A83C] focus:ring-1 focus:ring-[#86A83C]"
                       />
                     </div>
                   </div>
@@ -377,22 +430,40 @@ export default function DietClient({ initialFoods }: DietClientProps) {
               {/* PASO 2: DIETA */}
               {currentStep === 1 && (
                 <div className="space-y-6">
-                  <DietTemplateImportSection
-                    dietName={state.dietName}
-                    dietTags={state.dietTags}
-                    totalFoodsCount={
-                      Object.values(state.allGroupsToRender).reduce(
-                        (acc, foods) => acc + foods.length,
-                        0,
-                      )
-                    }
-                    totalGroupsCount={Object.keys(state.allGroupsToRender).length}
-                    onImportDiet={() => state.setIsImportCreationModalOpen(true)}
-                    onCreateDiet={() => {
-                      state.saveDraft();
-                      router.push("/dashboard/dietas");
-                    }}
-                  />
+                   <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-[#E9E5E7] bg-white p-3 text-xs font-medium text-[#20212B] shadow-2xs">
+                     <input
+                       type="checkbox"
+                       checked={state.useDefaultDiet}
+                       onChange={(event) => {
+                         state.handleToggleDefaultDiet(event.target.checked);
+                       }}
+                       className="h-4 w-4 rounded border-[#DDE7B8] text-[#86A83C] focus:ring-[#86A83C] accent-[#86A83C] cursor-pointer"
+                     />
+                     <span>
+                       <span className="block font-semibold">Aplicar dieta por defecto</span>
+                       <span className="mt-0.5 block text-[11px] font-normal text-[#626573]">Usa la misma plantilla base de categorías y alimentos de Dietas.</span>
+                     </span>
+                   </label>
+                   <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#E9E5E7] bg-white p-4 shadow-2xs">
+                     <div>
+                       <h2 className="text-base font-bold text-[#20212B]">Dieta base</h2>
+                       <p className="mt-1 text-xs text-[#626573]">Usa la plantilla base o importa una dieta guardada para comenzar.</p>
+                     </div>
+                     {state.editingCreationId ? (
+                       <div className="flex items-center gap-2">
+                         <Button type="button" variant="outline" onClick={() => state.setIsImportCreationModalOpen(true)} className="h-10 rounded-xl border-[#DDE7B8] bg-[#F0F5DF] px-4 text-xs font-semibold text-[#668E20] hover:bg-[#E8EFCB] cursor-pointer">
+                           Cambiar dieta
+                         </Button>
+                         <Button type="button" variant="outline" onClick={state.removeImportedDiet} className="h-10 rounded-xl border-rose-200 bg-rose-50 px-4 text-xs font-semibold text-rose-700 hover:bg-rose-100 cursor-pointer">
+                           Quitar dieta
+                         </Button>
+                       </div>
+                     ) : (
+                       <Button type="button" onClick={() => state.setIsImportCreationModalOpen(true)} className="h-10 rounded-xl bg-[#86A83C] px-4 text-xs font-semibold text-white hover:bg-[#78A82F] shadow-2xs cursor-pointer">
+                         Importar dieta
+                       </Button>
+                     )}
+                   </div>
 
                   {Object.values(state.allGroupsToRender).some((foods) => foods.length > 0) && (
                     <>
@@ -412,22 +483,22 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                   />
 
                   {/* Collapsible Macro Target Calculator */}
-                  <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                  <div className="overflow-hidden rounded-2xl border border-[#E9E5E7] bg-white p-5 sm:p-6 shadow-2xs">
                     <div
                       onClick={() => setShowMacroCalculator(!showMacroCalculator)}
                       className="flex cursor-pointer items-center justify-between"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#F0F5DF] text-[#668E20]">
                           <Calculator className="h-5 w-5" />
                         </div>
                         <div>
-                          <h3 className="text-sm font-black text-slate-900">Calculadora de Metas Calóricas y Macronutrientes</h3>
+                          <h3 className="text-sm font-bold text-slate-900">Calculadora de Metas Calóricas y Macronutrientes</h3>
                           <p className="text-xs text-slate-500">Configura el GET, déficit calórico y distribución de macros (opcional)</p>
                         </div>
                       </div>
 
-                      <Button type="button" variant="ghost" className="h-8 w-8 rounded-xl p-0 text-slate-500">
+                      <Button type="button" variant="ghost" className="h-8 w-8 rounded-xl p-0 text-slate-500 cursor-pointer">
                         {showMacroCalculator ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
                       </Button>
                     </div>
@@ -533,20 +604,28 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                   totalFoodGroups={totalFoodGroups}
                   totalSelectedFoods={totalSelectedFoods}
                   totalMeals={state.meals.length}
+                  totalRecipes={state.meals.filter((m: any) => m?.name?.trim()).length}
                   totalCartItems={state.includeCartSection ? state.autoCartItems.length : 0}
                   totalResources={state.includeResourcesSection ? state.selectedResourceIds.length : 0}
                   totalAvoidFoods={state.avoidFoods.length}
                   calorieTarget={state.macroTargets.calories}
                   onExportPdf={() => void state.performExportPdf()}
+                  onPreviewPdf={() => void state.handlePreviewPdf()}
                   onSaveCreation={() => state.setIsSaveCreationModalOpen(true)}
+                  isExportingPdf={state.isExportingPdf}
+                  isGeneratingPreview={state.isGeneratingPreview}
                   includeFoodTableSection={state.includeFoodTableSection}
                   setIncludeFoodTableSection={state.setIncludeFoodTableSection}
+                  includeRecipesSection={state.includeRecipesSection}
+                  setIncludeRecipesSection={state.setIncludeRecipesSection}
                   includeMealsSection={state.includeMealsSection}
                   setIncludeMealsSection={state.setIncludeMealsSection}
                   includeCartSection={state.includeCartSection}
                   setIncludeCartSection={state.setIncludeCartSection}
                   includeResourcesSection={state.includeResourcesSection}
                   setIncludeResourcesSection={state.setIncludeResourcesSection}
+                  includeExchangeGuideInPdf={state.includeExchangeGuideInPdf}
+                  setIncludeExchangeGuideInPdf={state.setIncludeExchangeGuideInPdf}
                   includeAvoidFoodsInPdf={state.includeAvoidFoodsInPdf}
                   setIncludeAvoidFoodsInPdf={state.setIncludeAvoidFoodsInPdf}
                   includeIntroInPdf={state.includeIntroInPdf}
@@ -556,6 +635,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                 />
               )}
             </PlanWizardShell>
+            )}
 
             <DietModals
               isResetConfirmOpen={state.isResetConfirmOpen}
@@ -668,6 +748,23 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         allowedTypes={["RECIPE", "RECETARIO", "FAST_DELIVERABLE"]}
         allowFreemium
       />
+
+      <Modal
+        isOpen={Boolean(state.previewPdfUrl)}
+        onClose={state.closePreviewPdf}
+        title="Vista previa del PDF"
+        className="max-w-5xl"
+      >
+        {state.previewPdfUrl && (
+          <div className="h-[75vh] overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+            <iframe
+              src={`${state.previewPdfUrl}#toolbar=1&navpanes=0`}
+              title="Vista previa del plan PDF"
+              className="h-full w-full border-0"
+            />
+          </div>
+        )}
+      </Modal>
     </>
   );
 }

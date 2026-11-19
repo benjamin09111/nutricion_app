@@ -2,6 +2,7 @@ import React, { useState, useMemo } from "react";
 import {
   ChevronDown,
   Sparkles,
+  ChefHat,
   Plus,
   Trash2,
   Pencil,
@@ -204,48 +205,22 @@ export const DietPlannerSection: React.FC<DietPlannerSectionProps> = ({
       {/* Header & New Category Trigger */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg sm:text-xl font-black text-slate-800 flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-amber-500" />
+          <h2 className="text-base sm:text-lg font-bold text-[#20212B] flex items-center gap-2">
+            <ChefHat className="h-5 w-5 text-[#86A83C]" />
             Dieta Base Generada
           </h2>
-          <p className="text-xs text-slate-500 font-medium mt-0.5">
-            Las categorías que no contengan alimentos añadidos se omitirán automáticamente en la pauta final entregada al paciente.
+          <p className="text-xs text-[#626573] font-normal mt-0.5">
+            Las categorías sin alimentos se omitirán automáticamente en la pauta final del paciente.
           </p>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-          {/* Generar Dieta Base con Naty Button (Oculto temporalmente para revisión de matching) */}
-          {/* 
-          <div
-            title={
-              totalSelectedFoods > 0
-                ? "Elimina cualquier alimento agregado para utilizar"
-                : undefined
-            }
-          >
-            <Button
-              type="button"
-              disabled={totalSelectedFoods > 0}
-              onClick={() => setIsGenerateNatyModalOpen(true)}
-              className={cn(
-                "h-10 px-4 font-black text-xs sm:text-sm rounded-xl gap-2 transition-all cursor-pointer border-none shadow-sm",
-                totalSelectedFoods > 0
-                  ? "bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed opacity-75 shadow-none"
-                  : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20 active:scale-95"
-              )}
-            >
-              <Sparkles className="h-4 w-4 text-emerald-200 fill-emerald-100" />
-              Generar dieta base con Naty
-            </Button>
-          </div>
-          */}
-
+         <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
           {/* Nueva Categoría Button */}
           <Button
             onClick={() => setIsAddingCategoryInline((prev) => !prev)}
-            className="h-10 px-5 bg-slate-900 text-white hover:bg-slate-800 border-none font-black text-xs sm:text-sm rounded-xl gap-2 transition-all active:scale-95 shadow-lg shadow-slate-200 w-full sm:w-auto justify-center cursor-pointer shrink-0"
+            className="h-9 px-3.5 bg-[#86A83C] text-white hover:bg-[#78A82F] border-none font-semibold text-xs rounded-xl gap-1.5 transition-all shadow-2xs w-full sm:w-auto justify-center cursor-pointer shrink-0"
           >
-            {isAddingCategoryInline ? <X className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
+            {isAddingCategoryInline ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
             {isAddingCategoryInline ? "Cerrar" : "Nueva categoría"}
           </Button>
         </div>
@@ -255,11 +230,11 @@ export const DietPlannerSection: React.FC<DietPlannerSectionProps> = ({
       {isAddingCategoryInline && (
         <>
           {/* Desktop Inline Panel */}
-          <div className="hidden sm:block p-5 bg-emerald-50/50 border border-emerald-200/80 rounded-2xl space-y-4 shadow-xs">
+          <div className="hidden sm:block p-4 bg-[#F0F5DF]/30 border border-[#86A83C]/30 rounded-2xl space-y-3 shadow-2xs">
             <div className="flex items-center justify-between gap-2">
-              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 uppercase tracking-wide">
-                <FolderPlus className="h-4 w-4 text-emerald-600" />
-                Agregar Nueva Categoría al Plan
+              <h3 className="text-xs font-semibold text-slate-800 flex items-center gap-2">
+                <FolderPlus className="h-4 w-4 text-[#86A83C]" />
+                Agregar nueva categoría al plan
               </h3>
               <button
                 onClick={() => setIsAddingCategoryInline(false)}
@@ -280,13 +255,13 @@ export const DietPlannerSection: React.FC<DietPlannerSectionProps> = ({
                     if (e.key === "Enter") handleAddCategorySubmit();
                   }}
                   autoFocus
-                  className="h-11 pl-10 rounded-xl border-slate-200 bg-white font-semibold text-slate-900"
+                  className="h-10 pl-10 rounded-xl border-[#E9E5E7] bg-white font-normal text-xs sm:text-sm text-slate-900 focus:border-[#86A83C] shadow-2xs"
                 />
               </div>
               <Button
                 onClick={() => handleAddCategorySubmit()}
                 disabled={!inlineCategoryInput.trim()}
-                className="h-11 px-5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl gap-2 cursor-pointer shadow-xs"
+                className="h-10 px-4 bg-[#86A83C] hover:bg-[#78A82F] text-white font-semibold rounded-xl text-xs gap-1.5 cursor-pointer shadow-2xs"
               >
                 <Plus className="h-4 w-4" />
                 Agregar Categoría
@@ -295,10 +270,10 @@ export const DietPlannerSection: React.FC<DietPlannerSectionProps> = ({
 
             {/* Quick Suggested Category Pills (Unused First) */}
             <div className="space-y-1.5 pt-1">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">
-                Sugerencias Rápidas (No usadas primero)
+              <span className="text-xs font-medium text-slate-500 block">
+                Sugerencias rápidas:
               </span>
-              <div className="flex flex-wrap gap-2 max-h-36 overflow-y-auto pr-1">
+              <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pr-1">
                 {sortedInlineCategories.map((category) => {
                   const isAlreadyAdded = activeGroupNamesLower.includes(category.toLowerCase());
                   return (
@@ -308,15 +283,15 @@ export const DietPlannerSection: React.FC<DietPlannerSectionProps> = ({
                       disabled={isAlreadyAdded}
                       onClick={() => handleAddCategorySubmit(category)}
                       className={cn(
-                        "px-3 py-1.5 text-xs font-bold rounded-xl border transition-all cursor-pointer flex items-center gap-1.5",
+                        "px-2.5 py-1 text-xs font-medium rounded-lg border transition-all cursor-pointer flex items-center gap-1",
                         isAlreadyAdded
                           ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed opacity-60"
-                          : "bg-white text-slate-700 border-slate-200 hover:border-emerald-500 hover:text-emerald-700 hover:bg-emerald-50/60"
+                          : "bg-white text-slate-700 border-[#E9E5E7] hover:border-[#86A83C] hover:text-[#668E20] hover:bg-[#F0F5DF]/40"
                       )}
                     >
                       <span>{category}</span>
                       {isAlreadyAdded && (
-                        <span className="text-[9px] font-semibold opacity-75">(Activa)</span>
+                        <span className="text-[10px] opacity-75">(Activa)</span>
                       )}
                     </button>
                   );
@@ -329,8 +304,8 @@ export const DietPlannerSection: React.FC<DietPlannerSectionProps> = ({
           <div className="fixed inset-0 z-50 bg-white flex flex-col p-4 sm:hidden animate-in fade-in slide-in-from-bottom-5 duration-200">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
-                <FolderPlus className="h-5 w-5 text-emerald-600" />
-                <h3 className="font-bold text-slate-900 text-base">Nueva Categoría</h3>
+                <FolderPlus className="h-5 w-5 text-[#86A83C]" />
+                <h3 className="font-bold text-[#20212B] text-base">Nueva Categoría</h3>
               </div>
               <button
                 onClick={() => setIsAddingCategoryInline(false)}
@@ -341,7 +316,7 @@ export const DietPlannerSection: React.FC<DietPlannerSectionProps> = ({
             </div>
 
             <div className="py-4 space-y-3">
-              <label className="text-xs font-black text-slate-500 uppercase tracking-wider block">
+              <label className="text-xs font-semibold text-[#626573] uppercase tracking-wider block">
                 Nombre de Categoría
               </label>
               <div className="relative">
@@ -354,13 +329,13 @@ export const DietPlannerSection: React.FC<DietPlannerSectionProps> = ({
                     if (e.key === "Enter") handleAddCategorySubmit();
                   }}
                   autoFocus
-                  className="h-12 pl-10 rounded-xl border-slate-200 bg-slate-50 text-slate-900 font-semibold"
+                  className="h-12 pl-10 rounded-xl border-[#E9E5E7] bg-white text-[#20212B] font-normal"
                 />
               </div>
             </div>
 
             <div className="flex-1 overflow-y-auto space-y-2 py-2 border-t border-slate-100">
-              <span className="text-xs font-black text-slate-400 uppercase tracking-wider block">
+              <span className="text-xs font-semibold text-[#626573] uppercase tracking-wider block">
                 Sugerencias Disponibles (No usadas primero)
               </span>
               <div className="flex flex-wrap gap-2">
@@ -373,10 +348,10 @@ export const DietPlannerSection: React.FC<DietPlannerSectionProps> = ({
                       disabled={isAlreadyAdded}
                       onClick={() => handleAddCategorySubmit(category)}
                       className={cn(
-                        "px-3.5 py-2 text-xs font-bold rounded-xl border transition-all cursor-pointer flex items-center gap-1.5",
+                        "px-3.5 py-2 text-xs font-medium rounded-xl border transition-all cursor-pointer flex items-center gap-1.5",
                         isAlreadyAdded
                           ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed opacity-60"
-                          : "bg-white text-slate-800 border-slate-200 hover:border-emerald-500 active:bg-emerald-50"
+                          : "bg-white text-[#20212B] border-[#E9E5E7] hover:border-[#86A83C] active:bg-[#F0F5DF]"
                       )}
                     >
                       <span>{category}</span>
@@ -393,7 +368,7 @@ export const DietPlannerSection: React.FC<DietPlannerSectionProps> = ({
               <Button
                 onClick={() => handleAddCategorySubmit()}
                 disabled={!inlineCategoryInput.trim()}
-                className="flex-1 h-12 bg-emerald-600 text-white font-bold rounded-xl text-sm cursor-pointer"
+                className="flex-1 h-12 bg-[#86A83C] hover:bg-[#78A82F] text-white font-semibold rounded-xl text-sm cursor-pointer shadow-2xs"
               >
                 <Plus className="h-4 w-4 mr-1" />
                 Agregar Categoría
@@ -404,7 +379,7 @@ export const DietPlannerSection: React.FC<DietPlannerSectionProps> = ({
       )}
 
       {/* Category Accordion List */}
-      <div className="grid gap-6">
+      <div className="space-y-3">
         {groups.map(([name, foods], groupIndex) => {
           const isInlineSearchOpen = activeInlineFoodGroup === name;
           const currentQuery = (inlineFoodQueries[name] || "").trim().toLowerCase();
@@ -438,10 +413,10 @@ export const DietPlannerSection: React.FC<DietPlannerSectionProps> = ({
               key={name}
               id={`category-group-${name.toLowerCase().replace(/\s+/g, "-")}`}
               className={cn(
-                "group bg-white rounded-2xl border overflow-hidden transition-all duration-500",
+                "group bg-white rounded-2xl border overflow-hidden transition-all duration-300",
                 isHighlighted
-                  ? "border-emerald-500 ring-4 ring-emerald-500/50 shadow-xl shadow-emerald-500/20 bg-emerald-50/20"
-                  : "border-slate-200 shadow-sm"
+                  ? "border-[#86A83C] ring-2 ring-[#86A83C]/30 shadow-xs bg-[#F0F5DF]/10"
+                  : "border-[#E9E5E7] shadow-2xs"
               )}
               open={openGroups ? openGroups.includes(name) : (groupIndex === firstLacteosIndex || isHighlighted)}
               onToggle={(event) => {
@@ -459,19 +434,19 @@ export const DietPlannerSection: React.FC<DietPlannerSectionProps> = ({
                 });
               }}
             >
-              <summary className="list-none cursor-pointer select-none bg-slate-50/80 p-4 border-b border-slate-100 flex justify-between items-center [&::-webkit-details-marker]:hidden">
+              <summary className="list-none cursor-pointer select-none bg-slate-50/60 px-4 py-3 border-b border-[#F0ECEE] flex justify-between items-center hover:bg-slate-100/50 transition-colors [&::-webkit-details-marker]:hidden">
                 <div className="flex items-center gap-3">
-                  <ChevronDown className="h-4 w-4 text-emerald-600 transition-transform group-open:rotate-180" />
-                  <h3 className="font-bold text-slate-700 uppercase tracking-tight text-sm flex items-center gap-2">
+                  <ChevronDown className="h-4 w-4 text-[#86A83C] transition-transform group-open:rotate-180" />
+                  <h3 className="font-semibold text-[#20212B] text-xs sm:text-sm flex items-center gap-2">
                     {name}
-                    <span className="bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded text-[10px] font-black">
+                    <span className="bg-slate-100 text-[#626573] px-2 py-0.5 rounded-full text-[11px] font-medium">
                       {foods.length}
                     </span>
                   </h3>
-                  <span className="hidden text-[10px] font-bold uppercase tracking-wider text-slate-400 group-open:inline">
-                    Ocultar alimentos
+                  <span className="hidden text-xs text-slate-400 group-open:inline font-normal">
+                    Ocultar
                   </span>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 group-open:hidden">
+                  <span className="text-xs text-[#86A83C] group-open:hidden font-medium">
                     Ver alimentos
                   </span>
                 </div>
@@ -484,10 +459,10 @@ export const DietPlannerSection: React.FC<DietPlannerSectionProps> = ({
                         event.stopPropagation();
                         handleToggleInlineAddFood(name);
                       }}
-                      className="p-1.5 rounded-lg cursor-pointer transition-all flex items-center justify-center text-emerald-600 hover:bg-emerald-50"
+                      className="p-1.5 rounded-lg cursor-pointer transition-all flex items-center justify-center text-[#86A83C] hover:bg-[#F0F5DF]"
                       title={`Añadir alimento a ${name}`}
                     >
-                      <Plus className="h-4 w-4 stroke-[2.5]" />
+                      <Plus className="h-4 w-4 stroke-[2]" />
                     </button>
                   )}
                   <button
@@ -498,7 +473,7 @@ export const DietPlannerSection: React.FC<DietPlannerSectionProps> = ({
                       setGroupToDelete(name);
                       setIsDeleteGroupConfirmOpen(true);
                     }}
-                    className="p-1.5 text-slate-300 hover:text-rose-500 rounded-lg cursor-pointer"
+                    className="p-1.5 text-slate-300 hover:text-rose-500 rounded-lg cursor-pointer transition-colors"
                     title={`Eliminar categoría ${name}`}
                   >
                     <Trash2 className="h-4 w-4" />
@@ -511,7 +486,7 @@ export const DietPlannerSection: React.FC<DietPlannerSectionProps> = ({
                 {isInlineSearchOpen && (
                   <>
                     {/* Desktop Inline Panel */}
-                    <div className="hidden sm:block p-4 bg-emerald-50/20 border-b border-slate-200 space-y-3">
+                    <div className="hidden sm:block p-3.5 bg-[#F0F5DF]/20 border-b border-[#F0ECEE] space-y-2.5">
                       <div className="flex items-center justify-between gap-3">
                         <div className="relative flex-1">
                           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -525,14 +500,14 @@ export const DietPlannerSection: React.FC<DietPlannerSectionProps> = ({
                               }))
                             }
                             autoFocus
-                            className="h-10 pl-10 bg-white border-slate-200 rounded-xl font-medium text-xs sm:text-sm focus:border-emerald-500 shadow-2xs"
+                            className="h-9 pl-9 bg-white border-[#E9E5E7] rounded-xl text-xs sm:text-sm font-normal text-[#20212B] focus:border-[#86A83C] shadow-2xs"
                           />
                         </div>
                         <Button
                           type="button"
                           variant="outline"
                           onClick={() => setActiveInlineFoodGroup(null)}
-                          className="h-10 px-4 text-emerald-700 bg-white hover:bg-emerald-50 border-emerald-300 font-bold rounded-xl text-xs cursor-pointer shadow-2xs"
+                          className="h-9 px-3 text-[#668E20] bg-white hover:bg-[#F0F5DF] border border-[#E9E5E7] font-semibold rounded-xl text-xs cursor-pointer shadow-2xs"
                         >
                           Listo
                         </Button>
@@ -541,7 +516,7 @@ export const DietPlannerSection: React.FC<DietPlannerSectionProps> = ({
                       {/* Catalog Foods List Scoped to Category */}
                       <div className="space-y-1.5 max-h-60 overflow-y-auto pr-1">
                         {displayFoods.length === 0 ? (
-                          <div className="py-4 text-center text-xs font-semibold text-slate-400">
+                          <div className="py-4 text-center text-xs font-normal text-slate-400">
                             No se encontraron alimentos en la despensa para "{name}".
                           </div>
                         ) : (
@@ -562,18 +537,18 @@ export const DietPlannerSection: React.FC<DietPlannerSectionProps> = ({
                                   }
                                 }}
                                 className={cn(
-                                  "flex items-center justify-between gap-3 p-2.5 border rounded-xl transition-all text-xs",
+                                  "flex items-center justify-between gap-3 p-2 border rounded-xl transition-all text-xs",
                                   isAlreadyInCat
                                     ? "bg-slate-50/80 border-slate-200 opacity-70 cursor-not-allowed"
-                                    : "bg-white border-slate-200/90 hover:border-emerald-500 hover:bg-emerald-50/50 hover:shadow-xs cursor-pointer"
+                                    : "bg-white border-[#E9E5E7] hover:border-[#86A83C] hover:bg-[#F0F5DF]/40 shadow-2xs cursor-pointer"
                                 )}
                               >
                                 <div className="min-w-0 flex-1">
-                                  <p className="font-bold text-slate-800 truncate">
+                                  <p className="font-semibold text-[#20212B] truncate">
                                     {foodItem.producto}
                                   </p>
-                                  <p className="text-[11px] text-slate-500 font-medium flex gap-2 flex-wrap">
-                                    <span className="text-orange-600 font-bold">
+                                  <p className="text-[11px] text-[#626573] font-normal flex gap-2 flex-wrap">
+                                    <span className="text-[#668E20] font-semibold">
                                       {foodItem.calorias || 0} kcal
                                     </span>
                                     <span>· P: {foodItem.proteinas || 0}g</span>
@@ -595,16 +570,16 @@ export const DietPlannerSection: React.FC<DietPlannerSectionProps> = ({
                                     }
                                   }}
                                   className={cn(
-                                    "h-8 w-8 p-0 flex items-center justify-center rounded-lg transition-all shrink-0 cursor-pointer",
+                                    "h-7 w-7 p-0 flex items-center justify-center rounded-lg transition-all shrink-0 cursor-pointer",
                                     isAlreadyInCat
-                                      ? "bg-emerald-50 text-emerald-600 border border-emerald-200 cursor-not-allowed shadow-none opacity-80"
-                                      : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs"
+                                      ? "bg-[#F0F5DF] text-[#668E20] border border-[#86A83C]/30 cursor-not-allowed opacity-80"
+                                      : "bg-[#86A83C] hover:bg-[#78A82F] text-white shadow-2xs"
                                   )}
                                 >
                                   {isAlreadyInCat ? (
-                                    <Check className="h-4 w-4 stroke-[2.5]" />
+                                    <Check className="h-3.5 w-3.5 stroke-[2.5]" />
                                   ) : (
-                                    <Plus className="h-4 w-4 stroke-[2.5]" />
+                                    <Plus className="h-3.5 w-3.5 stroke-[2.5]" />
                                   )}
                                 </Button>
                               </div>
@@ -618,10 +593,10 @@ export const DietPlannerSection: React.FC<DietPlannerSectionProps> = ({
                     <div className="fixed inset-0 z-50 bg-white flex flex-col p-4 sm:hidden animate-in fade-in slide-in-from-bottom-5 duration-200">
                       <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                         <div>
-                          <h3 className="font-bold text-slate-900 text-base uppercase tracking-wide">
+                          <h3 className="font-bold text-[#20212B] text-base uppercase tracking-wide">
                             Añadir a {name}
                           </h3>
-                          <p className="text-xs text-slate-500 font-medium">
+                          <p className="text-xs text-[#626573] font-normal">
                             {foods.length} alimentos actualmente en esta categoría
                           </p>
                         </div>
@@ -646,14 +621,14 @@ export const DietPlannerSection: React.FC<DietPlannerSectionProps> = ({
                               }))
                             }
                             autoFocus
-                            className="h-12 pl-10 bg-slate-50 border-slate-200 rounded-xl font-medium text-sm"
+                            className="h-12 pl-10 bg-slate-50 border-[#E9E5E7] rounded-xl font-normal text-sm text-[#20212B]"
                           />
                         </div>
                       </div>
 
                       <div className="flex-1 overflow-y-auto space-y-2 py-2">
                         {displayFoods.length === 0 ? (
-                          <div className="py-8 text-center text-xs font-semibold text-slate-400">
+                          <div className="py-8 text-center text-xs font-normal text-slate-400">
                             No se encontraron alimentos en la despensa para "{name}".
                           </div>
                         ) : (
@@ -677,15 +652,15 @@ export const DietPlannerSection: React.FC<DietPlannerSectionProps> = ({
                                   "flex items-center justify-between gap-3 p-3 border rounded-xl text-xs transition-all",
                                   isAlreadyInCat
                                     ? "bg-slate-50 border-slate-200 opacity-70 cursor-not-allowed"
-                                    : "bg-white border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/50 cursor-pointer active:scale-[0.99]"
+                                    : "bg-white border-[#E9E5E7] hover:border-[#86A83C] hover:bg-[#F0F5DF]/50 cursor-pointer active:scale-[0.99]"
                                 )}
                               >
                                 <div className="min-w-0 flex-1">
-                                  <p className="font-bold text-slate-800 truncate text-sm">
+                                  <p className="font-semibold text-[#20212B] truncate text-sm">
                                     {foodItem.producto}
                                   </p>
-                                  <p className="text-xs text-slate-500 font-medium flex gap-1.5 flex-wrap">
-                                    <span className="text-orange-600 font-bold">
+                                  <p className="text-xs text-[#626573] font-normal flex gap-1.5 flex-wrap">
+                                    <span className="text-[#668E20] font-semibold">
                                       {foodItem.calorias || 0} kcal
                                     </span>
                                     <span>· P: {foodItem.proteinas || 0}g</span>
@@ -709,8 +684,8 @@ export const DietPlannerSection: React.FC<DietPlannerSectionProps> = ({
                                   className={cn(
                                     "h-9 w-9 p-0 flex items-center justify-center rounded-xl transition-all shrink-0 cursor-pointer",
                                     isAlreadyInCat
-                                      ? "bg-emerald-50 text-emerald-600 border border-emerald-200 cursor-not-allowed opacity-80"
-                                      : "bg-emerald-600 text-white"
+                                      ? "bg-[#F0F5DF] text-[#668E20] border border-[#DDE7B8] cursor-not-allowed opacity-80"
+                                      : "bg-[#86A83C] hover:bg-[#78A82F] text-white"
                                   )}
                                 >
                                   {isAlreadyInCat ? (
@@ -729,7 +704,7 @@ export const DietPlannerSection: React.FC<DietPlannerSectionProps> = ({
                         <Button
                           type="button"
                           onClick={() => setActiveInlineFoodGroup(null)}
-                          className="w-full h-12 bg-emerald-600 text-white font-bold rounded-xl text-sm"
+                          className="w-full h-12 bg-[#86A83C] hover:bg-[#78A82F] text-white font-semibold rounded-xl text-sm"
                         >
                           Listo ({foods.length} en categoría)
                         </Button>
@@ -740,53 +715,48 @@ export const DietPlannerSection: React.FC<DietPlannerSectionProps> = ({
 
                 {/* Active Foods in Category */}
                 {foods.length === 0 ? (
-                  <div className="p-5 text-center text-xs text-slate-400 font-semibold italic">
+                  <div className="p-4 text-center text-xs text-slate-400 font-medium italic">
                     No hay alimentos en la categoría {name}. Haz clic en "Añadir alimento" abajo para agregarlos.
                   </div>
                 ) : (
                   foods.map((food, idx) => (
                     <div
                       key={`${food.producto}-${idx}`}
-                      className="p-4 flex flex-row items-center justify-between gap-4 group hover:bg-emerald-50/10 transition-all border-b border-slate-50 last:border-0"
+                      className="px-4 py-2.5 flex flex-row items-center justify-between gap-3 hover:bg-slate-50/50 transition-colors border-b border-[#F0ECEE] last:border-0"
                     >
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <p className="font-bold text-slate-900 text-sm truncate">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-[#20212B] text-xs sm:text-sm truncate">
                             {food.producto}
                           </p>
                           {food.isDraft && (
-                            <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-700 ring-1 ring-inset ring-amber-200 shrink-0">
+                            <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700 ring-1 ring-inset ring-amber-200 shrink-0">
                               Borrador
                             </span>
                           )}
                         </div>
-                        <div className="flex gap-2 text-[11px] text-slate-500 font-medium items-center flex-wrap">
-                          <span className="text-orange-600 font-bold">
+                        <div className="flex gap-2 text-[11px] text-[#626573] font-normal items-center flex-wrap mt-0.5">
+                          <span className="text-[#668E20] font-semibold">
                             {food.calorias || 0} kcal
                           </span>
                           <span>·</span>
-                          <span className="text-blue-600">
-                            P: {food.proteinas || 0}g
-                          </span>
+                          <span>P: {food.proteinas || 0}g</span>
                           <span>·</span>
-                          <span className="text-emerald-600">
-                            C: {food.carbohidratos || 0}g
-                          </span>
+                          <span>C: {food.carbohidratos || 0}g</span>
                           <span>·</span>
-                          <span className="text-yellow-600">
-                            L: {food.lipidos || 0}g
-                          </span>
+                          <span>L: {food.lipidos || 0}g</span>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 shrink-0">
+                      <div className="flex items-center gap-1.5 shrink-0">
                         {food.isDraft && (
                           <button
                             onClick={() => openDraftFoodEditor(food)}
-                            className="flex items-center justify-center h-8 w-8 text-amber-600 bg-amber-50 hover:bg-amber-100 rounded-lg cursor-pointer transition-all"
+                            className="flex items-center justify-center h-7 w-7 text-amber-600 bg-amber-50 hover:bg-amber-100 rounded-lg cursor-pointer transition-all"
                             title="Completar información nutricional"
+                            aria-label="Completar información nutricional"
                           >
-                            <Pencil className="h-4 w-4" />
+                            <Pencil className="h-3.5 w-3.5" />
                           </button>
                         )}
                         <button
@@ -794,19 +764,19 @@ export const DietPlannerSection: React.FC<DietPlannerSectionProps> = ({
                             setSelectedFoodForInfo(food);
                             setIsFoodInfoModalOpen(true);
                           }}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-slate-500 bg-slate-50 hover:bg-slate-100 hover:text-indigo-600 rounded-lg cursor-pointer transition-all font-black text-[10px] uppercase tracking-widest leading-none border border-slate-200/50"
-                          title="Ver Detalles"
+                          className="flex items-center justify-center h-8 w-8 text-slate-500 hover:text-[#20212B] bg-white hover:bg-slate-100 border border-[#E9E5E7] rounded-xl cursor-pointer transition-colors shadow-2xs"
+                          title="Ver detalles"
+                          aria-label="Ver detalles"
                         >
-                          <Info className="h-3.5 w-3.5" />
-                          <span className="hidden sm:inline">Detalles</span>
+                          <Info className="h-4 w-4" />
                         </button>
                         <button
                           onClick={() => removeFood(food.producto)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-rose-500 bg-rose-50 hover:bg-rose-100 hover:text-rose-600 rounded-lg cursor-pointer transition-all font-black text-[10px] uppercase tracking-widest leading-none border border-rose-200/30"
+                          className="flex items-center justify-center h-8 w-8 text-rose-500 hover:text-rose-700 bg-white hover:bg-rose-50 border border-transparent hover:border-rose-200 rounded-xl cursor-pointer transition-colors"
                           title="Quitar"
+                          aria-label="Quitar"
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
-                          <span className="hidden sm:inline">Quitar</span>
+                          <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
                     </div>
@@ -817,9 +787,9 @@ export const DietPlannerSection: React.FC<DietPlannerSectionProps> = ({
                 {!isInlineSearchOpen && (
                   <button
                     onClick={() => handleToggleInlineAddFood(name)}
-                    className="w-full p-3 text-xs font-bold text-emerald-600 hover:bg-emerald-50 flex items-center justify-center gap-2 transition-colors cursor-pointer border-0 bg-transparent"
+                    className="w-full py-2.5 text-xs font-semibold text-[#86A83C] hover:text-[#668E20] hover:bg-[#F0F5DF]/30 flex items-center justify-center gap-1.5 transition-colors cursor-pointer border-0 bg-transparent"
                   >
-                    <Plus className="h-4 w-4" />
+                    <Plus className="h-3.5 w-3.5" />
                     Añadir alimento a {name}
                   </button>
                 )}
@@ -832,9 +802,9 @@ export const DietPlannerSection: React.FC<DietPlannerSectionProps> = ({
         {!isAddingCategoryInline && (
           <button
             onClick={() => setIsAddingCategoryInline(true)}
-            className="w-full py-5 border-2 border-dashed border-slate-200 bg-white rounded-2xl text-slate-400 font-bold hover:border-emerald-500 hover:text-emerald-600 hover:bg-emerald-50/10 cursor-pointer transition-all active:scale-[0.99] flex items-center justify-center gap-2 text-sm"
+            className="w-full py-3.5 border border-dashed border-[#E9E5E7] hover:border-[#86A83C] bg-white hover:bg-[#F0F5DF]/20 rounded-2xl text-slate-500 hover:text-[#668E20] font-semibold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
           >
-            <Plus className="h-5 w-5" />
+            <Plus className="h-4 w-4" />
             Añadir nueva categoría personalizada
           </button>
         )}

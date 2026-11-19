@@ -50,6 +50,12 @@ export class AiUsageService {
     } else if (modelLower.includes('deepseek')) {
       promptRatePerM = 0.14;
       completionRatePerM = 0.28;
+    } else if (modelLower.includes('claude-3-5') || modelLower.includes('claude-3.5')) {
+      promptRatePerM = 0.8;
+      completionRatePerM = 4.0;
+    } else {
+      promptRatePerM = 0.15;
+      completionRatePerM = 0.6;
     }
 
     const promptCostUSD = (promptTokens / 1_000_000) * promptRatePerM;

@@ -42,6 +42,7 @@ import { PersonalNotesModule } from './modules/personal-notes/personal-notes.mod
 import { TestimonialsModule } from './modules/testimonials/testimonials.module';
 import { UploadsModule } from './modules/uploads/uploads.module';
 import { RatingsModule } from './modules/ratings/ratings.module';
+import { LandingModule } from './modules/landing/landing.module';
 
 @Module({
   imports: [
@@ -90,6 +91,7 @@ import { RatingsModule } from './modules/ratings/ratings.module';
     TestimonialsModule,
     UploadsModule,
     RatingsModule,
+    LandingModule,
   ],
   controllers: [AppController],
   providers: [AppService],

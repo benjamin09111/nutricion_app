@@ -1,12 +1,15 @@
-import { IsString, IsOptional, IsNumber } from 'class-validator';
+import { IsString, IsOptional, MaxLength } from 'class-validator';
 
 export class CopilotMessageDto {
   @IsString()
+  @MaxLength(2000, {
+    message: 'El mensaje no puede superar los 2000 caracteres.',
+  })
   message: string;
 
-  @IsNumber()
+  @IsString()
   @IsOptional()
-  patientId?: number;
+  patientId?: string;
 
   @IsString()
   @IsOptional()
@@ -15,8 +18,10 @@ export class CopilotMessageDto {
 
 export class CopilotMemoryDto {
   @IsString()
+  @MaxLength(100)
   key: string;
 
   @IsString()
+  @MaxLength(2000)
   value: string;
 }

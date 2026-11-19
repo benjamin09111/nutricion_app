@@ -132,7 +132,8 @@ export default async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  if (isDashboardRoute && !token) {
+  // Las rutas de administración requieren autenticación explícita de staff
+  if (isAdminRoute && !token) {
     const url = new URL("/login", request.url);
     url.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(url);

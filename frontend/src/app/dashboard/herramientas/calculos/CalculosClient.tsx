@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import {
-  Calculator,
   Activity,
   Scale,
   Zap,
@@ -22,12 +21,19 @@ import {
   AlertTriangle,
   UserRound,
   Lock,
+  Info,
+  RefreshCw,
+  Calculator,
+  FlaskConical,
+  RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
 import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
+import { isGuestMode } from "@/lib/demo-local-api";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { PatientSelectionModal } from "@/components/patients/PatientSelectionModal";
 
@@ -70,6 +76,20 @@ type CalculatorPatient = {
   activityLevel?: string | null;
 };
 
+const getBmiBadgeStyle = (classification: string) => {
+  const lower = classification.toLowerCase();
+  if (lower.includes("normopeso") || lower.includes("eutrófico")) {
+    return "bg-[#F0F5DF] text-[#668E20] border-[#DDE7B8]";
+  }
+  if (lower.includes("bajo") || lower.includes("enflaquecido") || lower.includes("desnutri")) {
+    return "bg-blue-50 text-blue-700 border-blue-200";
+  }
+  if (lower.includes("sobrepeso")) {
+    return "bg-amber-50 text-amber-700 border-amber-200";
+  }
+  return "bg-rose-50 text-rose-700 border-rose-200";
+};
+
 const getPatientAge = (patient: CalculatorPatient): number | null => {
   if (typeof patient.ageYears === "number") return patient.ageYears;
   if (typeof patient.age === "number") return patient.age;
@@ -105,13 +125,15 @@ export default function CalculosClient() {
     isLoading: isSubscriptionLoading,
   } = useSubscription();
 
+  const isGuest = isGuestMode();
   const calculatorLocked =
-    isSubscriptionLoading || !can("clinical_calculator.use.access");
+    !isGuest && (isSubscriptionLoading || !can("clinical_calculator.use.access"));
   const screeningTestsLocked =
-    isSubscriptionLoading || !can("screening_tests.access");
+    !isGuest && (isSubscriptionLoading || !can("screening_tests.access"));
   const patientImportLocked =
-    isSubscriptionLoading ||
-    (!isDeveloper && (plan === "free" || currentPlan?.slug === "free" || currentPlan?.key === "free"));
+    !isGuest &&
+    (isSubscriptionLoading ||
+      (!isDeveloper && (plan === "free" || currentPlan?.slug === "free" || currentPlan?.key === "free")));
   // 1. PASO ESENCIAL (Siempre visible)
   const [gender, setGender] = useState<"Masculino" | "Femenino">("Femenino");
   const [weight, setWeight] = useState("");
@@ -343,7 +365,7 @@ export default function CalculosClient() {
 
   const handleQuickValues = () => {
     setActiveModules({
-      edema: true,
+      edema: false,
       blackburn: true,
       protein: true,
       chumlea: true,
@@ -352,16 +374,18 @@ export default function CalculosClient() {
     });
     setIsTargetBmiCustom(false);
     setGender("Masculino");
-    setAge("68");
-    setKneeHeight("50");
-    setCalfCircumference("35");
-    setArmCircumference("25");
-    setSubescapularFold("15");
-    setUsualWeight("76");
-    setWeight("68");
-    setHeight("165");
-    setWeightLossPeriodWeeks("4");
-    setProteinProfile("adulto_mayor");
+    setAge("42");
+    setKneeHeight("52");
+    setCalfCircumference("37.5");
+    setArmCircumference("31.0");
+    setSubescapularFold("16.0");
+    setUsualWeight("80");
+    setWeight("78");
+    setHeight("175");
+    setWeightLossPeriodWeeks("12");
+    setProteinProfile("adulto_sano");
+    setTmbFormula("mifflin-st-jeor");
+    setActivityLevel("1.375");
   };
 
   const openPatientImportModal = async () => {
@@ -425,7 +449,7 @@ export default function CalculosClient() {
   const isCriticalAlert = isSevereWeightLoss || isMalnourishedMna;
   const isModerateAlert = !isCriticalAlert && (isSignificantWeightLoss || isRiskMna);
 
-  if (isSubscriptionLoading) {
+  if (isSubscriptionLoading && !isGuest) {
     return (
       <div className="flex min-h-[20rem] flex-col items-center justify-center rounded-2xl border border-slate-100 bg-white shadow-sm">
         <Loader2 className="mb-4 h-10 w-10 animate-spin text-indigo-500" />
@@ -436,134 +460,99 @@ export default function CalculosClient() {
 
   return (
     <ModuleLayout
-      title="Calculadora Clínica NutriNet"
-      description="Evaluación nutricional rápida y módulos avanzados a pantalla completa para el cálculo de requerimientos, antropometría y composición."
+      title="Calculadora"
+      description={
+        <div className="space-y-1">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-[#668E20] -mt-0.5 mb-0.5">
+            <Activity className="w-4 h-4 text-[#86A83C]" />
+            <span className="tracking-wider uppercase text-[10px] font-bold">Evaluación y Requerimientos Energéticos</span>
+          </div>
+          <p className="text-sm sm:text-[15px] text-[#626573] leading-relaxed">
+            Evaluación nutricional rápida y módulos avanzados a pantalla completa para el cálculo de requerimientos, antropometría y composición.
+          </p>
+        </div>
+      }
       rightContent={
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              if (patientImportLocked) {
-                window.dispatchEvent(
-                  new CustomEvent("show-freemium-upgrade", {
-                    detail: {
-                      feature: "Importar datos de paciente",
-                      description:
-                        "La importación de datos de pacientes en la calculadora clínica está disponible únicamente en los planes de pago.",
-                    },
-                  }),
-                );
-                return;
-              }
-              void openPatientImportModal();
-            }}
-            className="text-xs border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 font-semibold h-8 rounded-xl flex-1 sm:flex-none justify-center gap-1 cursor-pointer"
+        <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
+          <button
+            type="button"
+            disabled
+            className="h-11 px-4 rounded-xl border border-slate-200/80 bg-slate-50 text-slate-400 text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 shrink-0 cursor-not-allowed opacity-60 select-none"
+            title="Inhabilitado para la demo"
           >
-            {patientImportLocked ? (
-              <Lock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-            ) : (
-              <UserRound className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-            )}
-            <span>{selectedPatient ? "Cambiar paciente" : "Importar paciente"}</span>
-          </Button>
+            <Lock className="w-4 h-4 text-slate-400 shrink-0" />
+            <span>Importar paciente</span>
+          </button>
 
-          <Link href="/dashboard/herramientas/tests">
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-xs border-indigo-200 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 font-semibold h-8 rounded-xl flex-1 sm:flex-none justify-center gap-1 cursor-pointer"
-            >
-              <FileText className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-              <span>Ir a Tests de Tamizaje</span>
-            </Button>
-          </Link>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleQuickValues}
-            className="text-xs border-slate-200 text-slate-600 bg-white hover:bg-slate-50 h-8 rounded-xl flex-1 sm:flex-none justify-center cursor-pointer"
+          <button
+            type="button"
+            disabled
+            className="h-11 px-4 rounded-xl border border-slate-200/80 bg-slate-50 text-slate-400 text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 shrink-0 cursor-not-allowed opacity-60 select-none"
+            title="Inhabilitado para la demo"
           >
-            <span>Cargar Caso Ejemplo</span>
-          </Button>
+            <Lock className="w-4 h-4 text-slate-400 shrink-0" />
+            <span>Tests de Tamizaje</span>
+          </button>
         </div>
       }
     >
 
-      {/* Glosario Clínico Toggle */}
-      <div className="mb-6">
-        <button
-          type="button"
-          onClick={() => setShowGlossary(!showGlossary)}
-          className="text-[11px] font-bold text-slate-500 hover:text-slate-800 flex items-center gap-1.5 cursor-pointer text-left"
-        >
-          <span>ℹ️ Normas clínicas aplicadas (OMS 2006/2007, Lipschitz, MINSAL, Blackburn, Chumlea)</span>
-          <ChevronDown className={cn("w-3.5 h-3.5 shrink-0 transition-transform", showGlossary && "rotate-180")} />
-        </button>
-        {showGlossary && (
-          <div className="mt-2 grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px] text-slate-600 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-            <div>
-              <strong className="text-slate-800">IMC Adultos & Adulto Mayor:</strong> OMS 18.5-24.9 kg/m² | Lipschitz 23-28 kg/m² (&ge;65 años).
+      {/* Glosario Clínico Toggle & Botón Simular Caso */}
+      <div className="mb-6 space-y-4">
+        <div>
+          <button
+            type="button"
+            onClick={() => setShowGlossary(!showGlossary)}
+            className="text-xs font-semibold text-[#626573] hover:text-[#20212B] flex items-center gap-1.5 cursor-pointer text-left"
+          >
+            <Info className="w-3.5 h-3.5 text-[#86A83C] shrink-0" />
+            <span>Normas clínicas aplicadas (OMS 2006/2007, Lipschitz, MINSAL, Blackburn, Chumlea)</span>
+            <ChevronDown className={cn("w-3.5 h-3.5 shrink-0 transition-transform", showGlossary && "rotate-180")} />
+          </button>
+          {showGlossary && (
+            <div className="mt-2 grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px] text-slate-600 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+              <div>
+                <strong className="text-slate-800">IMC Adultos & Adulto Mayor:</strong> OMS 18.5-24.9 kg/m² | Lipschitz 23-28 kg/m² (&ge;65 años).
+              </div>
+              <div>
+                <strong className="text-slate-800">Peso Ideal:</strong> Configurable (default 22.0) | Ajuste por edema y peso seco metabólico.
+              </div>
+              <div>
+                <strong className="text-slate-800">Módulos:</strong> Blackburn (Pérdida peso) | Proteínas g/kg | Chumlea & Frisancho (Dato compartido PSE).
+              </div>
             </div>
-            <div>
-              <strong className="text-slate-800">Peso Ideal:</strong> Configurable (default 22.0) | Ajuste por edema y peso seco metabólico.
-            </div>
-            <div>
-              <strong className="text-slate-800">Módulos:</strong> Blackburn (Pérdida peso) | Proteínas g/kg | Chumlea & Frisancho (Dato compartido PSE).
-            </div>
-          </div>
-        )}
+          )}
+        </div>
+
+        {/* Botón centrado para simular caso de ejemplo en la demo */}
+        <div className="flex justify-center pt-1">
+          <button
+            type="button"
+            onClick={handleQuickValues}
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-[#F0F5DF] hover:bg-[#E4ECC8] text-[#668E20] border border-[#DDE7B8] text-xs sm:text-sm font-semibold transition-all shadow-2xs hover:shadow-xs active:scale-98 cursor-pointer"
+          >
+            <FlaskConical className="w-4 h-4 text-[#86A83C]" />
+            <span>Simular caso de ejemplo</span>
+          </button>
+        </div>
       </div>
 
       {/* ========================================================================= */}
-      {/* HERO RESULT BANNER CON OVERRIDE CLÍNICO DE RIESGO DE PACIENTE             */}
+      {/* HERO RESULT BANNER - RESULTADOS CLÍNICOS UNIFICADOS NUTRINET             */}
       {/* ========================================================================= */}
       {result && (
-        <div
-          className={cn(
-            "text-white rounded-2xl p-5 mb-6 shadow-md space-y-4 animate-in fade-in duration-200 border",
-            isCriticalAlert
-              ? "bg-rose-950 border-rose-800"
-              : isModerateAlert
-                ? "bg-amber-950 border-amber-800"
-                : "bg-slate-900 border-slate-800"
-          )}
-        >
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-3">
-            <div className="flex items-center gap-2.5">
-              <span
-                className={cn(
-                  "p-2 rounded-xl border shrink-0",
-                  isCriticalAlert
-                    ? "bg-rose-500/20 text-rose-300 border-rose-500/30"
-                    : isModerateAlert
-                      ? "bg-amber-500/20 text-amber-300 border-amber-500/30"
-                      : "bg-indigo-500/20 text-indigo-400 border-indigo-500/30"
-                )}
-              >
-                {isCriticalAlert ? (
-                  <ShieldAlert className="w-5 h-5 text-rose-400 animate-pulse" />
-                ) : isModerateAlert ? (
-                  <AlertTriangle className="w-5 h-5 text-amber-400" />
-                ) : (
-                  <Zap className="w-5 h-5 text-amber-400" />
-                )}
+        <div className="bg-white rounded-2xl p-5 sm:p-6 mb-6 shadow-2xs space-y-4 animate-in fade-in duration-200 border border-[#E9E5E7]">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+            <div className="flex items-center gap-3">
+              <span className="w-10 h-10 rounded-xl border border-[#DDE7B8] bg-[#F0F5DF] text-[#668E20] flex items-center justify-center shrink-0">
+                <Calculator className="w-5 h-5 text-[#86A83C]" />
               </span>
               <div>
-                <h2 className="text-xs sm:text-sm font-black uppercase text-white tracking-wide leading-tight">
-                  {isCriticalAlert
-                    ? "🚨 RIESGO NUTRICIONAL ALTO — PÉRDIDA AGUDA GRAVE / DESNUTRICIÓN"
-                    : isModerateAlert
-                      ? "⚠️ RIESGO NUTRICIONAL MODERADO — SEGUIMIENTO REQUERIDO"
-                      : "Diagnóstico Nutricional Principal"}
+                <h2 className="text-sm sm:text-base font-extrabold text-[#20212B] tracking-tight leading-tight">
+                  Resultados del Cálculo Nutricional
                 </h2>
-                <p className="text-[11px] text-slate-300">
-                  {isSevereWeightLoss
-                    ? `Pérdida catabólica involuntaria de ${result.weightLoss?.percentLoss}% (${result.weightLoss?.lossKg} kg) en ${result.weightLoss?.periodLabel}.`
-                    : isMalnourishedMna
-                      ? `Evaluación MNA® (${mnaResult?.score}/30 pts) confirma Desnutrición Pediátrica/Geriátrica.`
-                      : `Fórmula TMB: ${result.energy?.formula || "Mifflin-St Jeor (1990)"}`}
+                <p className="text-xs text-[#626573] mt-0.5">
+                  Fórmula TMB: {result.energy?.formula || "Mifflin-St Jeor (1990)"} • Factor actividad: {activityLevel || "1.2"}
                 </p>
               </div>
             </div>
@@ -573,123 +562,101 @@ export default function CalculosClient() {
               size="sm"
               onClick={executeCalculation}
               disabled={loading}
-              className={cn(
-                "font-bold rounded-xl text-xs h-8 px-4 shadow-sm flex items-center justify-center gap-1.5 cursor-pointer w-full sm:w-auto text-white",
-                isCriticalAlert
-                  ? "bg-rose-600 hover:bg-rose-500"
-                  : isModerateAlert
-                    ? "bg-amber-600 hover:bg-amber-500"
-                    : "bg-indigo-600 hover:bg-indigo-500"
-              )}
+              className="bg-[#86A83C] hover:bg-[#78A82F] text-white font-semibold rounded-xl text-xs h-9 px-4 shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer w-full sm:w-auto transition-all"
             >
               {loading ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
               ) : calculatorLocked ? (
                 <Lock className="w-3.5 h-3.5 text-amber-300" />
               ) : (
-                <Calculator className="w-3.5 h-3.5" />
+                <RefreshCw className="w-3.5 h-3.5 text-white" />
               )}
               <span>Recalcular</span>
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 items-stretch">
             {/* GET */}
-            <div className="bg-black/30 p-3.5 rounded-xl border border-white/10">
-              <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-1">
-                Gasto Energético Total (GET)
-              </span>
-              {result.energy ? (
-                <div>
-                  <p className="text-2xl font-black text-amber-400 tracking-tight">
-                    {result.energy.get} <span className="text-xs font-semibold text-slate-300">kcal/día</span>
-                  </p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">
-                    TMB: {result.energy.tmb} kcal/día
-                  </p>
-                  {result.inputs.useUsualWeightForRequirements && (
-                    <p className="text-[9px] font-bold text-amber-300 mt-1 leading-tight">
-                      *Calculado sobre peso habitual ({result.inputs.usualWeight} kg)
+            <div className="bg-slate-50/70 p-4 rounded-xl border border-[#E9E5E7]/70 flex flex-col justify-between">
+              <div>
+                <span className="text-[10px] font-bold uppercase text-[#626573] tracking-wider block mb-1">
+                  Gasto Energético Total (GET)
+                </span>
+                {result.energy ? (
+                  <div>
+                    <p className="text-2xl sm:text-3xl font-extrabold text-[#20212B] tracking-tight">
+                      {result.energy.get} <span className="text-xs font-semibold text-[#626573]">kcal/día</span>
                     </p>
-                  )}
-                </div>
-              ) : (
-                <p className="text-xs text-slate-400">Sin datos de peso/talla</p>
-              )}
+                    <p className="text-xs text-[#626573] mt-1">
+                      TMB: <strong className="text-[#20212B] font-semibold">{result.energy.tmb}</strong> kcal/día
+                    </p>
+                    {result.inputs.useUsualWeightForRequirements && (
+                      <p className="text-[11px] font-semibold text-amber-700 mt-1.5 leading-tight">
+                        *Calculado sobre peso habitual ({result.inputs.usualWeight} kg)
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400">Sin datos de peso/talla</p>
+                )}
+              </div>
             </div>
 
             {/* IMC */}
-            <div className="bg-black/30 p-3.5 rounded-xl border border-white/10">
-              <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-1">
-                Estado Nutricional (IMC)
-              </span>
-              {result.bmi ? (
-                <div>
-                  <div className="flex items-center justify-between">
-                    <p className="text-2xl font-black text-white tracking-tight">
-                      {result.bmi.bmi} <span className="text-xs font-semibold text-slate-400">kg/m²</span>
-                    </p>
-                    <span
-                      className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase text-white shadow-xs"
-                      style={{ backgroundColor: result.bmi.color }}
-                    >
-                      {result.bmi.classification}
-                    </span>
+            <div className="bg-slate-50/70 p-4 rounded-xl border border-[#E9E5E7]/70 flex flex-col justify-between">
+              <div>
+                <span className="text-[10px] font-bold uppercase text-[#626573] tracking-wider block mb-1">
+                  Estado Nutricional (IMC)
+                </span>
+                {result.bmi ? (
+                  <div>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-2xl sm:text-3xl font-extrabold text-[#20212B] tracking-tight">
+                        {result.bmi.bmi} <span className="text-xs font-semibold text-[#626573]">kg/m²</span>
+                      </p>
+                      <span
+                        className={cn(
+                          "px-2.5 py-1 rounded-lg text-xs font-semibold border shadow-2xs",
+                          getBmiBadgeStyle(result.bmi.classification)
+                        )}
+                      >
+                        {result.bmi.classification}
+                      </span>
+                    </div>
+                    {result.weightLoss && Number(result.weightLoss.percentLoss) > 0 && (
+                      <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-600 bg-white px-2.5 py-1.5 rounded-lg border border-slate-200 mt-2">
+                        <Info className="w-3.5 h-3.5 text-[#86A83C] shrink-0" />
+                        <span>Variación: {result.weightLoss.percentLoss}% ({result.weightLoss.lossKg} kg) en {result.weightLoss.periodLabel}</span>
+                      </div>
+                    )}
                   </div>
-                  {isCriticalAlert && result.bmi.classification.includes("Normopeso") && (
-                    <p className="text-[9.5px] font-bold text-rose-300 mt-1 leading-tight">
-                      ⚠️ IMC estático opacado por catabolismo/pérdida aguda grave
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <p className="text-xs text-slate-400">Sin IMC disponible</p>
-              )}
+                ) : (
+                  <p className="text-xs text-slate-400">Sin IMC disponible</p>
+                )}
+              </div>
             </div>
 
-            {/* PRIORIDAD CLÍNICA (REEMPLAZA A PESO IDEAL EN CASOS DE RIESGO) */}
-            <div className="bg-black/30 p-3.5 rounded-xl border border-white/10">
-              {isCriticalAlert ? (
-                <div>
-                  <span className="text-[10px] font-black uppercase text-rose-300 tracking-wider block mb-1">
-                    Prioridad Asistencial Inmediata
-                  </span>
-                  <p className="text-sm font-black text-rose-200 tracking-tight leading-snug">
-                    Frenar Catabolismo y Estabilizar Peso
-                  </p>
-                  <p className="text-[10px] text-slate-300 mt-0.5">
-                    Peso Habitual: <strong>{result.weightLoss?.usualWeight ?? "--"} kg</strong> (Ref. inmediata)
-                  </p>
-                </div>
-              ) : isModerateAlert ? (
-                <div>
-                  <span className="text-[10px] font-black uppercase text-amber-300 tracking-wider block mb-1">
-                    Enfoque Asistencial
-                  </span>
-                  <p className="text-sm font-black text-amber-200 tracking-tight leading-snug">
-                    Monitorear Ingesta Proteico-Calórica
-                  </p>
-                  <p className="text-[10px] text-slate-300 mt-0.5">
-                    Peso Habitual: <strong>{result.weightLoss?.usualWeight ?? "--"} kg</strong>
-                  </p>
-                </div>
-              ) : (
-                <div>
-                  <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-1">
-                    Rango Peso Ideal Recomendado
-                  </span>
-                  {result.idealWeight && result.idealWeight.supported ? (
-                    <div>
-                      <p className="text-xl font-black text-emerald-400 tracking-tight">
-                        {result.idealWeight.min} – {result.idealWeight.max} <span className="text-xs text-slate-300">kg</span>
-                      </p>
-                      <p className="text-[10px] text-slate-400 mt-0.5">{result.idealWeight.reference}</p>
-                    </div>
-                  ) : (
-                    <p className="text-xs text-slate-400">Normopeso estándar</p>
-                  )}
-                </div>
-              )}
+            {/* RANGO PESO SALUDABLE */}
+            <div className="bg-slate-50/70 p-4 rounded-xl border border-[#E9E5E7]/70 flex flex-col justify-between">
+              <div>
+                <span className="text-[10px] font-bold uppercase text-[#626573] tracking-wider block mb-1">
+                  Rango Peso Saludable (OMS / Lipschitz)
+                </span>
+                {result.idealWeight && result.idealWeight.supported ? (
+                  <div>
+                    <p className="text-2xl sm:text-3xl font-extrabold text-[#668E20] tracking-tight">
+                      {result.idealWeight.min} – {result.idealWeight.max} <span className="text-xs font-semibold text-[#626573]">kg</span>
+                    </p>
+                    <p className="text-xs text-[#626573] mt-1">
+                      {result.weightLoss?.usualWeight
+                        ? `Peso habitual registrado: ${result.weightLoss.usualWeight} kg`
+                        : result.idealWeight.reference}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-xs text-[#626573]">Normopeso estándar</p>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -701,10 +668,10 @@ export default function CalculosClient() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start mb-8">
         {/* PASO 1: DATOS ESENCIALES */}
         <div className="lg:col-span-6 space-y-4">
-          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+          <div className="bg-white rounded-2xl border border-[#E9E5E7] p-5 sm:p-6 shadow-2xs space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h2 className="text-xs font-black uppercase tracking-wider text-slate-900 flex items-center gap-2">
-                <Activity className="w-4 h-4 text-indigo-600" />
+              <h2 className="text-xs font-bold uppercase tracking-wider text-[#20212B] flex items-center gap-2">
+                <Activity className="w-4 h-4 text-[#86A83C]" />
                 Paso 1: Datos Esenciales
               </h2>
               <Button
@@ -712,7 +679,7 @@ export default function CalculosClient() {
                 size="sm"
                 onClick={executeCalculation}
                 disabled={loading}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs h-8 px-3.5 shadow-sm flex items-center gap-1.5 cursor-pointer transition-all active:scale-[0.98]"
+                className="bg-[#86A83C] hover:bg-[#78A82F] text-white font-semibold rounded-xl text-xs h-9 px-4 shadow-2xs flex items-center gap-1.5 cursor-pointer transition-all active:scale-[0.98]"
               >
                 {loading ? (
                   <>
@@ -724,7 +691,7 @@ export default function CalculosClient() {
                     {calculatorLocked ? (
                       <Lock className="w-3.5 h-3.5 text-amber-300" />
                     ) : (
-                      <Calculator className="w-3.5 h-3.5" />
+                      <Calculator className="w-3.5 h-3.5 text-white" />
                     )}
                     <span>Calcular</span>
                   </>
@@ -733,17 +700,17 @@ export default function CalculosClient() {
             </div>
 
             {selectedPatient && (
-              <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-100 bg-emerald-50/70 px-3 py-2">
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-[#DDE7B8] bg-[#F0F5DF] px-3.5 py-2.5">
                 <div className="min-w-0">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-emerald-700">Paciente importado</p>
-                  <p className="truncate text-xs font-bold text-slate-800">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-[#668E20]">Paciente importado</p>
+                  <p className="truncate text-xs font-bold text-[#20212B]">
                     {selectedPatient.fullName || selectedPatient.name || "Paciente sin nombre"}
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setSelectedPatient(null)}
-                  className="shrink-0 text-[10px] font-bold text-emerald-700 hover:text-emerald-900"
+                  className="shrink-0 text-xs font-semibold text-[#668E20] hover:text-[#527318] cursor-pointer"
                 >
                   Quitar
                 </button>
@@ -753,16 +720,16 @@ export default function CalculosClient() {
             {/* Sexo & Actividad */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Sexo Biológico</label>
-                <div className="flex rounded-xl border border-slate-200 overflow-hidden">
+                <label className="block text-xs font-semibold text-[#626573] mb-1.5">Sexo Biológico</label>
+                <div className="flex p-1 bg-[#F0ECEE] rounded-xl gap-1">
                   {(["Masculino", "Femenino"] as const).map((g) => (
                     <button
                       key={g}
                       type="button"
                       onClick={() => setGender(g)}
                       className={cn(
-                        "flex-1 py-2 text-xs font-bold transition-colors cursor-pointer",
-                        gender === g ? "bg-indigo-600 text-white" : "bg-white text-slate-500 hover:bg-slate-50",
+                        "flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer",
+                        gender === g ? "bg-white text-[#668E20] shadow-2xs" : "text-[#626573] hover:text-[#20212B]",
                       )}
                     >
                       {g}
@@ -772,11 +739,11 @@ export default function CalculosClient() {
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Nivel de Actividad</label>
+                <label className="block text-xs font-semibold text-[#626573] mb-1.5">Nivel de Actividad</label>
                 <select
                   value={activityLevel}
                   onChange={(e) => setActivityLevel(e.target.value)}
-                  className="w-full h-9 rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 cursor-pointer outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  className="w-full h-11 rounded-xl border border-[#E9E5E7] bg-white px-3 text-xs sm:text-sm font-medium text-[#20212B] cursor-pointer outline-none focus:border-[#86A83C]"
                 >
                   {ACTIVITY_OPTIONS.map((o) => (
                     <option key={o.value} value={o.value}>{o.label}</option>
@@ -788,7 +755,7 @@ export default function CalculosClient() {
             {/* Peso, Talla, Edad */}
             <div className="grid grid-cols-3 gap-2 sm:gap-3">
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase truncate">Peso (kg)</label>
+                <label className="block text-xs font-semibold text-[#626573] mb-1.5 truncate">Peso (kg)</label>
                 <Input
                   value={weight}
                   onChange={(e) => setWeight(e.target.value)}
@@ -796,11 +763,11 @@ export default function CalculosClient() {
                   type="number"
                   min="0"
                   step="0.1"
-                  className="h-9 rounded-xl text-xs font-semibold px-2 sm:px-3"
+                  className="h-11 rounded-xl text-xs sm:text-sm font-medium px-3 border-[#E9E5E7] bg-white text-[#20212B] focus:border-[#86A83C]"
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase truncate">Talla (cm)</label>
+                <label className="block text-xs font-semibold text-[#626573] mb-1.5 truncate">Talla (cm)</label>
                 <Input
                   value={height}
                   onChange={(e) => setHeight(e.target.value)}
@@ -808,11 +775,11 @@ export default function CalculosClient() {
                   type="number"
                   min="0"
                   step="0.1"
-                  className="h-9 rounded-xl text-xs font-semibold px-2 sm:px-3"
+                  className="h-11 rounded-xl text-xs sm:text-sm font-medium px-3 border-[#E9E5E7] bg-white text-[#20212B] focus:border-[#86A83C]"
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase truncate">Edad (años)</label>
+                <label className="block text-xs font-semibold text-[#626573] mb-1.5 truncate">Edad (años)</label>
                 <Input
                   value={age}
                   onChange={(e) => setAge(e.target.value)}
@@ -820,7 +787,7 @@ export default function CalculosClient() {
                   type="number"
                   min="0"
                   max="120"
-                  className="h-9 rounded-xl text-xs font-semibold px-2 sm:px-3"
+                  className="h-11 rounded-xl text-xs sm:text-sm font-medium px-3 border-[#E9E5E7] bg-white text-[#20212B] focus:border-[#86A83C]"
                 />
               </div>
             </div>
@@ -828,34 +795,32 @@ export default function CalculosClient() {
             {/* Fórmula TMB & IMC Objetivo */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Fórmula TMB</label>
-                <select
+                <label className="block text-xs font-semibold text-[#626573] mb-1.5">Fórmula TMB</label>
+                <Select
                   value={tmbFormula}
-                  onChange={(e) => setTmbFormula(e.target.value)}
-                  className="w-full h-9 rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 cursor-pointer outline-none"
-                >
-                  {FORMULA_OPTIONS.map((f) => (
-                    <option key={f.value} value={f.value}>{f.label}</option>
-                  ))}
-                </select>
+                  onChange={(val) => setTmbFormula(val)}
+                  options={FORMULA_OPTIONS}
+                  triggerClassName="h-11 rounded-xl border-[#E9E5E7] bg-white text-xs sm:text-sm font-medium text-[#20212B] shadow-2xs"
+                />
               </div>
 
               <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase">
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-semibold text-[#626573]">
                     IMC Objetivo (Peso Ideal)
                   </label>
                   {isTargetBmiCustom ? (
                     <button
                       type="button"
                       onClick={() => setIsTargetBmiCustom(false)}
-                      className="text-[9px] font-bold text-indigo-600 hover:underline cursor-pointer"
+                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#668E20] hover:underline cursor-pointer"
                       title="Restablecer IMC objetivo según criterio clínico OMS/Lipschitz"
                     >
-                      Auto ✨
+                      <RotateCcw className="w-3 h-3 text-[#86A83C]" />
+                      <span>Auto</span>
                     </button>
                   ) : (
-                    <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">
+                    <span className="text-[10px] font-bold text-[#668E20] bg-[#F0F5DF] px-2 py-0.5 rounded-full border border-[#DDE7B8]">
                       Auto
                     </span>
                   )}
@@ -871,38 +836,38 @@ export default function CalculosClient() {
                   min="18"
                   max="30"
                   step="0.1"
-                  className="h-9 rounded-xl text-xs font-semibold"
+                  className="h-11 rounded-xl text-xs sm:text-sm font-medium px-3 border-[#E9E5E7] bg-white text-[#20212B] focus:border-[#86A83C]"
                 />
               </div>
             </div>
 
-            <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-3 space-y-3">
-              <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700">
+            <div className="rounded-xl border border-slate-100 bg-[#F8F9FB] p-3.5 space-y-3">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-[#626573]">
                 Condición fisiológica
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <label className="flex items-center gap-2 text-xs font-semibold text-slate-700">
+                <label className="flex items-center gap-2 text-xs font-semibold text-[#20212B] cursor-pointer">
                   <input
                     type="checkbox"
                     checked={isPregnant}
                     onChange={(event) => setIsPregnant(event.target.checked)}
-                    className="accent-emerald-600"
+                    className="accent-[#86A83C] rounded"
                   />
                   Embarazo
                 </label>
-                <label className="flex items-center gap-2 text-xs font-semibold text-slate-700">
+                <label className="flex items-center gap-2 text-xs font-semibold text-[#20212B] cursor-pointer">
                   <input
                     type="checkbox"
                     checked={isLactating}
                     onChange={(event) => setIsLactating(event.target.checked)}
-                    className="accent-emerald-600"
+                    className="accent-[#86A83C] rounded"
                   />
                   Lactancia
                 </label>
               </div>
               {isPregnant ? (
                 <div>
-                  <label className="block text-[10px] font-bold text-emerald-700 mb-1 uppercase">
+                  <label className="block text-xs font-semibold text-[#626573] mb-1.5">
                     Semana gestacional
                   </label>
                   <Input
@@ -913,7 +878,7 @@ export default function CalculosClient() {
                     max="42"
                     step="1"
                     placeholder="24"
-                    className="h-9 rounded-xl text-xs font-semibold px-3"
+                    className="h-11 rounded-xl text-xs sm:text-sm font-medium px-3 border-[#E9E5E7] bg-white text-[#20212B] focus:border-[#86A83C]"
                   />
                 </div>
               ) : null}
@@ -921,13 +886,13 @@ export default function CalculosClient() {
                 <select
                   value={lactationType}
                   onChange={(event) => setLactationType(event.target.value as "exclusive" | "partial")}
-                  className="w-full h-9 rounded-xl border border-emerald-200 bg-white px-2.5 text-xs font-semibold text-slate-700"
+                  className="w-full h-11 rounded-xl border border-[#E9E5E7] bg-white px-3 text-xs sm:text-sm font-medium text-[#20212B] cursor-pointer outline-none focus:border-[#86A83C]"
                 >
                   <option value="exclusive">Lactancia exclusiva (+500 kcal)</option>
                   <option value="partial">Lactancia parcial (+300 kcal)</option>
                 </select>
               ) : null}
-              <p className="text-[10px] text-emerald-800">
+              <p className="text-[11px] text-[#626573] leading-relaxed">
                 Ajuste orientativo. Confirmar semana, tipo de lactancia y condición clínica antes de indicar un plan.
               </p>
             </div>
@@ -936,21 +901,21 @@ export default function CalculosClient() {
 
         {/* COLUMNA DERECHA: DIAGNÓSTICOS SECUNDARIOS / ALERTAS CLÍNICAS */}
         <div className="lg:col-span-6 space-y-4">
-          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+          <div className="bg-white rounded-2xl border border-[#E9E5E7] p-5 sm:p-6 shadow-2xs space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h2 className="text-xs font-black uppercase tracking-wider text-slate-900 flex items-center gap-2">
-                <Scale className="w-4 h-4 text-emerald-500" />
+              <h2 className="text-xs font-bold uppercase tracking-wider text-[#20212B] flex items-center gap-2">
+                <Scale className="w-4 h-4 text-[#86A83C]" />
                 Evaluaciones Específicas
               </h2>
-              <span className="text-[10px] font-bold text-slate-400">
+              <span className="text-xs font-semibold text-[#626573]">
                 {result ? "Calculado" : "Esperando cálculo"}
               </span>
             </div>
 
             {!result && !loading && (
               <div className="py-12 text-center flex flex-col items-center justify-center gap-2 text-slate-400">
-                <Calculator className="w-9 h-9 text-slate-300" />
-                <p className="text-xs font-medium text-slate-500 max-w-xs">
+                <Activity className="w-8 h-8 text-slate-300 stroke-[1.5]" />
+                <p className="text-xs font-medium text-[#626573] max-w-xs">
                   Ingresa datos a la izquierda y presiona <strong>&quot;Calcular&quot;</strong> para desplegar las evaluaciones específicas.
                 </p>
               </div>
@@ -1035,15 +1000,15 @@ export default function CalculosClient() {
       <div className="space-y-4 pt-6 border-t border-slate-200">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 px-1">
           <div>
-            <h2 className="text-sm font-black uppercase tracking-wider text-slate-900 flex items-center gap-2">
-              <Plus className="w-4.5 h-4.5 text-indigo-600" />
+            <h2 className="text-xs font-bold uppercase tracking-wider text-[#20212B] flex items-center gap-2">
+              <Plus className="w-4 h-4 text-[#86A83C]" />
               Módulos Adicionales
             </h2>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Evaluaciones avanzadas desplegadas a 2 columnas en todo el ancho del contenedor.
+            <p className="text-xs text-[#626573] mt-0.5">
+              Evaluaciones complementarias para el perfil nutricional avanzado.
             </p>
           </div>
-          <span className="text-[11px] font-bold text-slate-400">
+          <span className="text-xs font-semibold text-[#626573]">
             Activa solo los que requiere tu paciente
           </span>
         </div>
@@ -1052,10 +1017,10 @@ export default function CalculosClient() {
           {/* 1. EDEMA */}
           <div className={cn(activeModules.edema ? "col-span-1 md:col-span-2" : "col-span-1")}>
             {activeModules.edema ? (
-              <div className="bg-white rounded-2xl border border-blue-200 p-5 shadow-sm space-y-3 animate-in fade-in duration-150">
-                <div className="flex items-center justify-between border-b border-blue-50 pb-2">
-                  <h3 className="text-xs font-bold text-blue-900 flex items-center gap-1.5 uppercase">
-                    <Droplets className="w-4 h-4 text-blue-500" />
+              <div className="bg-white rounded-2xl border border-[#E9E5E7] p-5 shadow-2xs space-y-3 animate-in fade-in duration-150">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                  <h3 className="text-xs font-bold text-[#20212B] flex items-center gap-1.5 uppercase">
+                    <Droplets className="w-4 h-4 text-[#86A83C]" />
                     Edema / Descuento de Agua
                   </h3>
                   <button
@@ -1076,15 +1041,15 @@ export default function CalculosClient() {
               <button
                 type="button"
                 onClick={() => toggleModule("edema")}
-                className="w-full h-full flex items-center justify-between p-4 bg-white hover:bg-blue-50/50 rounded-2xl border border-dashed border-slate-200 hover:border-blue-300 text-xs font-bold text-slate-700 hover:text-blue-700 transition-all cursor-pointer text-left shadow-xs hover:shadow-sm gap-3"
+                className="w-full h-full flex items-center justify-between p-4 bg-white hover:bg-slate-50/80 rounded-2xl border border-[#E9E5E7] text-xs font-semibold text-[#20212B] transition-all cursor-pointer text-left shadow-2xs gap-3"
               >
-                <span className="flex items-center gap-2.5">
-                  <span className="p-2 rounded-xl bg-blue-50 text-blue-600">
-                    <Droplets className="w-4 h-4" />
+                <span className="flex items-center gap-3">
+                  <span className="w-9 h-9 rounded-xl bg-[#F0F5DF] text-[#668E20] flex items-center justify-center shrink-0">
+                    <Droplets className="w-4.5 h-4.5" />
                   </span>
-                  + Agregar Evaluación de Edema / Retención de Líquidos
+                  Agregar Evaluación de Edema / Retención de Líquidos
                 </span>
-                <Plus className="w-4 h-4 text-slate-400 shrink-0" />
+                <Plus className="w-4 h-4 text-[#626573] shrink-0" />
               </button>
             )}
           </div>
@@ -1092,9 +1057,9 @@ export default function CalculosClient() {
           {/* 2. BLACKBURN */}
           <div className={cn(activeModules.blackburn ? "col-span-1 md:col-span-2" : "col-span-1")}>
             {activeModules.blackburn ? (
-              <div className="bg-white rounded-2xl border border-rose-200 p-5 shadow-sm space-y-3 animate-in fade-in duration-150">
-                <div className="flex items-center justify-between border-b border-rose-50 pb-2">
-                  <h3 className="text-xs font-bold text-rose-900 flex items-center gap-1.5 uppercase">
+              <div className="bg-white rounded-2xl border border-[#E9E5E7] p-5 shadow-2xs space-y-3 animate-in fade-in duration-150">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                  <h3 className="text-xs font-bold text-[#20212B] flex items-center gap-1.5 uppercase">
                     <TrendingDown className="w-4 h-4 text-rose-500" />
                     Pérdida Involuntaria de Peso (Blackburn)
                   </h3>
@@ -1115,18 +1080,19 @@ export default function CalculosClient() {
                 />
 
                 {usualWeight && (isSevereWeightLoss || isSignificantWeightLoss) && (
-                  <div className="p-3 bg-indigo-50 border border-indigo-150 rounded-xl flex items-start gap-2.5 mt-2 animate-in fade-in duration-200">
+                  <div className="p-3 bg-[#F8F9FB] border border-slate-200 rounded-xl flex items-start gap-2.5 mt-2 animate-in fade-in duration-200">
                     <input
                       type="checkbox"
                       id="useUsualWeight"
                       checked={useUsualWeightForRequirements}
                       onChange={(e) => setUseUsualWeightForRequirements(e.target.checked)}
-                      className="mt-0.5 h-4 w-4 rounded border-slate-350 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                      className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#86A83C] focus:ring-[#86A83C] cursor-pointer"
                     />
-                    <label htmlFor="useUsualWeight" className="text-xs font-semibold text-indigo-950 cursor-pointer select-none leading-normal">
+                    <label htmlFor="useUsualWeight" className="text-xs font-semibold text-[#20212B] cursor-pointer select-none leading-normal">
                       Calcular requerimientos (GET, proteínas, agua) sobre el peso habitual ({usualWeight} kg)
-                      <span className="block text-[10px] font-normal text-indigo-700 mt-0.5">
-                        💡 Recomendado clínicamente para evitar subestimar necesidades calórico-proteicas en fase de desnutrición/pérdida aguda.
+                      <span className="flex items-center gap-1.5 text-[11px] font-normal text-[#626573] mt-1">
+                        <Info className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                        <span>Recomendado clínicamente para evitar subestimar necesidades calórico-proteicas en fase de desnutrición o pérdida aguda.</span>
                       </span>
                     </label>
                   </div>
@@ -1136,15 +1102,15 @@ export default function CalculosClient() {
               <button
                 type="button"
                 onClick={() => toggleModule("blackburn")}
-                className="w-full h-full flex items-center justify-between p-4 bg-white hover:bg-rose-50/50 rounded-2xl border border-dashed border-slate-200 hover:border-rose-300 text-xs font-bold text-slate-700 hover:text-rose-700 transition-all cursor-pointer text-left shadow-xs hover:shadow-sm gap-3"
+                className="w-full h-full flex items-center justify-between p-4 bg-white hover:bg-slate-50/80 rounded-2xl border border-[#E9E5E7] text-xs font-semibold text-[#20212B] transition-all cursor-pointer text-left shadow-2xs gap-3"
               >
-                <span className="flex items-center gap-2.5">
-                  <span className="p-2 rounded-xl bg-rose-50 text-rose-600">
-                    <TrendingDown className="w-4 h-4" />
+                <span className="flex items-center gap-3">
+                  <span className="w-9 h-9 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
+                    <TrendingDown className="w-4.5 h-4.5" />
                   </span>
-                  + Agregar Pérdida de Peso Involuntaria (Blackburn)
+                  Agregar Pérdida de Peso Involuntaria (Blackburn)
                 </span>
-                <Plus className="w-4 h-4 text-slate-400 shrink-0" />
+                <Plus className="w-4 h-4 text-[#626573] shrink-0" />
               </button>
             )}
           </div>
@@ -1152,9 +1118,9 @@ export default function CalculosClient() {
           {/* 3. REQUERIMIENTO PROTEICO ESPECÍFICO */}
           <div className={cn(activeModules.protein ? "col-span-1 md:col-span-2" : "col-span-1")}>
             {activeModules.protein ? (
-              <div className="bg-white rounded-2xl border border-amber-200 p-5 shadow-sm space-y-3 animate-in fade-in duration-150">
-                <div className="flex items-center justify-between border-b border-amber-50 pb-2">
-                  <h3 className="text-xs font-bold text-amber-900 flex items-center gap-1.5 uppercase">
+              <div className="bg-white rounded-2xl border border-[#E9E5E7] p-5 shadow-2xs space-y-3 animate-in fade-in duration-150">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                  <h3 className="text-xs font-bold text-[#20212B] flex items-center gap-1.5 uppercase">
                     <Award className="w-4 h-4 text-amber-500" />
                     Requerimiento Proteico según Perfil Clínico
                   </h3>
@@ -1176,15 +1142,15 @@ export default function CalculosClient() {
               <button
                 type="button"
                 onClick={() => toggleModule("protein")}
-                className="w-full h-full flex items-center justify-between p-4 bg-white hover:bg-amber-50/50 rounded-2xl border border-dashed border-slate-200 hover:border-amber-300 text-xs font-bold text-slate-700 hover:text-amber-700 transition-all cursor-pointer text-left shadow-xs hover:shadow-sm gap-3"
+                className="w-full h-full flex items-center justify-between p-4 bg-white hover:bg-slate-50/80 rounded-2xl border border-[#E9E5E7] text-xs font-semibold text-[#20212B] transition-all cursor-pointer text-left shadow-2xs gap-3"
               >
-                <span className="flex items-center gap-2.5">
-                  <span className="p-2 rounded-xl bg-amber-50 text-amber-600">
-                    <Award className="w-4 h-4" />
+                <span className="flex items-center gap-3">
+                  <span className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+                    <Award className="w-4.5 h-4.5" />
                   </span>
-                  + Agregar Perfil Proteico Específico (Deportista, Renal, Oncología, Adulto Mayor)
+                  Agregar Perfil Proteico Específico (Deportista, Renal, Oncología, Adulto Mayor)
                 </span>
-                <Plus className="w-4 h-4 text-slate-400 shrink-0" />
+                <Plus className="w-4 h-4 text-[#626573] shrink-0" />
               </button>
             )}
           </div>
@@ -1192,10 +1158,10 @@ export default function CalculosClient() {
           {/* 4. CHUMLEA */}
           <div className={cn(activeModules.chumlea ? "col-span-1 md:col-span-2" : "col-span-1")}>
             {activeModules.chumlea ? (
-              <div className="bg-white rounded-2xl border border-sky-200 p-5 shadow-sm space-y-3 animate-in fade-in duration-150">
-                <div className="flex items-center justify-between border-b border-sky-50 pb-2">
-                  <h3 className="text-xs font-bold text-sky-900 flex items-center gap-1.5 uppercase">
-                    <Ruler className="w-4 h-4 text-sky-500" />
+              <div className="bg-white rounded-2xl border border-[#E9E5E7] p-5 shadow-2xs space-y-3 animate-in fade-in duration-150">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                  <h3 className="text-xs font-bold text-[#20212B] flex items-center gap-1.5 uppercase">
+                    <Ruler className="w-4 h-4 text-[#86A83C]" />
                     Estimación Antropométrica Chumlea
                   </h3>
                   <button
@@ -1209,7 +1175,7 @@ export default function CalculosClient() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Altura Rodilla AR (cm)</label>
+                    <label className="block text-xs font-semibold text-[#626573] mb-1.5">Altura Rodilla AR (cm)</label>
                     <Input
                       value={kneeHeight}
                       onChange={(e) => setKneeHeight(e.target.value)}
@@ -1217,11 +1183,11 @@ export default function CalculosClient() {
                       type="number"
                       min="0"
                       step="0.1"
-                      className="h-8 rounded-xl text-xs"
+                      className="h-11 rounded-xl text-xs sm:text-sm font-medium px-3 border-[#E9E5E7] bg-white text-[#20212B] focus:border-[#86A83C]"
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Circ. Pantorrilla CP (cm)</label>
+                    <label className="block text-xs font-semibold text-[#626573] mb-1.5">Circ. Pantorrilla CP (cm)</label>
                     <Input
                       value={calfCircumference}
                       onChange={(e) => setCalfCircumference(e.target.value)}
@@ -1229,14 +1195,14 @@ export default function CalculosClient() {
                       type="number"
                       min="0"
                       step="0.1"
-                      className="h-8 rounded-xl text-xs"
+                      className="h-11 rounded-xl text-xs sm:text-sm font-medium px-3 border-[#E9E5E7] bg-white text-[#20212B] focus:border-[#86A83C]"
                     />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Circ. Braquial CB (cm)</label>
+                    <label className="block text-xs font-semibold text-[#626573] mb-1.5">Circ. Braquial CB (cm)</label>
                     <Input
                       value={armCircumference}
                       onChange={(e) => setArmCircumference(e.target.value)}
@@ -1244,12 +1210,12 @@ export default function CalculosClient() {
                       type="number"
                       min="0"
                       step="0.1"
-                      className="h-8 rounded-xl text-xs"
+                      className="h-11 rounded-xl text-xs sm:text-sm font-medium px-3 border-[#E9E5E7] bg-white text-[#20212B] focus:border-[#86A83C]"
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">
-                      Pliegue Subescapular PSE (mm) <span className="text-indigo-600 font-normal">(Compartido)</span>
+                    <label className="block text-xs font-semibold text-[#626573] mb-1.5">
+                      Pliegue Subescapular PSE (mm) <span className="text-[#668E20] font-normal">(Compartido)</span>
                     </label>
                     <Input
                       value={subescapularFold}
@@ -1258,7 +1224,7 @@ export default function CalculosClient() {
                       type="number"
                       min="0"
                       step="0.1"
-                      className="h-8 rounded-xl text-xs"
+                      className="h-11 rounded-xl text-xs sm:text-sm font-medium px-3 border-[#E9E5E7] bg-white text-[#20212B] focus:border-[#86A83C]"
                     />
                   </div>
                 </div>
@@ -1267,26 +1233,26 @@ export default function CalculosClient() {
               <button
                 type="button"
                 onClick={() => toggleModule("chumlea")}
-                className="w-full h-full flex items-center justify-between p-4 bg-white hover:bg-sky-50/50 rounded-2xl border border-dashed border-slate-200 hover:border-sky-300 text-xs font-bold text-slate-700 hover:text-sky-700 transition-all cursor-pointer text-left shadow-xs hover:shadow-sm gap-3"
+                className="w-full h-full flex items-center justify-between p-4 bg-white hover:bg-slate-50/80 rounded-2xl border border-[#E9E5E7] text-xs font-semibold text-[#20212B] transition-all cursor-pointer text-left shadow-2xs gap-3"
               >
-                <span className="flex items-center gap-2.5">
-                  <span className="p-2 rounded-xl bg-sky-50 text-sky-600">
-                    <Ruler className="w-4 h-4" />
+                <span className="flex items-center gap-3">
+                  <span className="w-9 h-9 rounded-xl bg-[#F0F5DF] text-[#668E20] flex items-center justify-center shrink-0">
+                    <Ruler className="w-4.5 h-4.5" />
                   </span>
-                  + Agregar Estimación de Talla/Peso por Chumlea
+                  Agregar Estimación de Talla/Peso por Chumlea
                 </span>
-                <Plus className="w-4 h-4 text-slate-400 shrink-0" />
+                <Plus className="w-4 h-4 text-[#626573] shrink-0" />
               </button>
             )}
           </div>
 
-          {/* 5. FRISANCHO (Solo pliegues esenciales: Tricipital + Subescapular compartido) */}
+          {/* 5. FRISANCHO */}
           <div className={cn(activeModules.frisancho ? "col-span-1 md:col-span-2" : "col-span-1")}>
             {activeModules.frisancho ? (
-              <div className="bg-white rounded-2xl border border-purple-200 p-5 shadow-sm space-y-3 animate-in fade-in duration-150">
-                <div className="flex items-center justify-between border-b border-purple-50 pb-2">
-                  <h3 className="text-xs font-bold text-purple-900 flex items-center gap-1.5 uppercase">
-                    <Percent className="w-4 h-4 text-purple-500" />
+              <div className="bg-white rounded-2xl border border-[#E9E5E7] p-5 shadow-2xs space-y-3 animate-in fade-in duration-150">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                  <h3 className="text-xs font-bold text-[#20212B] flex items-center gap-1.5 uppercase">
+                    <Percent className="w-4 h-4 text-[#86A83C]" />
                     Pliegues Cutáneos & Composición (Frisancho)
                   </h3>
                   <button
@@ -1300,7 +1266,7 @@ export default function CalculosClient() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Pliegue Tricipital (mm)</label>
+                    <label className="block text-xs font-semibold text-[#626573] mb-1.5">Pliegue Tricipital (mm)</label>
                     <Input
                       value={tricipitalFold}
                       onChange={(e) => setTricipitalFold(e.target.value)}
@@ -1308,12 +1274,12 @@ export default function CalculosClient() {
                       type="number"
                       min="0"
                       step="0.1"
-                      className="h-8 rounded-xl text-xs"
+                      className="h-11 rounded-xl text-xs sm:text-sm font-medium px-3 border-[#E9E5E7] bg-white text-[#20212B] focus:border-[#86A83C]"
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">
-                      Pliegue Subescapular (mm) <span className="text-indigo-600 font-normal">(Compartido)</span>
+                    <label className="block text-xs font-semibold text-[#626573] mb-1.5">
+                      Pliegue Subescapular (mm) <span className="text-[#668E20] font-normal">(Compartido)</span>
                     </label>
                     <Input
                       value={subescapularFold}
@@ -1322,7 +1288,7 @@ export default function CalculosClient() {
                       type="number"
                       min="0"
                       step="0.1"
-                      className="h-8 rounded-xl text-xs"
+                      className="h-11 rounded-xl text-xs sm:text-sm font-medium px-3 border-[#E9E5E7] bg-white text-[#20212B] focus:border-[#86A83C]"
                     />
                   </div>
                 </div>
@@ -1331,15 +1297,15 @@ export default function CalculosClient() {
               <button
                 type="button"
                 onClick={() => toggleModule("frisancho")}
-                className="w-full h-full flex items-center justify-between p-4 bg-white hover:bg-purple-50/50 rounded-2xl border border-dashed border-slate-200 hover:border-purple-300 text-xs font-bold text-slate-700 hover:text-purple-700 transition-all cursor-pointer text-left shadow-xs hover:shadow-sm gap-3"
+                className="w-full h-full flex items-center justify-between p-4 bg-white hover:bg-slate-50/80 rounded-2xl border border-[#E9E5E7] text-xs font-semibold text-[#20212B] transition-all cursor-pointer text-left shadow-2xs gap-3"
               >
-                <span className="flex items-center gap-2.5">
-                  <span className="p-2 rounded-xl bg-purple-50 text-purple-600">
-                    <Percent className="w-4 h-4" />
+                <span className="flex items-center gap-3">
+                  <span className="w-9 h-9 rounded-xl bg-[#F0F5DF] text-[#668E20] flex items-center justify-center shrink-0">
+                    <Percent className="w-4.5 h-4.5" />
                   </span>
-                  + Agregar Pliegues Cutáneos (AMB/AGB Frisancho)
+                  Agregar Pliegues Cutáneos (AMB/AGB Frisancho)
                 </span>
-                <Plus className="w-4 h-4 text-slate-400 shrink-0" />
+                <Plus className="w-4 h-4 text-[#626573] shrink-0" />
               </button>
             )}
           </div>
@@ -1347,10 +1313,10 @@ export default function CalculosClient() {
           {/* 6. RIESGO CARDIO (ICC) */}
           <div className={cn(activeModules.icc ? "col-span-1 md:col-span-2" : "col-span-1")}>
             {activeModules.icc ? (
-              <div className="bg-white rounded-2xl border border-emerald-200 p-5 shadow-sm space-y-3 animate-in fade-in duration-150">
-                <div className="flex items-center justify-between border-b border-emerald-50 pb-2">
-                  <h3 className="text-xs font-bold text-emerald-900 flex items-center gap-1.5 uppercase">
-                    <Heart className="w-4 h-4 text-emerald-500" />
+              <div className="bg-white rounded-2xl border border-[#E9E5E7] p-5 shadow-2xs space-y-3 animate-in fade-in duration-150">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                  <h3 className="text-xs font-bold text-[#20212B] flex items-center gap-1.5 uppercase">
+                    <Heart className="w-4 h-4 text-[#86A83C]" />
                     Riesgo Cardiovascular (Cintura/Cadera ICC)
                   </h3>
                   <button
@@ -1363,7 +1329,7 @@ export default function CalculosClient() {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Circ. Cintura (cm)</label>
+                    <label className="block text-xs font-semibold text-[#626573] mb-1.5">Circ. Cintura (cm)</label>
                     <Input
                       value={waistCircumference}
                       onChange={(e) => setWaistCircumference(e.target.value)}
@@ -1371,11 +1337,11 @@ export default function CalculosClient() {
                       type="number"
                       min="0"
                       step="0.1"
-                      className="h-8 rounded-xl text-xs"
+                      className="h-11 rounded-xl text-xs sm:text-sm font-medium px-3 border-[#E9E5E7] bg-white text-[#20212B] focus:border-[#86A83C]"
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Circ. Cadera (cm)</label>
+                    <label className="block text-xs font-semibold text-[#626573] mb-1.5">Circ. Cadera (cm)</label>
                     <Input
                       value={hipCircumference}
                       onChange={(e) => setHipCircumference(e.target.value)}
@@ -1383,7 +1349,7 @@ export default function CalculosClient() {
                       type="number"
                       min="0"
                       step="0.1"
-                      className="h-8 rounded-xl text-xs"
+                      className="h-11 rounded-xl text-xs sm:text-sm font-medium px-3 border-[#E9E5E7] bg-white text-[#20212B] focus:border-[#86A83C]"
                     />
                   </div>
                 </div>
@@ -1392,15 +1358,15 @@ export default function CalculosClient() {
               <button
                 type="button"
                 onClick={() => toggleModule("icc")}
-                className="w-full h-full flex items-center justify-between p-4 bg-white hover:bg-emerald-50/50 rounded-2xl border border-dashed border-slate-200 hover:border-emerald-300 text-xs font-bold text-slate-700 hover:border-emerald-700 transition-all cursor-pointer text-left shadow-xs hover:shadow-sm gap-3"
+                className="w-full h-full flex items-center justify-between p-4 bg-white hover:bg-slate-50/80 rounded-2xl border border-[#E9E5E7] text-xs font-semibold text-[#20212B] transition-all cursor-pointer text-left shadow-2xs gap-3"
               >
-                <span className="flex items-center gap-2.5">
-                  <span className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
-                    <Heart className="w-4 h-4" />
+                <span className="flex items-center gap-3">
+                  <span className="w-9 h-9 rounded-xl bg-[#F0F5DF] text-[#668E20] flex items-center justify-center shrink-0">
+                    <Heart className="w-4.5 h-4.5" />
                   </span>
-                  + Agregar Riesgo Cardiovascular (Cintura / Cadera)
+                  Agregar Riesgo Cardiovascular (Cintura / Cadera)
                 </span>
-                <Plus className="w-4 h-4 text-slate-400 shrink-0" />
+                <Plus className="w-4 h-4 text-[#626573] shrink-0" />
               </button>
             )}
           </div>

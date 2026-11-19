@@ -54,7 +54,7 @@ export class CopilotService {
     private readonly aiUsageService: AiUsageService,
   ) {}
 
-  private buildAgent(accountId?: string) {
+  private buildAgent(accountId?: string, nutritionistId?: string) {
     const modelConfig = this.aiService.resolvePreferredModelConfig();
     if (!modelConfig) {
       throw new Error('No AI provider configured for CopilotService');
@@ -108,9 +108,13 @@ export class CopilotService {
               .describe('Maximo de resultados (default 10)'),
           }),
           execute: async ({ query, limite }) => {
+            const safeLimit = Math.min(Math.max(1, limite || 10), 20);
             const ingredients = await this.prisma.ingredient.findMany({
               where: {
-                isPublic: true,
+                OR: [
+                  { isPublic: true },
+                  ...(nutritionistId ? [{ nutritionistId }] : []),
+                ],
                 name: { contains: query, mode: 'insensitive' },
               },
               select: {
@@ -125,7 +129,7 @@ export class CopilotService {
                 unit: true,
                 amount: true,
               },
-              take: limite || 10,
+              take: safeLimit,
             });
             return {
               encontrados: ingredients.length,
@@ -150,8 +154,18 @@ export class CopilotService {
             pacienteId: z.string().describe('ID del paciente (UUID)'),
           }),
           execute: async ({ pacienteId }) => {
-            const patient = await this.prisma.patient.findUnique({
-              where: { id: pacienteId },
+            if (!nutritionistId) {
+              return {
+                error:
+                  'No autorizado: se requiere sesión activa de nutricionista para acceder a fichas de pacientes.',
+              };
+            }
+
+            const patient = await this.prisma.patient.findFirst({
+              where: {
+                id: pacienteId,
+                nutritionistId,
+              },
               select: {
                 id: true,
                 fullName: true,
@@ -167,7 +181,12 @@ export class CopilotService {
                 clinicalSummary: true,
               },
             });
-            if (!patient) return { error: 'Paciente no encontrado' };
+            if (!patient) {
+              return {
+                error:
+                  'Paciente no encontrado o no tienes permiso para acceder a esta ficha clínica.',
+              };
+            }
 
             const context = this.aiService.formatPatientContext({
               ageYears: patient.age,
@@ -443,8 +462,10 @@ export class CopilotService {
             valor: z.string().describe('Valor a guardar'),
           }),
           execute: ({ clave, valor }) => {
-            this.memory.set(clave, valor);
-            this.logger.log(`[Memory] Stored: ${clave}`);
+            const memoryScope = accountId || nutritionistId || 'anonymous';
+            const scopedKey = `${memoryScope}:${clave}`;
+            this.memory.set(scopedKey, valor);
+            this.logger.log(`[Memory] Stored scoped key for tenant: ${memoryScope}`);
             return { ok: true, clave };
           },
         }),
@@ -456,7 +477,9 @@ export class CopilotService {
             clave: z.string().describe('Clave de la informacion a recuperar'),
           }),
           execute: ({ clave }) => {
-            const value = this.memory.get(clave);
+            const memoryScope = accountId || nutritionistId || 'anonymous';
+            const scopedKey = `${memoryScope}:${clave}`;
+            const value = this.memory.get(scopedKey);
             return value
               ? { encontrado: true, clave, valor: value }
               : { encontrado: false, clave };
@@ -466,11 +489,11 @@ export class CopilotService {
     });
   }
 
-  async chat(prompt: string, accountId?: string) {
-    return this.buildAgent(accountId).stream({ prompt });
+  async chat(prompt: string, accountId?: string, nutritionistId?: string) {
+    return this.buildAgent(accountId, nutritionistId).stream({ prompt });
   }
 
-  getAgent(accountId?: string) {
-    return this.buildAgent(accountId);
+  getAgent(accountId?: string, nutritionistId?: string) {
+    return this.buildAgent(accountId, nutritionistId);
   }
 }

@@ -11,8 +11,10 @@ export const mapBackendTypeToFrontend = (type: string): CreationType => {
     case "SHOPPING_LIST":
       return CreationType.SHOPPING_LIST;
     case "RECIPE":
+    case "RECETARIO":
       return CreationType.RECIPE;
     case "FAST_DELIVERABLE":
+    case "DELIVERABLE":
       return CreationType.FAST_DELIVERABLE;
     case "PAUTAS":
       return CreationType.PAUTAS;
@@ -52,7 +54,8 @@ export function mapRawCreationToFrontend(item: any): Creation {
     format: "PDF",
     tags: item.tags || [],
     filterTags: allFilterTags,
-    patientName: item.patient?.name || item.metadata?.patientName || null,
+    patientName: item.patient?.name || item.metadata?.patientName || item.patientName || null,
+    description: item.description || item.metadata?.description || null,
   };
 }
 

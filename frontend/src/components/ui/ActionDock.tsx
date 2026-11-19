@@ -1,13 +1,14 @@
 "use client";
 
-import React from "react";
 import { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/context/ThemeContext";
 
 export interface ActionDockItem {
   id: string;
   icon: LucideIcon;
+  customIcon?: ReactNode;
   label: string;
   description?: string;
   onClick: () => void;
@@ -24,6 +25,7 @@ interface ActionDockProps {
 
 export function ActionDock({ items, className, desktopBreakpoint = "md" }: ActionDockProps) {
   const { isDarkMode } = useTheme();
+  const dockItems = items;
   const desktopPositionClasses = desktopBreakpoint === "lg"
     ? "lg:bottom-auto lg:left-auto lg:right-4 lg:top-1/2 lg:-translate-y-1/2 lg:max-w-none lg:mx-0 xl:right-8"
     : "md:bottom-auto md:left-auto md:right-4 md:top-1/2 md:-translate-y-1/2 md:max-w-none md:mx-0 xl:right-8";
@@ -60,7 +62,7 @@ export function ActionDock({ items, className, desktopBreakpoint = "md" }: Actio
           "flex flex-row items-center justify-around gap-1 sm:gap-1.5 overflow-x-auto no-scrollbar py-0.5 px-0.5",
           desktopItemsClasses,
         )}>
-          {items.map((item, index) => {
+          {dockItems.map((item, index) => {
             if (item.isSeparator) {
               return (
                 <div
@@ -111,7 +113,7 @@ export function ActionDock({ items, className, desktopBreakpoint = "md" }: Actio
                 )}
                 title={item.description || item.label}
               >
-                <Icon className="h-5 w-5 md:h-6 md:w-6 transition-transform group-hover:scale-110 shrink-0" />
+                 {item.customIcon || <Icon className="h-5 w-5 md:h-6 md:w-6 transition-transform group-hover:scale-110 shrink-0" />}
 
                 {/* Tooltip para escritorios */}
                 <span
@@ -130,6 +132,7 @@ export function ActionDock({ items, className, desktopBreakpoint = "md" }: Actio
           })}
         </div>
       </div>
+
     </div>
   );
 }

@@ -4,147 +4,106 @@ import React from "react";
 import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
 import type { ScreeningTestCreationContent } from "@/features/screening-tests/types";
 import { getTestDefinition } from "@/features/screening-tests/definitions";
+import { colors } from "./styles/pdfStyles";
+import {
+  PdfBrandedHeader,
+  PdfSectionHeader,
+  PdfBrandedFooter,
+} from "./components";
 
 const styles = StyleSheet.create({
   page: {
-    padding: 30,
+    paddingTop: 24,
+    paddingBottom: 24,
+    paddingHorizontal: 28,
+    backgroundColor: colors.white,
     fontFamily: "Helvetica",
-    fontSize: 10,
-    color: "#251d32",
-    backgroundColor: "#ffffff",
+    color: colors.slate800,
+    fontSize: 9.5,
+    lineHeight: 1.4,
   },
-  header: {
-    borderBottomWidth: 1.5,
-    borderBottomColor: "#7c5cac",
-    borderBottomStyle: "solid",
-    paddingBottom: 10,
-    marginBottom: 15,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  title: {
-    fontSize: 23,
-    fontFamily: "Helvetica-Bold",
-    color: "#3f2c5f",
-  },
-  subtitle: {
-    fontSize: 10,
-    color: "#64748b",
-    marginTop: 2,
-  },
-  brand: {
-    fontSize: 13,
-    fontFamily: "Helvetica-Bold",
-    color: "#7c5cac",
-  },
-  patientBox: {
-    backgroundColor: "#f5f1fa",
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 15,
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  patientText: {
-    fontSize: 10,
-    color: "#334155",
-  },
-  bold: {
-    fontFamily: "Helvetica-Bold",
+  section: {
+    marginBottom: 8,
   },
   resultCard: {
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 15,
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 8,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: colors.slate200,
+    backgroundColor: colors.slate50,
   },
   resultTitle: {
-    fontSize: 8,
+    fontSize: 7.5,
     fontFamily: "Helvetica-Bold",
     textTransform: "uppercase",
-    color: "#475569",
-    marginBottom: 3,
+    color: colors.slate600,
+    marginBottom: 2,
   },
   scoreText: {
-    fontSize: 26,
+    fontSize: 22,
     fontFamily: "Helvetica-Bold",
-    color: "#0f172a",
+    color: colors.primaryDark,
   },
   badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    fontSize: 9,
-    fontFamily: "Helvetica-Bold",
-    color: "#ffffff",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
   },
-  sectionTitle: {
-    fontSize: 14,
+  badgeText: {
+    fontSize: 8.5,
     fontFamily: "Helvetica-Bold",
-    color: "#7c5cac",
-    borderBottomWidth: 1,
-    borderBottomColor: "#e2e8f0",
-    borderBottomStyle: "solid",
-    paddingBottom: 3,
-    marginBottom: 8,
-    marginTop: 10,
+    color: colors.white,
+  },
+  cardBox: {
+    backgroundColor: colors.slate50,
+    borderWidth: 1,
+    borderColor: colors.slate200,
+    borderRadius: 8,
+    padding: 6,
+    marginBottom: 6,
   },
   questionRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingVertical: 4,
-    borderBottomWidth: 0.5,
-    borderBottomColor: "#f1f5f9",
-    borderBottomStyle: "solid",
+    paddingVertical: 3,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.slate100,
+    alignItems: "center",
   },
   questionLabel: {
-    fontSize: 9.5,
-    color: "#334155",
-    width: "75%",
+    fontSize: 8,
+    color: colors.slate700,
+    flex: 1,
+    paddingRight: 6,
   },
   questionValue: {
-    fontSize: 9.5,
+    fontSize: 8,
     fontFamily: "Helvetica-Bold",
-    color: "#0f172a",
-    width: "25%",
-    textAlign: "right",
+    color: colors.primaryDark,
   },
   recBox: {
-    backgroundColor: "#f5f1fa",
+    backgroundColor: colors.primaryLight,
+    borderWidth: 1,
+    borderColor: "#DDD6FE",
     borderRadius: 8,
-    padding: 10,
-    marginTop: 15,
+    padding: 8,
+    marginTop: 6,
+    marginBottom: 8,
   },
   recTitle: {
     fontSize: 8,
     fontFamily: "Helvetica-Bold",
-    textTransform: "uppercase",
-    color: "#64748b",
-    marginBottom: 3,
+    color: colors.primaryDark,
+    marginBottom: 2,
   },
   recText: {
-    fontSize: 9.5,
-    color: "#334155",
-    lineHeight: 1.3,
-  },
-  footer: {
-    position: "absolute",
-    bottom: 20,
-    left: 30,
-    right: 30,
-    borderTopWidth: 0.5,
-    borderTopColor: "#e2e8f0",
-    borderTopStyle: "solid",
-    paddingTop: 8,
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  footerText: {
     fontSize: 7.5,
-    color: "#94a3b8",
+    color: colors.slate700,
+    lineHeight: 1.35,
   },
 });
 
@@ -156,71 +115,57 @@ export interface ScreeningTestPdfData {
 export function ScreeningTestPdfDocument({ data }: { data: ScreeningTestPdfData }) {
   const content = data.content;
   const definition = getTestDefinition(content.testType);
+  const resColor = content.result?.color || colors.primary;
 
-  const resColor = content.result?.color || "#22c55e";
+  const extraMeta = [
+    { label: "Puntaje", value: `${content.result?.total ?? "—"}` },
+    { label: "Categoría", value: content.result?.category || "Evaluado" },
+  ];
 
   return (
     <Document>
-      <Page size="LETTER" style={styles.page}>
-        {/* Header */}
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.title}>
-              {definition?.name || content.testType}
-            </Text>
-
-            <Text style={styles.subtitle}>
-              Informe de Evaluación del Riesgo Nutricional
-            </Text>
-          </View>
-          <Text style={styles.brand}>NutriNet®</Text>
-        </View>
-
-        {/* Patient Info */}
-        <View style={styles.patientBox}>
-          <Text style={styles.patientText}>
-            Paciente: <Text style={styles.bold}>{content.patientName || "Sin nombre"}</Text>
-          </Text>
-          <Text style={styles.patientText}>
-            Fecha:{" "}
-            <Text style={styles.bold}>
-              {new Date(content.appliedAt).toLocaleDateString("es-CL")}
-            </Text>
-          </Text>
-        </View>
+      <Page size="A4" style={styles.page}>
+        <PdfBrandedHeader
+          title={definition?.name || content.testType || "Evaluación Nutricional"}
+          subtitle="Informe de Evaluación del Riesgo Nutricional"
+          badgeLabel="Tamizaje Clínico"
+          objective="Evaluación estandarizada según protocolos y guías clínicas."
+          patientName={content.patientName || "Sin nombre"}
+          date={content.appliedAt ? new Date(content.appliedAt).toISOString() : undefined}
+          extraMeta={extraMeta}
+        />
 
         {/* Result Card */}
-        <View style={[styles.resultCard, { backgroundColor: `${resColor}15` }]}>
+        <View style={styles.resultCard}>
           <View>
             <Text style={styles.resultTitle}>Resultado del Tamizaje</Text>
             <Text style={styles.scoreText}>
               {content.result?.total} {definition?.type !== "ATALAH" ? `/ ${definition?.maxScore || 30} pts` : "IMC"}
             </Text>
           </View>
-
           <View style={[styles.badge, { backgroundColor: resColor }]}>
-            <Text>{content.result?.category}</Text>
+            <Text style={styles.badgeText}>{content.result?.category || "Normal"}</Text>
           </View>
         </View>
 
         {/* Question Answers Details */}
         {definition?.sections.map((section) => (
-          <View key={section.title}>
-            <Text style={styles.sectionTitle}>{section.title}</Text>
-            {section.questions.map((q) => {
-              const val = content.answers[q.id];
-              const selectedOption = q.options.find((opt) => opt.value === val);
-              return (
-                <View key={q.id} style={styles.questionRow}>
-                  <Text style={styles.questionLabel}>
-                    {q.label}
-                  </Text>
-                  <Text style={styles.questionValue}>
-                    {selectedOption?.label || `${val} pts`}
-                  </Text>
-                </View>
-              );
-            })}
+          <View key={section.title} style={styles.section}>
+            <PdfSectionHeader title={section.title} icon="clinical" />
+            <View style={styles.cardBox}>
+              {section.questions.map((q) => {
+                const val = content.answers[q.id];
+                const selectedOption = q.options.find((opt) => opt.value === val);
+                return (
+                  <View key={q.id} style={styles.questionRow}>
+                    <Text style={styles.questionLabel}>{q.label}</Text>
+                    <Text style={styles.questionValue}>
+                      {selectedOption?.label || `${val} pts`}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
           </View>
         ))}
 
@@ -232,16 +177,7 @@ export function ScreeningTestPdfDocument({ data }: { data: ScreeningTestPdfData 
           </View>
         )}
 
-        {/* Footer */}
-        <View style={styles.footer} fixed>
-          <Text style={styles.footerText}>
-            Documento generado por NutriNet — Plataforma Nutricional Clínica Chile
-          </Text>
-          <Text
-            style={styles.footerText}
-            render={({ pageNumber, totalPages }) => `Página ${pageNumber} de ${totalPages}`}
-          />
-        </View>
+        <PdfBrandedFooter />
       </Page>
     </Document>
   );

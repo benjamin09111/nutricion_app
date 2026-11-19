@@ -1,0 +1,167 @@
+"use client";
+
+import Link from "next/link";
+import { Sparkles, ShieldCheck, Check, Clock, Quote, Play, Heart } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+
+interface HeroSectionProps {
+  onExploreFeaturesClick?: () => void;
+  onProbarNutriNetClick?: () => void;
+  onWatchDemoClick?: () => void;
+  onInterestClick?: () => void;
+}
+
+export function HeroSection({
+  onExploreFeaturesClick,
+  onProbarNutriNetClick,
+  onWatchDemoClick,
+  onInterestClick,
+}: HeroSectionProps) {
+  return (
+    <section className="relative overflow-hidden pt-28 pb-16 sm:pt-32 sm:pb-20 lg:pt-40 lg:pb-24">
+      <div className="mx-auto max-w-5xl px-4 sm:px-6">
+        <div className="space-y-8 text-center animate-in fade-in slide-in-from-bottom-6 duration-700">
+          
+          {/* Badge Oficial */}
+          <div className="inline-flex items-center gap-2 rounded-full border-2 px-4 py-2 text-xs font-semibold sm:px-5 sm:text-sm bg-[#a88aed]/10 text-[#a88aed] border-[#a88aed]/30 transition-all duration-300 hover:scale-105">
+            <Sparkles className="h-4 w-4" />
+            <span>Creado con la Tabla Oficial INTA 2018 de la Universidad de Chile</span>
+          </div>
+
+          {/* Títulos con el estándar visual original de NutriNet */}
+          <div className="space-y-3">
+            <h1 className="space-y-2 sm:space-y-3">
+              <span
+                className="block text-3xl font-black leading-tight tracking-tight sm:text-5xl lg:text-6xl xl:text-7xl uppercase text-center"
+                style={{
+                  WebkitTextStroke: "2.5px #a6c261",
+                  color: "transparent",
+                  fontWeight: 900,
+                }}
+              >
+                Atiende a tus pacientes
+              </span>
+              <span className="block text-2xl font-bold tracking-tight text-[#a88aed] sm:text-3xl lg:text-5xl xl:text-6xl text-center">
+                no a tus planillas
+              </span>
+            </h1>
+          </div>
+
+          {/* Subtítulo Clínico */}
+          <p className="mx-auto max-w-3xl text-base text-slate-600 sm:text-lg lg:text-xl leading-relaxed">
+            NutriNet automatiza antropometría, cálculos y pautas con IA y datos chilenos. Tú solo revisas y validas.
+          </p>
+
+          {/* Hook Testimonial de Colega Nutricionista */}
+          <div className="mx-auto max-w-2xl rounded-2xl border border-slate-200/90 bg-slate-50/70 hover:bg-white p-4 sm:p-5 shadow-2xs transition-all duration-300 hover:border-[#a88aed]/40 hover:shadow-xs text-left">
+            <div className="flex items-start gap-3.5">
+              <div className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-xl bg-[#a88aed]/10 text-[#a88aed] mt-0.5">
+                <Quote className="h-4 w-4 sm:h-5 sm:w-5 fill-[#a88aed]/20" />
+              </div>
+              <div className="space-y-1.5 flex-1 min-w-0">
+                <blockquote className="text-xs sm:text-sm lg:text-base font-medium italic text-slate-700 leading-relaxed">
+                  &ldquo;NutriNet nos ayuda a ofrecer un servicio más completo y a defender nuestra labor frente a aplicaciones que pretenden reemplazar al nutricionista.&rdquo;
+                </blockquote>
+                <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                  <span className="text-xs sm:text-sm font-bold text-slate-900">
+                    — Abilene, Nutricionista Clínica
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700 border border-emerald-200/60">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Nutricionista en Chile
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Botones de Acción Minimalistas NutriNet */}
+          <div className="flex flex-col items-center justify-center gap-3.5 pt-4 sm:flex-row flex-wrap">
+            {onProbarNutriNetClick ? (
+              <Button
+                onClick={onProbarNutriNetClick}
+                className="w-full sm:w-auto rounded-full h-13 px-8 text-xs sm:text-sm font-bold uppercase tracking-wider bg-[#86A83C] hover:bg-[#78A82F] text-white transition-all duration-300 hover:scale-105 hover:shadow-xl shadow-[#86A83C]/20 cursor-pointer flex items-center justify-center gap-2"
+              >
+                <Sparkles className="h-4 w-4" />
+                PROBAR NUTRINET
+              </Button>
+            ) : (
+              <Link href="/dashboard" className="w-full sm:w-auto">
+                <Button
+                  className="w-full sm:w-auto rounded-full h-13 px-8 text-xs sm:text-sm font-bold uppercase tracking-wider bg-[#86A83C] hover:bg-[#78A82F] text-white transition-all duration-300 hover:scale-105 hover:shadow-xl shadow-[#86A83C]/20 cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  PROBAR NUTRINET
+                </Button>
+              </Link>
+            )}
+
+            {/* Botón Ver Video Demo */}
+            {onWatchDemoClick ? (
+              <Button
+                variant="outline"
+                onClick={onWatchDemoClick}
+                className="w-full sm:w-auto rounded-full h-13 px-6 text-xs sm:text-sm font-bold text-slate-800 bg-white border-2 border-slate-200 hover:border-[#86A83C] hover:bg-[#F0F5DF]/60 transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 shadow-2xs"
+              >
+                <Play className="h-4 w-4 fill-slate-800 text-slate-800" />
+                <span>Ver video demo</span>
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+                  10 min
+                </span>
+              </Button>
+            ) : (
+              <a href="#video-demo" className="w-full sm:w-auto">
+                <Button
+                  variant="outline"
+                  className="w-full sm:w-auto rounded-full h-13 px-6 text-xs sm:text-sm font-bold text-slate-800 bg-white border-2 border-slate-200 hover:border-[#86A83C] hover:bg-[#F0F5DF]/60 transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 shadow-2xs"
+                >
+                  <Play className="h-4 w-4 fill-slate-800 text-slate-800" />
+                  <span>Ver video demo</span>
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+                    10 min
+                  </span>
+                </Button>
+              </a>
+            )}
+
+            {/* Botón Me interesa NutriNet */}
+            {onInterestClick && (
+              <Button
+                variant="outline"
+                onClick={onInterestClick}
+                className="w-full sm:w-auto rounded-full h-13 px-6 text-xs sm:text-sm font-bold text-indigo-700 bg-white border-2 border-indigo-200/90 hover:border-indigo-400 hover:bg-indigo-50/70 transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 shadow-2xs"
+              >
+                <Heart className="h-4 w-4 text-indigo-600 fill-indigo-100" />
+                <span>Me interesa NutriNet</span>
+              </Button>
+            )}
+
+            <a href="#funcionalidades" className="w-full sm:w-auto">
+              <Button
+                variant="outline"
+                onClick={onExploreFeaturesClick}
+                className="w-full sm:w-auto rounded-full h-13 px-6 text-xs sm:text-sm font-bold text-[#a88aed] border-2 border-[#a88aed]/30 hover:border-[#a88aed] hover:bg-[#a88aed]/10 transition-all duration-300 cursor-pointer"
+              >
+                Funcionalidades
+              </Button>
+            </a>
+          </div>
+
+          {/* Badges de Confianza */}
+          <div className="pt-8 flex flex-wrap items-center justify-center gap-6 text-xs font-semibold text-slate-500">
+            <span className="flex items-center gap-1.5">
+              <ShieldCheck className="h-4 w-4 text-emerald-600" /> Fichas 100% Cifradas (Ley 19.628)
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Clock className="h-4 w-4 text-amber-500" /> Ahorro de 3+ Horas Diarias
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Check className="h-4 w-4 text-indigo-600" /> Basado en Alimentos de Chile
+            </span>
+          </div>
+
+        </div>
+      </div>
+    </section>
+  );
+}

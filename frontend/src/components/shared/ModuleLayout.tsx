@@ -14,6 +14,7 @@ interface StepIndicator {
 
 interface ModuleLayoutProps {
   title: string;
+  titleAction?: React.ReactNode;
   description: React.ReactNode;
   step?: StepIndicator;
   rightNavItems?: ActionDockItem[];
@@ -26,6 +27,7 @@ interface ModuleLayoutProps {
 
 export function ModuleLayout({
   title,
+  titleAction,
   description,
   step,
   rightNavItems,
@@ -39,13 +41,13 @@ export function ModuleLayout({
 
   return (
     <div
-      className={cn("w-full space-y-6 lg:space-y-8 pb-32 relative", className)}
+      className={cn("w-full space-y-4 sm:space-y-5 pb-16 relative", className)}
     >
-      <div className="space-y-4">
-        <div className="space-y-2">
+      <div className="space-y-3">
+        <div className="space-y-1.5">
           {step && (
             <div
-              className={`flex items-center gap-2 text-[10px] bg-white w-fit px-2 py-1 rounded-full border border-slate-100 shadow-sm uppercase tracking-widest font-black ${step.color ? step.color : "text-indigo-600"}`}
+              className={`flex items-center gap-2 text-[10px] bg-white w-fit px-2 py-1 rounded-full border border-slate-100 shadow-sm uppercase tracking-wider font-semibold ${step.color ? step.color : "text-indigo-600"}`}
             >
               <span
                 className={`px-1.5 py-0.5 rounded text-[9px] ${step.color ? step.color.replace("text-", "bg-").replace("600", "100") : "bg-indigo-100"} mr-2`}
@@ -57,12 +59,15 @@ export function ModuleLayout({
             </div>
           )}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight leading-tight">
-              {title}
-            </h1>
+            <div className="flex min-w-0 flex-wrap items-center gap-3">
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-[#20212B] tracking-tight leading-tight">
+                {title}
+              </h1>
+              {titleAction}
+            </div>
             {rightContent}
           </div>
-          <div className="text-xs sm:text-sm text-slate-500 font-medium leading-relaxed max-w-4xl">
+          <div className="text-xs sm:text-sm text-[#626573] font-medium leading-relaxed max-w-4xl">
             {description}
           </div>
         </div>
@@ -72,6 +77,7 @@ export function ModuleLayout({
           <ModuleRightNav items={rightNavItems} desktopBreakpoint={rightNavDesktopBreakpoint} />
         )}
       </div>
+
 
       {/* Main Content */}
       {children}

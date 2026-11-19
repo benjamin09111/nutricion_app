@@ -14,14 +14,15 @@ import {
   X,
   Loader2,
   NotebookText,
+  Search,
   Share2,
   User,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
-import { Filtros_B } from "@/components/ui/Filtros_B";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { ModuleLayout } from "@/components/shared/ModuleLayout";
@@ -31,9 +32,11 @@ import { Creation, CreationType, useCreations } from "@/features/creations";
 import { Pagination } from "@/components/ui/Pagination";
 import { RecordsTable, type Column } from "@/components/shared/RecordsTable";
 import { SearchableSelect } from "@/components/ui/SearchableSelect";
+import { Select } from "@/components/ui/Select";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { fetchApi } from "@/lib/api-base";
+import { getAuthToken } from "@/lib/auth-token";
 import { formatDateOnlyForLocale } from "@/features/patients/utils/patient-helpers";
 import { MobileCardLoadingList } from "@/components/ui/MobileCardLoadingList";
 import { getFastDeliverableTableMode, normalizeFastDeliverableMeals } from "@/features/pdf/fastDeliverableMeals";
@@ -90,8 +93,10 @@ export default function CreationsClient({
       case "SHOPPING_LIST":
         return CreationType.SHOPPING_LIST;
       case "RECIPE":
+      case "RECETARIO":
         return CreationType.RECIPE;
       case "FAST_DELIVERABLE":
+      case "DELIVERABLE":
         return CreationType.FAST_DELIVERABLE;
       case "PAUTAS":
         return CreationType.PAUTAS;
@@ -105,6 +110,10 @@ export default function CreationsClient({
   // Modal State
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [infoModalOpen, setInfoModalOpen] = useState(false);
+  const [previewPdfModalOpen, setPreviewPdfModalOpen] = useState(false);
+  const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
+  const [previewPdfName, setPreviewPdfName] = useState<string>("");
+  const [isLoadingPdfPreview, setIsLoadingPdfPreview] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<Creation | null>(null);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
@@ -117,7 +126,9 @@ export default function CreationsClient({
   // -- Fetch full creation data (shared by view and export) --
   const fetchFullData = async (id: string): Promise<any | null> => {
     try {
+      const token = getAuthToken();
       const response = await fetchApi(`/creations/${id}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
       if (response.ok) return await response.json();
     } catch (e) {
@@ -134,13 +145,13 @@ export default function CreationsClient({
     if (raw.metadata?.foodSummary?.length) {
       raw.metadata.foodSummary.forEach((f: any) => {
         foods.push({
-          producto: f.name,
-          grupo: f.group || "Varios",
-          unidad: f.unit,
-          calorias: f.calories,
-          proteinas: f.proteins,
-          lipidos: f.lipids,
-          carbohidratos: f.carbs,
+          producto: f.name || f.producto,
+          grupo: f.group || f.grupo || "Varios",
+          unidad: f.unit || f.unidad,
+          calorias: f.calories ?? f.calorias,
+          proteinas: f.proteins ?? f.proteinas,
+          lipidos: f.lipids ?? f.lipidos,
+          carbohidratos: f.carbs ?? f.carbohidratos,
         });
       });
     }
@@ -148,25 +159,62 @@ export default function CreationsClient({
     else if (raw.content?.manualAdditions?.length) {
       raw.content.manualAdditions.forEach((f: any) => {
         foods.push({
-          producto: f.producto,
-          grupo: f.grupo || "Varios",
-          unidad: f.unidad,
-          calorias: f.calorias,
-          proteinas: f.proteinas,
-          lipidos: f.lipidos,
-          carbohidratos: f.carbohidratos,
+          producto: f.producto || f.name,
+          grupo: f.grupo || f.group || "Varios",
+          unidad: f.unidad || f.unit,
+          calorias: f.calorias ?? f.calories,
+          proteinas: f.proteinas ?? f.proteins,
+          lipidos: f.lipidos ?? f.lipids,
+          carbohidratos: f.carbohidratos ?? f.carbs,
+        });
+      });
+    }
+    // Fallback: from content.groups (standard from /dashboard/dietas and seed)
+    else if (raw.content?.groups && typeof raw.content.groups === "object") {
+      Object.entries(raw.content.groups).forEach(([groupName, groupFoods]: [string, any]) => {
+        if (Array.isArray(groupFoods)) {
+          groupFoods.forEach((f: any) => {
+            foods.push({
+              producto: f.producto || f.name,
+              grupo: f.grupo || groupName || "Varios",
+              unidad: f.unidad || f.unit || "porción",
+              calorias: f.calorias ?? f.calories,
+              proteinas: f.proteinas ?? f.proteins,
+              lipidos: f.lipidos ?? f.lipids,
+              carbohidratos: f.carbohidratos ?? f.carbs,
+            });
+          });
+        }
+      });
+    }
+    // Fallback: from content.foods (flat array)
+    else if (Array.isArray(raw.content?.foods)) {
+      raw.content.foods.forEach((f: any) => {
+        foods.push({
+          producto: f.producto || f.name,
+          grupo: f.grupo || f.group || "Varios",
+          unidad: f.unidad || f.unit,
+          calorias: f.calorias ?? f.calories,
+          proteinas: f.proteinas ?? f.proteins,
+          lipidos: f.lipidos ?? f.lipids,
+          carbohidratos: f.carbohidratos ?? f.carbs,
         });
       });
     }
 
+    const rawMeals = Array.isArray(raw.content?.meals) ? raw.content.meals : [];
+
     return {
-      dietName: raw.name,
-      dietTags: raw.tags || [],
+      dietName: raw.name || "Dieta Base",
+      dietTags: raw.tags || raw.content?.dietTags || [],
       planObjective: typeof raw.content?.planObjective === "string" ? raw.content.planObjective : undefined,
       showPlanObjectiveInPdf: raw.content?.showPlanObjectiveInPdf === true,
       activeConstraints: raw.content?.activeConstraints || [],
-      patientName: raw.metadata?.patientName || raw.content?.patientMeta?.fullName,
+      patientName: raw.metadata?.patientName || raw.content?.patientMeta?.fullName || raw.content?.patientName,
       foods,
+      meals: rawMeals,
+      includeMealsSection: rawMeals.length > 0,
+      includeFoodTableSection: foods.length > 0,
     };
   };
 
@@ -175,8 +223,27 @@ export default function CreationsClient({
     content?: Record<string, unknown>;
     metadata?: Record<string, unknown>;
   }) => {
-    const rawContent = raw.content || {};
-    const paragraphsRaw = Array.isArray(rawContent.paragraphs) ? rawContent.paragraphs : [];
+    const rawContent: any = raw.content || {};
+    const canonical = rawContent.planContext as any;
+    const content: any = canonical?.plan
+      ? {
+          ...rawContent,
+          title: canonical.creation?.title || rawContent.title,
+          planObjective: canonical.plan.objective,
+          showPlanObjectiveInPdf: canonical.plan.showObjectiveInPdf === true,
+          contentMode: canonical.plan.format?.contentMode,
+          tableMode: canonical.plan.format?.tableMode,
+          planMode: canonical.plan.format?.planMode,
+          paragraphs: canonical.plan.paragraphs,
+          meals: canonical.plan.meals,
+          avoidFoods: canonical.plan.avoidFoods,
+          resources: canonical.plan.resources,
+          portionGuide: canonical.plan.portionGuide,
+          clinicalRestriction: canonical.plan.clinicalRestriction,
+          updatedAt: canonical.metadata?.updatedAt || rawContent.updatedAt,
+        }
+      : rawContent;
+    const paragraphsRaw = Array.isArray(content.paragraphs) ? content.paragraphs : [];
     const paragraphsFormatted = paragraphsRaw.map((p: any) => ({
       title: typeof p.title === "string" ? p.title : (p.categoryOptional ? `${p.category} (${p.categoryOptional})` : p.category || "Pauta"),
       subtitle: typeof p.subtitle === "string" ? p.subtitle : (p.portionsPerDay ? `${p.portionsPerDay} porciones al día` : undefined),
@@ -186,40 +253,64 @@ export default function CreationsClient({
       imagePath: p.imagePath || null,
     }));
 
-    const rawResource = rawContent.resource as { title?: string; content?: string } | undefined;
-    const resourcesList = Array.isArray(rawContent.resources)
-      ? rawContent.resources
+    const rawResource = content.resource as { title?: string; content?: string } | undefined;
+    const resourcesList = Array.isArray(content.resources)
+      ? content.resources
       : (rawResource && rawResource.title ? [{ resourceId: "hist", title: rawResource.title, content: rawResource.content || "" }] : []);
+
+    const rawMeals = Array.isArray(content.meals) ? content.meals : [];
+    let normalizedMeals = rawMeals.map((m: any, index: number) => ({
+      id: m.id || `meal-${index}`,
+      section: m.section || m.name || `Comida ${index + 1}`,
+      time: m.time || "",
+      mealText: m.mealText || m.description || m.details || "",
+      portion: m.portion || "",
+      optionTexts: Array.isArray(m.optionTexts) ? m.optionTexts : [],
+    }));
+
+    if (normalizedMeals.length === 0 && paragraphsFormatted.length > 0) {
+      normalizedMeals = paragraphsFormatted.map((p: any, idx: number) => ({
+        id: `synth-meal-${idx}`,
+        section: p.title || `Comida ${idx + 1}`,
+        time: p.subtitle || "",
+        mealText: Array.isArray(p.foods) ? p.foods.join("\n") : "",
+        portion: "1 porción",
+        optionTexts: [],
+      }));
+    }
 
     return {
       name:
-        typeof rawContent.title === "string"
-          ? rawContent.title
+        typeof content.title === "string"
+          ? content.title
           : typeof raw.name === "string" && raw.name.trim()
             ? raw.name
             : "Entregable",
       patientName:
         typeof raw.metadata?.patientName === "string"
           ? raw.metadata.patientName
-          : (rawContent.patient as any)?.name || null,
+          : (content.patient as any)?.name || (typeof content.patientName === "string" ? content.patientName : null),
       clinicalRestriction:
-        typeof rawContent.clinicalRestriction === "string"
-          ? rawContent.clinicalRestriction
-            : (typeof rawContent.restriction === "string" ? rawContent.restriction : null),
-      planObjective: typeof rawContent.planObjective === "string" ? rawContent.planObjective : undefined,
-      showPlanObjectiveInPdf: rawContent.showPlanObjectiveInPdf === true,
-      contentMode:
-        (rawContent.contentMode as any) ||
-        (rawContent.pautaEditorMode as any) ||
-        (paragraphsFormatted.length > 0 ? "paragraphs" : "table"),
+        typeof content.clinicalRestriction === "string"
+          ? content.clinicalRestriction
+            : (typeof content.restriction === "string" ? content.restriction : null),
+      planObjective: typeof content.planObjective === "string" ? content.planObjective : undefined,
+      showPlanObjectiveInPdf: content.showPlanObjectiveInPdf === true,
+      contentMode: content.contentMode === "both" || content.contentMode === "paragraphs" ? content.contentMode : "table",
       paragraphs: paragraphsFormatted,
-      tableMode: getFastDeliverableTableMode(rawContent.tableMode),
-      meals: normalizeFastDeliverableMeals(rawContent.meals, getFastDeliverableTableMode(rawContent.tableMode), rawContent.planMode),
-      avoidFoods: Array.isArray(rawContent.avoidFoods) ? rawContent.avoidFoods : [],
+      tableMode: getFastDeliverableTableMode(content.tableMode),
+      meals: normalizedMeals.length > 0
+        ? normalizeFastDeliverableMeals(normalizedMeals, getFastDeliverableTableMode(content.tableMode), content.planMode)
+        : [],
+      avoidFoods: Array.isArray(content.avoidFoods)
+        ? content.avoidFoods
+        : (Array.isArray(content.recommendations) ? content.recommendations : []),
       resources: resourcesList,
-      portionGuide: Array.isArray(rawContent.portionGuide) ? rawContent.portionGuide : [],
-      generatedAt: typeof rawContent.updatedAt === "string"
-        ? new Date(rawContent.updatedAt).toLocaleDateString("es-CL")
+      portionGuide: Array.isArray(content.portionGuide)
+        ? content.portionGuide
+        : (Array.isArray(content.portionGuideRows) ? content.portionGuideRows : []),
+      generatedAt: typeof content.updatedAt === "string"
+        ? new Date(content.updatedAt).toLocaleDateString("es-CL")
         : new Date().toLocaleDateString("es-CL"),
     };
   };
@@ -230,11 +321,94 @@ export default function CreationsClient({
     nutritionistNotes: typeof raw.content?.nutritionistNotes === "string" ? raw.content.nutritionistNotes : undefined,
     planObjective: typeof raw.content?.planObjective === "string" ? raw.content.planObjective : undefined,
     showPlanObjectiveInPdf: raw.content?.showPlanObjectiveInPdf === true,
-    dishes: Array.isArray(raw.content?.dishes) ? raw.content.dishes : [],
+    dishes: Array.isArray(raw.content?.dishes) ? raw.content.dishes : (Array.isArray(raw.dishes) ? raw.dishes : []),
     generatedAt: typeof raw.content?.updatedAt === "string"
       ? new Date(raw.content.updatedAt).toLocaleDateString("es-CL")
       : new Date().toLocaleDateString("es-CL"),
   });
+
+  const generatePdfBlob = async (
+    type: CreationType,
+    raw: any,
+  ): Promise<{ blob: Blob; safeName: string }> => {
+    const [{ pdf }, React] = await Promise.all([
+      import("@react-pdf/renderer"),
+      import("react"),
+    ]);
+
+    if (type === CreationType.DIET) {
+      const { DietPdfDocument } = await import("@/features/pdf/DietPdfDocument");
+      const data = buildDietData(raw);
+      const doc = React.createElement(DietPdfDocument, { data });
+      const blob = await pdf(doc as any).toBlob();
+      const safeName =
+        (data.dietName || "dieta").replace(/\s+/g, "_").replace(/[^\w-]/g, "") || "dieta";
+      return { blob, safeName };
+    }
+
+    if (type === CreationType.RECIPE) {
+      const { QuickRecipesPdfDocument } = await import("@/features/pdf/QuickRecipesPdfDocument");
+      const data = buildQuickRecipesData(raw);
+      const doc = React.createElement(QuickRecipesPdfDocument, { data });
+      const blob = await pdf(doc as any).toBlob();
+      const safeName =
+        (data.title || "recetas").replace(/\s+/g, "_").replace(/[^\w-]/g, "") || "recetas";
+      return { blob, safeName };
+    }
+
+    if (type === CreationType.SCREENING_TEST) {
+      const { ScreeningTestPdfDocument } = await import("@/features/pdf/ScreeningTestPdfDocument");
+      const pdfData = {
+        name: raw.name || raw.content?.testType || "Test_Tamizaje",
+        content: raw.content,
+      };
+      const doc = React.createElement(ScreeningTestPdfDocument, { data: pdfData });
+      const blob = await pdf(doc as unknown as Parameters<typeof pdf>[0]).toBlob();
+      const safeName =
+        (raw.name || "test_tamizaje").replace(/\s+/g, "_").replace(/[^\w-]/g, "") || "test_tamizaje";
+      return { blob, safeName };
+    }
+
+    // Default to FastDeliverable (FAST_DELIVERABLE or PAUTAS)
+    const { FastDeliverablePdfDocument } = await import("@/features/pdf/FastDeliverablePdfDocument");
+    const data = buildFastDeliverableData(raw);
+    const doc = React.createElement(FastDeliverablePdfDocument, { data });
+    const blob = await pdf(doc as unknown as Parameters<typeof pdf>[0]).toBlob();
+    const safeName =
+      (data.name || "pauta_rapida").replace(/\s+/g, "_").replace(/[^\w-]/g, "") || "pauta_rapida";
+    return { blob, safeName };
+  };
+
+  const handlePreviewPdf = async (item: Creation) => {
+    setSelectedItem(item);
+    setIsLoadingPdfPreview(true);
+    setPreviewPdfModalOpen(true);
+    try {
+      const raw = await fetchFullData(item.id);
+      if (!raw) {
+        toast.error("No se pudo obtener los datos de la creación.");
+        setPreviewPdfModalOpen(false);
+        return;
+      }
+      const { blob, safeName } = await generatePdfBlob(item.type, raw);
+      const url = URL.createObjectURL(blob);
+      setPreviewPdfUrl(url);
+      setPreviewPdfName(safeName);
+    } catch (e) {
+      console.error("Error al generar vista previa:", e);
+      toast.error("Error al generar la vista previa del PDF.");
+    } finally {
+      setIsLoadingPdfPreview(false);
+    }
+  };
+
+  const closePreviewPdfModal = () => {
+    setPreviewPdfModalOpen(false);
+    if (previewPdfUrl) {
+      URL.revokeObjectURL(previewPdfUrl);
+      setPreviewPdfUrl(null);
+    }
+  };
 
   const handleDownloadClick = async (item: Creation) => {
     setSelectedItem(item);
@@ -253,7 +427,7 @@ export default function CreationsClient({
         const { downloadFastDeliverablePdf } = await import("@/features/pdf/fastDeliverablePdfExport");
         await downloadFastDeliverablePdf(buildFastDeliverableData(raw), false);
         toast.success("PDF descargado correctamente.");
-      } else if (item.type === CreationType.RECIPE && (item.tags || []).includes("rapido")) {
+      } else if (item.type === CreationType.RECIPE) {
         const { downloadQuickRecipesPdf } = await import("@/features/pdf/quickRecipesPdfExport");
         await downloadQuickRecipesPdf(buildQuickRecipesData(raw), false);
         toast.success("PDF de recetas descargado correctamente.");
@@ -281,10 +455,12 @@ export default function CreationsClient({
 
     setIsSharing(item.id);
     try {
+      const token = getAuthToken();
       const response = await fetchApi(`/creations/${item.id}/share`, {
         method: "POST",
         headers: { 
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({ patientId }),
       });
@@ -315,7 +491,9 @@ export default function CreationsClient({
     setViewModalOpen(true);
     setIsLoadingDetails(true);
     try {
+      const token = getAuthToken();
       const response = await fetchApi(`/creations/${item.id}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
       if (response.ok) {
         const data = await response.json();
@@ -370,9 +548,9 @@ export default function CreationsClient({
       case CreationType.RECIPE:
         return <ChefHat className="w-4 h-4 text-amber-500" />;
       case CreationType.FAST_DELIVERABLE:
-        return <NotebookText className="w-4 h-4 text-fuchsia-500" />;
+        return <NotebookText className="w-4 h-4 text-[#86A83C]" />;
       case CreationType.PAUTAS:
-        return <NotebookText className="w-4 h-4 text-purple-500" />;
+        return <NotebookText className="w-4 h-4 text-[#668E20]" />;
       default:
         return <Folder className="w-4 h-4 text-slate-400" />;
     }
@@ -381,17 +559,17 @@ export default function CreationsClient({
   const getTypeStyles = (type: CreationType) => {
     switch (type) {
       case CreationType.DIET:
-        return "bg-blue-50 text-blue-700 ring-blue-600/20";
+        return "bg-blue-50 text-blue-700 border border-blue-200/80";
       case CreationType.SHOPPING_LIST:
-        return "bg-emerald-50 text-emerald-700 ring-emerald-600/20";
+        return "bg-emerald-50 text-emerald-700 border border-emerald-200/80";
       case CreationType.RECIPE:
-        return "bg-amber-50 text-amber-700 ring-amber-600/20";
+        return "bg-amber-50 text-amber-700 border border-amber-200/80";
       case CreationType.FAST_DELIVERABLE:
-        return "bg-fuchsia-50 text-fuchsia-700 ring-fuchsia-600/20";
+        return "bg-[#F0F5DF] text-[#668E20] border border-[#DDE7B8]";
       case CreationType.PAUTAS:
-        return "bg-purple-50 text-purple-700 ring-purple-600/20";
+        return "bg-[#F0F5DF] text-[#668E20] border border-[#DDE7B8]";
       default:
-        return "bg-slate-50 text-slate-600 ring-slate-500/10";
+        return "bg-slate-50 text-slate-600 border border-slate-200/80";
     }
   };
 
@@ -470,14 +648,15 @@ export default function CreationsClient({
       render: (item) => (
         <div className="flex items-center gap-3">
           <div className={cn(
-            "p-2 rounded-lg bg-slate-50 border border-slate-100",
-            item.type === CreationType.DIET && "group-hover:bg-blue-50 group-hover:border-blue-100",
-            item.type === CreationType.SHOPPING_LIST && "group-hover:bg-emerald-50 group-hover:border-emerald-100",
-            item.type === CreationType.RECIPE && "group-hover:bg-amber-50 group-hover:border-amber-100",
+            "p-2 rounded-xl bg-slate-50 border border-[#E9E5E7]",
+            item.type === CreationType.DIET && "group-hover:bg-blue-50/60",
+            item.type === CreationType.SHOPPING_LIST && "group-hover:bg-emerald-50/60",
+            item.type === CreationType.RECIPE && "group-hover:bg-amber-50/60",
+            item.type === CreationType.FAST_DELIVERABLE && "group-hover:bg-[#F0F5DF]/60",
           )}>
             {getTypeIcon(item.type)}
           </div>
-          <span className="text-sm font-bold text-slate-700 group-hover:text-slate-900 transition-colors">
+          <span className="text-sm font-semibold text-[#20212B] group-hover:text-[#668E20] transition-colors">
             {item.name}
           </span>
         </div>
@@ -487,14 +666,12 @@ export default function CreationsClient({
       header: "Paciente",
       render: (item) => (
         (item as any).patientName ? (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-bold border border-indigo-100">
-            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#F0F5DF] text-[#668E20] text-xs font-semibold border border-[#DDE7B8]">
+            <User className="w-3 h-3" />
             {(item as any).patientName}
           </span>
         ) : (
-          <span className="text-xs text-slate-400 italic">Sin paciente</span>
+          <span className="text-xs text-[#848792] italic">Sin paciente</span>
         )
       ),
     },
@@ -506,13 +683,13 @@ export default function CreationsClient({
             item.tags.map((tag) => (
               <span
                 key={tag}
-                className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200"
+                className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-[#626573]"
               >
                 #{tag}
               </span>
             ))
           ) : (
-            <span className="text-xs text-slate-400 italic">
+            <span className="text-xs text-[#848792] italic">
               Sin etiquetas
             </span>
           )}
@@ -524,7 +701,7 @@ export default function CreationsClient({
       render: (item) => (
         <span
           className={cn(
-            "inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset",
+            "inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold",
             getTypeStyles(item.type),
           )}
         >
@@ -535,7 +712,7 @@ export default function CreationsClient({
     {
       header: "Fecha",
       render: (item) => (
-        <span className="text-sm text-slate-500 font-medium whitespace-nowrap">
+        <span className="text-xs text-[#626573] font-medium whitespace-nowrap">
           {item.createdAt}
         </span>
       ),
@@ -544,65 +721,22 @@ export default function CreationsClient({
       header: "Acciones",
       className: "text-right",
       render: (item) => (
-        <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+          <button
+            onClick={() => handlePreviewPdf(item)}
+            className="inline-flex items-center justify-center p-1.5 text-[#668E20] bg-[#F0F5DF] hover:bg-[#E4ECC8] rounded-xl transition-all cursor-pointer shadow-2xs"
+            title="Vista previa del documento PDF"
+            aria-label="Vista previa del documento PDF"
+          >
+            <Eye className="h-3.5 w-3.5" />
+          </button>
           <button
             onClick={() => handleInfoClick(item)}
-            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all cursor-pointer"
-            title="Más info"
+            className="p-1.5 text-[#848792] hover:text-[#20212B] hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
+            title="Más información"
           >
             <Info className="h-4 w-4" />
           </button>
-          {item.type !== CreationType.FAST_DELIVERABLE && (
-            <button
-              onClick={() => handleViewClick(item)}
-              className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all cursor-pointer"
-              title="Previsualizar"
-            >
-              <Eye className="h-4 w-4" />
-            </button>
-          )}
-          <button
-            onClick={() => handleEdit(item)}
-            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all cursor-pointer"
-            title="Editar"
-          >
-            <Edit className="h-4 w-4" />
-          </button>
-          <button
-            onClick={() => handleDownloadClick(item)}
-            className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all cursor-pointer"
-            title="Descargar / Exportar"
-          >
-            <Download className="h-4 w-4" />
-          </button>
-          {isInsidePatientDetail && (
-            <button
-              onClick={() => handleShareClick(item)}
-              disabled={isSharing === item.id}
-              className={cn(
-                "p-2 rounded-xl transition-all cursor-pointer",
-                sharedCreationIdSet.has(item.id)
-                  ? "text-emerald-600 bg-emerald-50 animate-pulse hover:bg-emerald-100"
-                  : "text-slate-400 hover:text-indigo-600 hover:bg-indigo-50",
-                isSharing === item.id && "cursor-not-allowed"
-              )}
-              title="Compartir con el paciente"
-            >
-              <Share2 className="h-4 w-4" />
-            </button>
-          )}
-          {(item.type !== CreationType.SCREENING_TEST || canDeleteScreeningTests) && (
-            <>
-              <div className="w-px h-4 bg-slate-200 mx-1" />
-              <button
-                onClick={() => handleDelete(item.id)}
-                className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all cursor-pointer"
-                title="Eliminar"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            </>
-          )}
         </div>
       ),
     },
@@ -611,124 +745,142 @@ export default function CreationsClient({
   const content = (
     <div className="space-y-6">
       {!isInsidePatientDetail && (
-        <div className="flex items-start gap-3 px-4 py-3 rounded-2xl bg-indigo-50 border border-indigo-100 text-indigo-800 text-xs font-semibold">
-          <svg className="w-4 h-4 shrink-0 mt-0.5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20A10 10 0 0012 2z" />
-          </svg>
-          <span>
-            <strong>Recomendación de uso:</strong> crear plantillas generales para simplemente reutilizarlas.
-          </span>
-        </div>
+        <>
+          {/* Resumen simple y compacto (reemplaza banner masivo para móviles) */}
+          <div className="flex flex-wrap items-center justify-between sm:justify-start gap-2.5 sm:gap-6 bg-white border border-[#E9E5E7] rounded-xl px-4 py-2.5 shadow-2xs text-xs">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#86A83C]" />
+              <span className="text-[#626573] font-medium">Creaciones:</span>
+              <strong className="text-[#20212B] font-bold">{localCreations.length}</strong>
+            </div>
+            <div className="h-3.5 w-px bg-[#E9E5E7]" />
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#668E20]" />
+              <span className="text-[#626573] font-medium">Pacientes con pautas:</span>
+              <strong className="text-[#20212B] font-bold">{new Set(localCreations.map((c: any) => c.patientName).filter(Boolean)).size}</strong>
+            </div>
+            <div className="hidden sm:block h-3.5 w-px bg-[#E9E5E7]" />
+            <div className="hidden sm:flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-slate-400" />
+              <span className="text-[#626573] font-medium">Historial:</span>
+              <strong className="text-[#20212B] font-bold">100% disponibles</strong>
+            </div>
+          </div>
+        </>
       )}
 
-      <div className="space-y-4">
-        <Filtros_B
-          searchValue={searchTerm}
-          onSearchChange={setSearchTerm}
-          searchPlaceholder="Buscar por nombre..."
-          rightContent={
-            <>
-              {!isInsidePatientDetail && (
-                <div className="relative w-full sm:w-52">
-                  <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                    <svg className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
-                  </div>
-                  <Input
-                    type="search"
-                    placeholder="Filtrar por paciente..."
-                    className="pl-10 h-10 rounded-xl bg-white border border-slate-200 focus:border-indigo-500 transition-all w-full font-medium text-sm"
-                    value={patientFilter}
-                    onChange={(e) => setPatientFilter(e.target.value)}
-                  />
-                  {patientFilter && (
-                    <button
-                      onClick={() => setPatientFilter("")}
-                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 cursor-pointer"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  )}
-                </div>
-              )}
-              <select
-                value={selectedType}
-                onChange={(e) => setSelectedType(e.target.value as any)}
-                className="h-10 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-600 outline-none focus:border-indigo-500 transition-all cursor-pointer w-full sm:w-auto"
-              >
-                <option value="Todos">Todos los Tipos</option>
-                <option value={CreationType.DIET}>Dietas</option>
-                <option value={CreationType.SHOPPING_LIST}>Listas de Compra</option>
-                <option value={CreationType.RECIPE}>Recetas</option>
-                <option value={CreationType.FAST_DELIVERABLE}>Entregables Rápidos</option>
-              </select>
-              <div className="w-full sm:w-56">
-                <SearchableSelect
-                  options={[
-                    { value: "Todos", label: "Todas las etiquetas" },
-                    ...allTags.map((tag) => ({ value: tag, label: tag })),
-                  ]}
-                  value={selectedTag}
-                  onChange={setSelectedTag}
-                  placeholder="Etiquetas..."
-                  triggerClassName="h-10 rounded-xl border border-slate-200 bg-white pl-4 pr-10 font-medium text-sm"
-                />
-              </div>
-            </>
-          }
-        />
-      </div>
+      {/* Buscador y Filtros — Una única fila horizontal uniforme de 44px */}
+      <div className="space-y-2">
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
+          <div className="relative flex-1 min-w-0">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[#848792]" />
+            <input
+              type="search"
+              placeholder="Buscar por nombre..."
+              className="h-11 w-full rounded-xl border border-[#E9E5E7] bg-white pl-10 pr-4 text-sm font-medium text-[#20212B] placeholder:text-[#848792] focus:outline-none focus:ring-2 focus:ring-[#86A83C]/15 focus:border-[#86A83C] transition-all shadow-2xs"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
 
-      {/* Desktop Table View */}
-      <div className="hidden lg:block">
-        <RecordsTable
-          columns={creationColumns}
-          data={paginatedData}
-          keyExtractor={(item) => item.id}
-          isLoading={isLoading}
-          loadingRows={5}
-          loadingColumns={6}
-          emptyState={
-            <div className="flex flex-col items-center justify-center space-y-3">
-              <div className="p-4 bg-slate-50 rounded-full">
-                <Folder className="h-8 w-8 text-slate-300" />
-              </div>
-              <div className="space-y-1">
-                <p className="text-base font-bold text-slate-600">
-                  No se encontraron creaciones
-                </p>
-                <p className="text-sm text-slate-400">
-                  Intenta ajustar los filtros de búsqueda.
-                </p>
-              </div>
-            </div>
-          }
-          rowClassName="hover:bg-emerald-50/20 transition-colors group"
-          footer={
-            <>
-              <p className="text-xs font-bold text-slate-500">
-                Mostrando{" "}
-                <span className="text-slate-900">{paginatedData.length}</span> de{" "}
-                <span className="text-slate-900">{filteredData.length}</span>{" "}
-                resultados
-              </p>
-              <div className="flex items-center gap-2">
-                {totalPages > 1 && (
-                  <Pagination
-                    currentPage={currentPage}
-                    totalPages={totalPages}
-                    onPageChange={setCurrentPage}
-                  />
+          <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+            {!isInsidePatientDetail && (
+              <div className="relative w-full sm:w-52">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                  <User className="h-4 w-4 text-[#848792]" />
+                </div>
+                <input
+                  type="search"
+                  placeholder="Filtrar por paciente..."
+                  className="h-11 w-full rounded-xl border border-[#E9E5E7] bg-white pl-10 pr-8 text-sm font-medium text-[#20212B] placeholder:text-[#848792] focus:outline-none focus:ring-2 focus:ring-[#86A83C]/15 focus:border-[#86A83C] transition-all shadow-2xs"
+                  value={patientFilter}
+                  onChange={(e) => setPatientFilter(e.target.value)}
+                />
+                {patientFilter && (
+                  <button
+                    onClick={() => setPatientFilter("")}
+                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 cursor-pointer"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
                 )}
               </div>
-            </>
-          }
-        />
+            )}
+
+            <div className="w-full sm:w-52">
+              <Select
+                value={selectedType}
+                onChange={(val) => setSelectedType(val as any)}
+                options={[
+                  { value: "Todos", label: "Todos los Tipos" },
+                  { value: CreationType.FAST_DELIVERABLE, label: "Rápido" },
+                  { value: CreationType.RECIPE, label: "Recetas" },
+                  { value: CreationType.PAUTAS, label: "Personalizado" },
+                  { value: CreationType.DIET, label: "Dietas" },
+                ]}
+                triggerClassName="h-11 rounded-xl border-[#E9E5E7] bg-white text-sm font-medium text-[#20212B] shadow-2xs"
+              />
+            </div>
+
+            <div className="w-full sm:w-56">
+              <SearchableSelect
+                options={[
+                  { value: "Todos", label: "Todas las etiquetas" },
+                  ...allTags.map((tag) => ({ value: tag, label: tag })),
+                ]}
+                value={selectedTag}
+                onChange={setSelectedTag}
+                placeholder="Etiquetas..."
+                triggerClassName="h-11 rounded-xl border border-[#E9E5E7] bg-white pl-4 pr-10 font-medium text-sm text-[#20212B] shadow-2xs"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="px-1 text-xs text-[#626573] flex items-center gap-1.5">
+          <span>
+            Mostrando <strong className="font-semibold text-[#20212B]">{filteredData.length}</strong> creaciones encontradas
+          </span>
+        </div>
       </div>
 
-      {/* Mobile Cards View */}
-      <div className="lg:hidden space-y-3">
+      {/* Tabla de Creaciones — Sin contenedor de borde, idéntico a Pacientes y Consultas */}
+      <div className="space-y-4">
+        {/* Desktop Table View */}
+        <div className="hidden md:block">
+          <RecordsTable
+            columns={creationColumns}
+            data={paginatedData}
+            keyExtractor={(item) => item.id}
+            isLoading={isLoading}
+            loadingRows={5}
+            loadingColumns={6}
+            onRowClick={(item) => handleInfoClick(item)}
+            emptyState={
+              <div className="flex flex-col items-center gap-4 py-8">
+                <div className="h-16 w-16 bg-slate-50 rounded-2xl flex items-center justify-center border border-slate-100">
+                  <Folder className="h-8 w-8 text-slate-300" />
+                </div>
+                <p className="text-slate-500 font-medium">
+                  Sin creaciones registradas
+                </p>
+              </div>
+            }
+            rowClassName="hover:bg-slate-50 transition-colors group cursor-pointer"
+            footer={
+              totalPages > 1 ? (
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+                />
+              ) : undefined
+            }
+          />
+        </div>
+
+        {/* Mobile Cards View */}
+        <div className="md:hidden space-y-3">
         {isLoading ? (
           <MobileCardLoadingList rows={3} />
         ) : paginatedData.length > 0 ? (
@@ -736,7 +888,7 @@ export default function CreationsClient({
             <div
               key={item.id}
               onClick={() => handleInfoClick(item)}
-              className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3 cursor-pointer active:scale-[0.99] transition-all"
+              className="bg-white p-4 rounded-2xl border border-[#E9E5E7] shadow-2xs space-y-3 cursor-pointer active:scale-[0.99] transition-all"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
@@ -749,9 +901,9 @@ export default function CreationsClient({
                     {getTypeIcon(item.type)}
                   </div>
                   <div className="min-w-0">
-                    <h3 className="font-bold text-slate-900 text-sm truncate">{item.name}</h3>
+                    <h3 className="font-bold text-[#20212B] text-sm truncate">{item.name}</h3>
                     <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                      <span className="text-xs text-slate-500 font-medium">{item.createdAt}</span>
+                      <span className="text-xs text-[#626573] font-medium">{item.createdAt}</span>
                       <span className={cn("inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-bold ring-1 ring-inset", getTypeStyles(item.type))}>
                         {item.type}
                       </span>
@@ -763,7 +915,7 @@ export default function CreationsClient({
               {((item as any).patientName || (item.tags && item.tags.length > 0)) && (
                 <div className="flex items-center justify-between gap-2 flex-wrap text-xs pt-1">
                   {(item as any).patientName ? (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-bold border border-indigo-100">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-[#F0F5DF] text-[#668E20] text-xs font-semibold border border-[#DDE7B8]">
                       <User className="w-3 h-3" />
                       {(item as any).patientName}
                     </span>
@@ -773,7 +925,7 @@ export default function CreationsClient({
 
                   <div className="flex flex-wrap gap-1">
                     {item.tags?.slice(0, 2).map((tag) => (
-                      <span key={tag} className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                      <span key={tag} className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-[#626573]">
                         #{tag}
                       </span>
                     ))}
@@ -782,61 +934,21 @@ export default function CreationsClient({
               )}
 
               {/* Card Footer Actions */}
-              <div className="flex items-center justify-between pt-2 border-t border-slate-100" onClick={(e) => e.stopPropagation()}>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => handleInfoClick(item)}
-                    className="p-2 text-slate-400 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 rounded-xl transition-all"
-                    title="Más info"
-                  >
-                    <Info className="h-4 w-4" />
-                  </button>
-                  {item.type !== CreationType.FAST_DELIVERABLE && (
-                    <button
-                      onClick={() => handleViewClick(item)}
-                      className="p-2 text-slate-400 hover:text-indigo-600 bg-slate-50 hover:bg-indigo-50 rounded-xl transition-all"
-                      title="Previsualizar"
-                    >
-                      <Eye className="h-4 w-4" />
-                    </button>
-                  )}
-                  <button
-                    onClick={() => handleEdit(item)}
-                    className="p-2 text-slate-400 hover:text-blue-600 bg-slate-50 hover:bg-blue-50 rounded-xl transition-all"
-                    title="Editar"
-                  >
-                    <Edit className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDownloadClick(item)}
-                    className="p-2 text-slate-400 hover:text-emerald-600 bg-slate-50 hover:bg-emerald-50 rounded-xl transition-all"
-                    title="Descargar / Exportar"
-                  >
-                    <Download className="h-4 w-4" />
-                  </button>
-                  {isInsidePatientDetail && (
-                    <button
-                      onClick={() => handleShareClick(item)}
-                      disabled={isSharing === item.id}
-                      className={cn(
-                        "p-2 rounded-xl transition-all",
-                        sharedCreationIdSet.has(item.id)
-                          ? "text-emerald-600 bg-emerald-50 animate-pulse"
-                          : "text-slate-400 hover:text-indigo-600 bg-slate-50",
-                      )}
-                      title="Compartir con paciente"
-                    >
-                      <Share2 className="h-4 w-4" />
-                    </button>
-                  )}
-                </div>
-
+              <div className="flex items-center justify-between pt-3 border-t border-slate-100" onClick={(e) => e.stopPropagation()}>
                 <button
-                  onClick={() => handleDelete(item.id)}
-                  className="p-2 text-slate-400 hover:text-rose-600 bg-slate-50 hover:bg-rose-50 rounded-xl transition-all"
-                  title="Eliminar"
+                  onClick={() => handleInfoClick(item)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#626573] hover:text-[#20212B] bg-slate-50 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
                 >
-                  <Trash2 className="h-4 w-4 text-rose-500" />
+                  <Info className="h-3.5 w-3.5" />
+                  <span>Más info</span>
+                </button>
+                <button
+                  onClick={() => handlePreviewPdf(item)}
+                  className="inline-flex items-center justify-center p-1.5 text-[#668E20] bg-[#F0F5DF] hover:bg-[#E4ECC8] rounded-xl transition-all shadow-2xs cursor-pointer"
+                  title="Vista previa del documento PDF"
+                  aria-label="Vista previa del documento PDF"
+                >
+                  <Eye className="h-3.5 w-3.5" />
                 </button>
               </div>
             </div>
@@ -861,65 +973,102 @@ export default function CreationsClient({
           )}
         </div>
       </div>
+    </div>
 
+      {/* Modal: Más información (Visual Minimalista sin bordes pesados) */}
       <Modal
         isOpen={infoModalOpen}
         onClose={() => {
           setInfoModalOpen(false);
           setSelectedItem(null);
         }}
-        title="Información de la creación"
+        title="Información de la Creación"
       >
-        <div className="space-y-4">
+        <div className="space-y-5">
           {selectedItem ? (
             <>
+              {/* Header con título y badges limpios */}
               <div className="space-y-2">
-                <p className="text-lg font-semibold text-slate-900">
+                <h3 className="text-lg sm:text-xl font-bold text-[#20212B] tracking-tight leading-snug">
                   {selectedItem.name}
-                </p>
-                <div className="flex flex-wrap gap-2">
+                </h3>
+                <div className="flex flex-wrap items-center gap-2">
                   <span
                     className={cn(
-                      "inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset",
+                      "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold",
                       getTypeStyles(selectedItem.type),
                     )}
                   >
                     {selectedItem.type}
                   </span>
                   {selectedItem.patientName ? (
-                    <span className="inline-flex items-center rounded-md bg-indigo-50 px-2 py-1 text-xs font-bold text-indigo-700 ring-1 ring-inset ring-indigo-200">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F0F5DF] px-2.5 py-0.5 text-xs font-semibold text-[#668E20] border border-[#DDE7B8]">
+                      <User className="w-3 h-3" />
                       {selectedItem.patientName}
                     </span>
                   ) : null}
+                  {selectedItem.tags?.map((tag) => (
+                    <span
+                      key={tag}
+                      className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-[#626573]"
+                    >
+                      #{tag}
+                    </span>
+                  ))}
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">
-                  Descripción
-                </p>
-                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">
-                  {selectedItem.description?.trim() ||
-                    "Esta creación no tiene descripción guardada."}
-                </p>
+              {/* Lista limpia de metadatos tipográficos con divisor sutil */}
+              <div className="divide-y divide-[#F0ECEE] text-sm">
+                <div className="py-3 space-y-1">
+                  <span className="text-[11px] font-bold text-[#848792] uppercase tracking-wider">
+                    Descripción del plan
+                  </span>
+                  <p className="text-sm text-[#20212B] leading-relaxed">
+                    {selectedItem.description?.trim() ||
+                      "Pauta nutricional personalizada y estructurada para el cumplimiento de objetivos clínicos."}
+                  </p>
+                </div>
+
+                <div className="py-3 flex items-center justify-between gap-4">
+                  <span className="text-[11px] font-bold text-[#848792] uppercase tracking-wider">
+                    Fecha de elaboración
+                  </span>
+                  <span className="text-sm font-medium text-[#20212B]">
+                    {selectedItem.createdAt}
+                  </span>
+                </div>
+
+                <div className="py-3 flex items-center justify-between gap-4">
+                  <span className="text-[11px] font-bold text-[#848792] uppercase tracking-wider">
+                    Formato de exportación
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#626573]">
+                    <FileText className="w-3.5 h-3.5 text-[#86A83C]" />
+                    Documento Clínico PDF
+                  </span>
+                </div>
               </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">
-                  Fecha
-                </p>
-                <p className="mt-2 text-sm font-medium text-slate-700">
-                  {selectedItem.createdAt}
-                </p>
-              </div>
-
-              <div className="flex justify-end">
+              {/* Acciones de pie: Ver vista previa y Cerrar */}
+              <div className="flex items-center justify-between gap-3 pt-2">
                 <Button
                   variant="outline"
-                  className="rounded-xl border-slate-200 text-slate-600"
+                  className="rounded-xl border-[#E9E5E7] text-[#626573] hover:text-[#20212B] text-xs h-10 px-4 font-semibold"
                   onClick={() => setInfoModalOpen(false)}
                 >
                   Cerrar
+                </Button>
+                <Button
+                  className="rounded-xl bg-[#86A83C] hover:bg-[#78A82F] text-white text-xs h-10 px-5 font-semibold flex items-center gap-2 shadow-2xs"
+                  onClick={() => {
+                    const item = selectedItem;
+                    setInfoModalOpen(false);
+                    if (item) handlePreviewPdf(item);
+                  }}
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  <span>Ver vista previa PDF</span>
                 </Button>
               </div>
             </>
@@ -927,157 +1076,50 @@ export default function CreationsClient({
         </div>
       </Modal>
 
+      {/* Modal: Vista previa de Documento PDF */}
       <Modal
-        isOpen={viewModalOpen}
-        onClose={() => {
-          setViewModalOpen(false);
-          setFullCreationData(null);
-        }}
-        title="Detalles de la Creación"
+        isOpen={previewPdfModalOpen}
+        onClose={closePreviewPdfModal}
+        title="Vista Previa del Documento"
+        className="max-w-4xl"
       >
-        <div className="space-y-6">
-          {isLoadingDetails ? (
-            <div className="flex flex-col items-center justify-center py-12 space-y-3">
-              <Loader2 className="h-10 w-10 text-emerald-500 animate-spin" />
-              <p className="text-sm font-bold text-slate-500">
-                Cargando detalles...
+        <div className="space-y-4">
+          {isLoadingPdfPreview ? (
+            <div className="flex flex-col items-center justify-center py-20 space-y-3">
+              <Loader2 className="h-10 w-10 text-[#86A83C] animate-spin" />
+              <p className="text-sm font-semibold text-[#626573]">
+                Generando vista previa del PDF...
               </p>
             </div>
-          ) : fullCreationData ? (
-            <div className="space-y-6">
-              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex items-start gap-4">
-                <div
-                  className={cn(
-                    "p-3 rounded-xl bg-white shadow-sm border border-slate-200",
-                    getTypeStyles(
-                      mapBackendTypeToFrontend(fullCreationData.type),
-                    ),
-                  )}
-                >
-                  {getTypeIcon(mapBackendTypeToFrontend(fullCreationData.type))}
-                </div>
-                <div className="space-y-1">
-                  <h3 className="text-lg font-black text-slate-900 leading-tight">
-                    {fullCreationData.name}
-                  </h3>
-                  {typeof fullCreationData.metadata?.description === "string" &&
-                  fullCreationData.metadata.description.trim() ? (
-                    <p className="max-w-2xl text-sm leading-6 text-slate-600">
-                      {fullCreationData.metadata.description}
-                    </p>
-                  ) : null}
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {fullCreationData.tags?.map((tag: string) => (
-                      <span
-                        key={tag}
-                        className="px-2 py-0.5 bg-white text-slate-500 border border-slate-200 rounded text-[10px] font-bold uppercase tracking-wider"
-                      >
-                        #{tag}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                    <FileText className="h-4 w-4" />
-                    Alimentos Incluidos
+          ) : previewPdfUrl ? (
+            <div className="space-y-3">
+              {/* Barra de cabecera con información del documento */}
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100 flex-wrap gap-2">
+                <div className="min-w-0">
+                  <h4 className="text-sm font-bold text-[#20212B] truncate">
+                    {selectedItem?.name}
                   </h4>
-                  <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-tight">
-                    {fullCreationData.metadata?.foodCount || 0} ITEMS
-                  </span>
-                </div>
-
-                <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-200">
-                  {fullCreationData.type === "DIET" && (
-                    <div className="space-y-4">
-                      {(() => {
-                        const foodMap: Record<string, string[]> = {};
-                        if (fullCreationData.metadata?.foodSummary) {
-                          fullCreationData.metadata.foodSummary.forEach(
-                            (f: any) => {
-                              if (!foodMap[f.group]) foodMap[f.group] = [];
-                              foodMap[f.group].push(f.name);
-                            },
-                          );
-                        } else if (fullCreationData.content?.manualAdditions) {
-                          fullCreationData.content.manualAdditions.forEach(
-                            (ma: any) => {
-                              if (!foodMap[ma.grupo]) foodMap[ma.grupo] = [];
-                              foodMap[ma.grupo].push(ma.producto);
-                            },
-                          );
-                        }
-
-                        if (Object.keys(foodMap).length === 0) {
-                          return (
-                            <div className="py-4 text-center">
-                              <p className="text-sm text-slate-400 italic">
-                                No hay detalles específicos guardados para los
-                                alimentos en este resumen.
-                              </p>
-                            </div>
-                          );
-                        }
-
-                        return Object.entries(foodMap).map(
-                          ([group, products]) => (
-                            <div key={group} className="space-y-2">
-                              <h5 className="text-[10px] font-black text-slate-500 uppercase bg-slate-100 px-2 py-1 rounded inline-block">
-                                {group}
-                              </h5>
-                              <ul className="grid grid-cols-1 gap-1 pl-1">
-                                {products.map((p, idx) => (
-                                  <li
-                                    key={idx}
-                                    className="text-sm font-medium text-slate-700 flex items-center gap-2"
-                                  >
-                                    <div className="h-1 w-1 bg-emerald-400 rounded-full" />
-                                    {p}
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          ),
-                        );
-                      })()}
-                    </div>
-                  )}
-
-                  {fullCreationData.type !== "DIET" && (
-                    <div className="py-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                      <p className="text-sm text-slate-400">
-                        Resumen detallado próximamente para este tipo de
-                        creación.
-                      </p>
-                    </div>
-                  )}
+                  <p className="text-xs text-[#626573]">
+                    {selectedItem?.patientName
+                      ? `Paciente: ${selectedItem.patientName}`
+                      : "Sin paciente asignado"}
+                  </p>
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-slate-100 flex gap-3">
-                <Button
-                  className="flex-1 bg-slate-900 hover:bg-slate-800 h-11 text-white font-black rounded-xl"
-                  onClick={() => handleEdit(selectedItem!)}
-                >
-                  <Edit className="h-4 w-4 mr-2" />
-                  Cargar en Diseñador
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-11 border-slate-200 text-slate-600 font-bold px-4 rounded-xl"
-                  onClick={() => setViewModalOpen(false)}
-                >
-                  Cerrar
-                </Button>
+              {/* Visor PDF embebido */}
+              <div className="relative w-full h-[65vh] sm:h-[70vh] rounded-2xl overflow-hidden bg-slate-50 border border-slate-200">
+                <iframe
+                  src={`${previewPdfUrl}#toolbar=1&navpanes=0`}
+                  className="w-full h-full border-0"
+                  title="Vista previa del documento PDF"
+                />
               </div>
             </div>
           ) : (
             <div className="text-center py-12">
-              <p className="text-slate-500 font-medium text-sm">
-                No se pudieron cargar los datos de la creación.
+              <p className="text-sm text-[#626573]">
+                No se pudo cargar la vista previa del documento.
               </p>
             </div>
           )}
@@ -1101,16 +1143,29 @@ export default function CreationsClient({
     return (
       <ModuleLayout
         title="Mis Creaciones"
-        description="Aquí encontrarás todo lo que has creado para tus pacientes, puedes filtrar, buscar y volver a descargar tus creaciones que hayas guardado, ya sea en el módulo de entregable personalizable o en entregables rápidos."
+        description={
+          <div className="space-y-1">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-[#668E20] -mt-0.5 mb-0.5">
+              <Folder className="w-4 h-4 text-[#86A83C]" />
+              <span className="tracking-wider uppercase text-[10px] font-bold">Documentos y Pautas Clínicas</span>
+            </div>
+            <p className="text-sm sm:text-[15px] text-[#626573] leading-relaxed">
+              Consulta, gestiona y vuelve a descargar todas las pautas, dietas y recetas creadas para tus pacientes.
+            </p>
+          </div>
+        }
         rightContent={
           hasResolvedCreationUsage ? (
-            <UsageLimitBadge
-              label="Creaciones"
-              usage={creationsUsed}
-              limit={creationsLimit}
-            />
-          ) : null
+            <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
+              <UsageLimitBadge
+                label="Creaciones"
+                usage={creationsUsed}
+                limit={creationsLimit}
+              />
+            </div>
+          ) : undefined
         }
+        className="pb-16 relative"
       >
         {content}
       </ModuleLayout>

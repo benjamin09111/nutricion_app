@@ -26,22 +26,20 @@ export class SupportService {
     if (data.type === 'IDEA') dbType = SupportRequestType.IDEA;
     if (data.type === 'REUNION') dbType = SupportRequestType.REUNION;
 
-    // 1. Save request to DB
-    const fullMessage = data.subject
-      ? `[${data.subject}] ${data.message}`
-      : data.message;
-
-    const request = await this.prisma.supportRequest.create({
-      data: {
-        email: data.email,
-        message: fullMessage,
-        type: dbType,
-        status: SupportRequestStatus.PENDING,
-      },
-    });
+    // 1. Despachar correos de notificación de inmediato a contacto@nutrinet.cl
+    if (dbType === SupportRequestType.CONTACT) {
+      await this.mailService
+        .sendDemoInterestEmail({
+          email: data.email,
+          fullName: data.message?.match(/Nombre:\s*([^\.]+)\./i)?.[1],
+        })
+        .catch((err) =>
+          console.error('Error enviando interés de demo a contacto:', err),
+        );
+    }
 
     if (data.type === 'REUNION' || dbType === SupportRequestType.REUNION) {
-      this.mailService
+      await this.mailService
         .sendMeetingRequestEmail({
           userEmail: data.email,
           subject: data.subject || 'Solicitud de reunión',
@@ -50,6 +48,33 @@ export class SupportService {
         .catch((err) =>
           console.error('Error enviando email de solicitud de reunión:', err),
         );
+    }
+
+    // 2. Guardar solicitud en la base de datos de forma resiliente
+    const fullMessage = data.subject
+      ? `[${data.subject}] ${data.message}`
+      : data.message;
+
+    let request: any = {
+      id: `sup-${Date.now()}`,
+      email: data.email,
+      message: fullMessage,
+      type: dbType,
+      status: SupportRequestStatus.PENDING,
+      createdAt: new Date(),
+    };
+
+    try {
+      request = await this.prisma.supportRequest.create({
+        data: {
+          email: data.email,
+          message: fullMessage,
+          type: dbType,
+          status: SupportRequestStatus.PENDING,
+        },
+      });
+    } catch (dbError) {
+      console.warn('Advertencia: No se pudo guardar supportRequest en DB (email ya despachado):', dbError);
     }
 
     if (dbType === SupportRequestType.TESTIMONIO) {

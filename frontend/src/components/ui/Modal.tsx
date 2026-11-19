@@ -1,4 +1,4 @@
-import { XCircle } from "lucide-react";
+import { X } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
@@ -8,6 +8,7 @@ interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
   title?: string;
+  description?: string;
   children: React.ReactNode;
   className?: string;
   closeOnBackdropClick?: boolean;
@@ -18,6 +19,7 @@ export function Modal({
   isOpen,
   onClose,
   title,
+  description,
   children,
   className,
   closeOnBackdropClick = true,
@@ -57,37 +59,44 @@ export function Modal({
 
   const content = (
     <div
-      className="fixed inset-0 z-9999 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300 min-h-screen"
+      className="fixed inset-0 z-9999 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-200 min-h-screen"
       onClick={handleBackdropClick}
     >
       <div
         ref={modalRef}
         onClick={(e) => e.stopPropagation()}
         className={cn(
-          "flex w-full max-w-md max-h-[calc(100dvh-2rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-slate-900 shadow-2xl relative animate-in zoom-in-95 duration-200",
+          "flex w-full max-w-lg max-h-[calc(100dvh-2rem)] flex-col overflow-hidden rounded-3xl border border-[#E9E5E7] bg-white text-[#20212B] shadow-2xl relative animate-in zoom-in-95 duration-200",
           className,
         )}
       >
         {!title && (
           <button
-              onClick={onClose}
-              className="absolute top-4 right-4 text-slate-300 hover:text-rose-500 transition-colors z-10 p-1 hover:bg-rose-50 rounded-lg"
-            >
-              <XCircle className="h-6 w-6" />
+            type="button"
+            onClick={onClose}
+            className="absolute top-4 right-4 text-slate-400 hover:text-[#20212B] transition-colors z-10 p-1.5 hover:bg-slate-100 rounded-xl cursor-pointer"
+          >
+            <X className="h-5 w-5" />
           </button>
         )}
         {title && (
-          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white px-5 sm:px-8 py-4 sm:py-5">
-            <h2 className="font-black text-slate-900 uppercase tracking-tight text-sm">{title}</h2>
+          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#F0ECEE] bg-white px-6 sm:px-7 py-4 sm:py-5">
+            <div>
+              <h2 className="text-base sm:text-lg font-bold text-[#20212B] tracking-tight">{title}</h2>
+              {description && (
+                <p className="mt-0.5 text-xs text-[#626573]">{description}</p>
+              )}
+            </div>
             <button
+              type="button"
               onClick={onClose}
-              className="text-slate-400 hover:text-rose-500 transition-colors p-1 hover:bg-rose-50 rounded-lg"
+              className="text-slate-400 hover:text-[#20212B] transition-colors p-1.5 hover:bg-slate-100 rounded-xl cursor-pointer"
             >
-              <XCircle className="h-5 w-5" />
+              <X className="h-5 w-5" />
             </button>
           </div>
         )}
-        <div className="min-h-0 flex-1 overflow-y-auto bg-white p-5 sm:p-8 text-slate-900">{children}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto bg-white px-6 py-5 sm:px-7 sm:py-6 text-[#20212B]">{children}</div>
       </div>
     </div>
   );

@@ -45,6 +45,7 @@
     - **Initial Registration Invariance**: Creating a patient with initial weight/height automatically inserts an initial baseline consultation record at `patient.createdAt`, permanently securing the initial baseline point.
     - **Same-Day Metric Aggregation**: Multiple metrics logged on the same calendar date merge cleanly into that date's data point without duplicating or splitting dates.
     - **Independent Modals & Floating Popovers**: All date pickers and modal selectors must render with fixed high z-index (`z-[200]`) to ensure they remain floating, unobstructed, and unclipped by parent scroll containers.
+22. **Icon-Only Action Buttons (Immutable)**: In tables, cards, grids, and list rows, action buttons (e.g., 'Vista previa', 'Ver recurso', 'Editar', 'Eliminar', 'Copiar') MUST be icon-only buttons with hover tooltips (`title="..."` and `aria-label="..."`). Never place descriptive text next to the action icon inside item rows, cards, or table cells, as text consumes unnecessary horizontal space, causes awkward wrapping, and breaks visual alignment.
 
 ## Linguistic Conventions
 - **UI text**: Professional, warm Spanish (español de Chile).

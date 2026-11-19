@@ -1,8 +1,31 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #1f2937;
+  --nutri-purple: #b096ed;
+  --nutri-green: #b0c76f;
+  --purple-action: #7842d4;
+  --purple-soft: #f3ecfc;
+  --purple-text: #6936c8;
+  --green-text: #668e20;
+  --green-soft: #f0f5df;
+  --green-indicator: #86a83c;
+  --background: #fdfbfa;
+  --surface: #ffffff;
+  --surface-warm: #fffcfa;
+  --text-primary: #20212b;
+  --text-secondary: #626573;
+  --text-muted: #848792;
+  --border: #e9e5e7;
+  --border-soft: #f0ecee;
+
+  --foreground: #20212b;
+  --brand-purple: #b096ed;
+  --brand-green: #b0c76f;
+  --purple-strong: #7842d4;
+  --green-strong: #668e20;
+  --bg-app: #fdfbfa;
+  --surface-subtle: #f3ecfc;
+  --border-subtle: #e9e5e7;
   --brand-green-50: #f7fbe8;
   --brand-green-100: #edf4d3;
   --brand-green-200: #dde8ad;
@@ -23,22 +46,45 @@
   --brand-indigo-700: #7557b7;
   --brand-indigo-800: #5f4696;
   --brand-indigo-900: #4c3778;
-  --dashboard-shell: radial-gradient(circle at top, #ffffff 0%, #f8fafc 42%, #eef2f7 100%);
-  --dashboard-nav: rgba(255, 255, 255, 0.92);
-  --dashboard-sidebar: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 1) 100%);
-  --dashboard-border: rgba(148, 163, 184, 0.22);
-  --dashboard-muted: #6b7280;
-  --dashboard-surface: rgba(255, 255, 255, 0.9);
+  --dashboard-shell: 
+    radial-gradient(ellipse 45% 35% at 0% 0%, rgba(220, 245, 215, 0.45) 0%, transparent 70%),
+    radial-gradient(ellipse 45% 40% at 100% 100%, rgba(238, 228, 255, 0.55) 0%, transparent 70%),
+    #fafbfc;
+  --dashboard-nav: rgba(255, 255, 255, 0.85);
+  --dashboard-sidebar: #ffffff;
+  --dashboard-border: rgba(241, 245, 249, 1);
+  --dashboard-muted: #64748b;
+  --dashboard-surface: #ffffff;
   --dashboard-surface-strong: #ffffff;
-  --dashboard-hover: rgba(168, 138, 237, 0.08);
-  --dashboard-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
-  --font-default: var(--font-poppins), sans-serif;
+  --dashboard-hover: rgba(124, 58, 237, 0.06);
+  --dashboard-shadow: 0 1px 3px rgba(15, 23, 42, 0.02);
+  --font-default: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-formal: var(--font-inter), sans-serif;
-  --font-brand: var(--font-default);
-  --font-portal: var(--font-default);
+  --font-brand: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-portal: var(--font-formal);
 }
 
 @theme inline {
+  --color-nutri-purple: var(--nutri-purple);
+  --color-nutri-green: var(--nutri-green);
+  --color-purple-action: var(--purple-action);
+  --color-purple-soft: var(--purple-soft);
+  --color-purple-text: var(--purple-text);
+  --color-green-text: var(--green-text);
+  --color-green-soft: var(--green-soft);
+  --color-green-indicator: var(--green-indicator);
+  --color-surface-warm: var(--surface-warm);
+  --color-text-muted: var(--text-muted);
+  --color-border-soft: var(--border-soft);
+  --color-brand-purple: var(--brand-purple);
+  --color-brand-green: var(--brand-green);
+  --color-purple-strong: var(--purple-strong);
+  --color-green-strong: var(--green-strong);
+  --color-bg-app: var(--bg-app);
+  --color-surface-subtle: var(--surface-subtle);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-border-subtle: var(--border-subtle);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-portal);
@@ -103,7 +149,7 @@
 }
 
 :root[data-font="default"] {
-  --font-portal: var(--font-default);
+  --font-portal: var(--font-formal);
 }
 
 body {
@@ -187,6 +233,7 @@ body {
 
 .dashboard-shell-bg {
   background: var(--dashboard-shell);
+  background-attachment: fixed;
 }
 
 .dashboard-nav-bg {
@@ -685,12 +732,13 @@ input[type="password"] {
   appearance: none;
 }
 
-/* Smooth scroll for anchor links */
+/* Smooth scroll for anchor links and standard web 16px base font scale */
 html {
-  font-size: 17px;
+  font-size: 16px;
   scroll-behavior: smooth;
-  scroll-padding-top: 80px;
+  scroll-padding-top: 60px;
 }
+
 
 /* Sidebar scrollbar - suave, elegante y ultra-clarito */
 .sidebar-scroll {
@@ -720,4 +768,93 @@ html {
 }
 .dark .sidebar-scroll::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.3);
+}
+
+
+/* Safe area insets for mobile iOS / Android devices */
+.pb-safe {
+  padding-bottom: max(0.625rem, env(safe-area-inset-bottom, 0px));
+}
+
+.pt-safe {
+  padding-top: max(0.625rem, env(safe-area-inset-top, 0px));
+}
+
+.mb-safe {
+  margin-bottom: max(0.625rem, env(safe-area-inset-bottom, 0px));
+}
+
+/* Universal no-scrollbar for clean native mobile touch scroll */
+.no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+.no-scrollbar {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+
+
+/* Patient Mobile Fluid Sheet & Spring Animations */
+@keyframes slide-up-sheet {
+  0% {
+    transform: translateY(100%);
+    opacity: 0.5;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes spring-pop {
+  0% {
+    transform: scale(0.92) translateY(8px);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.02) translateY(-2px);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-sheet-up {
+  animation: slide-up-sheet 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-spring-pop {
+  animation: spring-pop 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slide-drawer-left {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.animate-drawer-left {
+  animation: slide-drawer-left 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slide-down-sheet {
+  0% {
+    transform: translateY(-60px);
+    opacity: 0.2;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-sheet-down {
+  animation: slide-down-sheet 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }

@@ -85,4 +85,27 @@ describe('UploadsController', () => {
       }),
     ).rejects.toThrow(ServiceUnavailableException);
   });
+
+  it('genera una URL firmada válida para un path permitido', async () => {
+    (storage as any).resolveObjectPath = jest
+      .fn()
+      .mockReturnValue('abc-123.pdf');
+    (storage as any).createSignedUrl = jest
+      .fn()
+      .mockResolvedValue('https://cdn.test/signed/abc-123.pdf?token=xyz');
+
+    const result = await controller.getSignedUrl('abc-123.pdf');
+    expect(result.signedUrl).toBe(
+      'https://cdn.test/signed/abc-123.pdf?token=xyz',
+    );
+    expect(result.expiresIn).toBe(900);
+  });
+
+  it('rechaza path inválido con path traversal en getSignedUrl', async () => {
+    (storage as any).resolveObjectPath = jest.fn().mockReturnValue(null);
+
+    await expect(
+      controller.getSignedUrl('../../etc/passwd'),
+    ).rejects.toThrow(BadRequestException);
+  });
 });

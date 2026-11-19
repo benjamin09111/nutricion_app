@@ -1,6 +1,3 @@
-import { createClient } from "@supabase/supabase-js";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Deprecated & removed for security: NutriNet does not use Supabase Client in frontend.
+// All database operations and authentication are performed strictly through NestJS API.
+export {};

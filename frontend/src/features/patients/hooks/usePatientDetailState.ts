@@ -499,18 +499,19 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
   const availableMetricSuggestions = useMemo(() => {
     const combined = [...smartMetrics];
     globalMetrics.forEach((gm) => {
-      const gmKey = normalizeMetricKey(gm.name, gm.key);
+      const gmName = (gm?.name || gm?.label || "").trim();
+      const gmKey = normalizeMetricKey(gmName, gm?.key);
       if (
         !combined.some(
           (sm) =>
-            sm.key === gmKey ||
-            sm.label.toLowerCase() === gm.name.toLowerCase(),
+            (gmKey && sm.key === gmKey) ||
+            (sm.label && gmName && sm.label.toLowerCase() === gmName.toLowerCase()),
         )
       ) {
         combined.push({
-          key: gmKey,
-          label: gm.name,
-          unit: gm.unit,
+          key: gmKey || gm?.key || gmName,
+          label: gmName || gm?.key || "",
+          unit: gm?.unit || "",
           icon: Activity,
           color: "#64748b",
         });
@@ -1034,7 +1035,7 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
     }
 
     const exists = availableMetricSuggestions.find(
-      (s) => s.label.toLowerCase() === newMetric.name.toLowerCase(),
+      (s) => (s.label || "").toLowerCase() === (newMetric.name || "").trim().toLowerCase(),
     );
     if (exists) {
       toast.info(
@@ -1407,7 +1408,7 @@ export function usePatientDetailState({ id }: UsePatientDetailStateProps) {
     if (field === "label") {
       const known = availableMetricSuggestions.find(
         (s) =>
-          s.label.toLowerCase() === value.toLowerCase() ||
+          ((s.label || "").toLowerCase() === (value || "").toLowerCase()) ||
           s.key === normalizeMetricKey(value, ""),
       );
       if (known) {

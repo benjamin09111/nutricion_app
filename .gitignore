@@ -27,7 +27,7 @@ backend/prisma/generated/
 backend/prisma/*.js
 backend/prisma/*.js.map
 
-# root lockfile (no package.json in root — accidental installs)
+# root lockfile (root uses zero dependencies, only orchestration scripts)
 /package-lock.json
 
 # backups

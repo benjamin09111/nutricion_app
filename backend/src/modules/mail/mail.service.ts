@@ -128,6 +128,30 @@ export class MailService {
     }
   }
 
+  async sendDemoInterestEmail(data: {
+    email: string;
+    fullName?: string;
+  }): Promise<void> {
+    const fullName = data.fullName?.trim() || 'No especificado';
+    const escapeHtml = (value: string) =>
+      value.replace(/[&<>'"]/g, (character) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        "'": '&#39;',
+        '"': '&quot;',
+      })[character] || character);
+
+    await this.sendEmail({
+      to: 'contacto@nutrinet.cl',
+      subject: 'Nuevo interés en NutriNet desde la Demo',
+      replyTo: data.email,
+      html: `<h2>Nuevo interés en NutriNet</h2><p><strong>Nombre:</strong> ${escapeHtml(fullName)}</p><p><strong>Correo:</strong> ${escapeHtml(data.email)}</p><p>La persona indicó que desea ser notificada sobre el lanzamiento oficial.</p>`,
+      text: `Nuevo interés en NutriNet\nNombre: ${fullName}\nCorreo: ${data.email}\nDesea ser notificada sobre el lanzamiento oficial.`,
+      channel: 'support',
+    });
+  }
+
   async sendWelcomeEmail(
     email: string,
     fullName: string,

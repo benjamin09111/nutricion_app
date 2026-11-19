@@ -1,4 +1,3 @@
-import { supabase } from "@/lib/supabase";
 import { LoginFormData, RegisterFormData } from "@/lib/schemas/auth";
 import { fetchApi } from "@/lib/api-base";
 import {
@@ -23,6 +22,7 @@ export function persistAuthSession(
     expires: 30, // 30 days
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax" as const,
+    path: "/",
   });
   if (user) setCurrentUser(user);
 }
@@ -47,7 +47,33 @@ export const authService = {
       throw new Error(message);
     }
 
-    // Persist session presence on frontend domain and user metadata
+    // Persist session presence on frontend domain and user metadata only when 2FA is complete
+    if (data.user && !data.requiresTotp) {
+      persistAuthSession("", data.user);
+    }
+
+    return data;
+  },
+
+  async verifyTotp(tempToken: string, code: string) {
+    const response = await fetchApi(`/auth/login/totp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tempToken, code }),
+    });
+
+    const contentType = response.headers.get("content-type") || "";
+    const data = contentType.includes("application/json")
+      ? await response.json()
+      : { message: await response.text() };
+
+    if (!response.ok) {
+      const message = Array.isArray(data.message)
+        ? data.message.join(" ")
+        : data.message || data.error || "Código de verificación 2FA inválido";
+      throw new Error(message);
+    }
+
     if (data.user) {
       persistAuthSession("", data.user);
     }
@@ -84,15 +110,38 @@ export const authService = {
   },
 
   async signOut() {
-    // Clear Supabase session if any (for future features like calendar integration)
-    await supabase.auth.signOut();
-    await fetchApi(`/auth/logout`, { method: "POST" }).catch(() => undefined);
-    // Clear presence indicator (httpOnly cookies are cleared by the backend /logout)
+    try {
+      await fetchApi(`/auth/logout`, { method: "POST" });
+    } catch {
+      // Ignorar fallo de red del backend para permitir cerrar sesión localmente
+    }
+
+    // Clear presence indicator (both with path="/" and default to guarantee removal)
+    Cookies.remove("auth_session_present", { path: "/" });
     Cookies.remove("auth_session_present");
+
     // Clean up any legacy cookies that might still exist in old sessions
+    Cookies.remove("auth_token", { path: "/" });
     Cookies.remove("auth_token");
+    Cookies.remove("auth_token_http", { path: "/" });
     Cookies.remove("auth_token_http");
+    Cookies.remove("user", { path: "/" });
+    Cookies.remove("user");
+
+    // Explicitly expire via document.cookie for complete safety across all paths and subdomains
+    if (typeof document !== "undefined") {
+      document.cookie = "auth_session_present=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+      document.cookie = "auth_session_present=; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
+      document.cookie = "auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+      document.cookie = "auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
+      document.cookie = "auth_token_http=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+      document.cookie = "auth_token_http=; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
+      document.cookie = "user=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+      document.cookie = "user=; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
+    }
+
     try { localStorage.removeItem("auth_token"); } catch { /* ignore */ }
+    try { localStorage.removeItem("current_user"); } catch { /* ignore */ }
     clearCurrentUser();
   },
 };

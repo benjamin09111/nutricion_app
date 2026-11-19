@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -22,25 +23,25 @@ const DashboardShellContext = createContext<DashboardShellContextValue | null>(
 
 const STORAGE_KEY = "nutri_dashboard_sidebar_collapsed";
 
-  const getInitialSidebarCollapsed = () => {
-  if (typeof window === "undefined") return false;
-
-  const storedValue = localStorage.getItem(STORAGE_KEY);
-  if (storedValue === null) return false;
-
-  return storedValue === "true";
-};
-
 export function DashboardShellProvider({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const [isSidebarCollapsed, setIsSidebarCollapsedState] = useState(
-    getInitialSidebarCollapsed,
-  );
+  const [isSidebarCollapsed, setIsSidebarCollapsedState] = useState(false);
   const [isSidebarToggleHighlighted, setIsSidebarToggleHighlighted] =
     useState(false);
+
+  useEffect(() => {
+    try {
+      const storedValue = localStorage.getItem(STORAGE_KEY);
+      if (storedValue === "true") {
+        setIsSidebarCollapsedState(true);
+      }
+    } catch {
+      // Ignorar error al leer de localStorage
+    }
+  }, []);
 
   const setSidebarCollapsed = useCallback((collapsed: boolean) => {
     setIsSidebarCollapsedState(collapsed);

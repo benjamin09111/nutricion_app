@@ -4,11 +4,10 @@ NutriNet es una plataforma SaaS para nutricionistas en Chile. El producto automa
 
 ## Leer primero
 
-1. `.agents/rules/core.md`
-2. `.agents/entrypoint.md`
-3. `.agents/context/product.md`
-4. `.agents/context/architecture.md`
-5. `docs/README.md`
+1. `NUTRINET_MASTER_DOCUMENT.md` (Documento Maestro Integral: Negocio, Propuesta de Valor, Arquitectura y Agentes)
+2. `.agents/rules/core.md`
+3. `.agents/AGENTS.md`
+4. `docs/README.md`
 
 ## Estructura del repo
 
@@ -26,7 +25,17 @@ NutriNet es una plataforma SaaS para nutricionistas en Chile. El producto automa
 
 ## Inicio rápido
 
-No hay `package.json` en el root. Trabaja dentro de cada paquete:
+Puedes levantar ambos servicios simultáneamente desde la raíz del proyecto:
+
+```bash
+npm run dev
+```
+
+Esto ejecutará concurrentemente:
+- **Backend (NestJS)**: `http://localhost:3001` (`npm run start:dev`)
+- **Frontend (Next.js)**: `http://localhost:3000` (`npm run dev`)
+
+También puedes trabajar dentro de cada paquete de forma independiente:
 
 ```bash
 cd frontend

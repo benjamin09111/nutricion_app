@@ -10,15 +10,17 @@ export function sortPlansForLanding<T extends { price?: number; isPopular?: bool
   if (!plans || plans.length <= 1) return plans;
 
   return [...plans].sort((a, b) => {
-    // 1. Freemium (price === 0 or slug free) always first on the left
-    const aIsFree = Number(a.price || 0) === 0 || (a.slug || "").toLowerCase().includes("free");
-    const bIsFree = Number(b.price || 0) === 0 || (b.slug || "").toLowerCase().includes("free");
+    // 1. Freemium (slug free) always first on the left
+    const aIsFree = (a.slug || "").toLowerCase().includes("free");
+    const bIsFree = (b.slug || "").toLowerCase().includes("free");
     if (aIsFree && !bIsFree) return -1;
     if (!aIsFree && bIsFree) return 1;
 
-    // 2. Coming Soon always last on the far right
-    if (a.isComingSoon && !b.isComingSoon) return 1;
-    if (!a.isComingSoon && b.isComingSoon) return -1;
+    // 2. Plan Pack / Clínicas o Coming Soon always last on the far right
+    const aIsPack = (a.slug || "").toLowerCase().includes("pack") || a.isComingSoon;
+    const bIsPack = (b.slug || "").toLowerCase().includes("pack") || b.isComingSoon;
+    if (aIsPack && !bIsPack) return 1;
+    if (!aIsPack && bIsPack) return -1;
 
     // 3. Popular / Paid plans in the middle
     if (a.isPopular && !b.isPopular) return -1;

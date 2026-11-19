@@ -22,7 +22,7 @@ export async function downloadDietPdf(data: DietPdfData, countQuota = true, quot
     const doc = React.createElement(DietPdfDocument, { data }) as any;
     const blob = await pdf(doc).toBlob();
 
-    const safeName = data.dietName.replace(/\s+/g, "_").replace(/[^\w-]/g, "") || "dieta_base";
+    const safeName = (data.dietName || "dieta_base").replace(/\s+/g, "_").replace(/[^\w-]/g, "") || "dieta_base";
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;

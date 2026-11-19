@@ -23,8 +23,11 @@ import { cn, sanitizePhone } from "@/lib/utils";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
 import { calculateBMI, calculateGET, getIdealWeightRange, calculateAge } from "@/lib/nutrition-formulas";
 import { formatRut, validateRut } from "@/lib/rut-utils";
+import { DEFAULT_CONSTRAINTS } from "@/lib/constants";
+import { OFFICIAL_INGREDIENTS } from "@/features/foods";
 import { fetchApi, getApiUrl } from "@/lib/api-base";
 import { useSubscription } from "@/context/SubscriptionContext";
+import { isGuestMode } from "@/lib/demo-local-api";
 
 const STEPS = [
   "Identificación",
@@ -88,23 +91,29 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
+  const isGuest = isGuestMode();
   const rawPatientLimit = currentPlan?.entitlements?.["patients.total.limit"] ??
     currentPlan?.entitlements?.["patients.active.limit"] ??
     entitlements["patients.total.limit"] ?? entitlements["patients.active.limit"];
-  const patientLimit = isDeveloper
+  const patientLimit = isDeveloper || isGuest
     ? Number.POSITIVE_INFINITY
     : typeof rawPatientLimit === "number"
       ? (rawPatientLimit < 0 ? Number.POSITIVE_INFINITY : rawPatientLimit)
       : undefined;
   const patientCreationBlocked =
-    isSubscriptionLoading || typeof usage?.patientsActive !== "number" || patientLimit === undefined;
+    !isGuest && (isSubscriptionLoading || typeof usage?.patientsActive !== "number" || patientLimit === undefined);
   const patientLimitReached =
-    !patientCreationBlocked && Number.isFinite(patientLimit) &&
+    !isGuest && !patientCreationBlocked && typeof patientLimit === "number" && Number.isFinite(patientLimit) &&
     typeof usage?.patientsActive === "number" && usage.patientsActive >= patientLimit;
 
   const customVariableMap = useMemo(
     () => new Map((draft.customVariables || []).map((item) => [item.key, item])),
     [draft.customVariables],
+  );
+
+  const foodNameSuggestions = useMemo(
+    () => OFFICIAL_INGREDIENTS.map((item) => item.name),
+    [],
   );
 
   const getCustomVariableValue = (key: string) => customVariableMap.get(key)?.value as string | undefined;
@@ -332,16 +341,16 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
   if (isSaving) {
     return (
       <div className="mx-auto flex min-h-[60vh] max-w-lg items-center justify-center px-4">
-        <div className="w-full rounded-2xl border border-indigo-100 bg-white p-6 text-center shadow-sm sm:p-8">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50">
-            <span className="h-7 w-7 rounded-full border-4 border-indigo-200 border-t-indigo-600 animate-spin" />
+        <div className="w-full rounded-2xl border border-slate-100 bg-white p-6 text-center shadow-sm sm:p-8">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#F0F5DF]">
+            <span className="h-7 w-7 rounded-full border-4 border-[#DDE7B8] border-t-[#668E20] animate-spin" />
           </div>
           <h1 className="mt-5 text-xl font-semibold text-slate-900">Cargando ficha clínica</h1>
           <p className="mt-2 text-sm leading-relaxed text-slate-500">
             Estamos creando el paciente y preparando su información clínica.
           </p>
           <div className="mt-6 h-1.5 overflow-hidden rounded-full bg-slate-100">
-            <div className="h-full w-2/3 rounded-full bg-indigo-500 animate-pulse" />
+            <div className="h-full w-2/3 rounded-full bg-[#86A83C] animate-pulse" />
           </div>
         </div>
       </div>
@@ -679,7 +688,7 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
                 <TagInput
                   value={draft.dietRestrictions || []}
                   onChange={(tags) => updateDraft({ dietRestrictions: tags })}
-                  fetchSuggestionsUrl={`${getApiUrl()}/tags`}
+                  suggestions={DEFAULT_CONSTRAINTS.map((c) => c.label)}
                   placeholder="Diabetes, Celiaco, Alergias..."
                   className="rounded-xl bg-slate-50 border-transparent h-10 text-sm"
                 />
@@ -760,13 +769,13 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
                 <TagInput
                   value={Array.isArray(draft.dislikedFoods) ? draft.dislikedFoods : typeof draft.dislikedFoods === "string" && Boolean(draft.dislikedFoods) ? (draft.dislikedFoods as string).split(",").map(s => s.trim()).filter(Boolean) : []}
                   onChange={(tags) => updateDraft({ dislikedFoods: tags })}
-                  fetchSuggestionsUrl={`${getApiUrl()}/foods`}
+                  suggestions={foodNameSuggestions}
                   includeSystemSuggestions={false}
                   minSearchLength={1}
                   itemTypeName="alimento"
                   placeholder="Escribe para buscar alimentos (ej: pescado, legumbres, palta...)"
                   className="rounded-xl bg-slate-50 border-transparent min-h-10 text-sm"
-                  helperText="Escribe para buscar alimentos e ingredientes en la base de datos."
+                  helperText="Escribe para buscar alimentos e ingredientes del catálogo oficial."
                 />
               </div>
               <div className="space-y-1.5">
@@ -911,7 +920,14 @@ export function PatientFormPage({ onBack }: PatientFormPageProps) {
                   <RotateCcw className="w-4 h-4 mr-1.5" />
                   Reiniciar
                 </Button>
-                <Button type="button" onClick={handleQuickCreate} disabled={isSaving || patientCreationBlocked || patientLimitReached} className="w-full rounded-xl px-6 bg-indigo-600 text-white font-bold sm:w-auto">{isSaving ? "Guardando..." : patientCreationBlocked ? "Verificando límite..." : patientLimitReached ? "Límite alcanzado" : "Crear Paciente"}</Button>
+                <Button
+                  type="button"
+                  onClick={handleQuickCreate}
+                  disabled={isSaving || patientCreationBlocked || patientLimitReached}
+                  className="w-full rounded-xl px-6 bg-[#86A83C] hover:bg-[#78A82F] text-white font-bold sm:w-auto shadow-sm shadow-[#86A83C]/20 transition-all cursor-pointer"
+                >
+                  {isSaving ? "Guardando..." : patientCreationBlocked ? "Verificando límite..." : patientLimitReached ? "Límite alcanzado" : "Crear Paciente"}
+                </Button>
               </div>
             </div>
           </FormStepCard>

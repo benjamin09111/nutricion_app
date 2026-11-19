@@ -5,6 +5,7 @@ import Image from "next/image";
 import {
   User,
   LogOut,
+  Loader2,
   ChevronDown,
   Settings,
   Bell,
@@ -15,8 +16,10 @@ import {
   RotateCcw,
   NotebookPen,
   X,
+  HeartHandshake,
+  MousePointerClick,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { useAdmin } from "@/context/AdminContext";
 import { cn } from "@/lib/utils";
@@ -28,9 +31,11 @@ import { useNotifications } from "@/context/NotificationsContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useFont } from "@/context/FontContext";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
+import { DemoInterestModal } from "@/components/demo/DemoInterestModal";
 import { PlanLimitsModal } from "@/components/memberships/PlanLimitsModal";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
+import { isGuestMode } from "@/lib/demo-local-api";
 // import { FollowUpNotificationsMenu } from "@/components/layout/FollowUpNotificationsMenu";
 import { getCurrentUser } from "@/lib/current-user";
 
@@ -45,18 +50,18 @@ export function Navbar({
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isResettingPdf, setIsResettingPdf] = useState(false);
   const [isResettingAi, setIsResettingAi] = useState(false);
-  const [userEmail] = useState<string>(() => {
-    if (typeof window === "undefined") {
-      return "usuario@demo.com";
-    }
+  const [userEmail, setUserEmail] = useState<string>("usuario@demo.com");
+  const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
 
+  useEffect(() => {
     const storedUser = getCurrentUser();
-    if (!storedUser) {
-      return "usuario@demo.com";
+    if (storedUser?.email && typeof storedUser.email === "string") {
+      setUserEmail(storedUser.email);
     }
-
-    return typeof storedUser?.email === "string" ? storedUser.email : "usuario@demo.com";
-  });
+    if (storedUser?.googleAvatarUrl) {
+      setUserAvatarUrl(storedUser.googleAvatarUrl);
+    }
+  }, []);
 
   const handleResetPdfQuotaDev = async () => {
     setIsResettingPdf(true);
@@ -89,21 +94,31 @@ export function Navbar({
       setIsResettingAi(false);
     }
   };
-  const [userAvatarUrl] = useState<string | null>(() => {
-    if (typeof window === "undefined") {
-      return null;
-    }
-
-    const storedUser = getCurrentUser();
-    if (!storedUser) {
-      return null;
-    }
-
-    return storedUser?.googleAvatarUrl || null;
-  });
   const router = useRouter();
+  const pathname = usePathname();
   const dropdownRef = useRef<HTMLDivElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
+
+  const [isGuest, setIsGuest] = useState(true);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isSecureSubModalOpen, setIsSecureSubModalOpen] = useState(false);
+  const [isSecuringSub, setIsSecuringSub] = useState(false);
+  const [isPlanLimitsModalOpen, setIsPlanLimitsModalOpen] = useState(false);
+  const [isDemoInterestModalOpen, setIsDemoInterestModalOpen] = useState(false);
+  const [todayString, setTodayString] = useState<string>("");
+
+  useEffect(() => {
+    setIsGuest(isGuestMode());
+
+    const now = new Date();
+    setTodayString(
+      now.toLocaleDateString("es-CL", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      }),
+    );
+  }, []);
 
   const { isAdmin, isAdminView, toggleViewMode } = useAdmin();
   const { planName, currentPlan, hasPendingTransfer, plan, isDeveloper } = useSubscription();
@@ -118,10 +133,6 @@ export function Navbar({
     useNotifications();
   const { isDarkMode, toggleTheme } = useTheme();
   const { fontPreference, setFontPreference } = useFont();
-
-  const [isSecureSubModalOpen, setIsSecureSubModalOpen] = useState(false);
-  const [isSecuringSub, setIsSecuringSub] = useState(false);
-  const [isPlanLimitsModalOpen, setIsPlanLimitsModalOpen] = useState(false);
 
   const handleSecureSubscription = async () => {
     setIsSecuringSub(true);
@@ -161,46 +172,126 @@ export function Navbar({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleLogout = () => {
-    authService.signOut();
-    router.replace("/login");
+  const handleLogout = async () => {
+    if (isLoggingOut) return;
+    setIsLoggingOut(true);
+    setIsProfileOpen(false);
+    try {
+      await authService.signOut();
+    } catch (error) {
+      console.error("Error al cerrar sesión:", error);
+    } finally {
+      window.location.href = "/login";
+    }
   };
 
   return (
     <div
       className={cn(
-        "dashboard-nav-bg sticky top-0 z-30 flex h-16 min-w-0 shrink-0 items-center gap-x-2 border-b px-3 backdrop-blur-xl sm:gap-x-6 sm:px-6 lg:px-8 transition-colors",
+        "dashboard-nav-bg sticky top-0 z-30 flex h-13 sm:h-14 min-w-0 shrink-0 items-center gap-x-2 border-b px-3 backdrop-blur-xl sm:gap-x-6 sm:px-6 lg:px-8 transition-colors",
         isAdminView && !isDarkMode && "bg-indigo-50/50 border-indigo-100",
         isAdminView && isDarkMode && "border-indigo-400/20",
       )}
     >
-      {/* Mobile Menu Toggle (Preserved) */}
-      <button
-        type="button"
-        aria-expanded={isMobileMenuOpen}
-        aria-controls="mobile-dashboard-navigation"
-        className={cn(
-          "-m-2.5 cursor-pointer rounded-lg p-2.5 transition-colors lg:hidden",
-          isDarkMode
-            ? "text-emerald-50 hover:bg-emerald-500/10"
-            : "text-slate-700 hover:bg-slate-50",
-        )}
-        onClick={onMenuClick}
-      >
-        <span className="sr-only">
-          {isMobileMenuOpen ? "Cerrar menú" : "Abrir menú"}
-        </span>
-        <Menu
-          className={cn(
-            "h-6 w-6",
-            isDarkMode ? "text-emerald-100" : "text-slate-600",
-          )}
-          aria-hidden="true"
-        />
-      </button>
+      {/* ========================================================================= */}
+      {/* 1. VISTA MÓVIL (< lg): Logo (Izq) | Me interesa (Centro) | Hamburger (Der) */}
+      {/* ========================================================================= */}
+      <div className="flex lg:hidden w-full items-center justify-between min-w-0 gap-2">
+        {/* Logo a la izquierda */}
+        <Link
+          href="/dashboard"
+          className="flex items-center shrink-0 hover:opacity-85 transition-opacity cursor-pointer select-none"
+          title="Ir al panel principal"
+        >
+          <Image
+            src="/logo_2_cropped.webp"
+            alt="NutriNet"
+            width={110}
+            height={26}
+            className="h-6 w-auto object-contain"
+            priority
+          />
+        </Link>
 
-        <div className="flex min-w-0 flex-1 items-center gap-x-1 sm:gap-x-4 lg:gap-x-6">
-          <div className="flex min-w-0 flex-1 items-center justify-end gap-x-1.5 sm:gap-x-4 lg:gap-x-8">
+        {/* Me interesa al medio llamativamente */}
+        {!isAdminView && (
+          <div className="flex-1 flex justify-center px-1">
+            <button
+              type="button"
+              onClick={() => setIsDemoInterestModalOpen(true)}
+              className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold shadow-sm transition-all duration-200 active:scale-95 bg-[#86A83C] hover:bg-[#78A82F] text-white shrink-0 shadow-[#86A83C]/20"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-white shrink-0 animate-pulse" />
+              <span>Me interesa</span>
+            </button>
+          </div>
+        )}
+
+        {/* Hamburger a la derecha */}
+        <button
+          type="button"
+          aria-expanded={isMobileMenuOpen}
+          aria-controls="mobile-dashboard-navigation"
+          className={cn(
+            "cursor-pointer rounded-xl p-2 transition-colors shrink-0",
+            isDarkMode
+              ? "text-emerald-50 hover:bg-emerald-500/10"
+              : "text-slate-700 hover:bg-slate-100",
+          )}
+          onClick={onMenuClick}
+          title={isMobileMenuOpen ? "Cerrar menú" : "Abrir menú"}
+        >
+          <span className="sr-only">
+            {isMobileMenuOpen ? "Cerrar menú" : "Abrir menú"}
+          </span>
+          <Menu
+            className={cn(
+              "h-6 w-6",
+              isDarkMode ? "text-emerald-100" : "text-slate-700",
+            )}
+            aria-hidden="true"
+          />
+        </button>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* 2. VISTA ESCRITORIO (>= lg): Completo con todas las acciones y dropdowns  */}
+      {/* ========================================================================= */}
+      <div className="hidden lg:flex min-w-0 flex-1 items-center justify-between gap-x-4 lg:gap-x-6">
+        {/* Workspace Context — Clean, quiet & clinical (logo en sidebar únicamente) */}
+        <div className="flex items-center gap-2 min-w-0 select-none shrink-0">
+          <button
+            type="button"
+            onClick={() => router.push("/paciente/dashboard")}
+            className="group inline-flex cursor-pointer items-center gap-1 text-xs font-semibold text-slate-700 underline decoration-slate-300 underline-offset-4 transition-colors hover:text-violet-700 hover:decoration-violet-400 sm:text-sm"
+            aria-label="Ir a la vista paciente"
+            title="Ir a la vista paciente"
+          >
+            <span>Vista nutricionista</span>
+            <MousePointerClick className="h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-100" aria-hidden="true" />
+          </button>
+          {!isAdminView && (
+            <>
+              <span className="text-xs text-slate-300">/</span>
+              <span className="text-[10px] sm:text-xs font-bold text-[#668E20] bg-[#F0F5DF] px-1.5 sm:px-2 py-0.5 rounded-md border border-[#86A83C]/30 tracking-wider">
+                DEMO
+              </span>
+            </>
+          )}
+        </div>
+
+          <div className="flex min-w-0 items-center justify-end gap-x-1.5 sm:gap-x-3 lg:gap-x-4">
+            {!isAdminView && (
+              <button
+                type="button"
+                onClick={() => setIsDemoInterestModalOpen(true)}
+                className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-xl px-2.5 sm:px-3.5 py-1.5 text-xs font-bold shadow-xs transition-all duration-200 active:scale-95 bg-[#7842D4] hover:bg-[#6634B8] text-white hover:shadow-md shrink-0"
+              >
+                <Sparkles className="h-3.5 w-3.5 text-white shrink-0" />
+                <span className="hidden sm:inline">Me interesa NutriNet</span>
+                <span className="sm:hidden">Me interesa</span>
+              </button>
+            )}
             {process.env.NODE_ENV === "development" && false && userEmail === "benjaminmoralespizarro763@gmail.com" && (
               <>
                 <button
@@ -258,7 +349,7 @@ export function Navbar({
               </button>
             )}
 
-            {!isAdminView && isFreemium && (
+            {!isAdminView && !isGuest && isFreemium && (
               <button
                 type="button"
                 onClick={() =>
@@ -474,8 +565,29 @@ export function Navbar({
             )}
           </div>
 
-          <div className="relative" ref={dropdownRef}>
-            <button
+          {isGuest ? (
+            <div className="flex items-center gap-2 sm:gap-2.5">
+              <div
+                className={cn(
+                  "hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl border text-xs font-semibold select-none shadow-2xs",
+                  isDarkMode
+                    ? "bg-emerald-950/40 text-emerald-300 border-emerald-800/60"
+                    : "bg-[#F0F5DF] text-[#668E20] border-[#DDE7B8]",
+                )}
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-[#86A83C]" />
+                <span>Modo Invitado</span>
+              </div>
+              <Link
+                href="/login"
+                className="inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-semibold shadow-2xs transition-all active:scale-95 bg-[#86A83C] hover:bg-[#78A82F] text-white"
+              >
+                <span>Iniciar sesión</span>
+              </Link>
+            </div>
+          ) : (
+            <div className="relative" ref={dropdownRef}>
+              <button
               className={cn(
                 "-m-1.5 flex items-center gap-3 rounded-xl p-2 transition-all outline-none",
                 isDarkMode ? "hover:bg-emerald-500/10" : "hover:bg-slate-50",
@@ -765,19 +877,26 @@ export function Navbar({
                     isDarkMode
                       ? "text-rose-300 hover:bg-rose-500/8"
                       : "text-red-600 hover:bg-slate-50",
+                    isLoggingOut && "opacity-50 cursor-not-allowed",
                   )}
                   role="menuitem"
                   tabIndex={-1}
+                  disabled={isLoggingOut}
                   onClick={handleLogout}
                 >
-                  <LogOut className="h-4 w-4" />
-                  Cerrar sesión
+                  {isLoggingOut ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <LogOut className="h-4 w-4" />
+                  )}
+                  {isLoggingOut ? "Cerrando sesión..." : "Cerrar sesión"}
                 </button>
               </div>
             )}
           </div>
-        </div>
+        )}
       </div>
+    </div>
 
       <ConfirmationModal
         isOpen={isSecureSubModalOpen}
@@ -792,6 +911,10 @@ export function Navbar({
       <PlanLimitsModal
         isOpen={isPlanLimitsModalOpen}
         onClose={() => setIsPlanLimitsModalOpen(false)}
+      />
+      <DemoInterestModal
+        isOpen={isDemoInterestModalOpen}
+        onClose={() => setIsDemoInterestModalOpen(false)}
       />
     </div>
   );

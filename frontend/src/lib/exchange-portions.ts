@@ -680,3 +680,83 @@ export function buildSuggestedExchangeRows(
       };
     });
 }
+
+export async function fetchServerExchangeProfiles(): Promise<ExchangePortionProfile[]> {
+  const { api } = await import("./api");
+  const res = await api.get("/calculations/exchange-portions/profiles");
+  if (!res.ok) throw new Error("Error al obtener perfiles de intercambio");
+  return res.json();
+}
+
+export async function fetchServerExchangeCoverage() {
+  const { api } = await import("./api");
+  const res = await api.get("/calculations/exchange-portions/coverage");
+  if (!res.ok) throw new Error("Error al obtener cobertura de intercambio");
+  return res.json();
+}
+
+export async function apiCalculateFoodExchange(input: {
+  grams: number;
+  carbsPer100g?: number;
+  proteinPer100g?: number;
+  fatPer100g?: number;
+  profileId?: string;
+  category?: string;
+  name?: string;
+}): Promise<FoodExchangeResult> {
+  try {
+    const { api } = await import("./api");
+    const res = await api.post("/calculations/exchange-portions/calculate", input);
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch {
+    // Resilient offline fallback
+  }
+
+  return calculateFoodExchange({
+    grams: input.grams,
+    category: input.category,
+    name: input.name,
+    macrosPer100g: {
+      carbs: input.carbsPer100g,
+      protein: input.proteinPer100g,
+      fat: input.fatPer100g,
+    },
+    profile: input.profileId ? getProfileById(input.profileId) : undefined,
+  });
+}
+
+export async function apiCalculateGramsForExchange(input: {
+  targetPortions: number;
+  carbsPer100g?: number;
+  proteinPer100g?: number;
+  fatPer100g?: number;
+  profileId?: string;
+  category?: string;
+  name?: string;
+}): Promise<number> {
+  try {
+    const { api } = await import("./api");
+    const res = await api.post("/calculations/exchange-portions/grams", input);
+    if (res.ok) {
+      const data = await res.json();
+      return data.grams;
+    }
+  } catch {
+    // Resilient offline fallback
+  }
+
+  return calculateGramsForExchange({
+    targetPortions: input.targetPortions,
+    category: input.category,
+    name: input.name,
+    macrosPer100g: {
+      carbs: input.carbsPer100g,
+      protein: input.proteinPer100g,
+      fat: input.fatPer100g,
+    },
+    profile: input.profileId ? getProfileById(input.profileId) : undefined,
+  });
+}
+

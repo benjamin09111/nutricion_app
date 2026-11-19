@@ -9,10 +9,7 @@ import { useRouter } from "next/navigation";
 import { fetchApi } from "@/lib/api-base";
 import {
   Check,
-  Zap,
   ShieldCheck,
-  Monitor,
-  Sparkles,
   Menu,
   X,
   ChevronDown,
@@ -21,8 +18,10 @@ import {
   HelpCircle,
   HeartPulse,
   Star,
-  ArrowRight,
-  Lock,
+  Sparkles,
+  Rocket,
+  Play,
+  Heart,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
@@ -30,16 +29,20 @@ import { useInView } from "@/hooks/useInView";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { getMembershipFeatureDisplay } from "@/features/memberships/utils/feature-format";
 import { type MembershipPlan } from "@/features/memberships/services/membership.service";
+import { DEFAULT_LANDING_PLANS } from "@/features/memberships/constants/default-plans";
 import { sortPlansForLanding } from "@/features/memberships/utils/sort-plans";
-import LandingContactForm from "@/components/landing/LandingContactForm";
-import { RotatingWord } from "@/components/landing/RotatingWord";
 import { CookieBanner } from "@/components/landing/CookieBanner";
-import { TestimonialsSection } from "@/components/landing/TestimonialsSection";
 import {
-  AboutNutriNetModal,
   type AboutSectionTab,
 } from "@/components/landing/AboutNutriNetModal";
 import { AboutNutriNetNavExtension } from "@/components/landing/AboutNutriNetNavExtension";
+import { useLandingTracker } from "@/hooks/useLandingTracker";
+import { HeroSection } from "@/components/landing/HeroSection";
+import { DemoVideoSection } from "@/components/landing/DemoVideoSection";
+import { FeaturesSection } from "@/components/landing/FeaturesSection";
+import { BetaLeadCaptureSection } from "@/components/landing/BetaLeadCaptureSection";
+import { DemoRoleSelectorModal } from "@/components/landing/DemoRoleSelectorModal";
+import { DemoInterestModal } from "@/components/demo/DemoInterestModal";
 
 const toMembershipPlanArray = (value: unknown): MembershipPlan[] => {
   let list: MembershipPlan[] = [];
@@ -56,17 +59,49 @@ const toMembershipPlanArray = (value: unknown): MembershipPlan[] => {
 
 export default function LandingPage() {
   const router = useRouter();
+  const { sessionId, trackEvent } = useLandingTracker();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [plans, setPlans] = useState<MembershipPlan[]>([]);
+  const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
+  const [isInterestModalOpen, setIsInterestModalOpen] = useState(false);
+  const [plans, setPlans] = useState<MembershipPlan[]>(DEFAULT_LANDING_PLANS);
   const [isAboutDropdownOpen, setIsAboutDropdownOpen] = useState(false);
-  const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
-  const [aboutModalTab, setAboutModalTab] = useState<AboutSectionTab>("objetivos");
   const headerRef = useRef<HTMLElement>(null);
+
+  const handleExploreFeaturesClick = () => {
+    trackEvent("EXPLORE_FEATURES_CLICK");
+    const targetElement = document.getElementById("funcionalidades");
+    if (targetElement) {
+      const headerOffset = 80;
+      const elementPosition = targetElement.getBoundingClientRect().top;
+      const offsetPosition = elementPosition + window.scrollY - headerOffset;
+      window.scrollTo({ top: offsetPosition, behavior: "smooth" });
+    }
+  };
+
+  const handleWatchDemoClick = () => {
+    trackEvent("WATCH_DEMO_CLICK");
+    const targetElement = document.getElementById("video-demo");
+    if (targetElement) {
+      const headerOffset = 80;
+      const elementPosition = targetElement.getBoundingClientRect().top;
+      const offsetPosition = elementPosition + window.scrollY - headerOffset;
+      window.scrollTo({ top: offsetPosition, behavior: "smooth" });
+    }
+  };
+
+  const handleLeadSubmitted = (leadData: { fullName: string; email: string; practiceArea: string }) => {
+    trackEvent("LEAD_CONVERSION_SUCCESS", { practiceArea: leadData.practiceArea });
+  };
 
   useEffect(() => {
     fetchApi(`/memberships/active`)
       .then((res) => res.json())
-      .then((data) => setPlans(toMembershipPlanArray(data)))
+      .then((data) => {
+        const parsed = toMembershipPlanArray(data);
+        if (parsed.length > 0) {
+          setPlans(parsed);
+        }
+      })
       .catch(() => {});
   }, []);
 
@@ -90,18 +125,11 @@ export default function LandingPage() {
     router.push(`/sobre-nutrinet?tab=${tab}`);
   };
 
-  const { ref: featuresRef, isInView: isFeaturesInView } = useInView({
-    threshold: 0.15,
-  });
   const { ref: pricingRef, isInView: isPricingInView } = useInView({
     threshold: 0.15,
   });
-  const { ref: registrationRef, isInView: isRegistrationInView } = useInView({
-    threshold: 0.1,
-  });
   const visiblePlans = plans.filter((plan) => plan.isActive || plan.isComingSoon);
   const sortedPlans = sortPlansForLanding(visiblePlans);
-  const paidPlan = visiblePlans.find((plan) => Number(plan.price) > 0 && !plan.isComingSoon);
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -188,43 +216,69 @@ export default function LandingPage() {
             role="navigation"
             aria-label="Navegación principal"
           >
-            {/* Sobre NutriNet Link that expands navbar */}
+            {/* Sobre NutriNet en texto normal/oscuro */}
             <button
               type="button"
               onClick={() => setIsAboutDropdownOpen(!isAboutDropdownOpen)}
               className={cn(
-                "inline-flex items-center gap-1.5 text-sm font-bold transition-all py-2 px-3 rounded-full cursor-pointer",
+                "inline-flex items-center gap-1.5 text-sm font-semibold transition-all py-1.5 px-3 rounded-xl cursor-pointer",
                 isAboutDropdownOpen
-                  ? "bg-[#a88aed] text-white shadow-md shadow-[#a88aed]/20"
-                  : "text-[#a88aed] hover:text-[#8f70d8] hover:bg-[#a88aed]/10"
+                  ? "bg-slate-100 text-slate-900"
+                  : "text-slate-700 hover:text-slate-900 hover:bg-slate-50"
               )}
             >
               Sobre NutriNet
-              <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", isAboutDropdownOpen && "rotate-180")} />
+              <ChevronDown className={cn("h-4 w-4 text-slate-500 transition-transform duration-200", isAboutDropdownOpen && "rotate-180")} />
             </button>
 
             <a
+              href="#video-demo"
+              className="text-sm font-semibold transition-colors duration-200 text-slate-700 hover:text-slate-900 flex items-center gap-1.5"
+            >
+              <Play className="h-3.5 w-3.5 text-[#86A83C] fill-[#86A83C]" />
+              <span>Video demo</span>
+              <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">
+                10 min
+              </span>
+            </a>
+            <a
+              href="#funcionalidades"
+              className="text-sm font-semibold transition-colors duration-200 text-slate-700 hover:text-slate-900"
+            >
+              Funcionalidades
+            </a>
+            <a
               href="#planes"
-              className="text-sm font-semibold transition-colors duration-200 text-[#a88aed] hover:text-[#8f70d8]"
+              className="text-sm font-semibold transition-colors duration-200 text-slate-700 hover:text-slate-900"
             >
               Precios
             </a>
+            <button
+              type="button"
+              onClick={() => setIsInterestModalOpen(true)}
+              className="text-sm font-semibold transition-colors duration-200 text-indigo-700 hover:text-indigo-900 flex items-center gap-1.5 cursor-pointer"
+            >
+              <Heart className="h-3.5 w-3.5 fill-indigo-100 text-indigo-600" />
+              <span>Me interesa</span>
+            </button>
             <Link
               href="/login"
-              className="text-sm font-semibold transition-colors duration-200 text-[#a88aed] hover:text-[#8f70d8]"
+              className="text-sm font-semibold transition-colors duration-200 text-slate-700 hover:text-slate-900"
             >
-              Inicia Sesión
+              Iniciar sesión
             </Link>
-            <Link href="/login">
-              <Button className="rounded-full h-10 px-6 text-xs font-bold uppercase tracking-wider bg-[#a88aed] hover:bg-[#8f70d8] text-white transition-all duration-300 hover:scale-105 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a88aed] focus-visible:ring-offset-2">
-                Empieza Gratis
-              </Button>
-            </Link>
+            <button
+              type="button"
+              onClick={() => setIsDemoModalOpen(true)}
+              className="rounded-full h-10 px-5 text-xs font-bold uppercase tracking-wider bg-[#86A83C] hover:bg-[#78A82F] text-white transition-all duration-300 hover:scale-105 hover:shadow-lg shadow-[#86A83C]/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#86A83C] focus-visible:ring-offset-2 cursor-pointer flex items-center justify-center"
+            >
+              PROBAR NUTRINET
+            </button>
           </nav>
 
           <button
             type="button"
-            className="inline-flex items-center justify-center rounded-full border border-[#a88aed]/20 bg-white p-2 text-[#a88aed] shadow-sm transition hover:bg-[#a88aed]/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a88aed] focus-visible:ring-offset-2 lg:hidden"
+            className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white p-2 text-slate-700 shadow-xs transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a88aed] focus-visible:ring-offset-2 lg:hidden"
             onClick={() => setIsMobileMenuOpen((value) => !value)}
             aria-label={isMobileMenuOpen ? "Cerrar menú" : "Abrir menú"}
             aria-expanded={isMobileMenuOpen}
@@ -249,7 +303,7 @@ export default function LandingPage() {
           <div className="border-t border-indigo-100 bg-white/95 px-4 py-4 shadow-lg backdrop-blur-md lg:hidden space-y-3">
             <div className="mx-auto flex max-w-7xl flex-col gap-2">
               <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
-                <span className="text-[10px] font-black uppercase text-[#a88aed]">Sobre NutriNet</span>
+                <span className="text-[10px] font-black uppercase text-slate-600">Sobre NutriNet</span>
                 <div className="grid grid-cols-1 gap-1">
                   <button onClick={() => openAboutTab("objetivos")} className="text-left text-xs font-bold text-slate-700 py-1 flex items-center gap-2">
                     <Target className="h-3.5 w-3.5 text-indigo-600" /> Objetivos y Dirección
@@ -270,167 +324,86 @@ export default function LandingPage() {
               </div>
 
               <a
+                href="#video-demo"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="flex items-center justify-between rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              >
+                <span className="flex items-center gap-2">
+                  <Play className="h-4 w-4 text-[#86A83C] fill-[#86A83C]" />
+                  Ver video demo
+                </span>
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
+                  10 min
+                </span>
+              </a>
+              <a
+                href="#funcionalidades"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              >
+                Funcionalidades
+              </a>
+              <a
                 href="#planes"
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-[#a88aed]/5"
+                className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
               >
                 Precios
               </a>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  setIsInterestModalOpen(true);
+                }}
+                className="flex items-center gap-2 text-left rounded-2xl border border-indigo-200 bg-indigo-50/50 px-4 py-3 text-sm font-semibold text-indigo-800 transition hover:bg-indigo-100/50 cursor-pointer"
+              >
+                <Heart className="h-4 w-4 fill-indigo-200 text-indigo-600" />
+                Me interesa NutriNet (Apoyar)
+              </button>
               <Link
                 href="/login"
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-[#a88aed]/5"
+                className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
               >
-                Inicia Sesión
+                Iniciar sesión
               </Link>
-              <Link
-                href="/login"
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="inline-flex items-center justify-center rounded-full bg-[#a88aed] px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#8f70d8]"
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  setIsDemoModalOpen(true);
+                }}
+                className="inline-flex items-center justify-center rounded-full bg-[#86A83C] hover:bg-[#78A82F] px-4 py-3 text-sm font-bold uppercase tracking-wider text-white shadow-sm shadow-[#86A83C]/25 transition cursor-pointer"
               >
-                Empieza Gratis
-              </Link>
+                PROBAR NUTRINET
+              </button>
             </div>
           </div>
         )}
       </header>
 
       <main>
-        {/* Hero Section */}
-        <section className="relative overflow-hidden pt-28 pb-16 sm:pt-32 sm:pb-20 lg:pt-44 lg:pb-28">
-          <div className="mx-auto max-w-5xl px-4 sm:px-6">
-            <div className="space-y-8 text-center animate-in fade-in slide-in-from-bottom-8 duration-1000">
-              <div
-                className={cn(
-                  "inline-flex items-center gap-2 rounded-full border-2 px-4 py-2 text-xs font-medium transition-all duration-300 hover:scale-105 sm:px-5 sm:text-sm",
-                  "bg-[#a88aed]/10 text-[#a88aed] border-[#a88aed]/30",
-                )}
-              >
-                <Sparkles className="h-4 w-4" />
-                {content.hero.badge}
-              </div>
+        {/* 1. HERO SECTION */}
+        <HeroSection
+          onExploreFeaturesClick={handleExploreFeaturesClick}
+          onProbarNutriNetClick={() => setIsDemoModalOpen(true)}
+          onWatchDemoClick={handleWatchDemoClick}
+          onInterestClick={() => setIsInterestModalOpen(true)}
+        />
 
-              <div className="space-y-2">
-                <h1
-                  className="text-3xl font-black leading-none tracking-tight sm:text-5xl lg:text-7xl xl:text-8xl min-h-[1.1em] flex items-center justify-center overflow-visible px-2"
-                  style={{
-                    WebkitTextStroke: "3px #a6c261",
-                    color: "transparent",
-                    fontWeight: 900,
-                  }}
-                >
-                  <RotatingWord words={content.hero.titleWords || [content.hero.titleLine1]} />
-                </h1>
-                <div className="flex flex-col items-center justify-center gap-2 sm:flex-row sm:gap-3">
-                  <span className="text-2xl font-bold tracking-tight text-[#a88aed] sm:text-3xl lg:text-5xl">
-                    {content.hero.titleLine2}
-                  </span>
-                </div>
-              </div>
+        {/* 2. DEMO VIDEO SECTION (10 min, comienza en 00:00:12) */}
+        <DemoVideoSection
+          onProbarNutriNetClick={() => setIsDemoModalOpen(true)}
+          onInterestClick={() => setIsInterestModalOpen(true)}
+        />
 
-              <p className="mx-auto max-w-3xl text-base text-slate-600 sm:text-lg lg:text-xl leading-relaxed">
-                {content.hero.description}
-              </p>
+        {/* 3. FUNCIONALIDADES PRINCIPALES (Super simple de la demo) */}
+        <FeaturesSection
+          onProbarNutriNetClick={() => setIsDemoModalOpen(true)}
+        />
 
-              <div className="flex flex-col items-center justify-center gap-4 pt-4 sm:flex-row">
-                <Link href="/login" className="w-full sm:w-auto">
-                  <Button className="w-full sm:w-auto rounded-full h-14 px-8 text-sm font-bold uppercase tracking-wider bg-[#a88aed] hover:bg-[#8f70d8] text-white transition-all duration-300 hover:scale-105 hover:shadow-xl shadow-indigo-200">
-                    {content.hero.ctaButton}
-                  </Button>
-                </Link>
-                <a href="#funcionalidades" className="w-full sm:w-auto">
-                  <Button
-                    variant="outline"
-                    className="w-full sm:w-auto rounded-full h-14 px-8 text-sm font-bold text-[#a88aed] border-2 border-[#a88aed]/30 hover:border-[#a88aed] hover:bg-[#a88aed]/10 transition-all duration-300"
-                  >
-                    Conocer Funcionalidades
-                  </Button>
-                </a>
-              </div>
-
-              {/* Trust Badges Bar */}
-              <div className="pt-8 flex flex-wrap items-center justify-center gap-6 text-xs font-semibold text-slate-500">
-                <span className="flex items-center gap-1.5">
-                  <ShieldCheck className="h-4 w-4 text-emerald-600" /> Fichas 100% Cifradas (Ley 19.628)
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <Zap className="h-4 w-4 text-amber-500" /> Ahorro de 3+ Horas Diarias
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <Check className="h-4 w-4 text-indigo-600" /> Basado en Alimentos de Chile
-                </span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Features Section */}
-        <section
-          id="funcionalidades"
-          ref={featuresRef}
-          className={cn(
-            "py-16 transition-all duration-700 bg-slate-50/70 border-y border-slate-100 lg:py-24",
-            isFeaturesInView
-              ? "opacity-100 translate-y-0"
-              : "opacity-0 translate-y-8",
-          )}
-        >
-          <div className="mx-auto max-w-7xl px-4 sm:px-6">
-            <div className="space-y-4 mb-16 text-center max-w-3xl mx-auto">
-              <span className="text-xs font-black uppercase tracking-wider text-[#a88aed]">Todo en un solo lugar</span>
-              <h2 className="text-3xl font-black tracking-tight sm:text-4xl lg:text-5xl text-slate-900">
-                Diseñado para simplificar tu consulta clínica
-              </h2>
-              <p className="text-sm sm:text-base text-slate-600">
-                NutriNet combina automatización inteligente, precisión nutricional y seguridad de datos para que te concentres en el cuidado de tus pacientes.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-3 hover:border-[#a88aed]/40 transition-all">
-                <div className="p-3 rounded-2xl bg-indigo-50 text-indigo-600 w-fit">
-                  <Monitor className="h-6 w-6" />
-                </div>
-                <h3 className="font-bold text-lg text-slate-900">Gestión de Pacientes</h3>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Ficha clínica unificada, historial antropométrico, seguimiento de exámenes y diario de alimentos en tiempo real.
-                </p>
-              </div>
-
-              <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-3 hover:border-[#a88aed]/40 transition-all">
-                <div className="p-3 rounded-2xl bg-emerald-50 text-emerald-600 w-fit">
-                  <Sparkles className="h-6 w-6" />
-                </div>
-                <h3 className="font-bold text-lg text-slate-900">Asistente IA (Naty)</h3>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Calcula aportes nutricionales, genera recetas adaptadas a restricciones clínicas y optimiza pautas en segundos.
-                </p>
-              </div>
-
-              <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-3 hover:border-[#a88aed]/40 transition-all">
-                <div className="p-3 rounded-2xl bg-amber-50 text-amber-600 w-fit">
-                  <Check className="h-6 w-6" />
-                </div>
-                <h3 className="font-bold text-lg text-slate-900">Entregables PDF Impactantes</h3>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Exporta documentos vectoriales profesionales con dietas, porciones, recetas y carrito de compras automático.
-                </p>
-              </div>
-
-              <div className="p-6 rounded-3xl bg-white border border-slate-200 shadow-sm space-y-3 hover:border-[#a88aed]/40 transition-all">
-                <div className="p-3 rounded-2xl bg-blue-50 text-blue-600 w-fit">
-                  <ShieldCheck className="h-6 w-6" />
-                </div>
-                <h3 className="font-bold text-lg text-slate-900">Seguridad Garantizada</h3>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  Encriptación de grado bancario (Ley 19.628). Tus datos y los de tus pacientes pertenecen únicamente a ti.
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Pricing Section */}
+        {/* 4. PLANES (Pricing Section) */}
         <section
           id="planes"
           ref={pricingRef}
@@ -454,7 +427,7 @@ export default function LandingPage() {
                 {content.pricing.titleLine1}
               </span>
               <span className="block text-2xl font-bold text-[#a88aed] sm:text-3xl lg:text-4xl">
-                {content.pricing.titleLine2} 🌱
+                {content.pricing.titleLine2}
               </span>
             </div>
 
@@ -470,6 +443,8 @@ export default function LandingPage() {
             >
               {sortedPlans.map((plan) => {
                 const isPopular = plan.isPopular;
+                const isCustomPricePlan = plan.slug === "pack" || plan.billingPeriod === "custom";
+
                 return (
                   <div
                     key={plan.id}
@@ -482,12 +457,14 @@ export default function LandingPage() {
                     )}
                   >
                     {plan.isComingSoon ? (
-                      <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold px-6 py-2 rounded-full shadow-lg uppercase tracking-wider whitespace-nowrap">
-                        🚀 Próximamente
+                      <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold px-5 py-1.5 rounded-full shadow-lg uppercase tracking-wider whitespace-nowrap flex items-center gap-1.5">
+                        <Rocket className="h-3.5 w-3.5 text-white" />
+                        <span>Próximamente</span>
                       </div>
                     ) : isPopular && (
-                      <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-xs font-bold px-6 py-2 rounded-full shadow-lg whitespace-nowrap">
-                        ⭐ Más Popular
+                      <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-xs font-bold px-5 py-1.5 rounded-full shadow-lg whitespace-nowrap flex items-center gap-1.5">
+                        <Star className="h-3.5 w-3.5 fill-white text-white" />
+                        <span>Más Popular</span>
                       </div>
                     )}
                     <div className="flex flex-col flex-1 p-6 sm:p-8 pt-10">
@@ -501,17 +478,30 @@ export default function LandingPage() {
                           {plan.name}
                         </h3>
                         <div className="flex flex-col items-center justify-center min-h-[64px] gap-0.5">
-                          {Number(plan.price) > 0 && Number(plan.price) < 25000 && (
-                            <span className="text-xs font-semibold text-slate-400 line-through tracking-tight">
-                              $25.000 / mes
-                            </span>
+                          {isCustomPricePlan ? (
+                            <div className="flex flex-col items-center justify-center min-h-[64px] gap-1">
+                              <span className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900">
+                                A convenir
+                              </span>
+                              <span className="text-[11px] font-semibold text-indigo-700 bg-indigo-50 px-3 py-0.5 rounded-full border border-indigo-100/80">
+                                Según cantidad de profesionales
+                              </span>
+                            </div>
+                          ) : (
+                            <>
+                              {Number(plan.price) > 0 && Number(plan.price) < 25000 && (
+                                <span className="text-xs font-semibold text-slate-400 line-through tracking-tight">
+                                  $25.000 / mes
+                                </span>
+                              )}
+                              <div className="flex items-baseline justify-center gap-1">
+                                <span className="text-4xl sm:text-5xl font-black tracking-tight text-slate-900">
+                                  ${Number(plan.price).toLocaleString("es-CL")}
+                                </span>
+                                <span className="text-slate-500 text-xs sm:text-sm font-semibold">/mes</span>
+                              </div>
+                            </>
                           )}
-                          <div className="flex items-baseline justify-center gap-1">
-                            <span className="text-4xl sm:text-5xl font-black tracking-tight text-slate-900">
-                              ${Number(plan.price).toLocaleString("es-CL")}
-                            </span>
-                            <span className="text-slate-500 text-xs sm:text-sm font-semibold">/mes</span>
-                          </div>
                         </div>
                         {plan.description && (
                           <p className="mt-3 text-sm text-slate-500">
@@ -577,7 +567,15 @@ export default function LandingPage() {
                       </ul>
 
                       <div className="pt-4 border-t border-slate-100">
-                        {plan.isComingSoon ? (
+                        {isCustomPricePlan ? (
+                          <Button
+                            type="button"
+                            onClick={() => setIsInterestModalOpen(true)}
+                            className="w-full rounded-full h-12 text-sm font-bold uppercase tracking-wider bg-slate-900 hover:bg-slate-800 text-white transition-all duration-300 hover:scale-105 cursor-pointer shadow-md"
+                          >
+                            Cotizar Plan Clínicas
+                          </Button>
+                        ) : plan.isComingSoon ? (
                           <Button
                             disabled
                             className="w-full rounded-full h-12 text-sm font-bold bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed"
@@ -607,35 +605,11 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <TestimonialsSection />
-
-        {/* Contact Form Section */}
-        <section
-          id="registro"
-          ref={registrationRef}
-          className={cn(
-            "py-16 transition-all duration-700 bg-slate-50/70 border-t border-slate-100 lg:py-24",
-            isRegistrationInView
-              ? "opacity-100 translate-y-0"
-              : "opacity-0 translate-y-8",
-          )}
-        >
-          <div className="mx-auto max-w-4xl px-4 sm:px-6">
-            <div className="space-y-4 mb-12 text-center">
-              <span className="text-xs font-black uppercase tracking-wider text-[#a88aed]">¿Tienes dudas o comentarios?</span>
-              <h2 className="text-3xl font-black tracking-tight sm:text-4xl text-slate-900">
-                Escríbenos directamente
-              </h2>
-              <p className="text-sm text-slate-600 max-w-xl mx-auto">
-                Estamos aquí para responder tus preguntas y acompañarte en la digitalización de tu consulta clínica.
-              </p>
-            </div>
-
-            <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-10 shadow-lg">
-              <LandingContactForm />
-            </div>
-          </div>
-        </section>
+        {/* 3. ¿TE INTERESA NUTRINET? (Apoyo a Jump Chile & Descuento de Lanzamiento) */}
+        <BetaLeadCaptureSection
+          sessionId={sessionId}
+          onLeadSubmitted={handleLeadSubmitted}
+        />
       </main>
 
       {/* Footer */}
@@ -656,13 +630,13 @@ export default function LandingPage() {
           </div>
 
           <div className="flex flex-wrap items-center justify-center gap-6 text-xs text-slate-400">
-            <button onClick={() => openAboutTab("seguridad")} className="hover:text-white transition-colors">
+            <button onClick={() => openAboutTab("seguridad")} className="hover:text-white transition-colors cursor-pointer">
               Privacidad y Seguridad
             </button>
-            <button onClick={() => openAboutTab("faq")} className="hover:text-white transition-colors">
+            <button onClick={() => openAboutTab("faq")} className="hover:text-white transition-colors cursor-pointer">
               Preguntas Frecuentes
             </button>
-            <button onClick={() => openAboutTab("objetivos")} className="hover:text-white transition-colors">
+            <button onClick={() => openAboutTab("objetivos")} className="hover:text-white transition-colors cursor-pointer">
               Sobre NutriNet
             </button>
             <Link href="/terms" className="hover:text-white transition-colors">
@@ -676,8 +650,16 @@ export default function LandingPage() {
         </div>
       </footer>
 
-      {/* Banners */}
+      {/* Banners & Widgets */}
       <CookieBanner />
+      <DemoRoleSelectorModal
+        isOpen={isDemoModalOpen}
+        onClose={() => setIsDemoModalOpen(false)}
+      />
+      <DemoInterestModal
+        isOpen={isInterestModalOpen}
+        onClose={() => setIsInterestModalOpen(false)}
+      />
     </div>
   );
 }

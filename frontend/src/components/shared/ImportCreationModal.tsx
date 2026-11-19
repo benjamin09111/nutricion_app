@@ -33,7 +33,7 @@ const CREATION_TYPE_OPTIONS = [
   { value: "ALL", label: "Todos" },
   { value: "DIET", label: "Dietas" },
   { value: "RECIPE", label: "Recetas" },
-  { value: "FAST_DELIVERABLE", label: "Entregable rápido" },
+  { value: "FAST_DELIVERABLE", label: "Rápido" },
 ] as const;
 
 export function ImportCreationModal({
@@ -140,7 +140,7 @@ export function ImportCreationModal({
       case "RECETARIO":
         return "Recetario";
       case "FAST_DELIVERABLE":
-        return "Entregable rápido";
+        return "Rápido";
       case "PAUTAS":
         return "Pauta de alimentación";
       default:

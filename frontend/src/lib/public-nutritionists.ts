@@ -41,6 +41,30 @@ export type PublicNutritionistLookupResult =
   | { status: "gone"; nutritionist: null }
   | { status: "missing"; nutritionist: null };
 
+export interface MatchNutritionistParams {
+  goal?: string;
+  mode?: string;
+  location?: string;
+  timePreference?: string;
+  insurance?: string;
+  smartSearch?: boolean;
+  smartNotes?: string;
+}
+
+export interface MatchedNutritionistItem {
+  nutritionist: PublicNutritionist;
+  calendarId: string | null;
+  availableSlotsCount: number;
+  matchScore: number;
+  matchPercentage: number;
+  matchReason: string;
+}
+
+export interface MatchNutritionistsResponse {
+  totalEvaluated: number;
+  matches: MatchedNutritionistItem[];
+}
+
 const DEFAULT_LIMIT = 12;
 
 export async function getPublicNutritionists(
@@ -66,9 +90,6 @@ export async function getPublicNutritionists(
   if (params.location) query.set("location", params.location);
 
   try {
-    // The public directory wants fresh data on every request, but the sitemap
-    // is revalidated on a schedule: without this override the `no-store` fetch
-    // makes /sitemap.xml impossible to render statically.
     const response = await fetchApi(
       `/public/nutritionists?${query.toString()}`,
       params.revalidate === undefined
@@ -137,4 +158,28 @@ export async function getAllPublicNutritionistSlugs(revalidate?: number) {
   } while (page <= lastPage);
 
   return slugs;
+}
+
+export async function matchPublicNutritionists(
+  params: MatchNutritionistParams,
+): Promise<MatchNutritionistsResponse> {
+  try {
+    const response = await fetchApi("/public/nutritionists/match", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(params),
+    });
+
+    if (!response.ok) {
+      throw new Error("Error al calcular match");
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error("matchPublicNutritionists error:", error);
+    return {
+      totalEvaluated: 0,
+      matches: [],
+    };
+  }
 }

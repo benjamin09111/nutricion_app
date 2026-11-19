@@ -80,6 +80,7 @@ export const quickAiDishSchema = z
     calories: z.number().finite(),
     carbs: z.number().finite(),
     fats: z.number().finite(),
+    clinicalReasoning: z.string().trim().optional(),
     ingredients: z.array(aiIngredientSchema),
   })
   .strict();
@@ -90,6 +91,13 @@ export const quickAiFillResponseSchema = z
     meta: z
       .object({
         note: z.string().trim().min(1),
+        clinicalAudit: z
+          .object({
+            passed: z.boolean(),
+            verifiedRestrictions: z.array(z.string()).optional(),
+            clinicalSummary: z.string().optional(),
+          })
+          .optional(),
       })
       .strict(),
   })

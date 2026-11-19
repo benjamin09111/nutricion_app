@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Star, Quote, Sparkles, Building2, UserCheck } from "lucide-react";
+import { Star, Quote, Sparkles, Building2, UserCheck, Zap } from "lucide-react";
 import { fetchApi } from "@/lib/api-base";
 
 interface Testimonial {
@@ -92,8 +92,9 @@ export function TestimonialsSection() {
 
                 {/* Highlight Badge */}
                 {t.highlight && (
-                  <div className="inline-block rounded-full bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 text-xs font-bold text-emerald-400">
-                    ⚡ {t.highlight}
+                  <div className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 text-xs font-bold text-emerald-400">
+                    <Zap className="h-3 w-3 text-emerald-400 shrink-0" />
+                    <span>{t.highlight}</span>
                   </div>
                 )}
 

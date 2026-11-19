@@ -6,7 +6,9 @@ import {
   Search,
   BadgeCheck,
   Plus,
-  Layers,
+  Apple,
+  Sparkles,
+  BarChart2,
   Lock,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -14,55 +16,35 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Pagination } from "@/components/ui/Pagination";
 import { SearchableSelect } from "@/components/ui/SearchableSelect";
-import { Ingredient } from "@/features/foods";
+import {
+  Ingredient,
+  OFFICIAL_INGREDIENTS,
+  normalizeSearchText,
+} from "@/features/foods";
 import { cn } from "@/lib/utils";
 import { useScrollLock } from "@/hooks/useScrollLock";
 import { fetchApi } from "@/lib/api-base";
-import { useSubscription } from "@/context/SubscriptionContext";
+import { getLocalCustomFoods } from "@/lib/demo-local-api";
+import { ModuleLayout } from "@/components/shared/ModuleLayout";
+import { RecordsTable, type Column } from "@/components/shared/RecordsTable";
 import IngredientDetailsModal from "./IngredientDetailsModal";
+
 
 interface FoodsClientProps {
   initialData: Ingredient[];
 }
 
-type FoodSourceTab = "catalog" | "mine" | "community";
+type FoodSourceTab = "catalog" | "created";
 
 export default function FoodsClient({ initialData }: FoodsClientProps) {
   const router = useRouter();
-  const { can, isLoading: isSubscriptionLoading } = useSubscription();
-  const foodSourcesLocked = !isSubscriptionLoading && !can("ingredients.create.access");
 
-  const showFoodUpgrade = (customDescription?: string) => {
-    window.dispatchEvent(
-      new CustomEvent("show-freemium-upgrade", {
-        detail: {
-          description: customDescription || "Ver y gestionar alimentos propios o de la comunidad está disponible en los planes de pago.",
-        },
-      }),
-    );
-  };
+  const initialCatalog = useMemo(() => {
+    return initialData && initialData.length > 0 ? initialData : OFFICIAL_INGREDIENTS;
+  }, [initialData]);
 
-  const handleTabClick = (sourceTab: FoodSourceTab) => {
-    if (sourceTab === "catalog") {
-      loadSourceTab("catalog");
-      return;
-    }
-
-    if (sourceTab === "community") {
-      toast.info("La pestaña Comunidad estará disponible próximamente en futuras versiones del MVP.");
-      return;
-    }
-
-    if (isSubscriptionLoading || foodSourcesLocked) {
-      showFoodUpgrade("Acceder a tus propios alimentos está disponible en los planes de pago.");
-      return;
-    }
-
-    loadSourceTab(sourceTab);
-  };
-
-  const [data, setData] = useState<Ingredient[]>(initialData);
-  const [catalogPool, setCatalogPool] = useState<Ingredient[]>(initialData);
+  const [data, setData] = useState<Ingredient[]>(initialCatalog);
+  const [catalogPool, setCatalogPool] = useState<Ingredient[]>(initialCatalog);
   const [isLoadingIngredients, setIsLoadingIngredients] = useState(false);
   const [activeSourceTab, setActiveSourceTab] = useState<FoodSourceTab>("catalog");
   const [searchTerm, setSearchTerm] = useState("");
@@ -75,32 +57,19 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
   const [selectedIngredient, setSelectedIngredient] = useState<Ingredient | null>(null);
 
   const sourceCacheRef = useRef<Record<FoodSourceTab, Ingredient[]>>({
-    catalog: initialData,
-    mine: [],
-    community: [],
+    catalog: initialCatalog,
+    created: [],
   });
-  const skipNextSearchFetchRef = useRef(true);
-  const clearSourceSwitchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isAnyModalOpen = isDetailsModalOpen;
   useScrollLock(isAnyModalOpen);
 
   useEffect(() => {
-    setData(initialData);
-    setCatalogPool(initialData);
-    sourceCacheRef.current.catalog = initialData;
+    const valid = initialData && initialData.length > 0 ? initialData : OFFICIAL_INGREDIENTS;
+    setData(valid);
+    setCatalogPool(valid);
+    sourceCacheRef.current.catalog = valid;
   }, [initialData]);
-
-  const sourceTabToApiTab = useCallback((sourceTab: FoodSourceTab) => {
-    switch (sourceTab) {
-      case "mine":
-        return "mine";
-      case "community":
-        return "community";
-      default:
-        return "app";
-    }
-  }, []);
 
   const setSourceTabData = (sourceTab: FoodSourceTab, items: Ingredient[]) => {
     sourceCacheRef.current = {
@@ -113,17 +82,6 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
 
   const loadSourceTab = useCallback(
     async (sourceTab: FoodSourceTab) => {
-      if (sourceTab !== "catalog" && (isSubscriptionLoading || foodSourcesLocked)) {
-        showFoodUpgrade("Acceder a tus propios alimentos o la comunidad está disponible en los planes de pago.");
-        return;
-      }
-
-      if (clearSourceSwitchTimerRef.current) {
-        clearTimeout(clearSourceSwitchTimerRef.current);
-        clearSourceSwitchTimerRef.current = null;
-      }
-
-      skipNextSearchFetchRef.current = true;
       setActiveSourceTab(sourceTab);
       setSearchTerm("");
       setSelectedCategory("Todos");
@@ -132,95 +90,46 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
       setSelectedProfile("Todos los tipos");
       setCurrentPage(1);
 
-      const cachedItems = sourceCacheRef.current[sourceTab];
-      if (cachedItems && cachedItems.length > 0) {
-        setData(cachedItems);
-        setCatalogPool(cachedItems);
+      // 1. Catálogo Base (100% instantáneo desde ingredients.txt / catalog JSON en memoria)
+      if (sourceTab === "catalog") {
+        const catalogItems = OFFICIAL_INGREDIENTS;
+        setCatalogPool(catalogItems);
+        setData(catalogItems);
         setIsLoadingIngredients(false);
         return;
       }
 
-      setData([]);
-      setCatalogPool([]);
+      // 2. Alimentos creados (carga inmediata de alimentos locales/comunitarios)
+      const localCustom = getLocalCustomFoods();
+      setSourceTabData("created", localCustom);
+      setIsLoadingIngredients(false);
 
-      setIsLoadingIngredients(true);
+      // Sincronizar en segundo plano con el backend sin bloquear la vista
       try {
-        const queryParams = new URLSearchParams({
-          tab: sourceTabToApiTab(sourceTab),
-          limit: "100",
-        });
-
-        const response = await fetchApi(`/foods?${queryParams.toString()}`, {
+        const response = await fetchApi("/foods?tab=community&limit=1000", {
           cache: "no-store",
         });
 
-        if (!response.ok) {
-          throw new Error("Error al cargar ingredientes");
+        if (response.ok) {
+          const serverItems = await response.json();
+          if (Array.isArray(serverItems) && serverItems.length > 0) {
+            const map = new Map<string, Ingredient>();
+            localCustom.forEach((item: any) => map.set(item.id, item));
+            serverItems.forEach((item: any) => map.set(item.id, item));
+            const merged = Array.from(map.values());
+            setSourceTabData("created", merged);
+          }
         }
-
-        const result = await response.json();
-        const nextItems = Array.isArray(result) ? result : [];
-        setSourceTabData(sourceTab, nextItems);
-      } catch (error) {
-        console.error("Error fetching ingredients:", error);
-        toast.error("No se pudo cargar el catálogo de ingredientes");
-      } finally {
-        setIsLoadingIngredients(false);
-      }
-    },
-    [sourceTabToApiTab, setSourceTabData, isSubscriptionLoading, foodSourcesLocked],
-  );
-
-  const fetchIngredients = useCallback(async (sourceTab: FoodSourceTab = activeSourceTab) => {
-    setIsLoadingIngredients(true);
-    try {
-      const queryParams = new URLSearchParams({
-        tab: sourceTabToApiTab(sourceTab),
-        limit: "100",
-        ...(searchTerm.trim() && { search: searchTerm.trim() }),
-        ...(selectedCategory !== "Todos" && { category: selectedCategory }),
-        ...(selectedTag !== "Todos" && { tag: selectedTag }),
-      });
-
-      const response = await fetchApi(`/foods?${queryParams.toString()}`, {
-        cache: "no-store",
-      });
-
-      if (!response.ok) {
-        throw new Error("Error al cargar ingredientes");
-      }
-
-      const result = await response.json();
-      setData(Array.isArray(result) ? result : []);
-    } catch (error) {
-      console.error("Error fetching ingredients:", error);
-      toast.error("No se pudo cargar el catálogo de ingredientes");
-    } finally {
-      setIsLoadingIngredients(false);
-    }
-  }, [activeSourceTab, searchTerm, selectedCategory, selectedTag, sourceTabToApiTab]);
-
-  useEffect(() => {
-    if (skipNextSearchFetchRef.current) {
-      skipNextSearchFetchRef.current = false;
-      return;
-    }
-
-    const timer = setTimeout(() => {
-      fetchIngredients(activeSourceTab);
-    }, searchTerm.trim() ? 250 : 0);
-
-    return () => clearTimeout(timer);
-  }, [fetchIngredients, activeSourceTab, searchTerm, selectedCategory, selectedTag]);
-
-  useEffect(
-    () => () => {
-      if (clearSourceSwitchTimerRef.current) {
-        clearTimeout(clearSourceSwitchTimerRef.current);
+      } catch {
+        // Modo local silencioso
       }
     },
     [],
   );
+
+  const handleTabClick = (sourceTab: FoodSourceTab) => {
+    loadSourceTab(sourceTab);
+  };
 
   useEffect(() => {
     setCurrentPage(1);
@@ -284,11 +193,35 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
   }, [allTags, selectedTag]);
 
   const filteredIngredients = useMemo(() => {
-    return data.filter((item) => {
+    return catalogPool.filter((item) => {
+      // 1. Búsqueda instantánea multi-término normalizada sin tildes ni mayúsculas
+      if (searchTerm.trim()) {
+        const normQuery = normalizeSearchText(searchTerm);
+        const terms = normQuery.split(/\s+/).filter(Boolean);
+        const normName = normalizeSearchText(item.name);
+        const matchesAll = terms.every((term) => normName.includes(term));
+        if (!matchesAll) return false;
+      }
+
+      // 2. Filtro de Categoría
+      if (selectedCategory !== "Todos" && item.category?.name !== selectedCategory) {
+        return false;
+      }
+
+      // 3. Filtro de Etiqueta
+      if (selectedTag !== "Todos") {
+        const hasTag =
+          item.tags?.some((t) => t.name === selectedTag) ||
+          item.preferences?.[0]?.tags?.some((t) => t.name === selectedTag);
+        if (!hasTag) return false;
+      }
+
+      // 4. Filtro de Unidad
       if (selectedUnit !== "Todas las unidades" && item.unit !== selectedUnit) {
         return false;
       }
 
+      // 5. Perfil Nutricional
       if (selectedProfile === "Alto en Proteínas" && (item.proteins ?? 0) < 10) {
         return false;
       }
@@ -307,9 +240,10 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
 
       return true;
     });
-  }, [data, selectedUnit, selectedProfile]);
+  }, [catalogPool, searchTerm, selectedCategory, selectedTag, selectedUnit, selectedProfile]);
 
-  const itemsPerPage = 15;
+
+  const itemsPerPage = 20;
   const totalPages = Math.max(1, Math.ceil(filteredIngredients.length / itemsPerPage));
   const paginatedIngredients = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
@@ -322,9 +256,9 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
         { ...newIngredient, isMine: true, preferences: newIngredient.preferences || [] },
         ...prev.filter((item) => item.id !== newIngredient.id),
       ]);
-      sourceCacheRef.current.mine = [
+      sourceCacheRef.current.created = [
         { ...newIngredient, isMine: true, preferences: newIngredient.preferences || [] },
-        ...sourceCacheRef.current.mine.filter((item) => item.id !== newIngredient.id),
+        ...sourceCacheRef.current.created.filter((item: Ingredient) => item.id !== newIngredient.id),
       ];
     }
 
@@ -334,7 +268,7 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
     setSelectedUnit("Todas las unidades");
     setSelectedProfile("Todos los tipos");
     setCurrentPage(1);
-    await loadSourceTab("mine");
+    await loadSourceTab("created");
   };
 
   const handleDetailsClick = (ingredient: Ingredient) => {
@@ -342,322 +276,342 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
     setIsDetailsModalOpen(true);
   };
 
+  const columns: Column<Ingredient>[] = [
+    {
+      header: "Alimento",
+      render: (ingredient: Ingredient) => (
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="h-9 w-9 rounded-xl bg-purple-100 flex items-center justify-center text-[#7842D4] font-bold text-sm shrink-0">
+            {ingredient.name.charAt(0)}
+          </div>
+          <div className="min-w-0">
+            <div className="text-sm font-semibold text-slate-900 group-hover:text-[#7842D4] transition-colors truncate">
+              {ingredient.name}
+            </div>
+            {activeSourceTab === "created" && (
+              <span className="inline-flex items-center rounded-full bg-purple-50 border border-purple-200/90 px-2 py-0.2 text-[10px] font-bold text-[#7842D4] mt-0.5">
+                Público
+              </span>
+            )}
+          </div>
+        </div>
+      ),
+    },
+    {
+      header: "Categoría",
+      render: (ingredient: Ingredient) => (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
+          {ingredient.category?.name || "General"}
+        </span>
+      ),
+    },
+    {
+      header: "Unidad",
+      className: "text-center",
+      render: (ingredient: Ingredient) => (
+        <span className="text-xs font-mono text-slate-600">
+          {ingredient.unit || "g"}
+        </span>
+      ),
+    },
+    {
+      header: "Cals",
+      className: "text-center font-mono",
+      render: (ingredient: Ingredient) => (
+        <span className="text-xs font-semibold text-slate-800">
+          {ingredient.calories != null ? Math.round(Number(ingredient.calories)) : 0}
+        </span>
+      ),
+    },
+    {
+      header: "Prot",
+      className: "text-center font-mono",
+      render: (ingredient: Ingredient) => (
+        <span className="text-xs font-semibold text-indigo-600">
+          {ingredient.proteins != null ? Number(ingredient.proteins).toFixed(1) : "0"}g
+        </span>
+      ),
+    },
+    {
+      header: "Lip",
+      className: "text-center font-mono",
+      render: (ingredient: Ingredient) => (
+        <span className="text-xs font-semibold text-rose-600">
+          {ingredient.lipids != null ? Number(ingredient.lipids).toFixed(1) : "0"}g
+        </span>
+      ),
+    },
+    {
+      header: "Carb",
+      className: "text-center font-mono",
+      render: (ingredient: Ingredient) => (
+        <span className="text-xs font-semibold text-amber-600">
+          {ingredient.carbs != null ? Number(ingredient.carbs).toFixed(1) : "0"}g
+        </span>
+      ),
+    },
+    {
+      header: "Sug",
+      className: "text-center font-mono",
+      render: (ingredient: Ingredient) => (
+        <span className="text-xs text-slate-500">
+          {ingredient.sugars != null ? Number(ingredient.sugars).toFixed(1) : "0"}g
+        </span>
+      ),
+    },
+    {
+      header: "Fib",
+      className: "text-center font-mono",
+      render: (ingredient: Ingredient) => (
+        <span className="text-xs text-slate-500">
+          {ingredient.fiber != null ? Number(ingredient.fiber).toFixed(1) : "0"}g
+        </span>
+      ),
+    },
+    {
+      header: "Na",
+      className: "text-center font-mono",
+      render: (ingredient: Ingredient) => (
+        <span className="text-xs text-slate-500">
+          {ingredient.sodium != null ? Math.round(Number(ingredient.sodium)) : 0}mg
+        </span>
+      ),
+    },
+  ];
+
+  const totalCatalogCount = sourceCacheRef.current.catalog?.length || OFFICIAL_INGREDIENTS.length;
+  const totalCreatedCount = sourceCacheRef.current.created?.length || getLocalCustomFoods().length;
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 px-2 lg:flex-row lg:items-center lg:justify-between">
-        <div className="min-w-0">
-          <h2 id="foods-page-title" className="text-3xl font-semibold tracking-tight text-slate-900">
-            Catálogo de Ingredientes
-          </h2>
-          <p className="mt-1 text-sm text-slate-500">
-            Gestiona los ingredientes base para tus pautas y recetas.
+    <ModuleLayout
+      title="Catálogo de Ingredientes"
+      description={
+        <div className="space-y-1">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-[#668E20] -mt-0.5 mb-0.5">
+            <Apple className="w-4 h-4 text-[#86A83C]" />
+            <span className="tracking-wider uppercase text-[10px] font-bold">Base de Datos Nutricional</span>
+          </div>
+          <p className="text-sm sm:text-[15px] text-[#626573] leading-relaxed">
+            Gestiona los ingredientes base para tus pautas y recetas. Filtra rápidamente y consulta composición en tiempo real.
           </p>
-          <div className="mt-4 grid grid-cols-3 sm:flex w-full sm:w-auto rounded-2xl border border-slate-200/80 bg-slate-100/80 p-1 gap-1 text-center">
-            {[
-              { key: "catalog", label: "Catálogo NutriNet" },
-              { key: "mine", label: "Mis alimentos" },
-              { key: "community", label: "Comunidad" },
-            ].map((tab) => {
-              const isDisabledTab = tab.key === "community";
-              const isLocked = tab.key === "mine" && (isSubscriptionLoading || foodSourcesLocked);
-              return (
-                <button
-                  key={tab.key}
-                  type="button"
-                  onClick={() => handleTabClick(tab.key as FoodSourceTab)}
-                  title={
-                    isDisabledTab
-                      ? "Próximamente en futuras versiones"
-                      : isLocked
-                        ? "Disponible en planes de pago"
-                        : undefined
-                  }
-                  className={cn(
-                    "flex items-center justify-center gap-1.5 rounded-xl px-2 sm:px-4 py-2 text-xs sm:text-sm font-semibold transition-all",
-                    activeSourceTab === tab.key
-                      ? "bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200/70"
-                      : "text-slate-500 hover:bg-white/70 hover:text-slate-700",
-                    isDisabledTab && "opacity-60 cursor-not-allowed hover:bg-transparent text-slate-400",
-                    isLocked && "opacity-80 hover:bg-amber-50/50 hover:text-amber-700",
-                  )}
-                >
-                  <span>{tab.label}</span>
-                  {isDisabledTab && (
-                    <span className="rounded-full bg-slate-200/80 px-1.5 py-0.5 text-[9px] font-bold text-slate-500">
-                      Próximamente
-                    </span>
-                  )}
-                  {isLocked && <Lock className="h-3.5 w-3.5 shrink-0 text-slate-400" />}
-                </button>
-              );
-            })}
+        </div>
+      }
+      rightContent={
+        <button
+          type="button"
+          disabled
+          className="h-11 px-4 sm:px-5 rounded-xl border border-slate-200/80 bg-slate-50 text-slate-400 text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 shrink-0 cursor-not-allowed opacity-60 select-none w-full sm:w-auto"
+          title="Inhabilitado para la demo"
+        >
+          <Lock className="h-4 w-4 text-slate-400 shrink-0" aria-hidden="true" />
+          <span>Nuevo Alimento</span>
+        </button>
+      }
+      className="pb-16 relative"
+    >
+      <div className="space-y-4 sm:space-y-5">
+        {/* Resumen simple y compacto */}
+        <div className="flex flex-wrap items-center justify-between sm:justify-start gap-2.5 sm:gap-6 bg-white border border-[#E9E5E7] rounded-xl px-4 py-2.5 shadow-2xs text-xs">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-[#86A83C]" />
+            <span className="text-[#626573] font-medium">Catálogo base:</span>
+            <strong className="text-[#20212B] font-bold">{totalCatalogCount}</strong>
+          </div>
+          <div className="h-3.5 w-px bg-[#E9E5E7]" />
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-[#7842D4]" />
+            <span className="text-[#626573] font-medium">Creados:</span>
+            <strong className="text-[#20212B] font-bold">{totalCreatedCount}</strong>
+          </div>
+          <div className="hidden sm:block h-3.5 w-px bg-[#E9E5E7]" />
+          <div className="hidden sm:flex items-center gap-2">
+            <span className="text-[#626573] font-medium">Total disponibles:</span>
+            <strong className="text-[#20212B] font-bold">{totalCatalogCount + totalCreatedCount}</strong>
           </div>
         </div>
 
-        <div className="flex w-full flex-row flex-nowrap gap-2 lg:w-auto lg:justify-end">
-          <Button
-            onClick={() => router.push("/dashboard/alimentos/grupos")}
-            variant="outline"
-            className="h-10 flex-1 justify-center rounded-xl border-indigo-100 bg-white gap-2 whitespace-nowrap font-semibold text-indigo-600 hover:bg-indigo-50 lg:flex-none lg:px-5"
-          >
-            <Layers size={18} />
-            Grupos
-          </Button>
-          <Button
-            onClick={() => {
-              if (foodSourcesLocked) {
-                showFoodUpgrade();
-                return;
-              }
-              router.push("/dashboard/alimentos/nuevo");
-            }}
+        {/* Pestañas Catálogo Base / Alimentos creados (centradas en móvil) */}
+        <div className="grid grid-cols-2 sm:flex sm:items-center sm:justify-start gap-2 w-full sm:w-auto">
+          <button
+            type="button"
+            onClick={() => handleTabClick("catalog")}
             className={cn(
-              "h-10 flex-1 justify-center rounded-xl bg-indigo-600 gap-2 whitespace-nowrap font-semibold text-white shadow-sm hover:bg-indigo-700 lg:flex-none lg:px-5",
-              foodSourcesLocked && "opacity-75",
+              "px-3.5 sm:px-4 py-2.5 sm:py-2 text-xs sm:text-sm font-semibold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2",
+              activeSourceTab === "catalog"
+                ? "bg-[#7842D4] text-white shadow-2xs"
+                : "bg-white text-[#626573] border border-[#E9E5E7] hover:bg-slate-50"
             )}
           >
-            {foodSourcesLocked ? <Lock size={18} /> : <Plus size={18} />}
-            Nuevo Alimento
-          </Button>
+            <span>Catálogo Base</span>
+            <span
+              className={cn(
+                "rounded-full px-1.5 py-0.5 text-[10px] sm:text-[11px] font-bold",
+                activeSourceTab === "catalog"
+                  ? "bg-white/20 text-white"
+                  : "bg-slate-100 text-slate-500"
+              )}
+            >
+              {totalCatalogCount}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleTabClick("created")}
+            className={cn(
+              "px-3.5 sm:px-4 py-2.5 sm:py-2 text-xs sm:text-sm font-semibold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2",
+              activeSourceTab === "created"
+                ? "bg-[#7842D4] text-white shadow-2xs"
+                : "bg-white text-[#626573] border border-[#E9E5E7] hover:bg-slate-50"
+            )}
+          >
+            <span>Alimentos creados</span>
+            <span
+              className={cn(
+                "rounded-full px-1.5 py-0.5 text-[10px] sm:text-[11px] font-bold",
+                activeSourceTab === "created"
+                  ? "bg-white/20 text-white"
+                  : "bg-slate-100 text-slate-500"
+              )}
+            >
+              {totalCreatedCount}
+            </span>
+          </button>
         </div>
-      </div>
 
-      <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm lg:p-5">
-        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-          <div className="relative w-full">
-            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setCurrentPage(1);
-              }}
-              placeholder="Buscar por nombre o marca..."
-              className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-4 text-xs sm:text-sm font-medium text-slate-700 outline-none transition-colors placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
-            />
-          </div>
+        {/* Buscador y Filtros — Una única fila horizontal uniforme de 44px */}
+        <div className="space-y-2">
+          <div className="grid gap-2.5 sm:gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            <div className="relative w-full">
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[#848792]" />
+              <input
+                type="search"
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
+                placeholder="Buscar por nombre o marca..."
+                className="h-11 w-full rounded-xl border border-[#E9E5E7] bg-white pl-10 pr-3 text-sm font-medium text-[#20212B] placeholder:text-[#848792] focus:outline-none focus:ring-2 focus:ring-[#7842D4]/15 focus:border-[#7842D4] transition-all shadow-2xs"
+              />
+            </div>
 
-          <SearchableSelect
-            options={categories}
-            value={selectedCategory}
-            onChange={(value) => {
-              setSelectedCategory(value);
-              setCurrentPage(1);
-            }}
-            placeholder="Categoría"
-            className="w-full"
-            triggerClassName="h-10 rounded-xl text-xs sm:text-sm"
-          />
-
-          <SearchableSelect
-            options={units}
-            value={selectedUnit}
-            onChange={(value) => {
-              setSelectedUnit(value);
-              setCurrentPage(1);
-            }}
-            placeholder="Unidad de medida"
-            className="w-full"
-            triggerClassName="h-10 rounded-xl text-xs sm:text-sm"
-          />
-
-          <SearchableSelect
-            options={profileOptions}
-            value={selectedProfile}
-            onChange={(value) => {
-              setSelectedProfile(value);
-              setCurrentPage(1);
-            }}
-            placeholder="Tipo / Perfil"
-            className="w-full"
-            triggerClassName="h-10 rounded-xl text-xs sm:text-sm"
-          />
-
-          {activeSourceTab !== "catalog" && (
             <SearchableSelect
-              options={allTags}
-              value={selectedTag}
+              options={categories}
+              value={selectedCategory}
               onChange={(value) => {
-                setSelectedTag(value);
+                setSelectedCategory(value);
                 setCurrentPage(1);
               }}
-              placeholder="Tag"
+              placeholder="Categoría"
               className="w-full"
-              triggerClassName="h-10 rounded-xl text-xs sm:text-sm"
+              triggerClassName="h-11 rounded-xl text-sm font-medium text-[#20212B] border-[#E9E5E7] shadow-2xs"
             />
-          )}
-        </div>
-      </div>
 
-      <div className="flex items-center justify-between gap-4 px-1 sm:px-3">
-        <p className="text-xs font-medium text-slate-500">
-          <span className="font-semibold text-indigo-600">{filteredIngredients.length}</span> alimentos mostrados
-        </p>
-        {isLoadingIngredients && (
-          <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-indigo-600">
-            <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-indigo-100 border-t-indigo-500" />
-            Cargando
+            <SearchableSelect
+              options={units}
+              value={selectedUnit}
+              onChange={(value) => {
+                setSelectedUnit(value);
+                setCurrentPage(1);
+              }}
+              placeholder="Unidad de medida"
+              className="w-full"
+              triggerClassName="h-11 rounded-xl text-sm font-medium text-[#20212B] border-[#E9E5E7] shadow-2xs"
+            />
+
+            <SearchableSelect
+              options={profileOptions}
+              value={selectedProfile}
+              onChange={(value) => {
+                setSelectedProfile(value);
+                setCurrentPage(1);
+              }}
+              placeholder="Tipo / Perfil"
+              className="w-full"
+              triggerClassName="h-11 rounded-xl text-sm font-medium text-[#20212B] border-[#E9E5E7] shadow-2xs"
+            />
+
+            {activeSourceTab !== "catalog" && (
+              <SearchableSelect
+                options={allTags}
+                value={selectedTag}
+                onChange={(value) => {
+                  setSelectedTag(value);
+                  setCurrentPage(1);
+                }}
+                placeholder="Tag"
+                className="w-full"
+                triggerClassName="h-11 rounded-xl text-sm font-medium text-[#20212B] border-[#E9E5E7] shadow-2xs"
+              />
+            )}
           </div>
-        )}
-      </div>
 
-      <div className="space-y-4">
-        {/* Desktop Table View */}
-        <div className="hidden lg:block overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-100 table-auto">
-              <thead className="bg-slate-50/50">
-                <tr>
-                  <th className="border-b border-slate-100 px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-widest text-slate-500">Alimento</th>
-                  {activeSourceTab !== "catalog" && (
-                    <th className="border-b border-slate-100 px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-widest text-slate-500">Marca</th>
-                  )}
-                  <th className="border-b border-slate-100 px-5 py-3 text-left text-[10px] font-semibold uppercase tracking-widest text-slate-500">Categoría</th>
-                  <th className="border-b border-slate-100 px-5 py-3 text-center text-[10px] font-semibold uppercase tracking-widest text-slate-500">Unidad</th>
-                  <th className="border-b border-slate-100 px-2 py-3 text-center text-[10px] font-semibold uppercase tracking-widest text-slate-500">Cals</th>
-                  <th className="border-b border-slate-100 px-2 py-3 text-center text-[10px] font-semibold uppercase tracking-widest text-slate-500">Prot</th>
-                  <th className="border-b border-slate-100 px-2 py-3 text-center text-[10px] font-semibold uppercase tracking-widest text-slate-500">Lip</th>
-                  <th className="border-b border-slate-100 px-2 py-3 text-center text-[10px] font-semibold uppercase tracking-widest text-slate-500">Carb</th>
-                  <th className="border-b border-slate-100 px-2 py-3 text-center text-[10px] font-semibold uppercase tracking-widest text-slate-500">Sug</th>
-                  <th className="border-b border-slate-100 px-2 py-3 text-center text-[10px] font-semibold uppercase tracking-widest text-slate-500">Fib</th>
-                  <th className="border-b border-slate-100 px-2 py-3 text-center text-[10px] font-semibold uppercase tracking-widest text-slate-500">Na</th>
-                  {activeSourceTab !== "catalog" && (
-                    <th className="border-b border-slate-100 px-5 py-3 text-center text-[10px] font-semibold uppercase tracking-widest text-slate-500">Tags</th>
-                  )}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 bg-white">
-                {isLoadingIngredients && data.length === 0 ? (
-                  Array.from({ length: 6 }).map((_, i) => (
-                    <tr key={i} className="animate-pulse">
-                      <td className="px-5 py-3.5 align-middle">
-                        <div className="h-4 w-36 rounded-lg bg-slate-100" />
-                      </td>
-                      {activeSourceTab !== "catalog" && (
-                        <td className="px-5 py-3.5 align-middle">
-                          <div className="h-4 w-20 rounded-lg bg-slate-100" />
-                        </td>
-                      )}
-                      <td className="px-5 py-3.5 align-middle">
-                        <div className="h-5 w-24 rounded-full bg-slate-100" />
-                      </td>
-                      <td className="px-5 py-3.5 align-middle text-center">
-                        <div className="mx-auto h-4 w-10 rounded-lg bg-slate-100" />
-                      </td>
-                      <td className="px-2 py-3.5 align-middle text-center">
-                        <div className="mx-auto h-4 w-8 rounded-lg bg-slate-100" />
-                      </td>
-                      <td className="px-2 py-3.5 align-middle text-center">
-                        <div className="mx-auto h-4 w-8 rounded-lg bg-slate-100" />
-                      </td>
-                      <td className="px-2 py-3.5 align-middle text-center">
-                        <div className="mx-auto h-4 w-8 rounded-lg bg-slate-100" />
-                      </td>
-                      <td className="px-2 py-3.5 align-middle text-center">
-                        <div className="mx-auto h-4 w-8 rounded-lg bg-slate-100" />
-                      </td>
-                      <td className="px-2 py-3.5 align-middle text-center">
-                        <div className="mx-auto h-4 w-8 rounded-lg bg-slate-100" />
-                      </td>
-                      <td className="px-2 py-3.5 align-middle text-center">
-                        <div className="mx-auto h-4 w-8 rounded-lg bg-slate-100" />
-                      </td>
-                      <td className="px-2 py-3.5 align-middle text-center">
-                        <div className="mx-auto h-4 w-8 rounded-lg bg-slate-100" />
-                      </td>
-                      {activeSourceTab !== "catalog" && (
-                        <td className="px-5 py-3.5 align-middle">
-                          <div className="mx-auto h-4 w-16 rounded-lg bg-slate-100" />
-                        </td>
-                      )}
-                    </tr>
-                  ))
-                ) : paginatedIngredients.length > 0 ? (
-                  paginatedIngredients.map((ingredient) => (
-                    <tr
-                      key={ingredient.id}
-                      onClick={() => handleDetailsClick(ingredient)}
-                      className="group cursor-pointer transition-colors hover:bg-indigo-50/40"
-                    >
-                      <td className="px-5 py-3 align-middle">
-                        <div className="flex min-w-0 items-center gap-2">
-                          <span className="truncate text-sm font-medium text-slate-900 group-hover:text-indigo-600 transition-colors">
-                            {ingredient.name}
-                          </span>
-                          {ingredient.isDraft && (
-                            <span className="inline-flex items-center rounded-lg bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-700 ring-1 ring-inset ring-amber-200">
-                              Borrador
-                            </span>
-                          )}
-                          {ingredient.verified && <BadgeCheck className="h-4 w-4 shrink-0 text-emerald-500" />}
-                        </div>
-                      </td>
-                      {activeSourceTab !== "catalog" && (
-                        <td className="px-5 py-3 align-middle text-sm text-slate-500">
-                          {ingredient.brand?.name || "-"}
-                        </td>
-                      )}
-                      <td className="px-5 py-3 align-middle text-sm text-slate-500">
-                        <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
-                          {ingredient.category?.name || "General"}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3 align-middle text-center text-sm text-slate-500">{ingredient.unit}</td>
-                      <td className="px-2 py-3 align-middle text-center">
-                        <span className="text-xs font-medium text-slate-700">{ingredient.calories}</span>
-                      </td>
-                      <td className="px-2 py-3 align-middle text-center">
-                        <span className="text-xs font-semibold text-blue-600">{ingredient.proteins}g</span>
-                      </td>
-                      <td className="px-2 py-3 align-middle text-center">
-                        <span className="text-xs font-semibold text-red-600">{ingredient.lipids}g</span>
-                      </td>
-                      <td className="px-2 py-3 align-middle text-center">
-                        <span className="text-xs font-semibold text-emerald-600">{ingredient.carbs}g</span>
-                      </td>
-                      <td className="px-2 py-3 align-middle text-center">
-                        <span className="text-xs text-slate-500">{ingredient.sugars || 0}g</span>
-                      </td>
-                      <td className="px-2 py-3 align-middle text-center">
-                        <span className="text-xs text-slate-500">{ingredient.fiber || 0}g</span>
-                      </td>
-                      <td className="px-2 py-3 align-middle text-center">
-                        <span className="text-xs text-slate-500">{ingredient.sodium || 0}mg</span>
-                      </td>
-                      {activeSourceTab !== "catalog" && (
-                        <td className="px-5 py-3 align-middle">
-                          <div className="flex flex-wrap justify-center gap-1.5">
-                            {(ingredient.preferences?.[0]?.tags || ingredient.tags || []).slice(0, 2).map((tag: any) => (
-                              <span key={tag.id} className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-medium text-indigo-600">
-                                #{tag.name}
-                              </span>
-                            ))}
-                          </div>
-                        </td>
-                      )}
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={activeSourceTab === "catalog" ? 10 : 12} className="py-16 text-center">
-                      <div className="flex flex-col items-center gap-3">
-                        <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-slate-100 bg-slate-50">
-                          <Search className="h-7 w-7 text-slate-300" />
-                        </div>
-                        <p className="text-sm font-medium text-slate-500">No se encontraron alimentos</p>
-                      </div>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-1 pt-1 pb-1">
+            <p className="text-xs font-semibold text-[#626573] text-center sm:text-left">
+              Mostrando <span className="font-bold text-[#7842D4]">{paginatedIngredients.length}</span> de{" "}
+              <span className="font-bold text-[#20212B]">{filteredIngredients.length}</span> alimentos
+              {totalPages > 1 && (
+                <span className="text-[#848792] ml-1 block sm:inline">
+                  · Página <strong className="text-[#20212B] font-bold">{currentPage}</strong> de {totalPages}
+                </span>
+              )}
+            </p>
+
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center shrink-0 w-full sm:w-auto">
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+                  className="py-0"
+                />
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Mobile Cards View */}
+        {/* Vista Desktop con RecordsTable unificada */}
+        <div className="hidden lg:block bg-white rounded-2xl border border-[#E9E5E7] shadow-2xs overflow-hidden">
+          <RecordsTable
+            columns={columns}
+            data={paginatedIngredients}
+            keyExtractor={(item) => item.id}
+            isLoading={isLoadingIngredients && catalogPool.length === 0}
+            loadingRows={8}
+            loadingColumns={columns.length}
+            onRowClick={handleDetailsClick}
+            emptyState={
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-100 bg-slate-50 mb-2">
+                  <Search className="h-6 w-6 text-slate-300" />
+                </div>
+                <p className="text-sm font-medium text-slate-600">No se encontraron alimentos</p>
+                <p className="text-xs text-slate-400 mt-0.5">Prueba cambiando los filtros de búsqueda</p>
+              </div>
+            }
+            footer={
+              totalPages > 1 ? (
+                <div className="flex items-center justify-between px-4 py-3 border-t border-[#E8EBF0]">
+                  <p className="text-xs text-[#626573]">
+                    Página <strong className="font-semibold text-[#20212B]">{currentPage}</strong> de{" "}
+                    <strong className="font-semibold text-[#20212B]">{totalPages}</strong>
+                  </p>
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={setCurrentPage}
+                    className="py-0"
+                  />
+                </div>
+              ) : undefined
+            }
+          />
+        </div>
+
+        {/* Vista Móvil */}
         <div className="lg:hidden space-y-3">
-          {isLoadingIngredients && data.length === 0 ? (
+          {isLoadingIngredients && catalogPool.length === 0 ? (
             Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="animate-pulse space-y-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
                 <div className="h-4 w-40 rounded-lg bg-slate-100" />
@@ -675,12 +629,17 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
               <div
                 key={ingredient.id}
                 onClick={() => handleDetailsClick(ingredient)}
-                className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3 cursor-pointer active:scale-[0.99] transition-all hover:border-indigo-200 hover:shadow-md"
+                className="bg-white p-4 rounded-2xl border border-[#E9E5E7] shadow-2xs space-y-3 cursor-pointer active:scale-[0.99] transition-all hover:border-[#7842D4]/40"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <h3 className="font-bold text-slate-900 text-sm">{ingredient.name}</h3>
+                      <h3 className="font-bold text-[#20212B] text-sm">{ingredient.name}</h3>
+                      {activeSourceTab === "created" && (
+                        <span className="rounded-full bg-purple-50 border border-purple-200/90 px-2 py-0.5 text-[10px] font-bold text-[#7842D4]">
+                          Público
+                        </span>
+                      )}
                       {ingredient.isDraft && (
                         <span className="rounded-lg bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-700 ring-1 ring-amber-200">
                           Borrador
@@ -688,18 +647,18 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
                       )}
                       {ingredient.verified && <BadgeCheck className="h-4 w-4 text-emerald-500 shrink-0" />}
                     </div>
-                    <p className="text-xs text-slate-500 font-medium mt-0.5">
+                    <p className="text-xs text-[#626573] font-medium mt-0.5">
                       {activeSourceTab !== "catalog" && ingredient.brand?.name ? `${ingredient.brand.name} · ` : ""}
-                      <span className="text-indigo-600 font-semibold">{ingredient.category?.name || "General"}</span>
+                      <span className="text-[#7842D4] font-semibold">{ingredient.category?.name || "General"}</span>
                     </p>
                   </div>
                 </div>
 
-                {/* Nutrients Pills */}
+                {/* Nutrientes Pills */}
                 <div className="grid grid-cols-4 gap-1.5 text-center text-xs font-semibold">
                   <div className="bg-slate-50 rounded-xl p-1.5">
-                    <p className="text-[9px] text-slate-400 font-bold uppercase">Cals</p>
-                    <p className="text-slate-800 font-bold">{ingredient.calories}</p>
+                    <p className="text-[9px] text-[#848792] font-bold uppercase">Cals</p>
+                    <p className="text-[#20212B] font-bold">{ingredient.calories}</p>
                   </div>
                   <div className="bg-blue-50/60 rounded-xl p-1.5">
                     <p className="text-[9px] text-blue-500 font-bold uppercase">Prot</p>
@@ -717,9 +676,9 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
 
                 {/* Footer with tags */}
                 {activeSourceTab !== "catalog" && (ingredient.preferences?.[0]?.tags || ingredient.tags || []).length > 0 && (
-                  <div className="flex flex-wrap gap-1 pt-1 border-t border-slate-100">
+                  <div className="flex flex-wrap gap-1 pt-1 border-t border-[#F0ECEE]">
                     {(ingredient.preferences?.[0]?.tags || ingredient.tags || []).map((tag: any) => (
-                      <span key={tag.id} className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-medium text-indigo-600">
+                      <span key={tag.id} className="rounded-full bg-purple-50 px-2 py-0.5 text-[10px] font-medium text-[#7842D4]">
                         #{tag.name}
                       </span>
                     ))}
@@ -728,19 +687,21 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
               </div>
             ))
           ) : (
-            <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center">
+            <div className="bg-white p-8 rounded-2xl border border-[#E9E5E7] text-center shadow-2xs">
               <div className="flex flex-col items-center gap-3">
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-100 bg-slate-50">
-                  <Search className="h-6 w-6 text-slate-300" />
+                  <Search className="h-6 w-6 text-[#848792]" />
                 </div>
-                <p className="text-sm font-medium text-slate-500">No se encontraron alimentos</p>
+                <p className="text-sm font-medium text-[#626573]">No se encontraron alimentos</p>
               </div>
             </div>
           )}
-        </div>
 
-        <div className="flex items-center justify-between px-2 pt-2">
-          <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center px-2 pt-4 pb-2">
+              <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+            </div>
+          )}
         </div>
       </div>
 
@@ -749,6 +710,6 @@ export default function FoodsClient({ initialData }: FoodsClientProps) {
         onClose={() => setIsDetailsModalOpen(false)}
         ingredient={selectedIngredient}
       />
-    </div>
+    </ModuleLayout>
   );
 }

@@ -6,6 +6,7 @@ import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/context/ThemeContext";
+import { isGuestMode } from "@/lib/demo-local-api";
 
 const DISMISSED_KEY = "nutri_rating_modal_dismissed_session";
 
@@ -21,7 +22,7 @@ export function AppRatingModal() {
   useEffect(() => {
     const checkStatus = async () => {
       try {
-        if (sessionStorage.getItem(DISMISSED_KEY) === "true") return;
+        if (isGuestMode() || sessionStorage.getItem(DISMISSED_KEY) === "true") return;
 
         const res = await api.get("/ratings/status");
         if (res.ok) {
@@ -34,8 +35,8 @@ export function AppRatingModal() {
             return () => clearTimeout(timer);
           }
         }
-      } catch (err) {
-        console.error("Error checking rating status:", err);
+      } catch {
+        // En modo local o desconectado se omite silenciosamente sin arrojar error
       }
     };
 

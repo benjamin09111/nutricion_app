@@ -282,7 +282,7 @@ export const DietModals: React.FC<DietModalsProps> = ({
         </button>
         {isOpen && (
           <div className="absolute right-0 top-full z-30 mt-2 w-64 rounded-2xl border border-slate-200 bg-white p-3 shadow-2xl shadow-slate-300/30 text-left">
-            <p className="text-xs font-black text-slate-900">{infoFood.producto}</p>
+            <p className="text-xs font-bold text-slate-900">{infoFood.producto}</p>
             <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">
               {groupLabel || infoFood.grupo}
             </p>
@@ -442,7 +442,7 @@ export const DietModals: React.FC<DietModalsProps> = ({
             <button
               onClick={() => setSmartAddTab("favorites")}
               className={cn(
-                "flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all border-0",
+                "flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all border-0",
                 smartAddTab === "favorites"
                   ? "bg-white text-indigo-600 shadow-sm"
                   : "text-slate-500 hover:text-slate-700",
@@ -459,7 +459,7 @@ export const DietModals: React.FC<DietModalsProps> = ({
             <button
               onClick={() => setSmartAddTab("groups")}
               className={cn(
-                "flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all border-0",
+                "flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all border-0",
                 smartAddTab === "groups"
                   ? "bg-white text-indigo-600 shadow-sm"
                   : "text-slate-500 hover:text-slate-700",
@@ -471,7 +471,7 @@ export const DietModals: React.FC<DietModalsProps> = ({
             <button
               onClick={() => setSmartAddTab("myproducts")}
               className={cn(
-                "flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all border-0",
+                "flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all border-0",
                 smartAddTab === "myproducts"
                   ? "bg-white text-indigo-600 shadow-sm"
                   : "text-slate-500 hover:text-slate-700",
@@ -483,7 +483,7 @@ export const DietModals: React.FC<DietModalsProps> = ({
             <button
               onClick={() => setSmartAddTab("search")}
               className={cn(
-                "flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all border-0",
+                "flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all border-0",
                 smartAddTab === "search"
                   ? "bg-white text-indigo-600 shadow-sm"
                   : "text-slate-500 hover:text-slate-700",
@@ -534,10 +534,10 @@ export const DietModals: React.FC<DietModalsProps> = ({
                       )}
                       <div className="flex flex-col gap-3">
                         <div className="flex-1 min-w-0">
-                          <p className="font-black text-slate-800 text-sm mb-1 truncate">
+                          <p className="font-bold text-slate-800 text-sm mb-1 truncate">
                             {f.name}
                           </p>
-                          <span className="text-[10px] bg-slate-100 text-slate-400 px-2 py-0.5 rounded-lg font-black uppercase tracking-tight">
+                          <span className="text-[10px] bg-slate-100 text-slate-400 px-2 py-0.5 rounded-lg font-bold uppercase tracking-tight">
                             {f.category?.name || "Varios"}
                           </span>
                         </div>
@@ -586,14 +586,14 @@ export const DietModals: React.FC<DietModalsProps> = ({
                         <div className="flex items-center justify-between px-1">
                           <div className="flex items-center gap-2">
                             <div className="w-1.5 h-4 bg-indigo-500 rounded-full" />
-                            <h4 className="text-[11px] font-black text-slate-800 uppercase tracking-widest">
+                            <h4 className="text-[11px] font-bold text-slate-800 uppercase tracking-widest">
                               {group.name}
                             </h4>
                           </div>
                           <button
                             onClick={() => toggleGroupSelection(group.id)}
                             className={cn(
-                              "text-[10px] font-black uppercase tracking-tighter px-3 py-1 rounded-lg transition-all border shadow-sm cursor-pointer",
+                              "text-[10px] font-bold uppercase tracking-tighter px-3 py-1 rounded-lg transition-all border shadow-sm cursor-pointer",
                               isAllSelected
                                 ? "bg-rose-50 text-rose-600 border-rose-100 hover:bg-rose-100"
                                 : "bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700",
@@ -622,10 +622,10 @@ export const DietModals: React.FC<DietModalsProps> = ({
                               )}
                               <div className="flex flex-col gap-3">
                                 <div className="flex-1 min-w-0">
-                                  <p className="font-black text-slate-800 text-sm mb-1 truncate">
+                                  <p className="font-bold text-slate-800 text-sm mb-1 truncate">
                                     {rel.ingredient?.name}
                                   </p>
-                                  <span className="text-[10px] bg-slate-100 text-slate-400 px-2 py-0.5 rounded-lg font-black uppercase tracking-tight">
+                                  <span className="text-[10px] bg-slate-100 text-slate-400 px-2 py-0.5 rounded-lg font-bold uppercase tracking-tight">
                                     {rel.amount || 100} {rel.ingredient?.unit || rel.unit || "g"}
                                   </span>
                                 </div>
@@ -683,10 +683,10 @@ export const DietModals: React.FC<DietModalsProps> = ({
                       )}
                       <div className="flex flex-col gap-3">
                         <div className="flex-1 min-w-0">
-                          <p className="font-black text-slate-800 text-sm mb-1 truncate">
+                          <p className="font-bold text-slate-800 text-sm mb-1 truncate">
                             {f.name}
                           </p>
-                          <span className="text-[10px] bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-lg font-black uppercase tracking-tight">
+                          <span className="text-[10px] bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-lg font-bold uppercase tracking-tight">
                             Creado por ti
                           </span>
                         </div>
@@ -741,10 +741,10 @@ export const DietModals: React.FC<DietModalsProps> = ({
                       )}
                       <div className="flex flex-col gap-3">
                         <div className="flex-1 min-w-0">
-                          <p className="font-black text-slate-800 text-sm mb-1 truncate">
+                          <p className="font-bold text-slate-800 text-sm mb-1 truncate">
                             {f.name}
                           </p>
-                          <span className="text-[10px] bg-slate-100 text-slate-400 px-2 py-0.5 rounded-lg font-black uppercase tracking-tight">
+                          <span className="text-[10px] bg-slate-100 text-slate-400 px-2 py-0.5 rounded-lg font-bold uppercase tracking-tight">
                             {f.category?.name || "Varios"}
                           </span>
                         </div>
@@ -787,7 +787,7 @@ export const DietModals: React.FC<DietModalsProps> = ({
           <div className="flex items-center justify-between pt-6 border-t border-slate-100 mt-4">
             <div className="text-xs">
               <span className="text-slate-400 font-bold">Seleccionados: </span>
-              <span className="text-indigo-600 font-black">{selectedFoods.size} alimentos</span>
+              <span className="text-indigo-600 font-bold">{selectedFoods.size} alimentos</span>
             </div>
             <div className="flex gap-3">
               <Button
@@ -798,7 +798,7 @@ export const DietModals: React.FC<DietModalsProps> = ({
                 Cancelar
               </Button>
               <Button
-                className="h-11 px-8 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl shadow-lg shadow-indigo-100 flex items-center gap-2"
+                className="h-11 px-8 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-100 flex items-center gap-2"
                 onClick={handleSmartAddAll}
                 disabled={selectedFoods.size === 0}
               >
@@ -821,7 +821,7 @@ export const DietModals: React.FC<DietModalsProps> = ({
             <div className="sticky top-0 bg-white border-b border-slate-200 p-6 z-10">
               <div className="flex items-start justify-between">
                 <div>
-                  <h2 className="text-xl font-black text-slate-900 mb-1">
+                  <h2 className="text-xl font-bold text-slate-900 mb-1">
                     {selectedFoodForInfo.producto}
                   </h2>
                   <p className="text-sm text-slate-500 font-medium">{selectedFoodForInfo.grupo}</p>
@@ -838,34 +838,34 @@ export const DietModals: React.FC<DietModalsProps> = ({
             <div className="p-6 space-y-6">
               {/* Macronutrientes Principales */}
               <div>
-                <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
                   Macronutrientes
                 </h3>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-orange-50 p-4 rounded-xl border border-orange-100">
                     <p className="text-xs font-bold text-orange-600 mb-1">Calorías</p>
-                    <p className="text-2xl font-black text-orange-700">
+                    <p className="text-2xl font-bold text-orange-700">
                       {selectedFoodForInfo.calorias || 0}
                     </p>
                     <p className="text-[10px] text-orange-500 font-medium">kcal</p>
                   </div>
                   <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
                     <p className="text-xs font-bold text-blue-600 mb-1">Proteínas</p>
-                    <p className="text-2xl font-black text-blue-700">
+                    <p className="text-2xl font-bold text-blue-700">
                       {selectedFoodForInfo.proteinas || 0}
                     </p>
                     <p className="text-[10px] text-blue-500 font-medium">gramos</p>
                   </div>
                   <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
                     <p className="text-xs font-bold text-emerald-600 mb-1">Carbohidratos</p>
-                    <p className="text-2xl font-black text-emerald-700">
+                    <p className="text-2xl font-bold text-emerald-700">
                       {selectedFoodForInfo.carbohidratos || 0}
                     </p>
                     <p className="text-[10px] text-emerald-500 font-medium">gramos</p>
                   </div>
                   <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-100">
                     <p className="text-xs font-bold text-yellow-600 mb-1">Lípidos</p>
-                    <p className="text-2xl font-black text-yellow-700">
+                    <p className="text-2xl font-bold text-yellow-700">
                       {selectedFoodForInfo.lipidos || 0}
                     </p>
                     <p className="text-[10px] text-yellow-500 font-medium">gramos</p>
@@ -878,14 +878,14 @@ export const DietModals: React.FC<DietModalsProps> = ({
                 Number(selectedFoodForInfo.fibra ?? 0) > 0 ||
                 Number(selectedFoodForInfo.sodio ?? 0) > 0) && (
                 <div>
-                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">
+                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
                     Información Adicional
                   </h3>
                   <div className="space-y-2">
                     {Number(selectedFoodForInfo.azucares ?? 0) > 0 && (
                       <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
                         <span className="text-sm font-bold text-slate-700">Azúcares</span>
-                        <span className="text-sm font-black text-slate-900">
+                        <span className="text-sm font-bold text-slate-900">
                           {selectedFoodForInfo.azucares}g
                         </span>
                       </div>
@@ -893,7 +893,7 @@ export const DietModals: React.FC<DietModalsProps> = ({
                     {Number(selectedFoodForInfo.fibra ?? 0) > 0 && (
                       <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
                         <span className="text-sm font-bold text-slate-700">Fibra</span>
-                        <span className="text-sm font-black text-slate-900">
+                        <span className="text-sm font-bold text-slate-900">
                           {selectedFoodForInfo.fibra}g
                         </span>
                       </div>
@@ -901,7 +901,7 @@ export const DietModals: React.FC<DietModalsProps> = ({
                     {Number(selectedFoodForInfo.sodio ?? 0) > 0 && (
                       <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
                         <span className="text-sm font-bold text-slate-700">Sodio</span>
-                        <span className="text-sm font-black text-slate-900">
+                        <span className="text-sm font-bold text-slate-900">
                           {selectedFoodForInfo.sodio}mg
                         </span>
                       </div>
@@ -912,12 +912,12 @@ export const DietModals: React.FC<DietModalsProps> = ({
 
               {/* Unidad */}
               <div>
-                <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
                   Unidad de Medida
                 </h3>
                 <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-100">
                   <p className="text-sm font-bold text-indigo-600 mb-1">Unidad</p>
-                  <p className="text-lg font-black text-indigo-900">
+                  <p className="text-lg font-bold text-indigo-900">
                     {selectedFoodForInfo.unidad || "g"}
                   </p>
                 </div>
@@ -926,12 +926,12 @@ export const DietModals: React.FC<DietModalsProps> = ({
               {/* Precio */}
               {selectedFoodForInfo.precioPromedio > 0 && (
                 <div>
-                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">
+                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
                     Precio Estimado
                   </h3>
                   <div className="p-4 bg-green-50 rounded-xl border border-green-100">
                     <p className="text-sm font-bold text-green-600 mb-1">Precio Promedio</p>
-                    <p className="text-lg font-black text-green-900">
+                    <p className="text-lg font-bold text-green-900">
                       {formatCLP(selectedFoodForInfo.precioPromedio)}
                     </p>
                   </div>
@@ -941,7 +941,7 @@ export const DietModals: React.FC<DietModalsProps> = ({
               {/* Tags */}
               {selectedFoodForInfo.tags && selectedFoodForInfo.tags.length > 0 && (
                 <div>
-                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">
+                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
                     Etiquetas
                   </h3>
                   <div className="flex flex-wrap gap-2">
@@ -969,7 +969,7 @@ export const DietModals: React.FC<DietModalsProps> = ({
       >
         <div className="space-y-4 text-left">
           <div className="p-4 rounded-xl border border-slate-200 bg-slate-50">
-            <p className="text-xs font-black uppercase tracking-widest text-slate-500">Resumen</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">Resumen</p>
             <p className="text-sm font-bold text-slate-800 mt-1">
               {verificationResult?.summary || "Sin resultado disponible."}
             </p>
@@ -990,10 +990,10 @@ export const DietModals: React.FC<DietModalsProps> = ({
                   className="p-3 rounded-xl border border-rose-200 bg-rose-50"
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-black text-rose-700">{conflict.foodName}</p>
+                    <p className="text-sm font-bold text-rose-700">{conflict.foodName}</p>
                     <span
                       className={cn(
-                        "text-[10px] font-black uppercase px-2 py-1 rounded",
+                        "text-[10px] font-bold uppercase px-2 py-1 rounded",
                         conflict.severity === "high"
                           ? "bg-rose-200 text-rose-700"
                           : conflict.severity === "medium"
@@ -1013,7 +1013,7 @@ export const DietModals: React.FC<DietModalsProps> = ({
             </div>
           ) : (
             <div className="p-4 rounded-xl border border-emerald-200 bg-emerald-50">
-              <p className="text-sm font-black text-emerald-700">
+              <p className="text-sm font-bold text-emerald-700">
                 Todo OK: no se detectaron incompatibilidades directas.
               </p>
             </div>
@@ -1060,7 +1060,7 @@ export const DietModals: React.FC<DietModalsProps> = ({
 
           {/* Searcher / Custom Input */}
           <div className="space-y-2">
-            <label className="text-xs font-black text-slate-600 uppercase tracking-wider">
+            <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">
               Buscar o Escribir Categoría
             </label>
             <div className="relative">
@@ -1091,7 +1091,7 @@ export const DietModals: React.FC<DietModalsProps> = ({
 
           {/* Searchable Suggestions Grid */}
           <div className="space-y-2 pt-2 border-t border-slate-100">
-            <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider block">
+            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
               Sugerencias Disponibles (No usadas primero)
             </label>
             <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto pr-1">
@@ -1204,7 +1204,7 @@ export const DietModals: React.FC<DietModalsProps> = ({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <label className="text-xs font-black uppercase tracking-widest text-slate-400">
+              <label className="text-xs font-bold uppercase tracking-widest text-slate-400">
                 Cantidad base
               </label>
               <Input
@@ -1219,7 +1219,7 @@ export const DietModals: React.FC<DietModalsProps> = ({
               />
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-black uppercase tracking-widest text-slate-400">
+              <label className="text-xs font-bold uppercase tracking-widest text-slate-400">
                 Unidad
               </label>
               <Input
@@ -1233,7 +1233,7 @@ export const DietModals: React.FC<DietModalsProps> = ({
               />
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-black uppercase tracking-widest text-slate-400">
+              <label className="text-xs font-bold uppercase tracking-widest text-slate-400">
                 Calorías
               </label>
               <Input
@@ -1248,7 +1248,7 @@ export const DietModals: React.FC<DietModalsProps> = ({
               />
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-black uppercase tracking-widest text-slate-400">
+              <label className="text-xs font-bold uppercase tracking-widest text-slate-400">
                 Proteínas
               </label>
               <Input
@@ -1263,7 +1263,7 @@ export const DietModals: React.FC<DietModalsProps> = ({
               />
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-black uppercase tracking-widest text-slate-400">
+              <label className="text-xs font-bold uppercase tracking-widest text-slate-400">
                 Carbohidratos
               </label>
               <Input
@@ -1278,7 +1278,7 @@ export const DietModals: React.FC<DietModalsProps> = ({
               />
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-black uppercase tracking-widest text-slate-400">
+              <label className="text-xs font-bold uppercase tracking-widest text-slate-400">
                 Lípidos
               </label>
               <Input
@@ -1293,7 +1293,7 @@ export const DietModals: React.FC<DietModalsProps> = ({
               />
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-black uppercase tracking-widest text-slate-400">
+              <label className="text-xs font-bold uppercase tracking-widest text-slate-400">
                 Azúcares
               </label>
               <Input
@@ -1308,7 +1308,7 @@ export const DietModals: React.FC<DietModalsProps> = ({
               />
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-black uppercase tracking-widest text-slate-400">
+              <label className="text-xs font-bold uppercase tracking-widest text-slate-400">
                 Fibra
               </label>
               <Input
@@ -1323,7 +1323,7 @@ export const DietModals: React.FC<DietModalsProps> = ({
               />
             </div>
             <div className="col-span-2 space-y-2">
-              <label className="text-xs font-black uppercase tracking-widest text-slate-400">
+              <label className="text-xs font-bold uppercase tracking-widest text-slate-400">
                 Sodio
               </label>
               <Input

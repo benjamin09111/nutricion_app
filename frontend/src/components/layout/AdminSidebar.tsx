@@ -19,6 +19,7 @@ import {
   Sparkles,
   Star,
   Trash2,
+  TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDashboardShell } from "@/context/DashboardShellContext";
@@ -49,6 +50,11 @@ const groups: SidebarGroup[] = [
         name: "Dashboard",
         href: "/dashboard/admin",
         icon: LayoutDashboard,
+      },
+      {
+        name: "Métricas Landing",
+        href: "/dashboard/admin/metricas-landing",
+        icon: TrendingUp,
       },
     ],
   },
@@ -131,6 +137,7 @@ const groups: SidebarGroup[] = [
 
 const WORKER_ALLOWED_PATHS = new Set([
   "/dashboard/admin",
+  "/dashboard/admin/metricas-landing",
   "/dashboard/admin/nutricionistas",
   "/dashboard/admin/mensajes",
   "/dashboard/admin/feedback",
@@ -335,17 +342,23 @@ export function AdminSidebar({ onItemClick, isMobile = false }: AdminSidebarProp
           !isMobile && isSidebarCollapsed ? "justify-center -mx-2 px-2" : "-mx-4 px-4 pl-6",
         )}
       >
-        <div className="flex items-center space-x-2">
+        <Link
+          href="/dashboard"
+          onClick={onItemClick}
+          className="flex items-center space-x-2 cursor-pointer hover:opacity-90 transition-opacity"
+          aria-label="Ir al dashboard"
+          title="Ir al dashboard"
+        >
           <Image
             src="/logo_2.webp"
             alt="NutriNet"
             width={!isMobile && isSidebarCollapsed ? 72 : 180}
             height={!isMobile && isSidebarCollapsed ? 23 : 57}
-            className={cn("h-auto w-auto object-contain", !isMobile && isSidebarCollapsed ? "max-w-[72px]" : "max-w-[180px]")}
+            className={cn("h-auto w-auto object-contain cursor-pointer", !isMobile && isSidebarCollapsed ? "max-w-[72px]" : "max-w-[180px]")}
             style={{ height: "auto" }}
             priority
           />
-        </div>
+        </Link>
       </div>
 
 

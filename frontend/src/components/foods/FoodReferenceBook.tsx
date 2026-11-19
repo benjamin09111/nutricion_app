@@ -11,8 +11,11 @@ import {
   Search,
   X,
 } from "lucide-react";
+import { RAW_CATALOG_ITEMS, normalizeSearchText as normalizeText } from "@/features/foods";
+
 
 export interface FoodReferenceItem {
+
   id: string;
   name: string;
   category: string;
@@ -32,25 +35,7 @@ interface FoodReferenceBookProps {
   onClose: () => void;
 }
 
-let catalogPromise: Promise<FoodReferenceItem[]> | null = null;
-
-const normalizeText = (value: string) =>
-  value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim();
-
-const loadCatalog = () => {
-  catalogPromise ??= fetch("/data/ingredients.catalog.json")
-    .then((response) => {
-      if (!response.ok) throw new Error("No se pudo cargar el catálogo de alimentos.");
-      return response.json() as Promise<FoodReferenceItem[]>;
-    })
-    .then((items) => items);
-
-  return catalogPromise;
-};
+const loadCatalog = () => Promise.resolve(RAW_CATALOG_ITEMS as FoodReferenceItem[]);
 
 const formatValue = (value: number) => Number.isInteger(value) ? String(value) : value.toFixed(1);
 

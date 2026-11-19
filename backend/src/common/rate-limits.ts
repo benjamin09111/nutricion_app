@@ -43,3 +43,54 @@ export const supportRequestLimiter = rateLimit({
     return false;
   },
 });
+
+// Authentication rate limiters to prevent brute-force and credential stuffing
+export const authLoginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    statusCode: 429,
+    message: 'Demasiados intentos de inicio de sesión. Por favor intenta de nuevo en 15 minutos.',
+  },
+  skip: (req) => req.method !== 'POST',
+});
+
+export const authRegisterLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    statusCode: 429,
+    message: 'Demasiados registros desde esta dirección. Intenta nuevamente más tarde.',
+  },
+  skip: (req) => req.method !== 'POST',
+});
+
+// AI Copilot rate limiter to prevent token exhaustion and DoS
+export const copilotChatLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 15,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    statusCode: 429,
+    message: 'Has alcanzado el límite de mensajes por minuto para el asistente. Espera un momento.',
+  },
+  skip: (req) => req.method !== 'POST',
+});
+
+// Catalog rate limiter to mitigate mass automated scraping of foods and recipes
+export const catalogAntiScrapingLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 40,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    statusCode: 429,
+    message: 'Límite de consultas al catálogo alcanzado. Intenta nuevamente en un minuto.',
+  },
+});
+

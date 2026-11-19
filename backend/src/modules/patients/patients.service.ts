@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   ForbiddenException,
   BadRequestException,
@@ -18,6 +19,10 @@ import { CacheService } from '../../common/services/cache.service';
 import { PermissionsService } from '../permissions/permissions.service';
 import { CalculationsService } from '../calculations/calculations.service';
 import { PLAN_ENTITLEMENT_KEYS } from '../memberships/plan-entitlements';
+import {
+  encryptSensitiveText,
+  decryptSensitiveText,
+} from '../../common/utils/crypto.util';
 
 const INDEPENDENT_METRICS_TITLE = 'Registro de Métricas Independiente';
 const AUTOMATIC_NUTRITION_KEY = 'automaticNutritionCalculations';
@@ -35,6 +40,8 @@ type NutritionCalculationInput = {
 
 @Injectable()
 export class PatientsService {
+  private readonly logger = new Logger(PatientsService.name);
+
   constructor(
     private prisma: PrismaService,
     private cacheService: CacheService,
@@ -99,10 +106,15 @@ export class PatientsService {
       recalculateNutrition !== false,
     );
 
+    const secureClinicalSummary = patientData.clinicalSummary
+      ? encryptSensitiveText(patientData.clinicalSummary)
+      : patientData.clinicalSummary;
+
     const patient = await this.prisma.$transaction(async (tx) => {
       const createdPatient = await tx.patient.create({
         data: {
           ...patientData,
+          clinicalSummary: secureClinicalSummary,
           customVariables,
           nutritionistId,
         },
@@ -282,8 +294,15 @@ export class PatientsService {
       statusCounts.find((item) => item.status === 'Inactive')?._count.status ??
       0;
 
+    const decryptedData = data.map((item) => ({
+      ...item,
+      clinicalSummary: item.clinicalSummary
+        ? decryptSensitiveText(item.clinicalSummary)
+        : item.clinicalSummary,
+    }));
+
     return {
-      data,
+      data: decryptedData,
       meta: {
         total,
         filteredTotal,
@@ -350,6 +369,14 @@ export class PatientsService {
         'No tienes permiso para acceder a este paciente',
       );
     }
+
+    if (patient.clinicalSummary) {
+      patient.clinicalSummary = decryptSensitiveText(patient.clinicalSummary);
+    }
+
+    this.logger.log(
+      `[ClinicalAudit] Nutritionist ${nutritionistId} accessed patient record ${id}`,
+    );
 
     return patient;
   }
@@ -419,10 +446,17 @@ export class PatientsService {
       recalculateNutrition === true,
     );
 
+    const securePatientData = { ...patientData };
+    if (securePatientData.clinicalSummary) {
+      securePatientData.clinicalSummary = encryptSensitiveText(
+        securePatientData.clinicalSummary,
+      );
+    }
+
     const patient = await this.prisma.patient.update({
       where: { id },
       data: {
-        ...patientData,
+        ...securePatientData,
         customVariables,
       },
     });
@@ -443,6 +477,11 @@ export class PatientsService {
       nutritionistId,
       'dashboard',
     );
+
+    if (patient.clinicalSummary) {
+      patient.clinicalSummary = decryptSensitiveText(patient.clinicalSummary);
+    }
+
     return patient;
   }
 
