@@ -31,9 +31,10 @@ const contentSecurityPolicy = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval'",
   "style-src 'self' 'unsafe-inline'",
-  `img-src 'self' data: blob: https://*.googleusercontent.com${storageOrigin ? ` ${storageOrigin}` : ""}`,
+  `img-src 'self' data: blob: https://*.googleusercontent.com https://*.youtube.com https://*.ytimg.com https://img.youtube.com${storageOrigin ? ` ${storageOrigin}` : ""}`,
   "font-src 'self' data:",
   `connect-src 'self' ${apiOrigins.join(" ")} https://accounts.google.com https://oauth2.googleapis.com`,
+  "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com",
   "object-src 'none'",
   "base-uri 'self'",
   "frame-ancestors 'none'",
@@ -63,6 +64,14 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "*.googleusercontent.com",
+      },
+      {
+        protocol: "https",
+        hostname: "img.youtube.com",
+      },
+      {
+        protocol: "https",
+        hostname: "*.ytimg.com",
       },
       ...(storageOrigin
         ? [
