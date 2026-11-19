@@ -6,6 +6,8 @@ import {
   OFFICIAL_INGREDIENTS,
   searchLocalIngredients,
 } from "@/features/foods/local-catalog";
+import systemResources from "@/app/dashboard/recursos/data/system-resources.json";
+import { DEFAULT_LANDING_PLANS } from "@/features/memberships/constants/default-plans";
 
 const STORAGE_KEYS = {
   PATIENTS: "nutrinet_demo_patients_v7",
@@ -13,7 +15,7 @@ const STORAGE_KEYS = {
   CLINICAL_RECORDS: "nutrinet_demo_clinical_records_v4",
   CREATIONS: "nutrinet_demo_creations_v7",
   FOODS: "nutrinet_demo_foods_v3",
-  RESOURCES: "nutrinet_demo_resources_v3",
+  RESOURCES: "nutrinet_demo_resources_v4",
   SUPPORT: "nutrinet_demo_support_v3",
 };
 
@@ -971,22 +973,7 @@ export function saveLocalCreations(creations: any[]) {
   }
 }
 
-const INITIAL_DEMO_RESOURCES = [
-  {
-    id: "resource-demo-hydration",
-    title: "Hidratación diaria",
-    content: "Mantener una hidratación regular durante el día. Ajustar el volumen según actividad física, clima y contexto clínico.",
-    category: "Hábitos",
-    isMine: false,
-  },
-  {
-    id: "resource-demo-portions",
-    title: "Guía de porciones",
-    content: "Usar referencias visuales para ordenar proteínas, carbohidratos, verduras y grasas saludables en cada comida.",
-    category: "Educación nutricional",
-    isMine: false,
-  },
-];
+const INITIAL_DEMO_RESOURCES = systemResources as any[];
 
 export function getLocalResources(): any[] {
   if (typeof window === "undefined") return INITIAL_DEMO_RESOURCES;
@@ -997,7 +984,23 @@ export function getLocalResources(): any[] {
       return INITIAL_DEMO_RESOURCES;
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : INITIAL_DEMO_RESOURCES;
+    if (Array.isArray(parsed) && parsed.length >= INITIAL_DEMO_RESOURCES.length) {
+      return parsed;
+    }
+    const map = new Map<string, any>();
+    for (const sys of INITIAL_DEMO_RESOURCES) {
+      map.set(sys.id, sys);
+    }
+    if (Array.isArray(parsed)) {
+      for (const item of parsed) {
+        if (item && item.id) {
+          map.set(item.id, item);
+        }
+      }
+    }
+    const merged = Array.from(map.values());
+    localStorage.setItem(STORAGE_KEYS.RESOURCES, JSON.stringify(merged));
+    return merged;
   } catch {
     return INITIAL_DEMO_RESOURCES;
   }
@@ -1602,6 +1605,13 @@ export function handleDemoApi(path: string, init?: RequestInit): Response | Prom
     }
   }
 
+  if (cleanPath.startsWith("/resources/") && method === "DELETE") {
+    const resourceId = cleanPath.replace("/resources/", "");
+    const remaining = getLocalResources().filter((r: any) => r.id !== resourceId);
+    saveLocalResources(remaining);
+    return makeMockResponse({ success: true });
+  }
+
   // 3. Pacientes
   if (cleanPath === "/patients") {
     const patients = getLocalPatients();
@@ -1881,6 +1891,12 @@ export function handleDemoApi(path: string, init?: RequestInit): Response | Prom
       entitlements: DEMO_USER.currentPlan.entitlements,
       plan: "pro",
     });
+  }
+
+  if (cleanPath === "/memberships/active" || cleanPath === "/memberships/plans" || cleanPath === "/memberships") {
+    if (method === "GET") {
+      return makeMockResponse(DEFAULT_LANDING_PLANS);
+    }
   }
 
   if (cleanPath.startsWith("/memberships") || cleanPath === "/payments/membership-status") {
@@ -2619,17 +2635,7 @@ export function handleDemoApi(path: string, init?: RequestInit): Response | Prom
     return makeMockResponse({ hasRated: true, eligibleForAutoPrompt: false });
   }
 
-  // 9. Support y Leads
-  if (cleanPath === "/support" && method === "POST") {
-    try {
-      const body = JSON.parse((init?.body as string) || "{}");
-      const existing = JSON.parse(localStorage.getItem(STORAGE_KEYS.SUPPORT) || "[]");
-      localStorage.setItem(STORAGE_KEYS.SUPPORT, JSON.stringify([...existing, { ...body, date: new Date().toISOString() }]));
-      return makeMockResponse({ success: true, id: `sup-${Date.now()}` });
-    } catch {
-      return makeMockResponse({ success: true });
-    }
-  }
+  // 9. Support y Leads (no se mockea el POST para permitir que los leads y contactos lleguen siempre al backend y a Resend)
 
   // 10. Catálogo y Búsqueda de Alimentos (/foods, /ingredients, /foods/search)
   if (cleanPath === "/foods" || cleanPath === "/foods/search" || cleanPath === "/ingredients") {

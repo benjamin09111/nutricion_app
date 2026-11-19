@@ -51,6 +51,8 @@ export interface FastDeliverableCartItem {
   name: string;
   category: string;
   sources?: ("dieta" | "plato")[];
+  quantity?: string | number;
+  estimatedPrice?: string | number;
 }
 
 export interface FastDeliverableIntroData {
@@ -295,26 +297,125 @@ const styles = StyleSheet.create({
     color: colors.slate700,
     lineHeight: 1.35,
   },
+  // Category / Base Diet Card
+  categoryGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+  categoryCard: {
+    width: "48.5%",
+    marginBottom: 8,
+    padding: 8,
+    backgroundColor: colors.slate50,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.slate200,
+  },
+  categoryHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.slate200,
+    paddingBottom: 4,
+  },
+  categoryIcon: {
+    width: 14,
+    height: 14,
+    borderRadius: 3,
+    objectFit: "contain",
+  },
+  categoryTitle: {
+    fontSize: 8.5,
+    fontFamily: "Helvetica-Bold",
+    color: colors.primaryDark,
+  },
+  categoryCountBadge: {
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderRadius: 6,
+  },
+  categoryCountText: {
+    fontSize: 6.5,
+    fontFamily: "Helvetica-Bold",
+    color: colors.primary,
+  },
+  categorySubtitle: {
+    fontSize: 7.5,
+    color: colors.slate500,
+    marginBottom: 3,
+  },
+  categoryFoodText: {
+    fontSize: 7.5,
+    color: colors.slate700,
+    lineHeight: 1.3,
+  },
   // Recipe card
   recipeCard: {
     width: "100%",
     marginBottom: 8,
-    padding: 8,
+    padding: 9,
     borderWidth: 1,
     borderColor: colors.slate200,
     borderRadius: 10,
     backgroundColor: colors.slate50,
   },
+  recipeHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 4,
+  },
   recipeName: {
-    fontSize: 10.5,
+    fontSize: 10,
     fontFamily: "Helvetica-Bold",
     color: colors.primaryDark,
-    marginBottom: 2,
+    flex: 1,
+  },
+  recipeBadge: {
+    backgroundColor: colors.secondaryLight,
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    borderRadius: 6,
+  },
+  recipeBadgeText: {
+    fontSize: 7,
+    fontFamily: "Helvetica-Bold",
+    color: colors.secondaryDark,
   },
   recipeMeta: {
     fontSize: 7.5,
     color: colors.slate500,
     marginBottom: 4,
+  },
+  recipeMacrosRow: {
+    flexDirection: "row",
+    gap: 6,
+    marginBottom: 6,
+  },
+  recipeMacroChip: {
+    backgroundColor: colors.white,
+    borderColor: colors.slate200,
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    flexDirection: "row",
+    gap: 3,
+    alignItems: "center",
+  },
+  recipeMacroChipLabel: {
+    fontSize: 6.5,
+    color: colors.slate500,
+    textTransform: "uppercase",
+  },
+  recipeMacroChipVal: {
+    fontSize: 7.5,
+    fontFamily: "Helvetica-Bold",
+    color: colors.primaryDark,
   },
   recipeSubLabel: {
     fontSize: 7.5,
@@ -325,56 +426,60 @@ const styles = StyleSheet.create({
   recipeText: {
     fontSize: 7.5,
     color: colors.slate700,
-    lineHeight: 1.3,
-    marginBottom: 4,
-  },
-  recipeMacrosRow: {
-    flexDirection: "row",
-    gap: 6,
-  },
-  recipeMacroChip: {
-    fontSize: 7,
-    fontFamily: "Helvetica-Bold",
-    backgroundColor: colors.white,
-    borderColor: colors.slate200,
-    borderWidth: 1,
-    paddingVertical: 2,
-    paddingHorizontal: 5,
-    borderRadius: 6,
-    color: colors.primary,
+    lineHeight: 1.35,
   },
   // Cart
+  cartWrapper: {
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.slate200,
+    overflow: "hidden",
+    marginBottom: 8,
+  },
   cartHeader: {
     flexDirection: "row",
-    backgroundColor: colors.primary,
-    borderRadius: 8,
-    paddingVertical: 5,
-    paddingHorizontal: 8,
-    marginBottom: 4,
-  },
-  cartRow: {
-    flexDirection: "row",
+    backgroundColor: colors.slate100,
     borderBottomWidth: 1,
-    borderBottomColor: colors.slate100,
-    paddingVertical: 4,
+    borderBottomColor: colors.slate200,
+    paddingVertical: 5,
     paddingHorizontal: 8,
     alignItems: "center",
   },
+  cartHeaderText: {
+    fontSize: 7.5,
+    fontFamily: "Helvetica-Bold",
+    color: colors.slate700,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  cartRow: {
+    flexDirection: "row",
+    paddingVertical: 4.5,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.slate100,
+    alignItems: "center",
+  },
+  cartRowEven: {
+    backgroundColor: colors.slate50,
+  },
   cartCellName: {
-    width: "50%",
-    fontSize: 8,
+    fontSize: 7.5,
+    fontFamily: "Helvetica-Bold",
     color: colors.slate800,
   },
   cartCellCategory: {
-    width: "30%",
-    fontSize: 8,
+    fontSize: 7.5,
     color: colors.slate600,
   },
-  cartCellSource: {
-    width: "20%",
+  cartCellQty: {
     fontSize: 7.5,
-    color: colors.primary,
     fontFamily: "Helvetica-Bold",
+    color: colors.primaryDark,
+  },
+  cartCellPrice: {
+    fontSize: 7.5,
+    color: colors.slate500,
   },
   // Closing box
   closingBox: {
@@ -460,13 +565,18 @@ export function FastDeliverablePdfDocument({
   };
 
   return (
-    <Document>
+    <Document
+      title={data.name || "Plan Alimentario Personalizado"}
+      author={nutritionistName}
+      subject="Pauta Nutricional Personalizada"
+      creator="NutriNet Canva Engine"
+    >
+      {/* ─── PÁGINA 1: PLAN ALIMENTARIO PRINCIPAL Y HORARIOS ─── */}
       <Page size="A4" style={styles.page}>
-        {/* Reusable Canva Branded Header */}
         <PdfBrandedHeader
-          title={data.name || "Pauta Nutricional Express"}
-          subtitle={data.clinicalRestriction || "Recomposición Corporal"}
-          badgeLabel="Pauta Alimentaria"
+          title={data.name || "Plan Alimentario Personalizado"}
+          subtitle={data.clinicalRestriction || "Pauta Nutricional"}
+          badgeLabel="Plan Nutricional"
           objective={data.planObjective?.trim()}
           patientName={patientName}
           date={data.generatedAt}
@@ -483,17 +593,17 @@ export function FastDeliverablePdfDocument({
           </View>
         ) : null}
 
-        {/* Plan de comidas */}
+        {/* Plan de comidas y distribución de horarios */}
         {showTable && (
           <View style={styles.section}>
-            <PdfSectionHeader title="Plan de comidas" icon="cutlery" />
+            <PdfSectionHeader title="Plan de Comidas y Horarios" icon="cutlery" />
             <View style={styles.tableWrapper}>
               <View style={styles.tableHeader}>
                 <View style={styles.cellTime}>
                   <Text style={styles.cellHeaderText}>Hora</Text>
                 </View>
                 <View style={styles.cellSection}>
-                  <Text style={styles.cellHeaderText}>Sección</Text>
+                  <Text style={styles.cellHeaderText}>Tiempo</Text>
                 </View>
                 <View style={styles.cellImage}>
                   <Text style={styles.cellHeaderText}>Foto</Text>
@@ -540,115 +650,244 @@ export function FastDeliverablePdfDocument({
           </View>
         )}
 
-        {/* Párrafos estructurados / guía por categoría */}
-        {data.paragraphs && data.paragraphs.length > 0 && (
+        {/* Si NO hay tabla de comidas pero sí párrafos estructurados, renderizar en pág 1 */}
+        {!showTable && data.paragraphs && data.paragraphs.length > 0 && (
           <View style={styles.section}>
-            <PdfSectionHeader
-              title={showTable ? "Guía por categorías" : "Estructura de la Pauta"}
-              icon="cutlery"
-            />
-            {data.paragraphs.map((p, pIdx) => (
-              <View
-                key={pIdx}
-                wrap={false}
-                style={{
-                  marginBottom: 6,
-                  padding: 8,
-                  backgroundColor: colors.slate50,
-                  borderRadius: 10,
-                }}
-              >
-                <View style={{ flexDirection: "row", alignItems: "stretch", minHeight: 92 }}>
-                  <View style={{ flex: 1, paddingRight: 10 }}>
-                    <Text style={{ fontSize: 9.5, fontFamily: "Helvetica-Bold", color: colors.slate900 }}>{p.title}</Text>
-                    {p.subtitle && (
-                      <Text style={{ fontSize: 8, color: colors.primaryDark, fontFamily: "Helvetica-Bold", marginTop: 2 }}>{p.subtitle}</Text>
-                    )}
-                    <View style={{ marginTop: 5 }}>
-                      {p.foods.map((food, fIdx) => (
-                        <Text key={fIdx} style={{ fontSize: 8, color: colors.slate700, marginLeft: 4, lineHeight: 1.35 }}>
-                          • {food}
+            <PdfSectionHeader title="Estructura de la Pauta Base" icon="cutlery" />
+            <View style={styles.categoryGrid}>
+              {data.paragraphs.map((p, pIdx) => {
+                const catIcon = p.imagePath || getCategoryB64(p.title);
+                return (
+                  <View key={pIdx} wrap={false} style={styles.categoryCard}>
+                    <View style={styles.categoryHeader}>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 5, flex: 1 }}>
+                        {catIcon ? <Image src={catIcon} style={styles.categoryIcon} /> : null}
+                        <Text style={styles.categoryTitle}>{p.title}</Text>
+                      </View>
+                      <View style={styles.categoryCountBadge}>
+                        <Text style={styles.categoryCountText}>
+                          {p.foods.length} {p.foods.length === 1 ? "alimento" : "alimentos"}
                         </Text>
+                      </View>
+                    </View>
+                    {p.subtitle ? <Text style={styles.categorySubtitle}>{p.subtitle}</Text> : null}
+                    <View style={{ marginTop: 3 }}>
+                      {p.foods.map((food, fIdx) => (
+                        <Text key={fIdx} style={styles.categoryFoodText}>• {food}</Text>
                       ))}
                     </View>
                   </View>
-                  {p.imagePath ? (
-                    <Image
-                      src={p.imagePath}
-                      style={{ width: 112, height: 88, borderRadius: 10 }}
-                    />
-                  ) : null}
-                </View>
-              </View>
-            ))}
+                );
+              })}
+            </View>
           </View>
         )}
 
         {/* Alimentos a evitar */}
-        <PdfAvoidFoodsSection
-          avoidFoods={data.avoidFoods.map((item) =>
-            typeof item === "string" ? { name: item } : item,
-          )}
-        />
-
-        {/* Recetas (si hay) */}
-        {data.recipes && data.recipes.length > 0 && (
-          <View style={styles.section}>
-            <PdfSectionHeader title="Recetas sugeridas" icon="recipe" />
-            {data.recipes.slice(0, 2).map((recipe, index) => (
-              <View key={recipe.id || index} style={styles.recipeCard}>
-                <Text style={styles.recipeName}>{recipe.name}</Text>
-                <Text style={styles.recipeMeta}>
-                  {[recipe.section, recipe.time, recipe.portion].filter(Boolean).join(" • ")}
-                </Text>
-                {recipe.ingredients && (
-                  <Text style={styles.recipeText}>
-                    <Text style={styles.recipeSubLabel}>Ingredientes: </Text>
-                    {recipe.ingredients.join(", ")}
-                  </Text>
-                )}
-                {recipe.instructions && (
-                  <Text style={styles.recipeText}>
-                    <Text style={styles.recipeSubLabel}>Preparación: </Text>
-                    {recipe.instructions}
-                  </Text>
-                )}
-              </View>
-            ))}
-          </View>
-        )}
+        {data.avoidFoods && data.avoidFoods.length > 0 ? (
+          <PdfAvoidFoodsSection
+            avoidFoods={data.avoidFoods.map((item) =>
+              typeof item === "string" ? { name: item } : item,
+            )}
+          />
+        ) : null}
 
         {/* Mensaje de cierre */}
-        {data.closing?.message?.trim() && (
+        {data.closing?.message?.trim() ? (
           <View style={styles.closingBox}>
             <Text style={styles.closingMessage}>{data.closing.message.trim()}</Text>
             <Text style={styles.closingSignature}>— {nutritionistName}</Text>
           </View>
-        )}
+        ) : null}
 
-        {/* Footer */}
+        {/* Footer fijo */}
         <PdfBrandedFooter nutritionistName={nutritionistName} />
       </Page>
 
-      {/* Recursos: penúltima página del documento */}
+      {/* ─── PÁGINA 2: RECETARIO Y PREPARACIONES SUGERIDAS ─── */}
+      {data.recipes && data.recipes.length > 0 && (
+        <Page size="A4" style={styles.page}>
+          <View style={styles.section}>
+            <PdfSectionHeader
+              title="Recetario y Preparaciones Sugeridas"
+              badge={`${data.recipes.length} ${data.recipes.length === 1 ? "Plato" : "Platos"}`}
+              icon="recipe"
+            />
+            {data.recipes.map((recipe, index) => (
+              <View key={recipe.id || index} wrap={false} style={styles.recipeCard}>
+                <View style={styles.recipeHeader}>
+                  <Text style={styles.recipeName}>{recipe.name}</Text>
+                  {recipe.section ? (
+                    <View style={styles.recipeBadge}>
+                      <Text style={styles.recipeBadgeText}>{recipe.section}</Text>
+                    </View>
+                  ) : null}
+                </View>
+
+                <Text style={styles.recipeMeta}>
+                  {[
+                    recipe.time ? `Horario: ${recipe.time}` : null,
+                    recipe.portion ? `Porción: ${recipe.portion}` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" • ")}
+                </Text>
+
+                {/* Macros row if present */}
+                {(recipe.calories || recipe.protein || recipe.carbs || recipe.fats) ? (
+                  <View style={styles.recipeMacrosRow}>
+                    {recipe.calories ? (
+                      <View style={styles.recipeMacroChip}>
+                        <Text style={styles.recipeMacroChipLabel}>Cal:</Text>
+                        <Text style={styles.recipeMacroChipVal}>
+                          {Math.round(Number(recipe.calories))} kcal
+                        </Text>
+                      </View>
+                    ) : null}
+                    {recipe.protein ? (
+                      <View style={styles.recipeMacroChip}>
+                        <Text style={styles.recipeMacroChipLabel}>Prot:</Text>
+                        <Text style={styles.recipeMacroChipVal}>
+                          {Number(recipe.protein).toFixed(1)}g
+                        </Text>
+                      </View>
+                    ) : null}
+                    {recipe.carbs ? (
+                      <View style={styles.recipeMacroChip}>
+                        <Text style={styles.recipeMacroChipLabel}>Carb:</Text>
+                        <Text style={styles.recipeMacroChipVal}>
+                          {Number(recipe.carbs).toFixed(1)}g
+                        </Text>
+                      </View>
+                    ) : null}
+                    {recipe.fats ? (
+                      <View style={styles.recipeMacroChip}>
+                        <Text style={styles.recipeMacroChipLabel}>Grasas:</Text>
+                        <Text style={styles.recipeMacroChipVal}>
+                          {Number(recipe.fats).toFixed(1)}g
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+                ) : null}
+
+                {recipe.ingredients && recipe.ingredients.length > 0 && (
+                  <View style={{ marginBottom: 4 }}>
+                    <Text style={styles.recipeSubLabel}>Ingredientes:</Text>
+                    <Text style={styles.recipeText}>{recipe.ingredients.join(", ")}</Text>
+                  </View>
+                )}
+
+                {recipe.instructions ? (
+                  <View>
+                    <Text style={styles.recipeSubLabel}>Instrucciones de preparación:</Text>
+                    <Text style={styles.recipeText}>{recipe.instructions}</Text>
+                  </View>
+                ) : null}
+              </View>
+            ))}
+          </View>
+          <PdfBrandedFooter nutritionistName={nutritionistName} />
+        </Page>
+      )}
+
+      {/* ─── PÁGINA 3: LISTA DE COMPRAS / DESPENSA SUGERIDA ─── */}
+      {data.cart && data.cart.length > 0 && (
+        <Page size="A4" style={styles.page}>
+          <View style={styles.section}>
+            <PdfSectionHeader
+              title="Lista de Compras / Despensa Sugerida"
+              badge={`${data.cart.length} Alimentos`}
+              icon="cutlery"
+            />
+            <View style={styles.cartWrapper}>
+              <View style={styles.cartHeader}>
+                <View style={{ width: "45%" }}>
+                  <Text style={styles.cartHeaderText}>Alimento / Ingrediente</Text>
+                </View>
+                <View style={{ width: "30%" }}>
+                  <Text style={styles.cartHeaderText}>Categoría</Text>
+                </View>
+                <View style={{ width: "15%", alignItems: "center" }}>
+                  <Text style={styles.cartHeaderText}>Cantidad</Text>
+                </View>
+                <View style={{ width: "10%", alignItems: "flex-end" }}>
+                  <Text style={styles.cartHeaderText}>Dinero est.</Text>
+                </View>
+              </View>
+
+              {data.cart.map((item, index) => (
+                <View
+                  key={index}
+                  wrap={false}
+                  style={[styles.cartRow, index % 2 === 1 ? styles.cartRowEven : {}]}
+                >
+                  <View style={{ width: "45%" }}>
+                    <Text style={styles.cartCellName}>{item.name}</Text>
+                  </View>
+                  <View style={{ width: "30%" }}>
+                    <Text style={styles.cartCellCategory}>{item.category || "General"}</Text>
+                  </View>
+                  <View style={{ width: "15%", alignItems: "center" }}>
+                    <Text style={styles.cartCellQty}>
+                      {item.quantity ? String(item.quantity) : "1 unid."}
+                    </Text>
+                  </View>
+                  <View style={{ width: "10%", alignItems: "flex-end" }}>
+                    <Text style={styles.cartCellPrice}>
+                      {item.estimatedPrice ? String(item.estimatedPrice) : "-"}
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </View>
+          <PdfBrandedFooter nutritionistName={nutritionistName} />
+        </Page>
+      )}
+
+      {/* ─── PÁGINA 4: RECURSOS CLÍNICOS Y MATERIAL EDUCATIVO ─── */}
       {data.resources && data.resources.length > 0 && (
         <Page size="A4" style={styles.page}>
           <View style={styles.section}>
-            <PdfSectionHeader title="Recursos educativos" icon="leaf" />
+            <PdfSectionHeader
+              title="Recursos Clínicos y Material Educativo"
+              badge={`${data.resources.length} Guías`}
+              icon="leaf"
+            />
             {data.resources.map((resource, index) => (
-              <View key={resource.resourceId || index} style={{ marginBottom: 12 }}>
-                <Text style={{ fontSize: 11, fontFamily: "Helvetica-Bold", color: colors.slate900, marginBottom: 5 }}>
+              <View
+                key={resource.resourceId || index}
+                wrap={false}
+                style={{
+                  marginBottom: 10,
+                  padding: 9,
+                  backgroundColor: colors.slate50,
+                  borderRadius: 10,
+                  borderWidth: 1,
+                  borderColor: colors.slate200,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 10,
+                    fontFamily: "Helvetica-Bold",
+                    color: colors.primaryDark,
+                    marginBottom: 4,
+                  }}
+                >
                   {resource.title}
                 </Text>
                 {parseResourceContent(resource.content || "").map((block, blockIndex) => (
                   <Text
                     key={`${resource.resourceId || index}-${blockIndex}`}
                     style={{
-                      fontSize: block.kind === "heading" ? 9.5 : 8.5,
+                      fontSize: block.kind === "heading" ? 9 : 8,
                       fontFamily: block.kind === "heading" ? "Helvetica-Bold" : "Helvetica",
                       color: block.kind === "heading" ? colors.primaryDark : colors.slate700,
-                      marginBottom: 3,
+                      marginBottom: 2.5,
                       marginLeft: block.kind === "bullet" ? 8 : 0,
+                      lineHeight: 1.35,
                     }}
                   >
                     {block.kind === "bullet" ? `• ${block.text}` : block.text}
@@ -661,30 +900,35 @@ export function FastDeliverablePdfDocument({
         </Page>
       )}
 
-      {/* Porciones: siempre última página completa */}
+      {/* ─── PÁGINA 5: GUÍA PRÁCTICA DE PORCIONES DE INTERCAMBIO ─── */}
       {data.portionGuide && data.portionGuide.length > 0 && (
         <Page size="A4" style={styles.page}>
           <View style={styles.section}>
-            <PdfSectionHeader title="Guía práctica de porciones" icon="cutlery" />
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+            <PdfSectionHeader
+              title="Guía Práctica de Porciones de Intercambio"
+              badge="Equivalencias"
+              icon="cutlery"
+            />
+            <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" }}>
               {data.portionGuide.map((pg: any, idx: number) => (
                 <View
                   key={idx}
                   wrap={false}
                   style={{
-                    width: "48%",
-                    minHeight: 62,
-                    padding: 9,
+                    width: "48.5%",
+                    minHeight: 48,
+                    padding: 8,
                     backgroundColor: colors.slate50,
                     borderRadius: 8,
                     borderWidth: 1,
                     borderColor: colors.slate200,
+                    marginBottom: 6,
                   }}
                 >
-                  <Text style={{ fontSize: 9, fontFamily: "Helvetica-Bold", color: colors.slate800 }}>
+                  <Text style={{ fontSize: 8.5, fontFamily: "Helvetica-Bold", color: colors.slate800 }}>
                     {pg.grupo || pg.category || "Grupo"}
                   </Text>
-                  <Text style={{ fontSize: 8, color: colors.primaryDark, marginTop: 3 }}>
+                  <Text style={{ fontSize: 7.5, color: colors.primaryDark, marginTop: 2, lineHeight: 1.3 }}>
                     {pg.porcion || pg.portion || ""}
                   </Text>
                 </View>

@@ -113,7 +113,14 @@ export function ResourcesClient() {
   const canEditResources = can("resources.edit.access");
   const { resources: queryResources, isLoading: isQueryLoading, deleteResource: deleteResourceMutation } = useResources();
   const resources: Resource[] = useMemo(() => {
-    return queryResources.length > 0 ? (queryResources as Resource[]) : DEFAULT_SYSTEM_RESOURCES;
+    const map = new Map<string, Resource>();
+    for (const sys of DEFAULT_SYSTEM_RESOURCES) {
+      map.set(sys.id, sys);
+    }
+    for (const item of (queryResources as Resource[])) {
+      map.set(item.id, item);
+    }
+    return Array.from(map.values());
   }, [queryResources]);
   const isLoading = isQueryLoading && queryResources.length === 0;
 
@@ -167,9 +174,30 @@ export function ResourcesClient() {
     fetchTags();
   }, []);
 
-  const myResources = useMemo(() => resources.filter((r) => r.isMine), [resources]);
-  const systemResources = useMemo(() => resources.filter((r) => r.nutritionistId === null), [resources]);
-  const communityResources = useMemo(() => resources.filter((r) => r.nutritionistId !== null && r.isPublic), [resources]);
+  const myResources = useMemo(
+    () => resources.filter((r) => r.isMine),
+    [resources],
+  );
+  const systemResources = useMemo(
+    () =>
+      resources.filter(
+        (r) =>
+          (r.nutritionistId === null || r.nutritionistId === undefined) &&
+          !r.isMine,
+      ),
+    [resources],
+  );
+  const communityResources = useMemo(
+    () =>
+      resources.filter(
+        (r) =>
+          r.nutritionistId !== null &&
+          r.nutritionistId !== undefined &&
+          r.isPublic &&
+          !r.isMine,
+      ),
+    [resources],
+  );
   const libraryBase = (librarySource === "system" ? systemResources : communityResources).filter(
     (resource) => resource.category !== "restricciones",
   );

@@ -26,6 +26,7 @@ import { DietModals } from "@/features/diet/components/DietModals";
 import { FreemiumUpgradeModal } from "@/components/memberships/FreemiumUpgradeModal";
 import { FoodReferenceBook } from "@/components/foods/FoodReferenceBook";
 import { ImportCreationModal } from "@/components/shared/ImportCreationModal";
+import { Modal } from "@/components/ui/Modal";
 import {
   findNewlyAddedTag,
   hasTagInList,
@@ -64,7 +65,6 @@ export default function DietClient({ initialFoods }: DietClientProps) {
   const [showMacroCalculator, setShowMacroCalculator] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [isFoodReferenceBookOpen, setIsFoodReferenceBookOpen] = useState(false);
-  const [useDefaultDiet, setUseDefaultDiet] = useState(true);
   const [isNatyChatOpen, setIsNatyChatOpen] = useState(false);
 
   const [isImportRecipeModalOpen, setIsImportRecipeModalOpen] = useState(false);
@@ -304,13 +304,13 @@ export default function DietClient({ initialFoods }: DietClientProps) {
             />
 
             {!state.selectedPatient ? (
-              <div className="rounded-2xl border-2 border-dashed border-purple-200 bg-purple-50/60 p-8 text-center">
-                <User className="mx-auto h-10 w-10 text-purple-500" />
-                <h2 className="mt-3 text-base font-bold text-purple-900">Importa un paciente para comenzar</h2>
-                <p className="mx-auto mt-2 max-w-md text-xs leading-5 text-purple-700">
+              <div className="rounded-2xl border border-dashed border-[#DDE7B8] bg-[#F0F5DF]/50 p-8 text-center">
+                <User className="mx-auto h-10 w-10 text-[#86A83C]" />
+                <h2 className="mt-3 text-base font-bold text-[#20212B]">Importa un paciente para comenzar</h2>
+                <p className="mx-auto mt-2 max-w-md text-xs leading-5 text-[#626573]">
                   Personalizado necesita el contexto del paciente para construir una dieta clínica segura y específica.
                 </p>
-                <Button type="button" onClick={() => state.setIsImportPatientModalOpen(true)} className="mt-5 rounded-xl bg-indigo-600 px-5 text-xs font-bold text-white hover:bg-indigo-700">
+                <Button type="button" onClick={() => state.setIsImportPatientModalOpen(true)} className="mt-5 rounded-xl bg-[#86A83C] px-5 text-xs font-semibold text-white hover:bg-[#78A82F] shadow-2xs cursor-pointer">
                   <User className="mr-2 h-4 w-4" />
                   Importar paciente
                 </Button>
@@ -375,8 +375,8 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                         <MessageCircleHeart className="h-5 w-5" />
                       </div>
                       <div>
-                        <h3 className="text-base font-bold text-slate-900">Introducción y despedida</h3>
-                        <p className="text-xs text-slate-500">
+                        <h3 className="text-base font-bold text-[#20212B]">Introducción y despedida</h3>
+                        <p className="text-xs text-[#626573]">
                           Se generan automáticamente con el nombre de {state.selectedPatient?.fullName || "tu paciente"}; puedes editarlas libremente.
                         </p>
                       </div>
@@ -384,8 +384,8 @@ export default function DietClient({ initialFoods }: DietClientProps) {
 
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">Introducción</label>
-                        <label className="flex items-center gap-2 rounded-xl border border-[#DDE7B8] bg-[#F0F5DF] px-3 py-1 text-[11px] font-bold text-[#668E20] cursor-pointer hover:bg-[#E8EFCB] transition-colors">
+                        <label className="text-xs font-semibold uppercase tracking-wider text-[#626573]">Introducción</label>
+                        <label className="flex items-center gap-2 rounded-xl border border-[#DDE7B8] bg-[#F0F5DF] px-3 py-1 text-[11px] font-semibold text-[#668E20] cursor-pointer hover:bg-[#E8EFCB] transition-colors">
                           <input
                             type="checkbox"
                             checked={state.includeIntroInPdf}
@@ -399,14 +399,14 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                         value={state.introMessage}
                         onChange={(e) => state.updateIntroMessage(e.target.value)}
                         placeholder="Mensaje de bienvenida para el paciente..."
-                        className="min-h-[90px] rounded-xl border-[#E9E5E7] text-xs font-normal text-[#20212B]"
+                        className="min-h-[90px] rounded-xl border-[#E9E5E7] text-xs font-normal text-[#20212B] focus:border-[#86A83C] focus:ring-1 focus:ring-[#86A83C]"
                       />
                     </div>
 
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">Despedida</label>
-                        <label className="flex items-center gap-2 rounded-xl border border-[#DDE7B8] bg-[#F0F5DF] px-3 py-1 text-[11px] font-bold text-[#668E20] cursor-pointer hover:bg-[#E8EFCB] transition-colors">
+                        <label className="text-xs font-semibold uppercase tracking-wider text-[#626573]">Despedida</label>
+                        <label className="flex items-center gap-2 rounded-xl border border-[#DDE7B8] bg-[#F0F5DF] px-3 py-1 text-[11px] font-semibold text-[#668E20] cursor-pointer hover:bg-[#E8EFCB] transition-colors">
                           <input
                             type="checkbox"
                             checked={state.includeClosingInPdf}
@@ -420,7 +420,7 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                         value={state.closingMessage}
                         onChange={(e) => state.updateClosingMessage(e.target.value)}
                         placeholder="Mensaje de cierre / despedida para el paciente..."
-                        className="min-h-[90px] rounded-xl border-[#E9E5E7] text-xs font-normal text-[#20212B]"
+                        className="min-h-[90px] rounded-xl border-[#E9E5E7] text-xs font-normal text-[#20212B] focus:border-[#86A83C] focus:ring-1 focus:ring-[#86A83C]"
                       />
                     </div>
                   </div>
@@ -430,39 +430,36 @@ export default function DietClient({ initialFoods }: DietClientProps) {
               {/* PASO 2: DIETA */}
               {currentStep === 1 && (
                 <div className="space-y-6">
-                   <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 text-xs font-bold text-slate-700 shadow-2xs">
+                   <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-[#E9E5E7] bg-white p-3 text-xs font-medium text-[#20212B] shadow-2xs">
                      <input
                        type="checkbox"
-                       checked={useDefaultDiet}
+                       checked={state.useDefaultDiet}
                        onChange={(event) => {
-                         const nextValue = event.target.checked;
-                         setUseDefaultDiet(nextValue);
-                         if (nextValue) state.applyBaseFoods();
-                         else state.startFromZero();
+                         state.handleToggleDefaultDiet(event.target.checked);
                        }}
-                       className="h-4 w-4 rounded border-slate-300 text-[#86A83C] focus:ring-[#86A83C]"
+                       className="h-4 w-4 rounded border-[#DDE7B8] text-[#86A83C] focus:ring-[#86A83C] accent-[#86A83C] cursor-pointer"
                      />
                      <span>
-                       <span className="block">Aplicar dieta por defecto</span>
-                       <span className="mt-0.5 block text-[11px] font-medium text-slate-500">Usa la misma plantilla base de categorías y alimentos de Dietas.</span>
+                       <span className="block font-semibold">Aplicar dieta por defecto</span>
+                       <span className="mt-0.5 block text-[11px] font-normal text-[#626573]">Usa la misma plantilla base de categorías y alimentos de Dietas.</span>
                      </span>
                    </label>
-                   <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs">
+                   <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#E9E5E7] bg-white p-4 shadow-2xs">
                      <div>
-                       <h2 className="text-base font-bold text-slate-900">Dieta base</h2>
-                       <p className="mt-1 text-xs text-slate-500">Usa la plantilla base o importa una dieta guardada para comenzar.</p>
+                       <h2 className="text-base font-bold text-[#20212B]">Dieta base</h2>
+                       <p className="mt-1 text-xs text-[#626573]">Usa la plantilla base o importa una dieta guardada para comenzar.</p>
                      </div>
                      {state.editingCreationId ? (
                        <div className="flex items-center gap-2">
-                         <Button type="button" variant="outline" onClick={() => state.setIsImportCreationModalOpen(true)} className="h-10 rounded-xl border-indigo-200 bg-indigo-50 px-4 text-xs font-bold text-indigo-700 hover:bg-indigo-100">
+                         <Button type="button" variant="outline" onClick={() => state.setIsImportCreationModalOpen(true)} className="h-10 rounded-xl border-[#DDE7B8] bg-[#F0F5DF] px-4 text-xs font-semibold text-[#668E20] hover:bg-[#E8EFCB] cursor-pointer">
                            Cambiar dieta
                          </Button>
-                         <Button type="button" variant="outline" onClick={state.removeImportedDiet} className="h-10 rounded-xl border-rose-200 bg-rose-50 px-4 text-xs font-bold text-rose-700 hover:bg-rose-100">
+                         <Button type="button" variant="outline" onClick={state.removeImportedDiet} className="h-10 rounded-xl border-rose-200 bg-rose-50 px-4 text-xs font-semibold text-rose-700 hover:bg-rose-100 cursor-pointer">
                            Quitar dieta
                          </Button>
                        </div>
                      ) : (
-                       <Button type="button" onClick={() => state.setIsImportCreationModalOpen(true)} className="h-10 rounded-xl bg-indigo-600 px-4 text-xs font-bold text-white hover:bg-indigo-700">
+                       <Button type="button" onClick={() => state.setIsImportCreationModalOpen(true)} className="h-10 rounded-xl bg-[#86A83C] px-4 text-xs font-semibold text-white hover:bg-[#78A82F] shadow-2xs cursor-pointer">
                          Importar dieta
                        </Button>
                      )}
@@ -607,20 +604,28 @@ export default function DietClient({ initialFoods }: DietClientProps) {
                   totalFoodGroups={totalFoodGroups}
                   totalSelectedFoods={totalSelectedFoods}
                   totalMeals={state.meals.length}
+                  totalRecipes={state.meals.filter((m: any) => m?.name?.trim()).length}
                   totalCartItems={state.includeCartSection ? state.autoCartItems.length : 0}
                   totalResources={state.includeResourcesSection ? state.selectedResourceIds.length : 0}
                   totalAvoidFoods={state.avoidFoods.length}
                   calorieTarget={state.macroTargets.calories}
                   onExportPdf={() => void state.performExportPdf()}
+                  onPreviewPdf={() => void state.handlePreviewPdf()}
                   onSaveCreation={() => state.setIsSaveCreationModalOpen(true)}
+                  isExportingPdf={state.isExportingPdf}
+                  isGeneratingPreview={state.isGeneratingPreview}
                   includeFoodTableSection={state.includeFoodTableSection}
                   setIncludeFoodTableSection={state.setIncludeFoodTableSection}
+                  includeRecipesSection={state.includeRecipesSection}
+                  setIncludeRecipesSection={state.setIncludeRecipesSection}
                   includeMealsSection={state.includeMealsSection}
                   setIncludeMealsSection={state.setIncludeMealsSection}
                   includeCartSection={state.includeCartSection}
                   setIncludeCartSection={state.setIncludeCartSection}
                   includeResourcesSection={state.includeResourcesSection}
                   setIncludeResourcesSection={state.setIncludeResourcesSection}
+                  includeExchangeGuideInPdf={state.includeExchangeGuideInPdf}
+                  setIncludeExchangeGuideInPdf={state.setIncludeExchangeGuideInPdf}
                   includeAvoidFoodsInPdf={state.includeAvoidFoodsInPdf}
                   setIncludeAvoidFoodsInPdf={state.setIncludeAvoidFoodsInPdf}
                   includeIntroInPdf={state.includeIntroInPdf}
@@ -743,6 +748,23 @@ export default function DietClient({ initialFoods }: DietClientProps) {
         allowedTypes={["RECIPE", "RECETARIO", "FAST_DELIVERABLE"]}
         allowFreemium
       />
+
+      <Modal
+        isOpen={Boolean(state.previewPdfUrl)}
+        onClose={state.closePreviewPdf}
+        title="Vista previa del PDF"
+        className="max-w-5xl"
+      >
+        {state.previewPdfUrl && (
+          <div className="h-[75vh] overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+            <iframe
+              src={`${state.previewPdfUrl}#toolbar=1&navpanes=0`}
+              title="Vista previa del plan PDF"
+              className="h-full w-full border-0"
+            />
+          </div>
+        )}
+      </Modal>
     </>
   );
 }

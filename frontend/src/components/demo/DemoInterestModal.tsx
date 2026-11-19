@@ -28,7 +28,40 @@ export function DemoInterestModal({ isOpen, onClose }: DemoInterestModalProps) {
 
     setIsSubmitting(true);
     try {
-      // 1. Enviar a Support Requests (almacenado en DB)
+      // 1. Guardar copia local en localStorage para respaldo offline
+      try {
+        const localKey = "nutrinet_demo_support_v3";
+        const existing = JSON.parse(localStorage.getItem(localKey) || "[]");
+        localStorage.setItem(
+          localKey,
+          JSON.stringify([
+            ...existing,
+            {
+              email: cleanEmail,
+              fullName: fullName.trim() || "No especificado",
+              type: "CONTACT",
+              subject: "Interés en NutriNet (Demo)",
+              date: new Date().toISOString(),
+            },
+          ]),
+        );
+      } catch (localErr) {
+        console.warn("Error guardando copia local de interés:", localErr);
+      }
+
+      // 2. Enviar a Next.js Route Handler (/api/demo-interest) directo vía Resend
+      const directRoutePromise = fetch("/api/demo-interest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: cleanEmail,
+          fullName: fullName.trim(),
+        }),
+      }).catch((err) => {
+        console.warn("Direct /api/demo-interest fallback:", err);
+      });
+
+      // 3. Enviar a Support Requests en el Backend (/support)
       const supportPromise = fetchApi("/support", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -42,7 +75,7 @@ export function DemoInterestModal({ isOpen, onClose }: DemoInterestModalProps) {
         console.warn("Error en /support:", err);
       });
 
-      // 2. Enviar a Landing Leads (si está disponible)
+      // 4. Enviar a Landing Leads (si está disponible)
       const leadPromise = fetchApi("/landing/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -57,7 +90,7 @@ export function DemoInterestModal({ isOpen, onClose }: DemoInterestModalProps) {
         console.warn("Error en /landing/leads:", err);
       });
 
-      await Promise.allSettled([supportPromise, leadPromise]);
+      await Promise.allSettled([directRoutePromise, supportPromise, leadPromise]);
 
       setIsSubmitted(true);
       toast.success("¡Gracias! Hemos registrado tu interés exitosamente.");

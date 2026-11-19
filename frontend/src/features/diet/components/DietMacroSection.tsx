@@ -115,10 +115,10 @@ export const DietMacroSection: React.FC<DietMacroSectionProps> = ({
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-1">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-[#626573]">
             Objetivos energéticos
           </p>
-          <h2 className="flex items-center gap-2 text-base sm:text-lg font-bold text-slate-900">
+          <h2 className="flex items-center gap-2 text-base sm:text-lg font-bold text-[#20212B]">
             <Scale className="h-4 w-4 text-[#86A83C]" />
             Macros y déficit clínico
           </h2>
@@ -130,7 +130,7 @@ export const DietMacroSection: React.FC<DietMacroSectionProps> = ({
               key={item.label}
               type="button"
               variant="outline"
-              className="h-9 cursor-pointer rounded-xl border-[#E9E5E7] text-xs font-semibold text-slate-600 hover:border-[#86A83C] hover:bg-[#F0F5DF] hover:text-[#668E20] transition-colors"
+              className="h-9 cursor-pointer rounded-xl border-[#E9E5E7] text-xs font-semibold text-[#626573] hover:border-[#86A83C] hover:bg-[#F0F5DF] hover:text-[#668E20] transition-colors"
               onClick={() => {
                 updateField("calorieAdjustmentMode", item.mode);
                 updateDeficit(item.value);
@@ -144,7 +144,7 @@ export const DietMacroSection: React.FC<DietMacroSectionProps> = ({
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
         <div className="space-y-1.5">
-          <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+          <label className="text-[10px] font-semibold uppercase tracking-wider text-[#626573]">
             Peso de referencia
           </label>
           <Input
@@ -155,23 +155,23 @@ export const DietMacroSection: React.FC<DietMacroSectionProps> = ({
             onChange={(e) =>
               updateField("referenceWeightKg", clampNumber(Number(e.target.value)))
             }
-            className="h-10 rounded-xl border-[#E9E5E7] bg-white text-xs font-semibold text-[#20212B]"
+            className="h-10 rounded-xl border-[#E9E5E7] bg-white text-xs font-normal text-[#20212B] focus:border-[#86A83C] focus:ring-1 focus:ring-[#86A83C]"
             placeholder="kg"
           />
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+          <label className="text-[10px] font-semibold uppercase tracking-wider text-[#626573]">
             Modo de ajuste
           </label>
           <div className="flex h-10 items-center gap-1 rounded-xl border border-[#E9E5E7] bg-slate-50/80 p-1">
             <button
               type="button"
               onClick={() => updateField("calorieAdjustmentMode", "kcal")}
-              className={`flex-1 rounded-lg px-2.5 py-1 text-xs font-bold transition-all cursor-pointer ${
+              className={`flex-1 rounded-lg px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer ${
                 macroSettings.calorieAdjustmentMode === "kcal"
                   ? "bg-white text-[#668E20] shadow-2xs"
-                  : "text-slate-500 hover:text-slate-700"
+                  : "text-[#626573] hover:text-[#20212B]"
               }`}
             >
               kcal
@@ -179,10 +179,10 @@ export const DietMacroSection: React.FC<DietMacroSectionProps> = ({
             <button
               type="button"
               onClick={() => updateField("calorieAdjustmentMode", "percent")}
-              className={`flex-1 rounded-lg px-2.5 py-1 text-xs font-bold transition-all cursor-pointer ${
+              className={`flex-1 rounded-lg px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer ${
                 macroSettings.calorieAdjustmentMode === "percent"
                   ? "bg-white text-[#668E20] shadow-2xs"
-                  : "text-slate-500 hover:text-slate-700"
+                  : "text-[#626573] hover:text-[#20212B]"
               }`}
             >
               %
@@ -191,7 +191,7 @@ export const DietMacroSection: React.FC<DietMacroSectionProps> = ({
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+          <label className="text-[10px] font-semibold uppercase tracking-wider text-[#626573]">
             {macroSettings.calorieAdjustmentMode === "percent"
               ? "Déficit (%)"
               : "Ajuste (kcal)"}
@@ -201,25 +201,25 @@ export const DietMacroSection: React.FC<DietMacroSectionProps> = ({
             step={macroSettings.calorieAdjustmentMode === "percent" ? "1" : "10"}
             value={macroSettings.calorieAdjustment}
             onChange={(e) => updateDeficit(Number(e.target.value))}
-            className="h-10 rounded-xl border-[#E9E5E7] bg-white text-xs font-semibold text-[#20212B]"
+            className="h-10 rounded-xl border-[#E9E5E7] bg-white text-xs font-normal text-[#20212B] focus:border-[#86A83C] focus:ring-1 focus:ring-[#86A83C]"
             placeholder={macroSettings.calorieAdjustmentMode === "percent" ? "%" : "kcal"}
           />
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+          <label className="text-[10px] font-semibold uppercase tracking-wider text-[#626573]">
             Base estimada
           </label>
-          <div className="flex h-10 items-center rounded-xl border border-[#E9E5E7] bg-slate-50/60 px-3 text-xs font-bold text-slate-800">
+          <div className="flex h-10 items-center rounded-xl border border-[#E9E5E7] bg-slate-50/60 px-3 text-xs font-semibold text-[#20212B]">
             {macroTargets.baseCalories} kcal
           </div>
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-[10px] font-bold uppercase tracking-wider text-[#668E20]">
+          <label className="text-[10px] font-semibold uppercase tracking-wider text-[#668E20]">
             Objetivo final
           </label>
-          <div className="flex h-10 items-center rounded-xl border border-[#DDE7B8] bg-[#F0F5DF] px-3 text-xs font-bold text-[#668E20]">
+          <div className="flex h-10 items-center rounded-xl border border-[#DDE7B8] bg-[#F0F5DF] px-3 text-xs font-semibold text-[#668E20]">
             {macroTargets.calories} kcal
           </div>
         </div>
@@ -244,18 +244,18 @@ export const DietMacroSection: React.FC<DietMacroSectionProps> = ({
                           : "text-amber-600"
                     }`}
                   />
-                  <span className="text-xs font-bold text-slate-700">
+                  <span className="text-xs font-semibold text-[#20212B]">
                     {macro.label}
                   </span>
                 </div>
-                <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-bold text-slate-600">
+                <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-semibold text-[#626573]">
                   {macro.percent}%
                 </span>
               </div>
 
               <div className="grid gap-2.5 sm:grid-cols-2">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  <label className="text-[10px] font-semibold uppercase tracking-wider text-[#626573]">
                     g/kg
                   </label>
                   <Input
@@ -266,12 +266,12 @@ export const DietMacroSection: React.FC<DietMacroSectionProps> = ({
                     onChange={(e) =>
                       updateMacroFromKg(macro.key, Number(e.target.value) || 0)
                     }
-                    className="h-10 rounded-xl border-[#E9E5E7] bg-white text-xs font-semibold text-[#20212B]"
+                    className="h-10 rounded-xl border-[#E9E5E7] bg-white text-xs font-normal text-[#20212B] focus:border-[#86A83C] focus:ring-1 focus:ring-[#86A83C]"
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  <label className="text-[10px] font-semibold uppercase tracking-wider text-[#626573]">
                     g totales
                   </label>
                   <Input
@@ -282,19 +282,19 @@ export const DietMacroSection: React.FC<DietMacroSectionProps> = ({
                     onChange={(e) =>
                       updateMacroFromGrams(macro.key, Number(e.target.value) || 0)
                     }
-                    className="h-10 rounded-xl border-[#E9E5E7] bg-white text-xs font-semibold text-[#20212B]"
+                    className="h-10 rounded-xl border-[#E9E5E7] bg-white text-xs font-normal text-[#20212B] focus:border-[#86A83C] focus:ring-1 focus:ring-[#86A83C]"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="rounded-xl border border-[#E9E5E7] bg-slate-50/60 p-2.5 text-slate-500">
-                  <p className="text-[10px] uppercase font-bold text-slate-400">% energía</p>
-                  <p className="mt-0.5 text-xs font-bold text-slate-900">{macro.percent}%</p>
+                <div className="rounded-xl border border-[#E9E5E7] bg-slate-50/60 p-2.5 text-[#626573]">
+                  <p className="text-[10px] uppercase font-semibold text-slate-400">% energía</p>
+                  <p className="mt-0.5 text-xs font-semibold text-[#20212B]">{macro.percent}%</p>
                 </div>
-                <div className="rounded-xl border border-[#E9E5E7] bg-slate-50/60 p-2.5 text-slate-500">
-                  <p className="text-[10px] uppercase font-bold text-slate-400">Aporte</p>
-                  <p className="mt-0.5 text-xs font-bold text-slate-900">
+                <div className="rounded-xl border border-[#E9E5E7] bg-slate-50/60 p-2.5 text-[#626573]">
+                  <p className="text-[10px] uppercase font-semibold text-slate-400">Aporte</p>
+                  <p className="mt-0.5 text-xs font-semibold text-[#20212B]">
                     {macro.grams * macro.kcalPerGram} kcal
                   </p>
                 </div>
@@ -304,7 +304,7 @@ export const DietMacroSection: React.FC<DietMacroSectionProps> = ({
         })}
       </div>
 
-      <p className="text-xs leading-relaxed text-slate-500">
+      <p className="text-xs leading-relaxed text-[#626573]">
         Los macronutrientes se sincronizan con el peso de referencia y el ajuste
         calórico. Si cambias los gramos totales, el g/kg se recalcula automáticamente
         y viceversa.

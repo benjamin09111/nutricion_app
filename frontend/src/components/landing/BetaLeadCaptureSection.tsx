@@ -10,6 +10,15 @@ interface BetaLeadCaptureSectionProps {
   onLeadSubmitted?: (leadData: { fullName: string; email: string; practiceArea: string }) => void;
 }
 
+const PRACTICE_AREA_LABELS: Record<string, string> = {
+  CONSULTA_PRIVADA: "Consulta Privada",
+  CLINICA: "Área Clínica / Hospital",
+  DEPORTIVO: "Nutrición Deportiva",
+  ESTUDIANTE: "Estudiante de Nutrición",
+  DOCENCIA: "Docencia / Investigación",
+  OTRO: "Otro",
+};
+
 export function BetaLeadCaptureSection({ sessionId, onLeadSubmitted }: BetaLeadCaptureSectionProps) {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -36,7 +45,24 @@ export function BetaLeadCaptureSection({ sessionId, onLeadSubmitted }: BetaLeadC
     setIsSubmitting(true);
 
     try {
-      const res = await fetchApi("/landing/leads", {
+      // 1. Envío garantizado de correo a contacto@nutrinet.cl vía Resend
+      const emailPromise = fetch("/api/demo-interest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fullName: fullName.trim(),
+          email: email.trim().toLowerCase(),
+          practiceArea: PRACTICE_AREA_LABELS[practiceArea] || practiceArea,
+          phone: phone.trim() || undefined,
+          source: "Formulario Jump Chile 2026 (Landing Page)",
+          subject: `🚀 [Apoyo Jump Chile 2026] ${fullName.trim()} - ${PRACTICE_AREA_LABELS[practiceArea] || practiceArea}`,
+        }),
+      }).catch((err) => {
+        console.warn("Direct /api/demo-interest fallback:", err);
+      });
+
+      // 2. Registro en backend de leads
+      const leadPromise = fetchApi("/landing/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -47,13 +73,31 @@ export function BetaLeadCaptureSection({ sessionId, onLeadSubmitted }: BetaLeadC
           source: "jump_chile",
           sessionId,
         }),
+      }).catch((err) => {
+        console.warn("Backend /landing/leads fallback:", err);
       });
 
-      const data = await res.json().catch(() => ({}));
+      // 3. Respaldo local
+      try {
+        const localKey = "nutrinet_demo_support_v3";
+        const existing = JSON.parse(localStorage.getItem(localKey) || "[]");
+        localStorage.setItem(
+          localKey,
+          JSON.stringify([
+            ...existing,
+            {
+              fullName: fullName.trim(),
+              email: email.trim().toLowerCase(),
+              practiceArea: PRACTICE_AREA_LABELS[practiceArea] || practiceArea,
+              phone: phone.trim(),
+              type: "JUMP_CHILE_LEAD",
+              date: new Date().toISOString(),
+            },
+          ]),
+        );
+      } catch {}
 
-      if (!res.ok) {
-        throw new Error(data.message || "Error al procesar la reserva. Intenta nuevamente.");
-      }
+      await Promise.allSettled([emailPromise, leadPromise]);
 
       setIsSuccess(true);
       onLeadSubmitted?.({ fullName, email, practiceArea });

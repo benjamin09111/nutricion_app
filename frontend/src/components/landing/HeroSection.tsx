@@ -1,15 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { Sparkles, ShieldCheck, Check, Clock, Quote } from "lucide-react";
+import { Sparkles, ShieldCheck, Check, Clock, Quote, Play, Heart } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 
 interface HeroSectionProps {
   onExploreFeaturesClick?: () => void;
   onProbarNutriNetClick?: () => void;
+  onWatchDemoClick?: () => void;
+  onInterestClick?: () => void;
 }
 
-export function HeroSection({ onExploreFeaturesClick, onProbarNutriNetClick }: HeroSectionProps) {
+export function HeroSection({
+  onExploreFeaturesClick,
+  onProbarNutriNetClick,
+  onWatchDemoClick,
+  onInterestClick,
+}: HeroSectionProps) {
   return (
     <section className="relative overflow-hidden pt-28 pb-16 sm:pt-32 sm:pb-20 lg:pt-40 lg:pb-24">
       <div className="mx-auto max-w-5xl px-4 sm:px-6">
@@ -69,31 +76,73 @@ export function HeroSection({ onExploreFeaturesClick, onProbarNutriNetClick }: H
           </div>
 
           {/* Botones de Acción Minimalistas NutriNet */}
-          <div className="flex flex-col items-center justify-center gap-4 pt-4 sm:flex-row">
+          <div className="flex flex-col items-center justify-center gap-3.5 pt-4 sm:flex-row flex-wrap">
             {onProbarNutriNetClick ? (
               <Button
                 onClick={onProbarNutriNetClick}
-                className="w-full sm:w-auto rounded-full h-14 px-9 text-sm font-bold uppercase tracking-wider bg-[#86A83C] hover:bg-[#78A82F] text-white transition-all duration-300 hover:scale-105 hover:shadow-xl shadow-[#86A83C]/20 cursor-pointer"
+                className="w-full sm:w-auto rounded-full h-13 px-8 text-xs sm:text-sm font-bold uppercase tracking-wider bg-[#86A83C] hover:bg-[#78A82F] text-white transition-all duration-300 hover:scale-105 hover:shadow-xl shadow-[#86A83C]/20 cursor-pointer flex items-center justify-center gap-2"
               >
+                <Sparkles className="h-4 w-4" />
                 PROBAR NUTRINET
               </Button>
             ) : (
               <Link href="/dashboard" className="w-full sm:w-auto">
                 <Button
-                  className="w-full sm:w-auto rounded-full h-14 px-9 text-sm font-bold uppercase tracking-wider bg-[#86A83C] hover:bg-[#78A82F] text-white transition-all duration-300 hover:scale-105 hover:shadow-xl shadow-[#86A83C]/20 cursor-pointer"
+                  className="w-full sm:w-auto rounded-full h-13 px-8 text-xs sm:text-sm font-bold uppercase tracking-wider bg-[#86A83C] hover:bg-[#78A82F] text-white transition-all duration-300 hover:scale-105 hover:shadow-xl shadow-[#86A83C]/20 cursor-pointer flex items-center justify-center gap-2"
                 >
+                  <Sparkles className="h-4 w-4" />
                   PROBAR NUTRINET
                 </Button>
               </Link>
             )}
 
-            <a href="#planes" className="w-full sm:w-auto">
+            {/* Botón Ver Video Demo */}
+            {onWatchDemoClick ? (
+              <Button
+                variant="outline"
+                onClick={onWatchDemoClick}
+                className="w-full sm:w-auto rounded-full h-13 px-6 text-xs sm:text-sm font-bold text-slate-800 bg-white border-2 border-slate-200 hover:border-[#86A83C] hover:bg-[#F0F5DF]/60 transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 shadow-2xs"
+              >
+                <Play className="h-4 w-4 fill-slate-800 text-slate-800" />
+                <span>Ver video demo</span>
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+                  10 min
+                </span>
+              </Button>
+            ) : (
+              <a href="#video-demo" className="w-full sm:w-auto">
+                <Button
+                  variant="outline"
+                  className="w-full sm:w-auto rounded-full h-13 px-6 text-xs sm:text-sm font-bold text-slate-800 bg-white border-2 border-slate-200 hover:border-[#86A83C] hover:bg-[#F0F5DF]/60 transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 shadow-2xs"
+                >
+                  <Play className="h-4 w-4 fill-slate-800 text-slate-800" />
+                  <span>Ver video demo</span>
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+                    10 min
+                  </span>
+                </Button>
+              </a>
+            )}
+
+            {/* Botón Me interesa NutriNet */}
+            {onInterestClick && (
+              <Button
+                variant="outline"
+                onClick={onInterestClick}
+                className="w-full sm:w-auto rounded-full h-13 px-6 text-xs sm:text-sm font-bold text-indigo-700 bg-white border-2 border-indigo-200/90 hover:border-indigo-400 hover:bg-indigo-50/70 transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 shadow-2xs"
+              >
+                <Heart className="h-4 w-4 text-indigo-600 fill-indigo-100" />
+                <span>Me interesa NutriNet</span>
+              </Button>
+            )}
+
+            <a href="#funcionalidades" className="w-full sm:w-auto">
               <Button
                 variant="outline"
                 onClick={onExploreFeaturesClick}
-                className="w-full sm:w-auto rounded-full h-14 px-8 text-sm font-bold text-[#a88aed] border-2 border-[#a88aed]/30 hover:border-[#a88aed] hover:bg-[#a88aed]/10 transition-all duration-300 cursor-pointer"
+                className="w-full sm:w-auto rounded-full h-13 px-6 text-xs sm:text-sm font-bold text-[#a88aed] border-2 border-[#a88aed]/30 hover:border-[#a88aed] hover:bg-[#a88aed]/10 transition-all duration-300 cursor-pointer"
               >
-                Conocer Funcionalidades
+                Funcionalidades
               </Button>
             </a>
           </div>

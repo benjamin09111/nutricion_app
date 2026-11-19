@@ -20,6 +20,8 @@ import {
   Star,
   Sparkles,
   Rocket,
+  Play,
+  Heart,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
@@ -27,6 +29,7 @@ import { useInView } from "@/hooks/useInView";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { getMembershipFeatureDisplay } from "@/features/memberships/utils/feature-format";
 import { type MembershipPlan } from "@/features/memberships/services/membership.service";
+import { DEFAULT_LANDING_PLANS } from "@/features/memberships/constants/default-plans";
 import { sortPlansForLanding } from "@/features/memberships/utils/sort-plans";
 import { CookieBanner } from "@/components/landing/CookieBanner";
 import {
@@ -35,8 +38,11 @@ import {
 import { AboutNutriNetNavExtension } from "@/components/landing/AboutNutriNetNavExtension";
 import { useLandingTracker } from "@/hooks/useLandingTracker";
 import { HeroSection } from "@/components/landing/HeroSection";
+import { DemoVideoSection } from "@/components/landing/DemoVideoSection";
+import { FeaturesSection } from "@/components/landing/FeaturesSection";
 import { BetaLeadCaptureSection } from "@/components/landing/BetaLeadCaptureSection";
 import { DemoRoleSelectorModal } from "@/components/landing/DemoRoleSelectorModal";
+import { DemoInterestModal } from "@/components/demo/DemoInterestModal";
 
 const toMembershipPlanArray = (value: unknown): MembershipPlan[] => {
   let list: MembershipPlan[] = [];
@@ -56,13 +62,25 @@ export default function LandingPage() {
   const { sessionId, trackEvent } = useLandingTracker();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
-  const [plans, setPlans] = useState<MembershipPlan[]>([]);
+  const [isInterestModalOpen, setIsInterestModalOpen] = useState(false);
+  const [plans, setPlans] = useState<MembershipPlan[]>(DEFAULT_LANDING_PLANS);
   const [isAboutDropdownOpen, setIsAboutDropdownOpen] = useState(false);
   const headerRef = useRef<HTMLElement>(null);
 
   const handleExploreFeaturesClick = () => {
     trackEvent("EXPLORE_FEATURES_CLICK");
-    const targetElement = document.getElementById("planes");
+    const targetElement = document.getElementById("funcionalidades");
+    if (targetElement) {
+      const headerOffset = 80;
+      const elementPosition = targetElement.getBoundingClientRect().top;
+      const offsetPosition = elementPosition + window.scrollY - headerOffset;
+      window.scrollTo({ top: offsetPosition, behavior: "smooth" });
+    }
+  };
+
+  const handleWatchDemoClick = () => {
+    trackEvent("WATCH_DEMO_CLICK");
+    const targetElement = document.getElementById("video-demo");
     if (targetElement) {
       const headerOffset = 80;
       const elementPosition = targetElement.getBoundingClientRect().top;
@@ -78,7 +96,12 @@ export default function LandingPage() {
   useEffect(() => {
     fetchApi(`/memberships/active`)
       .then((res) => res.json())
-      .then((data) => setPlans(toMembershipPlanArray(data)))
+      .then((data) => {
+        const parsed = toMembershipPlanArray(data);
+        if (parsed.length > 0) {
+          setPlans(parsed);
+        }
+      })
       .catch(() => {});
   }, []);
 
@@ -209,7 +232,17 @@ export default function LandingPage() {
             </button>
 
             <a
-              href="#planes"
+              href="#video-demo"
+              className="text-sm font-semibold transition-colors duration-200 text-slate-700 hover:text-slate-900 flex items-center gap-1.5"
+            >
+              <Play className="h-3.5 w-3.5 text-[#86A83C] fill-[#86A83C]" />
+              <span>Video demo</span>
+              <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">
+                10 min
+              </span>
+            </a>
+            <a
+              href="#funcionalidades"
               className="text-sm font-semibold transition-colors duration-200 text-slate-700 hover:text-slate-900"
             >
               Funcionalidades
@@ -220,6 +253,14 @@ export default function LandingPage() {
             >
               Precios
             </a>
+            <button
+              type="button"
+              onClick={() => setIsInterestModalOpen(true)}
+              className="text-sm font-semibold transition-colors duration-200 text-indigo-700 hover:text-indigo-900 flex items-center gap-1.5 cursor-pointer"
+            >
+              <Heart className="h-3.5 w-3.5 fill-indigo-100 text-indigo-600" />
+              <span>Me interesa</span>
+            </button>
             <Link
               href="/login"
               className="text-sm font-semibold transition-colors duration-200 text-slate-700 hover:text-slate-900"
@@ -283,7 +324,20 @@ export default function LandingPage() {
               </div>
 
               <a
-                href="#planes"
+                href="#video-demo"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="flex items-center justify-between rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              >
+                <span className="flex items-center gap-2">
+                  <Play className="h-4 w-4 text-[#86A83C] fill-[#86A83C]" />
+                  Ver video demo
+                </span>
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
+                  10 min
+                </span>
+              </a>
+              <a
+                href="#funcionalidades"
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
               >
@@ -296,6 +350,17 @@ export default function LandingPage() {
               >
                 Precios
               </a>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  setIsInterestModalOpen(true);
+                }}
+                className="flex items-center gap-2 text-left rounded-2xl border border-indigo-200 bg-indigo-50/50 px-4 py-3 text-sm font-semibold text-indigo-800 transition hover:bg-indigo-100/50 cursor-pointer"
+              >
+                <Heart className="h-4 w-4 fill-indigo-200 text-indigo-600" />
+                Me interesa NutriNet (Apoyar)
+              </button>
               <Link
                 href="/login"
                 onClick={() => setIsMobileMenuOpen(false)}
@@ -323,9 +388,22 @@ export default function LandingPage() {
         <HeroSection
           onExploreFeaturesClick={handleExploreFeaturesClick}
           onProbarNutriNetClick={() => setIsDemoModalOpen(true)}
+          onWatchDemoClick={handleWatchDemoClick}
+          onInterestClick={() => setIsInterestModalOpen(true)}
         />
 
-        {/* 2. PLANES (Pricing Section) */}
+        {/* 2. DEMO VIDEO SECTION (10 min, comienza en 00:00:12) */}
+        <DemoVideoSection
+          onProbarNutriNetClick={() => setIsDemoModalOpen(true)}
+          onInterestClick={() => setIsInterestModalOpen(true)}
+        />
+
+        {/* 3. FUNCIONALIDADES PRINCIPALES (Super simple de la demo) */}
+        <FeaturesSection
+          onProbarNutriNetClick={() => setIsDemoModalOpen(true)}
+        />
+
+        {/* 4. PLANES (Pricing Section) */}
         <section
           id="planes"
           ref={pricingRef}
@@ -365,6 +443,8 @@ export default function LandingPage() {
             >
               {sortedPlans.map((plan) => {
                 const isPopular = plan.isPopular;
+                const isCustomPricePlan = plan.slug === "pack" || plan.billingPeriod === "custom";
+
                 return (
                   <div
                     key={plan.id}
@@ -398,17 +478,30 @@ export default function LandingPage() {
                           {plan.name}
                         </h3>
                         <div className="flex flex-col items-center justify-center min-h-[64px] gap-0.5">
-                          {Number(plan.price) > 0 && Number(plan.price) < 25000 && (
-                            <span className="text-xs font-semibold text-slate-400 line-through tracking-tight">
-                              $25.000 / mes
-                            </span>
+                          {isCustomPricePlan ? (
+                            <div className="flex flex-col items-center justify-center min-h-[64px] gap-1">
+                              <span className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900">
+                                A convenir
+                              </span>
+                              <span className="text-[11px] font-semibold text-indigo-700 bg-indigo-50 px-3 py-0.5 rounded-full border border-indigo-100/80">
+                                Según cantidad de profesionales
+                              </span>
+                            </div>
+                          ) : (
+                            <>
+                              {Number(plan.price) > 0 && Number(plan.price) < 25000 && (
+                                <span className="text-xs font-semibold text-slate-400 line-through tracking-tight">
+                                  $25.000 / mes
+                                </span>
+                              )}
+                              <div className="flex items-baseline justify-center gap-1">
+                                <span className="text-4xl sm:text-5xl font-black tracking-tight text-slate-900">
+                                  ${Number(plan.price).toLocaleString("es-CL")}
+                                </span>
+                                <span className="text-slate-500 text-xs sm:text-sm font-semibold">/mes</span>
+                              </div>
+                            </>
                           )}
-                          <div className="flex items-baseline justify-center gap-1">
-                            <span className="text-4xl sm:text-5xl font-black tracking-tight text-slate-900">
-                              ${Number(plan.price).toLocaleString("es-CL")}
-                            </span>
-                            <span className="text-slate-500 text-xs sm:text-sm font-semibold">/mes</span>
-                          </div>
                         </div>
                         {plan.description && (
                           <p className="mt-3 text-sm text-slate-500">
@@ -474,7 +567,15 @@ export default function LandingPage() {
                       </ul>
 
                       <div className="pt-4 border-t border-slate-100">
-                        {plan.isComingSoon ? (
+                        {isCustomPricePlan ? (
+                          <Button
+                            type="button"
+                            onClick={() => setIsInterestModalOpen(true)}
+                            className="w-full rounded-full h-12 text-sm font-bold uppercase tracking-wider bg-slate-900 hover:bg-slate-800 text-white transition-all duration-300 hover:scale-105 cursor-pointer shadow-md"
+                          >
+                            Cotizar Plan Clínicas
+                          </Button>
+                        ) : plan.isComingSoon ? (
                           <Button
                             disabled
                             className="w-full rounded-full h-12 text-sm font-bold bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed"
@@ -554,6 +655,10 @@ export default function LandingPage() {
       <DemoRoleSelectorModal
         isOpen={isDemoModalOpen}
         onClose={() => setIsDemoModalOpen(false)}
+      />
+      <DemoInterestModal
+        isOpen={isInterestModalOpen}
+        onClose={() => setIsInterestModalOpen(false)}
       />
     </div>
   );
